@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,16 @@
  * @file ie_input_info.hpp
  */
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <map>
 #include <memory>
@@ -22,10 +32,11 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START
 /**
  * @brief This class contains information about each input of the network
  */
-class InputInfo {
+class INFERENCE_ENGINE_1_0_DEPRECATED InputInfo {
 public:
     /** @brief A smart pointer to the InputInfo instance */
     using Ptr = std::shared_ptr<InputInfo>;
@@ -129,11 +140,12 @@ public:
     }
 
     /**
-     * @brief Initializes the pointer to the input data that stores the main input parameters like dims, etc
+     * @brief Initializes the pointer to the input data that stores the main input parameters like dims,
+     * etc
      *
      * This method initializes the precision with the information from the inputPtr if it was not set
-     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does not overwrite
-     * the precision.
+     * explicitly through InputInfo::setPrecision. If InputInfo::setPrecision is called, this method does
+     * not overwrite the precision.
      * @param inputPtr Pointer to the input data to set
      */
     void setInputData(DataPtr inputPtr) {
@@ -188,5 +200,6 @@ using InputsDataMap = std::map<std::string, InputInfo::Ptr>;
  * @brief A collection that contains string as key, and const InputInfo smart pointer as value
  */
 using ConstInputsDataMap = std::map<std::string, InputInfo::CPtr>;
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

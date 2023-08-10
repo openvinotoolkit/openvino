@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -127,7 +127,7 @@ class TestGather(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, concat_output_shape)
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -279,5 +279,7 @@ class TestGather(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,
                                              temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

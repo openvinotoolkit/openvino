@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API SoftmaxFusion;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SoftmaxFusion transformation replaces following graph:
+ * @brief SoftmaxFusion transformation replaces following graphs:
  *
  *            +---------------+
  *            │               │
@@ -63,6 +63,38 @@ class TRANSFORMATIONS_API SoftmaxFusion;
  *             │             │
  *             +-------------+
  *
+ *  and
+ *            +---------------+
+ *            │               │
+ *            │     input     │
+ *            │               │
+ *            +---------------+
+ *                    |
+ *                    |
+ *                    |
+ *                    v
+ *            +---------------+
+ *            │               │
+ *            │      Exp      │
+ *            │               │
+ *            +---------------+
+ *                │      │
+ *                │      v
+ *                │ +-----------+
+ *                │ │           │
+ *                │ │ ReduceSum │
+ *                │ │           │
+ *                │ +-----------+
+ *                │      │
+ *                │      │
+ *                v      v
+ *             +-------------+
+ *             |             │
+ *             |     Div     │
+ *             │             │
+ *             +-------------+
+ *
+ *
  * to a single Softmax node
  *
  * * Restrictions:
@@ -74,9 +106,3 @@ public:
     OPENVINO_RTTI("SoftmaxFusion", "0");
     SoftmaxFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SoftmaxFusion;
-}  // namespace pass
-}  // namespace ngraph

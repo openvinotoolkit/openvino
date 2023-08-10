@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ public:
 protected:
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE };
     }

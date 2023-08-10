@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,8 +59,6 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();

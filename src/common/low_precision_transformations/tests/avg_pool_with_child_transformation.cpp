@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,8 +63,8 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
         transform.transform(actualFunction);
 
@@ -104,7 +104,7 @@ public:
 };
 
 TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(actualFunction, referenceFunction, true, true);

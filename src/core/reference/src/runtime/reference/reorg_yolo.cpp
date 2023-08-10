@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ void reorg_yolo(const char* arg, char* out, const Shape& in_shape, int64_t strid
 
     size_t impl_out_C = in_C / (stride * stride);
     if (impl_out_C == 0) {
-        throw ngraph_error("ReorgYolo. For [N, C, H, W] input shape, C >= (stride*stride) is "
-                           "required.");
+        OPENVINO_THROW("ReorgYolo. For [N, C, H, W] input shape, C >= (stride*stride) is "
+                       "required.");
     }
     size_t impl_out_H = in_H * stride;
     size_t impl_out_W = in_W * stride;

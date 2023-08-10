@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,11 +152,11 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
     scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
 
-    for (const auto& it : params.axesAndScales) {
-        int idx = getAxisIndex(it.first);
+    for (std::size_t i = 0; i < params.axes.size(); i++) {
+        int idx = getAxisIndex(params.axes[i]);
         axesUsed[idx] = 1;
         if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
-            scales[idx] = 1.f / it.second;
+            scales[idx] = 1.f / params.scales[i];
     }
     for (size_t i = 0; i < scales.size(); ++i) {
         if (scales[i] != 1.f)
@@ -229,7 +229,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }

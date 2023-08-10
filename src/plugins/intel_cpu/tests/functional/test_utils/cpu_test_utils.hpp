@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <string>
-#include <ngraph/variant.hpp>
 #include "ie_system_conf.h"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <exec_graph_info.hpp>
@@ -136,13 +135,15 @@ public:
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
                                                          std::string name);
 
+    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::set<std::string>& nodeType) const;
+    void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const;
 
     static const char* any_type;
 
 protected:
-    virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.
@@ -174,8 +175,10 @@ const std::map<std::string, std::string> cpuBF16PluginConfig =
 
 
 // utility functions
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
-void CheckNumberOfNodesWithType(ov::CompiledModel &compiledModel, std::string nodeType, size_t expectedCount);
-void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
+std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams);
+void CheckNumberOfNodesWithType(const ov::CompiledModel &compiledModel, const std::string& nodeType, size_t expectedCount);
+void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType, size_t expectedCount);
+void CheckNumberOfNodesWithTypes(const ov::CompiledModel &compiledModel, const std::unordered_set<std::string>& nodeTypes, size_t expectedCount);
+void CheckNumberOfNodesWithTypes(InferenceEngine::ExecutableNetwork &execNet, const std::unordered_set<std::string>& nodeTypes, size_t expectedCount);
 } // namespace CPUTestUtils

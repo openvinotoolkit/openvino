@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -11,7 +12,6 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -20,8 +20,8 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, prior_box_op) {
     NodeBuilder::get_ops().register_factory<opset1::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::v0::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
@@ -106,8 +106,8 @@ TEST(attributes, prior_box_op2) {
 
 TEST(attributes, prior_box_v8_op) {
     NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
-    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
+    const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{2});
 
     op::v8::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};

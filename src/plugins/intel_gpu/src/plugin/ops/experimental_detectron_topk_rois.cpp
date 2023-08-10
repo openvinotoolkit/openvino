@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ void CreateExperimentalDetectronTopKROIsOp(Program &p,
                                            const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs> &op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
-    auto max_rois = op->get_max_rois();
+    auto max_rois = static_cast<uint32_t>(op->get_max_rois());
     auto layer_name = layer_type_name_ID(op);
     auto argmax_layer_name = layer_name + "_topk";
     auto top_k_indices = arg_max_min(argmax_layer_name,
                                      {inputs[1]}, ov::op::TopKMode::MAX, max_rois, 0,
-                                     ov::op::TopKSortType::SORT_VALUES, false, cldnn::padding(), cldnn::data_types::i32);
+                                     ov::op::TopKSortType::SORT_VALUES, false, false, cldnn::padding(), cldnn::data_types::i32);
 
 
     p.add_primitive(*op, top_k_indices);

@@ -1,5 +1,11 @@
 # Cos {#openvino_docs_ops_arithmetic_Cos_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Cos-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Cos-1*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +14,9 @@
 
 **Detailed description**: *Cos* performs element-wise cosine operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = cos(a_{i})
-\f]
+.. math::
+   
+   a_{i} = cos(a_{i})
 
 **Attributes**: *Cos* operation has no attributes.
 
@@ -26,22 +32,24 @@ a_{i} = cos(a_{i})
 
 * *T*: any numeric type.
 
-
 **Example**
 
-```xml
-<layer ... type="Cos">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="Cos">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective

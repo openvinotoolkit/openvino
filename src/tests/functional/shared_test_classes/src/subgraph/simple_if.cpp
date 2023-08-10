@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,10 +17,10 @@ std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfP
     std::ostringstream results;
     for (size_t i = 0; i < shapes.size(); i++) {
         results << "Input" << i << "_";
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes[i].first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes[i].first}) << "_";
         results << "TS=";
         for (const auto &item : shapes[i].second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
     }
     results << "inType=" << inType << "_";

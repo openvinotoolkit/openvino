@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shape_of_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "to_string_utils.h"
 #include <string>
@@ -25,7 +24,7 @@ layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_
         dt = impl_param.get_fused_output_layout().data_type;
     }
 
-    cldnn::tensor out_size{static_cast<tensor::value_type>(prim->output_rank), 1, 1, 1};
+    cldnn::tensor out_size{static_cast<tensor::value_type>(prim->input_rank), 1, 1, 1};
 
     return layout{dt, format::bfyx, out_size};
 }

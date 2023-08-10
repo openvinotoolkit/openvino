@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,16 +17,16 @@ class Node::Impl {
 public:
     Impl() = delete;
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
+    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
-          m_graph{&graph},
+          m_graph{graph},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
         const auto& attributes = node_proto.attribute();
         m_attributes.reserve(attributes.size());
         for (const auto& attr_proto : attributes) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->mmap_enabled());
             const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
@@ -34,16 +34,16 @@ public:
     }
 
     Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
-         const Graph& graph,
+         Graph* graph,
          const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& subgraphs)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
-          m_graph{&graph},
+          m_graph{graph},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
           m_subgraphs(subgraphs) {
         for (const auto& attr_proto : node_proto.attribute()) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->mmap_enabled());
         }
     }
 
@@ -87,7 +87,7 @@ public:
                                                                     element::Type type) const;
 
     const ONNX_NAMESPACE::NodeProto& node_proto() const;
-    const Graph& graph() const;
+    Graph* graph() const;
 
 private:
     Subgraph get_subgraph_from_attribute(const std::string& name) const;
@@ -95,7 +95,7 @@ private:
     const ONNX_NAMESPACE::NodeProto* m_node_proto;
     std::string m_name;
     std::string m_domain;
-    const Graph* m_graph;
+    Graph* m_graph;
     std::vector<Attribute> m_attributes;
     std::vector<std::reference_wrapper<const std::string>> m_output_names;
     mutable std::string m_description;
@@ -103,11 +103,12 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
-const Graph& Node::Impl::graph() const {
-    return *m_graph;
+Graph* Node::Impl::graph() const {
+    return m_graph;
 }
 const std::vector<Attribute>& Node::Impl::attributes() const {
     return m_attributes;
@@ -204,7 +205,9 @@ OutputVector Node::Impl::get_ng_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ng_node_from_cache(name));
         } else {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             result.push_back(std::make_shared<NullNode>()->output(0));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -226,7 +229,7 @@ const std::string& Node::Impl::description() const {
 template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name) const {
     const auto value = get_attribute_value<T>(name);
-    const element::Type type = element::from<T>();
+    const element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
@@ -234,7 +237,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             T default_value) const {
     const auto value = get_attribute_value<T>(name, default_value);
-    const element::Type type = element::from<T>();
+    const element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, Shape{}, value);
 }
 
@@ -243,7 +246,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                                                             T default_value,
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name, default_value);
-    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
                                                   Shape{},
                                                   value);
 }
@@ -252,7 +255,7 @@ template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(const std::string& name,
                                                                             element::Type type) const {
     const auto value = get_attribute_value<T>(name);
-    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? element::from<T>() : type,
+    return std::make_shared<ov::op::v0::Constant>(type == element::undefined ? ov::element::from<T>() : type,
                                                   Shape{},
                                                   value);
 }
@@ -287,7 +290,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
     return ov::op::v0::Constant::create(type != element::undefined ? type : element::i64, {value.size()}, value);
 }
 
-Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
+Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
     : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -369,6 +372,7 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     }
     return *found_attr;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {

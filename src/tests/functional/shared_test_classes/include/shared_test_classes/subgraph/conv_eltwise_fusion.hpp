@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,12 @@
 namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
-        ngraph::NodeTypeInfo,       // Convolution type
         std::tuple<
-            ngraph::NodeTypeInfo,   // Eltwise type
-            int64_t                 // Expected number of ops
+            ngraph::NodeTypeInfo,   // Convolution type
+            size_t                  // Number of inputs
         >,
+        ngraph::NodeTypeInfo,       // Eltwise type
+        bool,                       // Is the test negative or not
         ngraph::Shape,              // Input shape
         ngraph::Shape,              // Weights shape
         ngraph::Shape,              // Const shape

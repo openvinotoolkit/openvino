@@ -9,7 +9,7 @@
 jobs:
 - job: Lin_lohika
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_LOHIKA
@@ -29,9 +29,8 @@ jobs:
     displayName: fetch
 
 #  - checkout: self
-#    clean: true
-#    lfs: false
-#    submodules: recursive
+#    clean: 'true'
+#    submodules: 'true'
 #    path: openvino
 
   - checkout: none
@@ -41,8 +40,9 @@ jobs:
 
     # Should be after 'Install dependencies' because Git lfs is not installed
 #  - checkout: testdata
-#    clean: true
-#    lfs: true
+#    clean: 'true'
+#    submodules: 'true'
+#    lfs: 'true'
 #    path: testdata
 
   - script: env -C ~/work ./configreleasenolto.sh
@@ -53,6 +53,7 @@ jobs:
 #      # CMake must get Python 3.x version by default
 #      cmakeArgs: >
 #        -GNinja
+#        -DENABLE_CPPLINT=OFF
 #        -DCMAKE_VERBOSE_MAKEFILE=ON
 #        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
 #        -DENABLE_PYTHON=ON
@@ -61,18 +62,17 @@ jobs:
 #        -DENABLE_OV_ONNX_FRONTEND=ON
 #        -DENABLE_FASTER_BUILD=ON
 #        -DENABLE_STRICT_DEPENDENCIES=OFF
-#        -DENABLE_REQUIREMENTS_INSTALL=OFF
 #        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-#        $(REPO_DIR)
-#      workingDirectory: $(BUILD_DIR)
+#        -S $(REPO_DIR)
+#        -B $(BUILD_DIR)
 
-  - script: >
+  - script: |
       env -C ~/work
       ./buildreleasenolto.sh
       libopenvino_gapi_preproc.so
       openvino_intel_cpu_plugin
       openvino_intel_gpu_plugin
-      clDNN_unit_tests64
+      ov_gpu_unit_tests
       gpuFuncTests
     displayName: Build Lin
 

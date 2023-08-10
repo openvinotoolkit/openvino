@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
-#include "kernel_selector_common.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -18,8 +18,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<deconvolution, dnnl::deconvolution_forward::desc>;
+struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
+    using parent = typed_primitive_onednn_impl<deconvolution>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -29,114 +29,120 @@ protected:
         return make_unique<deconvolution_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
-        bool res = true;
-
-        auto outer_id = instance.id();
-        auto data_type = instance.node->input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     std::unordered_map<int, dnnl::memory> get_arguments(deconvolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
         auto& engine = instance.get_network().get_engine();
         auto onednn_engine = engine.get_onednn_engine();
 
         {
-            auto weights = instance.weights_memory(0);
-            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
+            auto weights = instance.weights_memory();
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.bias_term()) {
-            auto bias = instance.bias_memory(0);
-            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
+            auto bias = instance.bias_memory();
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
-        auto attrs = arg.get_onednn_primitive_attributes();
-
-        return attrs;
+        return arg.get_onednn_primitive_attributes();
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
-
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
-        auto weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
-        kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
-        r_params.rotate_180 = false;
+        auto input_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
 
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
+        auto output_weights_layout = input_weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                     kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                     kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.dest = r_params.output;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, grouped_weights);
     }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        ob << make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
+        const dnnl::deconvolution_forward::primitive_desc *typed_pd
+            = reinterpret_cast<const dnnl::deconvolution_forward::primitive_desc *>(&_pd);
+
+        ob << typed_pd->get_strides();
+        ob << typed_pd->get_dilations();
+        ob << typed_pd->get_padding_l();
+        ob << typed_pd->get_padding_r();
+        ob << typed_pd->bias_desc().is_zero();
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const char dummy_mem[sizeof(dnnl::deconvolution_forward::desc)] = {};
-        const dnnl::deconvolution_forward::desc *dummy_opdesc
-            = reinterpret_cast<const dnnl::deconvolution_forward::desc *>(&dummy_mem[0]);
-        _desc = std::make_shared<dnnl::deconvolution_forward::desc>(std::move(*dummy_opdesc));
-        ib >> make_data(&_desc->data, sizeof(dnnl_deconvolution_desc_t));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
+        auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+
+        dnnl::memory::dims strides;
+        dnnl::memory::dims dilates;
+        dnnl::memory::dims padding_l;
+        dnnl::memory::dims padding_r;
+        ib >> strides;
+        ib >> dilates;
+        ib >> padding_l;
+        ib >> padding_r;
+
+        bool zero_bias;
+        ib >> zero_bias;
+
+        if (zero_bias) {
+            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
+                                    input_md, weights_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        } else {
+            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
+            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
+                                    input_md, weights_md, bias_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        }
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _scratchpad_md = _pd.scratchpad_desc();
+
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto desc = get_deconvolution_descriptor(impl_params);
+        auto& config = impl_params.prog->get_config();
         auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+        auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<deconvolution_onednn>(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 

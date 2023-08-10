@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,8 +67,8 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+DepthToSpace::DepthToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -125,7 +125,6 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.outConfs.resize(1);
     config.inConfs[0].inPlace(-1);
@@ -162,8 +161,8 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
 }
 
 void DepthToSpace::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -186,12 +185,12 @@ void DepthToSpace::createPrimitive() {
 }
 
 void DepthToSpace::prepareParams() {
-    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    attrs.srcBlockedDims = getParentEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto builder = [](const DepthToSpaceAttrs& key) -> std::shared_ptr<DepthToSpaceExecutor> {
         return std::make_shared<DepthToSpaceExecutor>(key);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "DepthToSpaceExecutor was not found for node " << getName() << ".";
@@ -289,12 +288,12 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
     if (!permuteKernel)
         IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
 
     permuteKernel->execute(srcData, dstData, MB);
 }
@@ -304,7 +303,7 @@ void DepthToSpace::execute(dnnl::stream strm) {
         THROW_ERROR << "doesn't have a compiled executor.";
     }
 
-    int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    int MB = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0];
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,31 +11,32 @@
 #include <vector>
 #include "common/dnnl_executor.h"
 
+#include "executors/deconv_list.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void createPrimitive() override;
-    void filterSupportedPrimitiveDescriptors() override;
-    void filterSupportedDescriptors();
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getParentEdges().size());
     }
 
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -43,21 +44,21 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     const VectorDims& getWeightDims() const { return getInputShapeAtPort(1).getStaticDims(); }
-    const std::vector<ptrdiff_t>& getStride() const { return stride; }
+    const std::vector<ptrdiff_t>& getStride() const { return deconvAttrs.stride; }
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
 
-    void setDynamicBatchLim(int lim) override;
-    bool canBeExecutedInInt8() const;
     bool canFuseBias() const;
+    bool canBeExecutedInInt8() const override;
 
 protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
+    std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
@@ -80,6 +81,9 @@ private:
                                const dnnl::memory::desc& outMemDesc,
                                const dnnl::engine& engine);
     };
+    // have to hold reference (shared_ptr) to forward convolution primitive_desc
+    // since backward one uses the reference to it as a hint
+    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;
@@ -87,23 +91,20 @@ private:
     bool autoPad = false;
     bool externOutShape = false;
     size_t groupNum = 1;
-    size_t IC;
-    size_t OC;
-    std::vector<ptrdiff_t> kernel;
-    std::vector<ptrdiff_t> stride;
-    std::vector<ptrdiff_t> dilation;
-    ov::CoordinateDiff paddingL;
-    ov::CoordinateDiff paddingR;
-    ov::CoordinateDiff outputPadding;
+    size_t IC = 0;
+    size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
     VectorDims int8WeightDims;
-    VectorDims biasesDims;
+    VectorDims expectedBiasDims {};
+
+    bool useACL = false;
+    DeconvAttrs deconvAttrs;
 
     Shape inShape;
 
     AttrPtr pAttr;
 
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);

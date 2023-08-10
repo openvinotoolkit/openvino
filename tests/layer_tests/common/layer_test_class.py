@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -11,8 +11,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from common.utils.common_utils import generate_ir
-from common.utils.parsers import mapping_parser
+from common.utils.common_utils import generate_ir_python_api
 
 
 class CommonLayerTest:
@@ -34,17 +33,17 @@ class CommonLayerTest:
                                                        Example: "transform_1,transform_2"
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
-
         self.use_new_frontend = use_new_frontend
         self.use_old_api = use_old_api
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
+        compress_to_fp16 = False if precision == 'FP32' else True
         mo_params = {self.input_model_key: model_path,
                      "output_dir": temp_dir,
-                     "data_type": precision, "model_name": 'model'
-                     }
+                     "compress_to_fp16": compress_to_fp16,
+                     "model_name": 'model'}
 
         if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
             input_shapes_str = []
@@ -60,7 +59,7 @@ class CommonLayerTest:
         else:
             mo_params["use_legacy_frontend"] = True
 
-        exit_code, stderr = generate_ir(**mo_params)
+        exit_code, stderr = generate_ir_python_api(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
@@ -75,6 +74,12 @@ class CommonLayerTest:
         #     ir = IREngine(path_to_xml, path_to_bin, precision=precision)
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
+
+        config = None
+        # GPU default execution precision is FP16, so if we want to check FP32 inference
+        # we need to set explicit precision hint
+        if ie_device == 'GPU' and precision == 'FP32':
+            config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
         if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,
@@ -93,7 +98,7 @@ class CommonLayerTest:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
@@ -102,23 +107,16 @@ class CommonLayerTest:
         # Framework infer:
         fw_res = self.get_framework_results(inputs_dict=inputs_dict, model_path=model_path)
 
-        if len(fw_res) == len(infer_res) == 1:
-            # match output layers directly
-            mapping_dict = {next(iter(fw_res)): next(iter(infer_res))}
-        else:
-            # Load mapping file
-            mapping_dict = mapping_parser(path_to_xml.with_suffix('.mapping'))
-
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
-            custom_eps = 1e-4
-
+            if precision == 'FP32':
+                custom_eps = 1e-4
+            else:
+                custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
-                                                      mapping_dict=mapping_dict,
-                                                      framework_eps=fw_eps), \
+                                                      framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 
@@ -150,21 +148,14 @@ class CommonLayerTest:
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict,
-                                          framework_eps):
+    def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-
-            if framework_out_name not in list(infer_res.keys()):
-                if framework_out_name not in mapping_dict:
-                    raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
-                ie_out_name = mapping_dict[framework_out_name]
-            else:
-                ie_out_name = framework_out_name
+            ie_out_name = framework_out_name
 
             if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
                             atol=framework_eps,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_transform.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace ngraph;
 
@@ -33,7 +34,7 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
         return static_cast<size_t>(tmpBuff);
     }
     default: {
-        throw ngraph_error(std::string("Unsupported input data type: ") + element_type.get_type_name());
+        OPENVINO_THROW("Unsupported input data type: ", element_type.to_string());
     }
     }
 }
@@ -50,16 +51,16 @@ void runtime::reference::gather_tree(const char* step_ids,
                                      const Shape& end_token_shape,
                                      const element::Type& element_type) {
     if (step_ids_shape != parent_ids_shape) {
-        throw ngraph_error("step_ids shape and parent_ids shape must be the same");
+        OPENVINO_THROW("step_ids shape and parent_ids shape must be the same");
     }
     if (step_ids_shape.size() != 3) {
-        throw ngraph_error("step_ids must be a 3-tensor");
+        OPENVINO_THROW("step_ids must be a 3-tensor");
     }
     if (!is_vector(max_seq_len_shape)) {
-        throw ngraph_error("max_seq_len must be a vector");
+        OPENVINO_THROW("max_seq_len must be a vector");
     }
     if (!is_scalar(end_token_shape)) {
-        throw ngraph_error("end_token must be a scalar");
+        OPENVINO_THROW("end_token must be a scalar");
     }
 
     const size_t max_time = step_ids_shape.at(0);
@@ -69,7 +70,7 @@ void runtime::reference::gather_tree(const char* step_ids,
     const size_t elem_size = element_type.size();
 
     if (max_seq_len_shape.front() != batch_size) {
-        throw ngraph_error("max_seq_len must have size of BATCH_SIZE");
+        OPENVINO_THROW("max_seq_len must have size of BATCH_SIZE");
     }
 
     const auto in_strides = row_major_strides(step_ids_shape);

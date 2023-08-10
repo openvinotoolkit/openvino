@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,14 +131,14 @@ public:
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ngraph::opset1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         SimpleLowPrecisionTransformer transformer(supportedPrecisionsOnActivation, quantizationRestrictions);
@@ -213,13 +213,13 @@ TEST_P(ConcatWithFQTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    const auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     if (testValues.axis == 1) {
         ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
             << "PrecisionsAttribute are not the same";
 
         if (testValues.checkIntervalsAlignmentAttributes) {
-            auto operations = LayerTransformation::get<opset1::Concat>(actualFunction);
+            auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
             operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
             ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(operations))
                 << "IntervalsAlignmentAttribute are not the same";
@@ -988,7 +988,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {0.f, 0.f, 0.f},
           {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
           {0.f, 0.f, 0.f},
-          {2.55f, 2.55f, 2.55}},
+          {2.55f, 2.55f, 2.55f}},
          {},
          {},
          {256ul,

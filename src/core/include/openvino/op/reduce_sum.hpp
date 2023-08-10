@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API ReduceSum : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a summation operation.
     ReduceSum() = default;
     /// \brief Constructs a summation operation.
@@ -72,11 +72,6 @@ public:
     ReduceSum(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims = false);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    /// \return The default value for Sum.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,6 +145,10 @@ _OPENVINO_OP_REG(IsFinite, op::v10)
 _OPENVINO_OP_REG(IsInf, op::v10)
 _OPENVINO_OP_REG(IsNaN, op::v10)
 _OPENVINO_OP_REG(Unique, op::v10)
+
+_OPENVINO_OP_REG(Interpolate, op::v11)
+
+_OPENVINO_OP_REG(GroupNormalization, ov::op::v12)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

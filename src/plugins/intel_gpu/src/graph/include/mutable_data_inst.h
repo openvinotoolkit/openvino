@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "primitive_inst.h"
@@ -43,8 +42,10 @@ public:
     static std::string to_string(mutable_data_node const& node);
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
 private:
     std::list<primitive_id> _user_ids;

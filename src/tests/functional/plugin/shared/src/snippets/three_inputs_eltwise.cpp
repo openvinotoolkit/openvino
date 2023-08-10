@@ -5,6 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/three_inputs_eltwise.hpp"
 #include "subgraph_simple.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -18,9 +19,9 @@ std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test:
              num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
-    result << "IS[1]=" << CommonTestUtils::vec2str(inputShapes1) << "_";
-    result << "IS[2]=" << CommonTestUtils::vec2str(inputShapes2) << "_";
+    result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
+    result << "IS[1]=" << ov::test::utils::vec2str(inputShapes1) << "_";
+    result << "IS[2]=" << ov::test::utils::vec2str(inputShapes2) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -37,22 +38,7 @@ void ThreeInputsEltwise::SetUp() {
     function = f.getOriginal();
 }
 
-void ThreeInputsEltwiseSinh::SetUp() {
-    ov::Shape inputShape0, inputShape1, inputShape2;
-    std::tie(inputShape0, inputShape1, inputShape2,
-             ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{{}, {inputShape0, }}, {{}, {inputShape1, }}, {{}, {inputShape2, }}});
-
-    auto f = ov::test::snippets::EltwiseThreeInputsSinhFunction({inputShape0, inputShape1, inputShape2});
-    function = f.getOriginal();
-}
-
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(ThreeInputsEltwiseSinh, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

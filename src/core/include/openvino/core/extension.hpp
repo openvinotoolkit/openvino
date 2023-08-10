@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,8 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/type.hpp"
 
-// Use extern "C" in order to avoid issues with mangling
-#if defined(_WIN32) && defined(IMPLEMENT_OPENVINO_EXTENSION_API)
-#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
-#    define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
-#else
-#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
-#    define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
-#endif
+#define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
 
 namespace ov {
 

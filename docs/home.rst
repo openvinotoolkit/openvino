@@ -1,119 +1,118 @@
-.. OpenVINO Toolkit documentation master file, created by
-   sphinx-quickstart on Wed Jul  7 10:46:56 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+============================
+OpenVINO 2023.0
+============================
 
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
 
-.. rst-class:: openvino-intro-text
-
-   OpenVINO is an open-source toolkit for optimizing and deploying deep learning models. It provides boosted deep learning performance for vision, audio, and language models from popular frameworks like TensorFlow, PyTorch, and more. `Get started with OpenVINO. <get_started.html>`__
-
-.. rst-class:: openvino-chart
-
-   .. image:: _static/images/openvino_diagram.svg
-
-
-Overview
-~~~~~~~~
-
-OpenVINO enables you to optimize a deep learning model from almost any framework and deploy it with best-in-class performance on a range of Intel  processors and other hardware platforms.
-
-A typical workflow with OpenVINO is shown below.
-
 .. raw:: html
-
-   <div class="section" id="welcome-to-openvino-toolkit-s-documentation">
 
    <link rel="stylesheet" type="text/css" href="_static/css/homepage_style.css">
 
-      <div style="clear:both;"> </div>
-
-      <div id="HP_flow-container">
-		   <div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_model_processing_introduction.html">
-	   			<img src="_static/images/OV_flow_model_hvr.svg" alt="link to model processing introduction" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_optimization_guide_dldt_optimization_guide.html">
-	   			<img src="_static/images/OV_flow_optimization_hvr.svg" alt="link to an optimization guide" /> 
-	   		</a>
-	   	</div>
-	   	<div class="HP_flow-arrow" >
-	   			<img src="_static/images/OV_flow_arrow.svg" alt="" /> 
-	   	</div>
-	   	<div class="HP_flow-btn">
-	   		<a href="https://docs.openvino.ai/latest/openvino_docs_deployment_guide_introduction.html">
-	   			<img src="_static/images/OV_flow_deployment_hvr.svg" alt="link to deployment introduction" /> 
-	   		</a>
-		   </div>
-	   </div>
 
 
-High-Performance Deep Learning
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. container::
+   :name: ov-homepage-banner
 
-OpenVINO Runtime automatically optimizes deep learning pipelines using aggressive graph fusion, memory reuse, load balancing, and inferencing parallelism across CPU, GPU, VPU, and more.
-You can integrate and offload to accelerators additional operations for pre- and post-processing to reduce end-to-end latency and improve throughput.
+   OpenVINO 2023.0
 
-Model Quantization and Compression
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   .. raw:: html
 
-Boost your model’s speed even further with quantization and other state-of-the-art compression techniques available in OpenVINO’s Post-Training Optimization Tool and Neural Network Compression Framework. These techniques also reduce your model size and memory requirements, allowing it to be deployed on resource-constrained edge hardware. 
+      <div class="line-block">
+         <section class="splide" aria-label="Splide Banner Carousel">
+           <div class="splide__track">
+         		<ul class="splide__list">
+         			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
+			         <li class="splide__slide">Even more integrations in 2023.0!<br>Load TensorFlow, TensorFlow Lite, and PyTorch models directly, without manual conversion.<br><a href="https://docs.openvino.ai/2023.0/Supported_Model_Formats.html">See the supported model formats...</a></li>
+         			<li class="splide__slide">CPU inference has become even better. ARM processors are supported and thread scheduling is available on 12th gen Intel® Core and up.<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_OV_Runtime_User_Guide.html">See how to run OpenVINO on various devices...</a></li>
+         			<li class="splide__slide">Post-training optimization and quantization-aware training now in one tool!<br><a href="https://docs.openvino.ai/2023.0/openvino_docs_model_optimization_guide.html">See the new NNCF capabilities...</a></li>
+         		</ul>
+           </div>
+         </section>
+      </div>
+   
+   .. button-ref::  get_started
+      :ref-type: doc
+      :class: ov-homepage-banner-btn
+      :color: primary
+      :outline:
 
-.. panels::
-   :card: homepage-panels
+      Get started
 
-   **Local Inferencing & Model Serving**
+.. rst-class:: openvino-diagram
 
-   You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Serving to serve model inference from separate server or within Kubernetes environment
-
-   ---
-
-   **Improved Application Portability**
-
-   Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and provides Python, C++ and C API. Use your preferred language and OS.
-
-   ---
-
-   **Minimal External Dependencies**
-
-   Designed with minimal external dependencies reduces the application footprint, simplifying installation and dependency management. Popular package managers enable application dependencies to be easily installed and upgraded. Custom compilation for your specific model(s) further reduces final binary size.
-
-   ---
-
-   **Enhanced App Start-Up Time**
-
-   In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the CPU for initial inference and then switching to GPU or VPU once the model has been compiled and loaded to memory. Compiled models are cached to further improving start-up time.
+   .. image:: _static/images/ov_homepage_diagram.png
+      :align: center
 
 
-Supported Devices
-~~~~~~~~~~~~~~~~~
+.. grid:: 2 2 3 3
+   :class-container: ov-homepage-higlight-grid
 
-OpenVINO is supported on a wide range of hardware platforms. Visit the `Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__ page for a full list of OpenVINO-compatible platforms.
+   .. grid-item-card:: Performance Benchmarks
+      :link: openvino_docs_performance_benchmarks
+      :link-alt: performance benchmarks     
+      :link-type: doc
 
-* All Intel Xeon, Core, and Atom CPUs, with boosted performance on 11th generation Core CPUs and 3rd generation Xeon CPUs or newer
-* Intel integrated GPUs including Intel UHD Graphics and Intel Iris Xe
-* Intel discrete GPUs including Iris Xe MAX and Arc
-* Intel accelerators such as VPUs and GNAs
-* Arm CPU, including Apple ARM based SoCs
+      See latest benchmark numbers for OpenVINO and OpenVINO Model Server
 
-Check the `Performance Benchmarks <openvino_docs_performance_benchmarks.html>`__ page to see how fast OpenVINO runs popular models on a variety of processors. OpenVINO supports deployment on Windows, Linux, and macOS.
+   .. grid-item-card:: Flexible Workflow
+      :link: Supported_Model_Formats
+      :link-alt: Supported Model Formats     
+      :link-type: doc
 
-Install OpenVINO
-~~~~~~~~~~~~~~~~
+      Load models directly (for TensorFlow, ONNX, PaddlePaddle) or convert to the OpenVINO format.
 
-`Go to installation to set up OpenVINO on your device. <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
+   .. grid-item-card:: Run Inference
+      :link: openvino_docs_OV_UG_Integrate_OV_with_your_application
+      :link-alt: integrating OpenVINO with your app     
+      :link-type: doc
 
-Get Started
-~~~~~~~~~~~
+      Get results in just a few lines of code
 
-`Visit the Get Started Guide to learn the basics of OpenVINO and explore its features with quick start examples. <get_started.html>`__
+   .. grid-item-card:: Deploy at Scale With OpenVINO Model Server
+      :link: ovms_what_is_openvino_model_server
+      :link-alt: model server    
+      :link-type: doc
+
+      Cloud-ready deployments for microservice applications
+
+   .. grid-item-card:: Model Optimization
+      :link: openvino_docs_model_optimization_guide
+      :link-alt: model optimization    
+      :link-type: doc
+
+      Reach for performance with post-training and training-time compression with NNCF
+
+
+Feature Overview
+##############################
+
+.. grid:: 1 2 2 2
+   :class-container: ov-homepage-feature-grid
+
+   .. grid-item-card:: Local Inference & Model Serving
+
+      You can either link directly with OpenVINO Runtime to run inference locally or use OpenVINO Model Server 
+      to serve model inference from a separate server or within Kubernetes environment
+
+   .. grid-item-card:: Improved Application Portability
+
+      Write an application once, deploy it anywhere, achieving maximum performance from hardware. Automatic device 
+      discovery allows for superior deployment flexibility. OpenVINO Runtime supports Linux, Windows and MacOS and 
+      provides Python, C++ and C API. Use your preferred language and OS.
+
+   .. grid-item-card:: Minimal External Dependencies
+
+      Designed with minimal external dependencies reduces the application footprint, simplifying installation and 
+      dependency management. Popular package managers enable application dependencies to be easily installed and 
+      upgraded. Custom compilation for your specific model(s) further reduces final binary size.
+
+   .. grid-item-card:: Enhanced App Start-Up Time
+
+      In applications where fast start-up is required, OpenVINO significantly reduces first-inference latency by using the 
+      CPU for initial inference and then switching to another device once the model has been compiled and loaded to memory. 
+      Compiled models are cached improving start-up time even more.
+
 
 
 .. toctree::
@@ -126,5 +125,5 @@ Get Started
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <release_notes>
 

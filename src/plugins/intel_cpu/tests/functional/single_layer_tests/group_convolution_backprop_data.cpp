@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,20 +54,20 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inputShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "PRC=" << prec << "_";
-        result << "K=" << CommonTestUtils::vec2str(kernel) << "_";
-        result << "S=" << CommonTestUtils::vec2str(stride) << "_";
-        result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
-        result << "PE=" << CommonTestUtils::vec2str(padEnd) << "_";
-        result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
-        result << "OP=" << CommonTestUtils::vec2str(outPadding) << "_";
+        result << "K=" << ov::test::utils::vec2str(kernel) << "_";
+        result << "S=" << ov::test::utils::vec2str(stride) << "_";
+        result << "PB=" << ov::test::utils::vec2str(padBegin) << "_";
+        result << "PE=" << ov::test::utils::vec2str(padEnd) << "_";
+        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
+        result << "OP=" << ov::test::utils::vec2str(outPadding) << "_";
         result << "O=" << convOutChannels << "_";
         result << "G=" << groupNum << "_";
         result << "AP=" << padType << "_";
@@ -75,7 +75,7 @@ public:
         result << "OUT_D=";
         for (const auto& data : outShapeData) {
             result << "(";
-            result << CommonTestUtils::vec2str(data);
+            result << ov::test::utils::vec2str(data);
             result << ")_";
         }
 
@@ -95,7 +95,7 @@ public:
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -203,7 +203,7 @@ protected:
     void SetUp() override {
         rel_threshold = 1e-4f;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
@@ -250,7 +250,6 @@ private:
     InferenceEngine::SizeVector dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels, groupNum;
-    ngraph::helpers::InputLayerType outShapeType;
     std::vector<std::vector<int32_t>> outShapeData;
     size_t inferRequestNum = 0;
 };

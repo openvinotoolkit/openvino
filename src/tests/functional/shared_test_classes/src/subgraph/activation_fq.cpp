@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,9 @@ namespace SubgraphTestsDefinitions {
         std::tie(levels, constShape, inputParams) = fqParams;
 
         std::ostringstream result;
-        result << "InputShape=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-        result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
+        result << "InputShape=" << ov::test::utils::vec2str(inputShapes) << "_";
+        result << "CS=" << ov::test::utils::vec2str(constShape) << "_";
+        result << "LEVELS=" << ov::test::utils::vec2str(levels) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "inPRC=" << inPrc.name() << "_";
         result << "outPRC=" << outPrc.name() << "_";

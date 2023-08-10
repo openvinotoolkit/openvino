@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,28 +33,22 @@ std::shared_ptr<Node> op::internal::MulticlassNmsIEInternal::clone_with_new_inpu
     } else if (new_args.size() == 2) {
         return std::make_shared<MulticlassNmsIEInternal>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    throw ngraph::ngraph_error("Unsupported number of inputs: " + std::to_string(new_args.size()));
+    OPENVINO_THROW("Unsupported number of inputs: " + std::to_string(new_args.size()));
 }
 
 void op::internal::MulticlassNmsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MulticlassNmsIEInternal_validate_and_infer_types);
-    const auto output_type = get_attrs().output_type;
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto output_shapes = shape_infer(this, input_shapes, false, true);
 
     validate();
 
-    const auto& boxes_ps = get_input_partial_shape(0);
-    const auto& scores_ps = get_input_partial_shape(1);
-    std::vector<PartialShape> input_shapes = {boxes_ps, scores_ps};
-    if (get_input_size() == 3) {
-        const auto& roisnum_ps = get_input_partial_shape(2);
-        input_shapes.push_back(roisnum_ps);
-    }
-
-    std::vector<PartialShape> output_shapes = {{Dimension::dynamic(), 6},
-                                               {Dimension::dynamic(), 1},
-                                               {Dimension::dynamic()}};
-    shape_infer(this, input_shapes, output_shapes, true, true);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
-    set_output_type(1, output_type, output_shapes[1]);
+    const auto& output_type = get_attrs().output_type;
+    set_output_type(0, get_input_element_type(0), output_shapes[0].get_max_shape());
+    set_output_type(1, output_type, output_shapes[1].get_max_shape());
     set_output_type(2, output_type, output_shapes[2]);
 }

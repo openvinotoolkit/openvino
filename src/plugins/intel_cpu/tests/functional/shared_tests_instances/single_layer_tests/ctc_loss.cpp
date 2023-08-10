@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Set1, CTCLossLayerTest,
                             ctcLossArgsSubset1,
                             ::testing::ValuesIn(fPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         CTCLossLayerTest::getTestCaseName);
 
 const auto ctcLossArgsSubset2 = ::testing::Combine(
@@ -61,6 +61,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Set2, CTCLossLayerTest,
                             ctcLossArgsSubset2,
                             ::testing::ValuesIn(fPrecisions),
                             ::testing::ValuesIn(iPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         CTCLossLayerTest::getTestCaseName);
 }  // namespace

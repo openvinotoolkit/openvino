@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -18,7 +17,10 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
     auto desc = impl_param.typed_desc<gather>();
 
     auto input_layout = impl_param.get_input_layout();
-    std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
+    std::vector<tensor::value_type> dims_converted;
+    for (auto dim : desc->output_shape) {
+        dims_converted.push_back(static_cast<tensor::value_type>(dim));
+    }
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++)
         dims_converted.push_back(1);
@@ -86,9 +88,9 @@ std::vector<layout> gather_inst::calc_output_layouts(gather_node const& /*node*/
 
     int64_t axis = desc->axis;
 
-    auto axis_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{2, axis_tensor}};
-    ov::op::util::shape_infer(&op, input_shapes, output_shapes, const_data);
+    auto axis_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&axis));
+    std::unordered_map<size_t, ov::Tensor> const_data = {{2, axis_tensor}};
+    output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
 

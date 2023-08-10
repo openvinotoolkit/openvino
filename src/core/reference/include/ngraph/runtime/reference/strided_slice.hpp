@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,9 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+NGRAPH_SUPPRESS_DEPRECATED_START
 void strided_slice(const char* arg, char* out, const Shape& arg_shape, const SlicePlan& sp, size_t elem_type);
-}
+NGRAPH_SUPPRESS_DEPRECATED_END
+}  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

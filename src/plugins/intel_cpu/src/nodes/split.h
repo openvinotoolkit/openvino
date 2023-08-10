@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace node {
 
 class Split : public Node {
 public:
-    Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -23,20 +23,19 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    bool isOptimized() const;
     void initOptimalPrimitiveDescriptor() override;
 
-    void setDynamicBatchLim(int lim) override;
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;
+    bool needShapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
 private:
     struct SplitExecutor {
-        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                          const Dim origBatch, const Dim perInferBatch) = 0;
+        virtual void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) = 0;
         virtual ~SplitExecutor() = default;
     };
     std::shared_ptr<SplitExecutor> execPtr = nullptr;
@@ -44,8 +43,7 @@ private:
     struct SplitOptimizedExecutor : public SplitExecutor {
         public:
             SplitOptimizedExecutor(BlockedMemoryDescCPtr inDesc, const std::vector<BlockedMemoryDescCPtr> &outDescs, const size_t axis);
-            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs,
-                      const Dim origBatch, const Dim perInferBatch) override;
+            void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
         private:
             std::vector<size_t> dataSize;
@@ -63,6 +61,8 @@ private:
     std::vector<std::pair<size_t, MemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
+    bool constSplitLengths = true;
+    std::vector<int> splitLengths;
 };
 
 }   // namespace node

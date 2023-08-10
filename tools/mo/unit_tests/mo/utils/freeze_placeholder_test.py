@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -28,6 +28,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     args.framework = "onnx"
     args.model_name = None
     args.input_model = None
+    args.input_checkpoint = None
     args.silent = True
     args.transform = []
     args.scale = None
@@ -40,12 +41,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
     args.output_dir = os.getcwd()
     args.freeze_placeholder_with_value = None
     args.transformations_config = None
-    args.disable_fusing = None
-    args.finegrain_fusing = None
-    args.disable_resnet_optimization = None
-    args.enable_concat_optimization = None
     args.static_shape = None
-    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None
@@ -56,6 +52,7 @@ def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 

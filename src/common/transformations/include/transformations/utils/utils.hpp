@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,6 +86,19 @@ inline std::string get_ie_output_name(const Output<const Node>& output) {
 inline std::string get_ie_output_name(const Output<Node>& output) {
     return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
 }
+
+/**
+ * \brief Convert epsilon value from double to float type.
+ *
+ * If the value is too large, the epsilon is converted to std::numeric_limits<float>::min() or
+ * std::numeric_limits<float>::min(), otherwise static cast to float is called.
+ * The adjustment is made for positive values only, for negative it works as static cast.
+ *
+ * \param eps  Original value of the epsilon (double).
+ *
+ * \return Epsilon value as float.
+ */
+float cast_eps_to_float(double eps_d);
 
 template <typename T>
 bool has_constant_value(const std::shared_ptr<Node>& node,
@@ -188,12 +201,8 @@ template <class T>
 Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
     auto eltwise = std::make_shared<T>(input0, input1);
     OutputVector output(eltwise->get_output_size());
-    if (!eltwise->constant_fold(output, {input0, input1})) {
-        throw ov::Exception("Can not constant fold eltwise node");
-    }
-    if (output.size() != 1) {
-        throw ov::Exception("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
-    }
+    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
+    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
     return output[0];
 }
 
@@ -212,39 +221,11 @@ TRANSFORMATIONS_API bool is_dequantization_subgraph(const Output<Node>& node);
 TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
                                                     const Output<Node>& constant,
                                                     const Output<Node>& non_constant_input);
+
+TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
+
+TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace util {
-using ov::op::util::activation;
-using ov::op::util::broadcastTo;
-using ov::op::util::can_eliminate_eltwise_node;
-using ov::op::util::check_for_broadcast;
-using ov::op::util::clone_try_fold;
-using ov::op::util::constantIsEqualTo;
-using ov::op::util::create_ie_output_name;
-using ov::op::util::eltwise_fold;
-using ov::op::util::get_ie_output_name;
-using ov::op::util::get_node_target_inputs;
-using ov::op::util::get_single_value;
-using ov::op::util::has_constant_value;
-using ov::op::util::has_decompression_converts;
-using ov::op::util::has_f16_constants;
-using ov::op::util::has_op_with_type;
-using ov::op::util::is_dequantization_subgraph;
-using ov::op::util::is_seq_len_provided;
-using ov::op::util::make_try_fold;
-using ov::op::util::node_to_get_shape_value_of_indices_from_shape_node;
-using ov::op::util::node_to_get_shape_value_of_indices_from_shape_source;
-using ov::op::util::normalize_constant;
-using ov::op::util::normalize_single_value;
-using ov::op::util::reshapeTo;
-using ov::op::util::shapes_equal_except_dynamic_expected_batch;
-using ov::op::util::try_fold_unary_output;
-using ov::op::util::visit_shape_path;
-}  // namespace util
-}  // namespace op
-}  // namespace ngraph

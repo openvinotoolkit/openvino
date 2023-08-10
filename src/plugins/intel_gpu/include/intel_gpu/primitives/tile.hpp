@@ -1,23 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs tile operation on input.
 /// @details copies the input data n times across chosen axis.
 struct tile : public primitive_base<tile> {
     CLDNN_DECLARE_PRIMITIVE(tile)
+
+    tile() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs tile primitive with static input.
     /// @param id This primitive id.
@@ -39,8 +36,30 @@ struct tile : public primitive_base<tile> {
 
     /// @brief A per-dimension replication factor
     std::vector<int64_t> repeats;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, repeats.begin(), repeats.end());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const tile>(rhs);
+
+        return repeats == rhs_casted.repeats;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<tile>::save(ob);
+        ob << repeats;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<tile>::load(ib);
+        ib >> repeats;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

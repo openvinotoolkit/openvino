@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <cstdint>
 #include <fstream>
 #include <functional>
 #include <string>
@@ -36,7 +37,11 @@ struct FileTraits<char> {
     }
     static std::string library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {"lib"};
+#    else
         return {""};
+#    endif
 #else
         return {"lib"};
 #endif
@@ -61,7 +66,11 @@ struct FileTraits<wchar_t> {
     }
     static std::wstring library_prefix() {
 #ifdef _WIN32
+#    if defined(__MINGW32__) || defined(__MINGW64__)
+        return {L"lib"};
+#    else
         return {L""};
+#    endif
 #else
         return {L"lib"};
 #endif
@@ -97,9 +106,18 @@ std::string get_file_name(const std::string& path);
  * @brief Interface function to get absolute path of file
  * @param path - path to file, can be relative to current working directory
  * @return Absolute path of file
- * @throw runtime_error if any error occurred
+ * @throw runtime_error if absolute path can't be resolved
  */
 std::string get_absolute_file_path(const std::string& path);
+
+/**
+ * @brief Interface function to check path to file is absolute or not
+ * @param path - path to file, can be relative to current working directory
+ * @return True if path is absolute and False otherwise
+ * @throw runtime_error if any error occurred
+ */
+bool is_absolute_file_path(const std::string& path);
+
 /**
  * @brief Interface function to create directorty recursively by given path
  * @param path - path to file, can be relative to current working directory
@@ -113,6 +131,15 @@ void create_directory_recursive(const std::string& path);
  * @return true if directory exists, false otherwise
  */
 bool directory_exists(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to check if directory exists for given path
+ * @param path - path to directory wide-string
+ * @return true if directory exists, false otherwise
+ */
+bool directory_exists(const std::wstring& path);
+#endif
 
 /**
  * @brief      Returns file size for file
@@ -136,6 +163,28 @@ inline int64_t file_size(const char* path) {
     return in.tellg();
 }
 
+/**
+ * @brief      Returns file size for file
+ * @param[in]  path  The file name
+ * @return     file size
+ */
+inline bool file_exists(const char* path) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring widefilename = ov::util::string_to_wstring(path);
+    const wchar_t* file_name = widefilename.c_str();
+#elif defined(__ANDROID__) || defined(ANDROID)
+    std::string file_name = path;
+    std::string::size_type pos = file_name.find('!');
+    if (pos != std::string::npos) {
+        file_name = file_name.substr(0, pos);
+    }
+#else
+    const char* file_name = path;
+#endif
+    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
+    return in.good();
+}
+
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -147,6 +196,14 @@ inline int64_t file_size(const std::wstring& path) {
     return file_size(wstring_to_string(path).c_str());
 }
 
+/**
+ * @brief      Returns true if file exists
+ * @param[in]  path  The file name
+ * @return     true if file exists
+ */
+inline bool file_exists(const std::wstring& path) {
+    return file_exists(wstring_to_string(path).c_str());
+}
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 /**
@@ -160,13 +217,11 @@ inline int64_t file_size(const std::string& path) {
 
 /**
  * @brief      Returns true if file exists
- * @param[in]  path  The path to file
+ * @param[in]  path  The file name
  * @return     true if file exists
  */
-template <typename C,
-          typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
-inline bool file_exists(const std::basic_string<C>& path) {
-    return file_size(path) > 0;
+inline bool file_exists(const std::string& path) {
+    return file_exists(path.c_str());
 }
 
 std::string get_file_ext(const std::string& path);
@@ -243,6 +298,34 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
 }
 
 /**
+ * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
+ * dynamic loading by OS
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_plugin_path(const std::string& plugin);
+
+/**
+ * @brief Find the plugins which are located together with OV library
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_compiled_plugin_path(const std::string& plugin);
+
+/**
+ * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
+ * dynamic loading by OS
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @param xml_path - Path (absolute or relative) to XML configuration file
+ * @param as_abs_only - Bool value, allows return file names or not
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
+
+/**
  * @brief load binary data from file
  * @param path - binary file path to load
  * @return binary vector
@@ -254,6 +337,23 @@ std::vector<uint8_t> load_binary(const std::string& path);
  * @param path - binary file path to store
  */
 void save_binary(const std::string& path, std::vector<uint8_t> binary);
+void save_binary(const std::string& path, const char* binary, size_t bin_size);
+
+/**
+ * @brief Trim OpenVINO project file name path if OpenVINO project directory found.
+ *
+ * Function use `OV_NATIVE_PARENT_PROJECT_ROOT_DIR` definition with project directory name defines
+ * 'openvino_dir_name'. The input file name is scanned for OV_NATIVE_PARENT_PROJECT_ROOT_DIR,
+ * if found returns pointer to trimmed name otherwise returns input pointer.
+ *
+ * e.g: OV_NATIVE_PARENT_PROJECT_ROOT_DIR = openvino
+ * - /home/user/openvino/src/example.cpp -> src/example.cpp
+ * - ../../../../openvino/src/example.cpp -> src/example.cpp
+ *
+ * @param fname  Pointer to OpenVINO file name path.
+ * @return Pointer to trimmed file name path.
+ */
+const char* trim_file_name(const char* const fname);
 
 }  // namespace util
 }  // namespace ov

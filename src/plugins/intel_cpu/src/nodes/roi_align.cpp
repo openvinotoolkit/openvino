@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 #include <ngraph/opsets/opset9.hpp>
 
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -31,7 +31,7 @@ namespace node {
 
 using ngPoolingMode = ngraph::opset9::ROIAlign::PoolingMode;
 using ngAlignedMode = ngraph::opset9::ROIAlign::AlignedMode;
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
@@ -526,7 +526,7 @@ private:
 
             uni_vmovups(xmm_weights, ptr[reg_weights]);
             if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                // as vex instruction will zero upper bit for xmm version, store result in seperate xmm_dst_tail
+                // as vex instruction will zero upper bit for xmm version, store result in separate xmm_dst_tail
                 uni_vfmadd231ps(xmm_dst_tail, xmm_src, xmm_weights);
             } else {
                 uni_vmulps(xmm_src, xmm_src, xmm_weights);
@@ -648,7 +648,7 @@ private:
         }
     }
 };
-
+#endif
 bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto roiAlign = ngraph::as_type_ptr<const ngraph::opset9::ROIAlign>(op);
@@ -674,8 +674,8 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
@@ -705,9 +705,6 @@ ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& 
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
     if (getParentEdges().size() != 3)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
@@ -749,7 +746,7 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     jcp.layout = selectLayout;
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
-
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>(jcp));
     } else if (mayiuse(cpu::x64::avx2)) {
@@ -757,9 +754,9 @@ void ROIAlign::createJitKernel(const InferenceEngine::Precision& dataPrec, const
     } else if (mayiuse(cpu::x64::sse41)) {
         roi_align_kernel.reset(new jit_uni_roi_align_kernel_f32<cpu::x64::sse41>(jcp));
     }
-
     if (roi_align_kernel)
         roi_align_kernel->create_ker();
+#endif
 }
 
 void ROIAlign::initSupportedPrimitiveDescriptors() {
@@ -778,7 +775,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     }
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
@@ -792,7 +788,6 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     } else {
         impl_type = impl_desc_type::ref;
     }
-
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
             {LayoutType::ncsp, LayoutType::ncsp}
     };
@@ -816,8 +811,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIAlign::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " did not allocate input memory";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -852,8 +847,8 @@ struct ROIAlign::ROIAlignExecute {
     }
 };
 void ROIAlign::execute(dnnl::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
+    auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) ||
           (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
@@ -873,15 +868,15 @@ void ROIAlign::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
-    auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
+    auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
+    auto dstBlockDesc = dstMemory.getDescWithType<BlockedMemoryDesc>();
 
     auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->getData());
+    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
@@ -945,7 +940,7 @@ void ROIAlign::executeSpecified() {
         int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
             IE_THROW() << "Batch index cannot be less, than -1";
-        } else if (roiBatchInd >= inputDimVector[0]) {
+        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
             IE_THROW() << "Demanded batch (id = " << roiBatchInd << ") doesn't exist";
         }
 
@@ -1018,13 +1013,13 @@ void ROIAlign::executeSpecified() {
                         auto sampleXLow = static_cast<unsigned int>(sampleX);
                         unsigned int sampleYHigh;
                         unsigned int sampleXHigh;
-                        if (sampleYLow >= H - 1) {
+                        if (static_cast<int>(sampleYLow) >= H - 1) {
                             sampleYHigh = sampleYLow = H - 1;
                             sampleY = static_cast<float>(sampleYLow);
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= W - 1) {
+                        if (static_cast<int>(sampleXLow) >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {
@@ -1132,7 +1127,7 @@ void ROIAlign::executeSpecified() {
             float numSamplesInBinInvert = 1.f / numSamplesROI;
 
             float pooledValue = 0;
-            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
+            for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
                 float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
                 float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/loop.hpp"
@@ -11,7 +10,6 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "primitive_inst.h"
 #include <string>
@@ -51,36 +49,6 @@ public:
     program::ptr get_body_program() const { return body_program; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
-
-    std::vector<const loop::io_primitive_map*> find_io_primitive_maps(
-                                                            const primitive_id& prim_id,
-                                                            bool is_external) const {
-        std::vector<const loop::io_primitive_map*> ret;
-        if (is_external) {
-            for (const auto& it : input_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        } else {
-            for (const auto& it : input_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        }
-        return ret;
-    }
 
     static size_t convert_to_raw_axis(size_t axis, size_t ndim) {
         // convert between bfyx, bfzyx, bfzyxw and tensor.size.raw
@@ -252,11 +220,8 @@ public:
         } else {
             const auto& body_input_prim = body.at(current_iteration_id);
             const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
-            if (!input_layout_prim) {
-                CLDNN_ERROR_MESSAGE(this->id(), "current_iteration primitive should be cldnn::input_layout");
-            } else {
-                input_layout_prim->change_layout(body_input_layout);
-            }
+            OPENVINO_ASSERT(input_layout_prim, "[GPU] current_iteration primitive should be cldnn::input_layout in node", this->id());
+            input_layout_prim->change_layout(body_input_layout);
         }
 
         // add incremental data: 1
@@ -289,7 +254,7 @@ public:
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
-                body_output_prim.reset(new mutable_data(body_output->first, mem));
+                body_output_prim.reset(new mutable_data(body_output->first, std::move(mem)));
             }
         }
     }
@@ -308,9 +273,7 @@ public:
         }
 
         // setup internal output
-        if (output_primitive_maps.empty()) {
-            CLDNN_ERROR_MESSAGE(this->id(), "output primitive map should have at least 1 mapping");
-        }
+        OPENVINO_ASSERT(!output_primitive_maps.empty(), "[GPU] Output primitive map should have at least 1 mapping in primitive ", this->id());
         std::set<primitive_id> output_names;
         output_names.insert(output_primitive_maps.front().internal_id);
 
@@ -330,8 +293,8 @@ public:
             // input primitive map because its initial value is always
             // zero and the value will be set in execute_impl()
             if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
-                std::string msg = "No primitive mapping for backedge (internal_id: " + back_edge.to + ')';
-                CLDNN_ERROR_MESSAGE(this->id(), msg.c_str());
+                std::string msg = "[GPU] No primitive mapping for backedge (internal_id: " + back_edge.to + ") for primitive " + this->id();
+                OPENVINO_ASSERT(false, msg.c_str());
             }
 
             output_names.insert(back_edge.from);
@@ -342,10 +305,10 @@ public:
             output_names.insert(get_condition_id());
         }
 
-        auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
-        opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
+        auto config = get_program().get_config();
+        config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+        body_program = program::build_program(get_program().get_engine(), body, config, get_program().get_task_executor(), false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
@@ -388,9 +351,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             std::vector<memory::ptr> _from_mems, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = CONCAT_OUTPUT):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
+            to_primitive(std::move(_to_primitive)),
             from_mems(_from_mems),
-            initial_mem(_initial_mem),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -401,9 +364,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            from_mems{_from_mem},
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            from_mems{std::move(_from_mem)},
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -414,8 +377,8 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -439,7 +402,7 @@ public:
                     mem1->copy_from(stream, *initial_mem);
                 } else {
                     memory::ptr mem2 = from_primitive->output_memory_ptr();
-                    to_primitive->set_output_memory(mem2);
+                    to_primitive->set_output_memory(std::move(mem2));
                     from_primitive->set_output_memory(mem1);
                 }
             }
@@ -507,13 +470,13 @@ private:
             }
         }
 
-        void setup_concatenated_output_memory(uint64_t iteration) const {
+        void setup_sliced_output_memory(uint64_t iteration) const {
             const auto& sliced_output_mem = sliced_mems.at(iteration);
-            concat_data_prim->set_output_memory(sliced_output_mem);
+            sliced_data_prim->set_output_memory(sliced_output_mem);
         }
 
         memory::ptr get_sliced_mem(int64_t iteration) const {
-            mem_lock<uint8_t> from_lock{ concatenated_mem, stream };
+            mem_lock<uint8_t, mem_lock_type::read> from_lock{ concatenated_mem, stream };
             int64_t batch_offset = 0;
             const int64_t iteration_offset = bytes_iteration_initial_offset +
                 bytes_iteration_stride * iteration;
@@ -550,7 +513,7 @@ private:
     };
 
     static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
-    bool preproc_memories_done;
+    bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
     std::vector<concatenated_memory_mapping> concatenated_output_mem_mappings;
@@ -565,18 +528,27 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node->is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
-        }
+        OPENVINO_ASSERT(node->is_current_iteration_used(), "[GPU] No backedge mapping for current_iteration for primitive ", node->id());
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
 private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id) const;
     std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
+    std::vector<loop::io_primitive_map> _input_primitive_maps;
+    std::vector<loop::io_primitive_map> _output_primitive_maps;
+    std::vector<loop::backedge_mapping> _back_edges;
+    primitive_id _trip_count_id;
+    primitive_id _initial_execution_id;
+    primitive_id _current_iteration_id;
+    primitive_id _condition_id;
+    primitive_id _num_iteration_id;
+    int64_t _max_iteration = 0;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

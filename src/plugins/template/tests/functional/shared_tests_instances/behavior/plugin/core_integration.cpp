@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,11 +18,11 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassBasicTestP, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("openvino_template_plugin", CommonTestUtils::DEVICE_TEMPLATE)));
+        ::testing::Values(std::make_pair("openvino_template_plugin", ov::test::utils::DEVICE_TEMPLATE)));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 //
 // IE Class GetMetric
@@ -30,39 +30,39 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 
 //
@@ -119,7 +119,7 @@ TEST_F(IEClassSetConfigTestHETERO, smoke_SetConfigNoThrow) {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTest,
                                      public BehaviorTestsUtils::IEPluginTestBase {
@@ -132,14 +132,14 @@ class IEClassGetConfigTestTEMPLATE : public BehaviorTestsUtils::IEClassNetworkTe
 TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;
-    std::string deviceName = CommonTestUtils::DEVICE_TEMPLATE;
+    std::string deviceName = ov::test::utils::DEVICE_TEMPLATE;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> configValues = p;
+    auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
         if (CONFIG_KEY(DEVICE_ID) == confKey) {
-            std::string defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID));
+            auto defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
             std::cout << CONFIG_KEY(DEVICE_ID) << " : " << defaultDeviceID << std::endl;
         } else if (CONFIG_KEY(PERF_COUNT) == confKey) {
             auto defaultPerfCount = ie.GetConfig(deviceName, CONFIG_KEY(PERF_COUNT)).as<bool>();
@@ -155,11 +155,11 @@ TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassQueryNetworkTest, IEClassQueryNetworkTest,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
-        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE));
+        ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 } // namespace

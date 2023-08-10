@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -8,7 +8,7 @@ import numpy as np
 
 from openvino.tools.mo.back.MaxPool import MaxPool
 from openvino.tools.mo.back.TopKNormalizer import TopKNormalizer
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
 from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.ops.GRU import GRU
@@ -32,6 +32,10 @@ from openvino.tools.mo.ops.split import Split, VariadicSplit
 from openvino.tools.mo.utils.class_registration import update_registration
 from openvino.tools.mo.utils.import_extensions import import_by_path
 from openvino.tools.mo.utils.ir_reader.extender import Extender
+from openvino.tools.mo.utils.ir_reader.internal_ops.squeeze import SqueezeInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.unsqueeze import UnsqueezeInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.unique import UniqueInternal
+from openvino.tools.mo.utils.ir_reader.internal_ops.scatter import ScatterUpdateInternal
 
 # Operations not registered in collect_ops() function
 custom_ops = {
@@ -48,11 +52,15 @@ custom_ops = {
     'MaxPool': Pooling,
     'Multiply': Mul,
     'Power': Pow,
+    'ScatterUpdate': ScatterUpdateInternal,
     'Slice': OvSlice,
     'Split': Split,
+    'Squeeze': SqueezeInternal,
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
     'Clamp': AttributedClamp,
+    'Unique': UniqueInternal,
+    'Unsqueeze': UnsqueezeInternal,
 }
 
 
@@ -189,12 +197,13 @@ def groupconv_to_conv(op: Node):
         weights_node.value = np.reshape(weights_node.value, new_shape)
     elif weights_node.type == 'Reshape':
         # We remove reshape node added in ConvolutionWithGroupsResolver pass
-        assert weights_node.in_port(0).get_source().data.get_shape() == new_shape, \
+        assert strict_compare_tensors(weights_node.in_port(0).get_source().data.get_shape(), new_shape), \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
         op.in_port(1).disconnect()
         # We use add_destination method here to support case with multiple destinations of source port
         weights_node.in_port(0).get_source().get_connection().add_destination(op.in_port(1))
         weights_node.in_port(0).disconnect()
+        op.graph.remove_node(weights_node.id)
     elif weights_node.type == 'Convert' and weights_node.destination_type == 'f32'\
             and weights_node.in_port(0).get_source().node.type == 'Const':
         # Support new FP16 IRs
@@ -204,7 +213,7 @@ def groupconv_to_conv(op: Node):
         const_node.value = np.reshape(const_node.value, new_shape)
 
     else:
-        assert op.in_port(1).get_source().data.get_shape() == new_shape, \
+        assert strict_compare_tensors(op.in_port(1).get_source().data.get_shape(), op.in_port(1).get_source().data.get_shape()), \
             'Weight shape and calculated shape mismatch in GroupConv node {}.'.format(op.name)
     # We need to set this attrs for correct shape infer as convolution
     op['group'] = group

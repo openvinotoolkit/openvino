@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ public:
         result << "reductionType=" << param.reductionType << "_";
         result << "dataType=" << param.data.type << "_";
         result << "dataShape=" << param.data.shape << "_";
-        result << "axes=" << CommonTestUtils::vec2str(param.reductionAxes);
+        result << "axes=" << ov::test::utils::vec2str(param.reductionAxes);
         if (param.keepDimensions) {
             result << "_keepDims";
         }

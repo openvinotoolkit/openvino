@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Abs::clone_with_new_inputs(const OutputVec
     return std::make_shared<Abs>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace absop {
 namespace {
 template <ov::element::Type_t ET>
@@ -52,7 +53,7 @@ bool evaluate_abs(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr
 
 bool ov::op::v0::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Abs_evaluate);
-    return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return absop::evaluate_abs(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool ov::op::v0::Abs::has_evaluate() const {

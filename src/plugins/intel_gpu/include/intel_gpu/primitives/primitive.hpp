@@ -1,11 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/tensor_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/compounds.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
@@ -18,11 +22,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-
-/// @addtogroup cpp_topology Network Topology
-/// @{
 
 /// @brief Globally unique primitive's type id
 using primitive_type_id = struct primitive_type *;
@@ -36,8 +35,8 @@ struct primitive_info;
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
     input_info() : pid(""), idx(0) {}
-    input_info(primitive_id pid) : pid(pid), idx(0) {}
-    input_info(primitive_id pid, int idx) : pid(pid), idx(idx) {}
+    input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
+    input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
     /// @brief Copy assignment.
     input_info& operator=(const input_info& other) {
@@ -61,6 +60,34 @@ struct input_info {
             }
         }
     };
+
+    void save(BinaryOutputBuffer& ob) const {
+        ob << pid;
+        ob << idx;
+    }
+
+    void load(BinaryInputBuffer& ib) {
+        ib >> pid;
+        ib >> idx;
+    }
+};
+
+struct prim_map_storage {
+    static prim_map_storage& instance() {
+        static prim_map_storage instance;
+        return instance;
+    }
+
+    const cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
+        return map.at(type_string);
+    }
+
+    bool set_type_id(const std::string& type_string, const cldnn::primitive_type_id type_id) {
+        return map.insert({type_string, type_id}).second;
+    }
+
+private:
+    std::unordered_map<std::string, cldnn::primitive_type_id> map;
 };
 
 /// @brief Base class of network primitive description.
@@ -92,7 +119,57 @@ public:
 
     virtual primitive_id type_string() const = 0;
 
-    /// @brief Implicit conversion to primiitive id.
+    virtual size_t hash() const {
+        size_t seed = 0;
+        // hash for type
+        primitive_id type_str = type_string();
+        for (size_t idx = 0; idx < type_str.size(); idx++) {
+            seed = hash_combine(seed, type_str[idx]);
+        }
+
+        // hash for number of outputs
+        seed = hash_combine(seed, num_outputs);
+
+        // hash for number of inputs
+        auto inputs = dependencies();
+        seed = hash_combine(seed, inputs.size());
+        return seed;
+    }
+
+    bool compare_common_params(const primitive& rhs) const {
+        if (type != rhs.type)
+            return false;
+
+        if (num_outputs != rhs.num_outputs)
+            return false;
+
+        if (dependencies().size() != rhs.dependencies().size())
+            return false;
+
+        if (output_data_types.size() != rhs.output_data_types.size())
+            return false;
+
+        for (size_t i = 0; i < output_data_types.size(); ++i) {
+            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+                return false;
+        }
+
+        if (output_paddings.size() != rhs.output_paddings.size())
+            return false;
+
+        for (size_t i = 0; i < output_paddings.size(); ++i) {
+            if (output_paddings[i] != rhs.output_paddings[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    virtual bool operator==(const primitive& rhs) const { return false; }
+
+    bool operator!=(const primitive& rhs) const { return !(*this == rhs); }
+
+    /// @brief Implicit conversion to primitive id.
     operator primitive_id() const { return id; }
 
     /// @brief Primitive's type id.
@@ -125,6 +202,51 @@ public:
     input_info_arr input;
 
     size_t num_outputs;
+
+    virtual std::string get_type() const { return "NONE"; }
+    virtual void save(BinaryOutputBuffer& ob) const {
+        ob << type_string();
+        ob << id;
+        ob << origin_op_name;
+        ob << origin_op_type_name;
+        ob << output_paddings;
+        ob << output_data_types.size();
+        for (auto& output_data_type : output_data_types) {
+            if (output_data_type.has_value()) {
+                ob << true;
+                ob << make_data(&output_data_type.value(), sizeof(data_types));
+            } else {
+                ob << false;
+            }
+        }
+        ob << input;
+        ob << num_outputs;
+    }
+
+    virtual void load(BinaryInputBuffer& ib) {
+        std::string type_str;
+        ib >> type_str;
+        *const_cast<primitive_type_id*>(&type) = prim_map_storage::instance().get_type_id(type_str);
+        ib >> *const_cast<primitive_id*>(&id);
+        ib >> origin_op_name;
+        ib >> origin_op_type_name;
+        ib >> output_paddings;
+        size_t output_data_types_size;
+        ib >> output_data_types_size;
+        for (size_t i = 0; i < output_data_types_size; i++) {
+            bool has_value;
+            ib >> has_value;
+            if (has_value) {
+                data_types data_type = data_types();
+                ib >> make_data(&data_type, sizeof(data_types));
+                output_data_types.emplace_back(optional_data_type(data_type));
+            } else {
+                output_data_types.emplace_back(optional_data_type());
+            }
+        }
+        ib >> input;
+        ib >> num_outputs;
+    }
 
 protected:
     virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
@@ -200,24 +322,4 @@ struct primitive_info {
         return &instance;                               \
     }                                                   \
     bool _##PType##_added_ = prim_map_storage::instance().set_type_id(#PType, PType::type_id());
-
-struct prim_map_storage {
-    static prim_map_storage& instance() {
-        static prim_map_storage instance;
-        return instance;
-    }
-
-    const cldnn::primitive_type_id get_type_id(const std::string& type_string) const {
-        return map.at(type_string);
-    }
-
-    bool set_type_id(const std::string& type_string, const cldnn::primitive_type_id type_id) {
-        return map.insert({type_string, type_id}).second;
-    }
-
-private:
-    std::unordered_map<std::string, cldnn::primitive_type_id> map;
-};
-/// @}
-/// @}
 }  // namespace cldnn

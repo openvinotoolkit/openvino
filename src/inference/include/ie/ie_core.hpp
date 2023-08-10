@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,16 @@
  * @file ie_core.hpp
  */
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 #include <istream>
 #include <map>
@@ -29,7 +39,7 @@ namespace InferenceEngine {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_API_CLASS(Core) {
+class INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CLASS(Core) {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
@@ -41,7 +51,7 @@ public:
      * 1. (default) Use XML configuration file in case of dynamic libraries build;
      * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * @param xmlConfigFile Path to the .xml file with plugins to load from. If the XML configuration file is not
      * specified, default OpenVINO Runtime plugins are loaded from:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
@@ -56,7 +66,7 @@ public:
      */
     std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads models from IR and ONNX formats
      * @param modelPath path to model
@@ -69,7 +79,7 @@ public:
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
-#endif
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Reads models from IR and ONNX formats
@@ -285,7 +295,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const;
@@ -293,13 +303,12 @@ public:
     /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
      *
-     * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
-     * prefix to identify library full name
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name
      *
-     * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
-     * plugin itself.
+     * @param deviceName A device name to register plugin for
      */
-    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
+    void RegisterPlugin(const std::string& plugin, const std::string& deviceName);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine
@@ -366,5 +375,5 @@ public:
  * You might want to use this function if you are developing a dynamically-loaded library which should clean up all
  * resources after itself when the library is unloaded.
  */
-INFERENCE_ENGINE_API_CPP(void) shutdown();
+INFERENCE_ENGINE_API_CPP(void) INFERENCE_ENGINE_1_0_DEPRECATED shutdown();
 }  // namespace InferenceEngine

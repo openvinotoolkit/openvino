@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ void QuantizedModelsTests::SetUp() {
 
 static std::string getModelFullPath(const char* path) {
     return FileUtils::makePath<char>(
-        FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(), TEST_MODELS), path);
+        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
 void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {
@@ -47,19 +47,23 @@ void QuantizedModelsTests::runModel(const char* model, const LayerInputTypes& ex
 }
 
 TEST_P(QuantizedModelsTests, MaxPoolQDQ) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     runModel("max_pool_qdq.onnx", {{"890_original", {ngraph::element::u8}}}, 1e-5);
 }
 
 TEST_P(QuantizedModelsTests, MaxPoolFQ) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     runModel("max_pool_fq.onnx", {{"887_original", {ngraph::element::u8}}}, 1e-5);
 }
 
 TEST_P(QuantizedModelsTests, ConvolutionQDQ) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // activations have type uint8 and weights int8
     runModel("convolution_qdq.onnx", {{"908_original", {ngraph::element::u8, ngraph::element::i8}}}, 1.5e-2);
 }
 
 TEST_P(QuantizedModelsTests, ConvolutionFQ) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // activations have type uint8 and weights int8
     runModel("convolution_fq.onnx", {{"902_original", {ngraph::element::u8, ngraph::element::i8}}}, 1.5e-2);
 }

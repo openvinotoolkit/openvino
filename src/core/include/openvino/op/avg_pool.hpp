@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace v1 {
 ///
 class OPENVINO_API AvgPool : public Op {
 public:
-    OPENVINO_OP("AvgPool", "opset1", op::Op, 1);
+    OPENVINO_OP("AvgPool", "opset1", op::Op);
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;
@@ -69,10 +69,6 @@ public:
     void set_auto_pad(const PadType& auto_pad);
     op::RoundingType get_rounding_type() const;
     void set_rounding_type(op::RoundingType rounding_type);
-    /// \return The default value for AvgPool.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     Shape m_kernel;

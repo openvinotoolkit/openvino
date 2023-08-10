@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr> &data) override;
 
-    void SetBatch(int batch = -1) override;
+    void SetBatch(int batch = -1);
     std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
     void SetGraph(std::shared_ptr<Graph> graph);
     void EnableProfiling() { m_useProfiling = true; }
@@ -79,6 +79,7 @@ private:
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
     std::shared_ptr<Graph> m_graph;
+    InferenceEngine::gpu::ClContext::Ptr m_context = nullptr;
 
     // dynamic batch stuff
     std::map<std::string, std::vector<buf_info>> batchInputs;
@@ -107,6 +108,7 @@ private:
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
     Graph::variable_states_map variables_states_;
+    int m_curBatch = -1;
 };
 
 }  // namespace intel_gpu

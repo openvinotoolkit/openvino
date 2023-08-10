@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,9 +23,3 @@ public:
     OPENVINO_RTTI("BatchNormDecomposition", "0");
     BatchNormDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BatchNormDecomposition;
-}  // namespace pass
-}  // namespace ngraph

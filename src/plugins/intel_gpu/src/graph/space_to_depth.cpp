@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
 
-    if (block_size < 1)
+    if (block_size == 0)
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
@@ -79,13 +79,13 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
 
     std::stringstream primitive_description;
 
-    std::string depth_mode = (desc->mode == static_cast <cldnn::space_to_depth::depth_mode> (kernel_selector::SpaceToDepthMode::BLOCKS_FIRST)) ?
+    std::string depth_mode = (desc->mode == cldnn::space_to_depth::depth_mode::blocks_first) ?
                              "blocks_first" :
                              "depth_first";
 
     json_composite space_to_depth_info;
     space_to_depth_info.add("input id", input.id());
-    space_to_depth_info.add("mode", depth_mode);
+    space_to_depth_info.add("mode", std::move(depth_mode));
     space_to_depth_info.add("block size", desc->block_size);
 
     node_info->add("space_to_depth info", space_to_depth_info);

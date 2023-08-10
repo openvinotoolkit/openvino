@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-
 #include "functional_test_utils/skip_tests_config.hpp"
+
+#include <string>
+#include <vector>
 
 std::vector<std::string> disabledTestPatterns() {
     return {
@@ -24,8 +24,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
-        // TODO: Issue 32923
-        R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
         R"(.*ActivationConcatsEltwise.*CS=35.*)",
@@ -33,13 +31,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
-        // TODO: Issue: 29577
-        R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
-        //TODO: Issue: 46416
+        // TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(1.3\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         R"(.*importExportedFunctionParameterResultOnly.*)",
@@ -47,18 +43,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*importExportedIENetworkConstantResultOnly.*)",
         R"(.*importExportedIENetworkParameterResultOnly.*)",
 
-        // TODO: Issue 57368 (accuracy)
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
+        // Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*transformation=LOW_LATENCY.*)",
+
         // Not implemented yet
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(canSetConfigToCompiledModel|canSetConfigToCompiledModelWithIncorrectConfig).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTestOptional.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(canCreateTwoCompiledModelAndCheckTheir).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
         // Not implemented yet (dynamic cases)
         R"(.*Behavior.*OVInferenceChaining.*(StaticOutputToDynamicInput).*)",
         R"(.*Behavior.*OVInferenceChaining.*(DynamicOutputToDynamicInput).*)",
@@ -66,15 +64,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVInferRequestDynamicTests.*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
-        R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
-        R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
-        R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
+        R"(.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
+        R"(.*OVCompiledModelBaseTest.*canGetInputsInfoAndCheck.*)",
+        R"(.*OVCompiledModelBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVCompiledModelBaseTest.*canCompileModelFromMemory.*)",
+        R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
+        R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryModel*.*QueryModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
-        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
-        // TODO: Issue: 29577
-        R"(.*QueryNetwork.*)",
+        R"(.*OVCompiledGraphImportExportTest.*readFromV10IR.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639
@@ -85,20 +86,21 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
-        // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
         // TODO: Issue: 95609
         R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
         R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
         R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
         R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
-        R"(.*OVClassLoadNetworkTest.*LoadNetwork.*)",
-        // TODO: Issue: 95234
-        R"(.*smoke_CachingSupportCase_GNA.*)",
+        // does not work due to GNA 3.0 convolution and other primitives limitations, partially can be resolved by
+        // switching GNA library to GNA3.5
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
-        // TODO: Issue: 95234
-        R"(.*CachingSupportCase_GNA.*)",
-        R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
+        R"(.*smoke_Multi_BehaviorTests.*)",
+        // unsupported metrics
+        R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+        // TODO: Issue: 111556
+        R"(.*SplitConvTest.CompareWithRefImpl.*IS=\(1.(128|256)\).*IC=4.*OC=4.*configItem=GNA_DEVICE_MODE_GNA_SW_FP32)",
+        // TODO: Issue: 114149
+        R"(.*smoke_Decompose2DConv.*)",
     };
 }

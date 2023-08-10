@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class ShuffleChannels : public Node {
 public:
-    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -57,8 +57,6 @@ private:
     };
     using executorPtr = std::shared_ptr<ShuffleChannelsExecutor>;
     executorPtr execPtr = nullptr;
-
-    bool supportDynamicBatch = false;
 };
 
 }   // namespace node

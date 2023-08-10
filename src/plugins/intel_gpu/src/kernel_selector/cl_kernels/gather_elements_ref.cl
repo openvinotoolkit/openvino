@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define GET_OUTPUT_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 
-KERNEL(gather_elements_ref)(const __global INPUT0_TYPE* data,
+KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
+                   const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

@@ -20,9 +20,3 @@ public:
     OPENVINO_RTTI("ConvertConvertLike", "0");
     ConvertConvertLike();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertConvertLike;
-}  // namespace pass
-}  // namespace ngraph

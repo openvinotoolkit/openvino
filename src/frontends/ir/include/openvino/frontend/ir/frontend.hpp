@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,10 @@ public:
     /// \brief Register extension in the FrontEnd
     /// \param extension base extension
     void add_extension(const ov::Extension::Ptr& extension) override;
+
+    /// \brief Runs normalization passes on Model that was loaded with partial conversion
+    /// \param Model partially converted OV Model
+    void normalize(const std::shared_ptr<ov::Model>& model) const override;
 
 protected:
     /// \brief Check if FrontEndIR can recognize model from given parts

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-from openvino.utils import add_openvino_libs_to_path
+from openvino.utils import _add_openvino_libs_to_search_path
 
-add_openvino_libs_to_path()
+_add_openvino_libs_to_search_path()
 
 from openvino._pyopenvino import get_version
 
@@ -15,7 +15,6 @@ __version__ = get_version()
 
 # Openvino pybind bindings and python extended classes
 from openvino._pyopenvino import Dimension
-from openvino._pyopenvino import Model
 from openvino._pyopenvino import Input
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Node
@@ -36,6 +35,7 @@ from openvino._pyopenvino import RTMap
 from openvino.runtime.ie_api import Core
 from openvino.runtime.ie_api import CompiledModel
 from openvino.runtime.ie_api import InferRequest
+from openvino.runtime.ie_api import Model
 from openvino.runtime.ie_api import AsyncInferQueue
 from openvino._pyopenvino import Version
 from openvino._pyopenvino import Tensor
@@ -44,6 +44,8 @@ from openvino._pyopenvino import ProfilingInfo
 from openvino._pyopenvino import get_batch
 from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
+from openvino._pyopenvino import save_model
+from openvino._pyopenvino import shutdown
 
 # Import opsets
 from openvino.runtime import opset1
@@ -56,29 +58,30 @@ from openvino.runtime import opset7
 from openvino.runtime import opset8
 from openvino.runtime import opset9
 from openvino.runtime import opset10
+from openvino.runtime import opset11
+from openvino.runtime import opset12
 
 # Import properties API
-from openvino._pyopenvino import properties
+from openvino.runtime import properties
 
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
 
-
 # Extend Node class to support binary operators
-Node.__add__ = opset10.add
-Node.__sub__ = opset10.subtract
-Node.__mul__ = opset10.multiply
-Node.__div__ = opset10.divide
-Node.__truediv__ = opset10.divide
-Node.__radd__ = lambda left, right: opset10.add(right, left)
-Node.__rsub__ = lambda left, right: opset10.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset10.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset10.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset10.divide(right, left)
-Node.__eq__ = opset10.equal
-Node.__ne__ = opset10.not_equal
-Node.__lt__ = opset10.less
-Node.__le__ = opset10.less_equal
-Node.__gt__ = opset10.greater
-Node.__ge__ = opset10.greater_equal
+Node.__add__ = opset12.add
+Node.__sub__ = opset12.subtract
+Node.__mul__ = opset12.multiply
+Node.__div__ = opset12.divide
+Node.__truediv__ = opset12.divide
+Node.__radd__ = lambda left, right: opset12.add(right, left)
+Node.__rsub__ = lambda left, right: opset12.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset12.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset12.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset12.divide(right, left)
+Node.__eq__ = opset12.equal
+Node.__ne__ = opset12.not_equal
+Node.__lt__ = opset12.less
+Node.__le__ = opset12.less_equal
+Node.__gt__ = opset12.greater
+Node.__ge__ = opset12.greater_equal

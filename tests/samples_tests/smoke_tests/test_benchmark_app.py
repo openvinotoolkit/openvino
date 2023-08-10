@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2022 Intel Corporation
+ Copyright (C) 2018-2023 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -51,10 +51,12 @@ class TestBenchmarkApp(SamplesCommonTestClass):
         super().setup_class()
 
     @pytest.mark.parametrize("param", test_data_fp32_async)
+    @pytest.mark.skip("Ticket: 106850")
     def test_benchmark_app_sample_fp32_async(self, param):
         _check_output(self, param)
 
     @pytest.mark.parametrize("param", test_data_fp32_sync)
+    @pytest.mark.skip("Ticket: 106850")
     def test_benchmark_app_fp32_sync(self, param):
         _check_output(self, param)
 

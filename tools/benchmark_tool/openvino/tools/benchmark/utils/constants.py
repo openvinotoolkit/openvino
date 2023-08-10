@@ -1,9 +1,7 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-VPU_DEVICE_NAME = 'VPU'
-MYRIAD_DEVICE_NAME = 'MYRIAD'
-HDDL_DEVICE_NAME = 'HDDL'
+NPU_DEVICE_NAME = 'NPU'
 CPU_DEVICE_NAME = 'CPU'
 GPU_DEVICE_NAME = 'GPU'
 HETERO_DEVICE_NAME = 'HETERO'
@@ -16,15 +14,15 @@ XML_EXTENSION = '.xml'
 BIN_EXTENSION = '.bin'
 BLOB_EXTENSION = '.blob'
 
-IMAGE_EXTENSIONS = ['.jpeg', '.jpg', '.png', '.bmp']
+IMAGE_EXTENSIONS = ['.bmp', '.dib', '.jpeg', '.jpg', '.jpe', '.jp2', '.png',
+                    '.pbm', '.pgm', '.ppm', '.sr', '.ras', '.tiff', '.tif']
+NUMPY_EXTENSIONS = ['.npy']
 BINARY_EXTENSIONS = ['.bin']
 
 DEVICE_DURATION_IN_SECS = {
     CPU_DEVICE_NAME: 60,
     GPU_DEVICE_NAME: 60,
-    VPU_DEVICE_NAME: 60,
-    MYRIAD_DEVICE_NAME: 60,
-    HDDL_DEVICE_NAME: 60,
+    NPU_DEVICE_NAME: 60,
     GNA_DEVICE_NAME: 60,
     UNKNOWN_DEVICE_TYPE: 120
 }

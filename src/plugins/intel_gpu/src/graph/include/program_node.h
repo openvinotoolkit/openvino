@@ -1,17 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
-#include "fused_primitive_desc.h"
-#include "meta_utils.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
 #include <array>
@@ -57,7 +56,6 @@ struct program_node {
     friend class prepare_conv_eltw_fusing;          // to be removed when possible
     friend class prepare_conv_eltw_read_write_opt;  // to be removed when possible
     friend class propagate_constants;               // to be removed when possible
-    friend class post_optimize_weights;             // to be removed when possible - requires an access to selected_impl
 
     template <class PType>
     friend struct typed_program_node;
@@ -71,7 +69,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
-    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
     virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
@@ -83,6 +81,45 @@ public:
         return res;
     }
 
+    bool is_shape_infer_dep(void) const {
+        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+            return false;
+        for (auto u : users) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx) {
+                    continue;
+                }
+                if (u->is_fused_dep(dep_idx)) {
+                    continue;
+                }
+                if (u->get_dependencies().at(dep_idx).first == this) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool is_fused_dep(size_t dep_idx) const;
+
+    bool has_fused_dep() const {
+        for (auto& fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return true;
+        }
+        return false;
+    }
+
+    int32_t get_first_fused_dep_idx() const {
+        if (!has_fused_dep())
+            return -1;
+        for (auto& fused : get_fused_primitives()) {
+            if (fused.has_outer_dep())
+                return fused.outer_dep_start_idx;
+        }
+        return -1;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
@@ -90,11 +127,10 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives(),
-                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_program().get_stream_ptr(), get_primitive(),
+                                                                                 get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
-
+        params->_can_be_optimized = this->optimized;
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
@@ -129,6 +165,11 @@ public:
     program_node& get_dependency(size_t idx) const { return *dependencies.at(idx).first; }
     std::pair<program_node*, int32_t> get_dependency_with_port(size_t idx) const { return dependencies.at(idx); }
 
+    // Count of original primitive inputs, i.e. it doesn't include fused dependencies
+    size_t get_inputs_count() const { return desc->input_size(); }
+    // Count of original primitive outputs
+    size_t get_outputs_count() const { return desc->output_size(); }
+
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
         for (const auto& i : dependencies) {
@@ -137,19 +178,35 @@ public:
         return layouts;
     }
 
+    layout get_input_layout(size_t idx = 0) const {
+       return get_dependency(idx).get_output_layout(false);
+    }
+
+    ov::PartialShape get_input_pshape(size_t idx = 0) const {
+       return get_input_layout(idx).get_partial_shape();
+    }
+
+    ov::PartialShape get_output_pshape(size_t idx = 0) const {
+        if (!is_valid_output_layout(idx))
+            return calc_output_layouts()[idx].get_partial_shape();
+       return get_output_layout(idx).get_partial_shape();
+    }
+
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
     // searches for 'old_dep' in dependencies list of 'this' and replaces it with 'new_dep', calls
     // program::remove_if_dangling(old_dep)
     void replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling = true);
+    void replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
 
     std::vector<primitive_id> get_dependencies_ids() const;
 
     void remove_dependency(size_t idx);
     void remove_dependency(program_node& node);
 
-    size_t get_dependency_index(program_node& node) const;
-    size_t get_user_index(program_node& node) const;
+    size_t get_dependency_index(const program_node& node) const;
+    size_t get_user_index(const program_node& node) const;
 
     std::set<primitive_id> get_memory_dependencies() const;
     void add_memory_dependency(primitive_id);
@@ -205,8 +262,6 @@ public:
     bool set_output_layout(layout& new_layout, bool invalidate_users_if_changed = true, size_t idx = 0);
     bool set_output_layouts(std::vector<layout>& new_layout, bool invalidate_users_if_changed = true);
 
-    size_t get_outputs_count() const { return num_outputs; }
-
     // forces recalculation of cached output layout, invalidates users if new layout is different than previous one and
     // @p invalidate_users_if_changed is set to true returns whether output layout has changed
     bool recalc_output_layout(bool invalidate_users_if_changed = true);
@@ -245,32 +300,8 @@ public:
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
 
-    void add_fused_activation(activation_func activation_func,
-                              activation_additional_params additional_params) {
-        fused_activations.emplace_back(activation_func, additional_params);
-    }
-
-    std::vector<activation_func> get_fused_activations_funcs() const {
-        std::vector<activation_func> funcs;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(funcs),
-                       [](fused_activation_params const& p) { return p.func; });
-        return funcs;
-    }
-
-    std::vector<activation_additional_params> get_fused_activations_params() const {
-        std::vector<activation_additional_params> params;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(params),
-                       [](fused_activation_params const& p) { return p.params; });
-        return params;
-    }
-
-    void copy_fused_activation(const program_node& rhs) {
-        fused_activations = rhs.fused_activations;
-    }
+    void set_in_shape_of_subgraph(bool val = true) { in_shape_of_subgraph = val; }
+    bool is_in_shape_of_subgraph() const { return in_shape_of_subgraph; }
 
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
@@ -289,6 +320,8 @@ public:
     bool support_padding(int axis) const { return _support_padding_in_axis[axis]; }
     // Checks whether with current format specified padding is supported;
     bool is_padding_supported(int axis, int padding) const;
+    // Check if layout has padding in any spatial axis
+    bool is_padded_spatial(size_t idx = 0) const;
 
     primitive_id get_org_primitive_id() const { return org_id; }
 
@@ -325,6 +358,12 @@ public:
         return as<To>();
     }
 
+    void add_dependant_shape_of_node(const program_node* node);
+
+    const std::set<const program_node*>& get_dependant_shape_of_nodes() const {
+        return dependant_shape_of_nodes;
+    }
+
     void set_reused_memory_color(uint32_t color) const {
         has_reused_memory = true;
         reused_memory_color = color;
@@ -347,8 +386,16 @@ public:
     std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const { return onednn_attrs; }
-    std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() { return onednn_attrs; }
+    const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
+        if (onednn_attrs == nullptr)
+            const_cast<program_node*>(this)->init_onednn_primitive_attributes();
+        return onednn_attrs;
+    }
+    std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() {
+        if (onednn_attrs == nullptr)
+            init_onednn_primitive_attributes();
+        return onednn_attrs;
+    }
 
     const std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return fused_prims_onednn; }
     std::vector<fused_primitive_desc_onednn>& get_fused_primitives_onednn() { return fused_prims_onednn; }
@@ -398,7 +445,6 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
-
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -423,6 +469,9 @@ protected:
     impl_types impl_type = impl_types::any;
     bool constant = false;
     bool data_flow = false;
+    bool in_shape_of_subgraph = false;
+
+    std::set<const program_node*> dependant_shape_of_nodes;
 
     bool output = false;
     uint8_t user_mark = 0;
@@ -435,18 +484,6 @@ protected:
 
     const primitive_id org_id;
 
-    struct fused_activation_params {
-        activation_func func = activation_func::none;
-        activation_additional_params params = {0.0f, 0.0f};
-
-        fused_activation_params() {}
-
-        fused_activation_params(activation_func _func, activation_additional_params _params) :
-                func(_func),
-                params(_params) {}
-    };
-
-    std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
@@ -465,8 +502,8 @@ private:
         onednn_attrs = attrs;
     }
 
-    bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;
 };

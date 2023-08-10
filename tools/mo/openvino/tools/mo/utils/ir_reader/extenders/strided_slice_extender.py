@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
@@ -18,8 +18,6 @@ class StridedSlice_extender(Extender):
             if op.has(attr) and op[attr] != '':
                 Extender.attr_to_list(op, attr)
             else:
-                assert attr not in ['begin_mask', 'end_mask'],\
-                    '{} is not defined for the node {}'.format(attr, op.soft_get('name', op.id))
                 op[attr] = int64_array([])
 
         op.begin_mask = int64_array([1 - i for i in op.begin_mask])

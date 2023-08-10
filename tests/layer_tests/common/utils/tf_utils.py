@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from openvino.tools.mo.ops.op import PermuteAttrs
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -81,12 +82,24 @@ def children(op, graph):
     return set(op for out in op.outputs for op in out.consumers())
 
 
+def collect_control_dependencies(graph):
+    control_dependents_map = {}
+    for op in graph.get_operations():
+        for control_input in op.control_inputs:
+            if control_input.name not in control_dependents_map:
+                control_dependents_map[control_input.name] = [op]
+            else:
+                control_dependents_map[control_input.name].append(op)
+    return control_dependents_map
+
+
 def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
     placeholders = dict()
     variables = list()
     outputs = list()
     graph = load_graph(model_path, output_nodes_for_freeze)
     unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Placeholder', 'Assert', 'switch_t', 'switch_f']
+    control_dependents_map = collect_control_dependencies(graph)
     for node in graph.as_graph_def().node:
         if node.op == 'Placeholder':
             node_dict = dict()
@@ -97,7 +110,7 @@ def summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None):
             placeholders[node.name] = node_dict
         if node.op == "Variable" or node.op == "VariableV2":
             variables.append(node.name)
-        if len(children(node.name, graph)) == 0:
+        if len(children(node.name, graph)) == 0 and node.name not in control_dependents_map:
             if node.op not in unlikely_output_types and node.name.split('/')[-1] not in unlikely_output_types:
                 outputs.append(node.name)
     result = dict()
@@ -135,3 +148,34 @@ def permute_nchw_to_nhwc(shape, use_new_frontend=False):
 
 def permute_axis(axis, permutation_inv):
     return permutation_inv[axis]
+
+
+def transpose_nchw_to_nhwc(data, use_new_frontend, use_old_api):
+    if use_new_frontend or not use_old_api:
+        return data
+
+    if len(data.shape) == 4:  # reshaping for 4D tensors
+        return data.transpose(0, 2, 3, 1)
+    elif len(data.shape) == 5:  # reshaping for 5D tensors
+        return data.transpose(0, 2, 3, 4, 1)
+    else:
+        return data
+
+
+def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
+    if use_new_frontend or not use_old_api:
+        return data
+
+    if len(data.shape) == 4:  # reshaping for 4D tensors
+        return data.transpose(0, 3, 1, 2)  # 2, 0, 1
+    elif len(data.shape) == 5:  # reshaping for 5D tensors
+        return data.transpose(0, 4, 1, 2, 3)  # 3, 0, 1, 2
+    else:
+        return data
+
+
+def save_to_pb(tf_model, path_to_saved_tf_model):
+    tf.io.write_graph(tf_model, path_to_saved_tf_model, 'model.pb', False)
+    assert os.path.isfile(os.path.join(path_to_saved_tf_model, 'model.pb')), "model.pb haven't been saved " \
+                                                                             "here: {}".format(path_to_saved_tf_model)
+    return os.path.join(path_to_saved_tf_model, 'model.pb')

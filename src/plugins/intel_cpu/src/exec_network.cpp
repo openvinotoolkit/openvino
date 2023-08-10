@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
 #include "exec_network.h"
+#include <low_precision/low_precision.hpp>
 
 #include "async_infer_request.h"
 #include "infer_request.h"
 #include "memory_state.h"
 #include "itt.h"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
 #include "ngraph/type/element_type.hpp"
 #include "nodes/memory.hpp"
@@ -67,38 +69,32 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
+    _network(network),
     _cfg{cfg},
-    _name{network.getName()},
-    _network(network) {
+    _name{network.getName()} {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
-    bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
+    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
-    _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
+    const auto& core = _plugin->GetCore();
+    if (!core)
+        IE_THROW() << "Unable to get API version. Core is unavailable";
+    _cfg.isLegacyApi = !core->isNewAPI();
 
-    // WA for inference dynamic batch cases in new API
-    if (_cfg.isNewApi) {
-        int64_t maxBatchSize = -1;
-        if (canBeExecViaLegacyDynBatch(function, maxBatchSize)) {
-            IE_ASSERT(maxBatchSize > -1);
-            _cfg.batchLimit = maxBatchSize;
-        }
-    } else if (_cfg.batchLimit > 1) {
-        // check topology for applicability
-        if (!CanProcessDynBatch(_network)) {
-            IE_THROW() << "Graph::CreateGraph: such topology cannot be compiled for dynamic batch!";
-        }
-    }
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
-        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
+        auto streamsExecutorConfig =
+            is_cpu_map_available()
+                ? _cfg.streamExecutorConfig
+                : InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
+                                                                                      isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
         _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
@@ -118,7 +114,6 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         _callbackExecutor = _taskExecutor;
     }
-
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
@@ -166,23 +161,33 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
 
 ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     int streamId = 0;
-    int numaNodeId = 0;
+    int socketId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->GetStreamId();
-        numaNodeId = streamsExecutor->GetNumaNodeId();
+        socketId = streamsExecutor->GetSocketId();
     }
     auto graphLock = GraphGuard::Lock(_graphs[streamId % _graphs.size()]);
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
+                GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
-                    graphLock._graph.setConfig(_cfg);
+                    // disable weights caching if graph was created only once
+                    // "socketId != -1" is the WA for MacOS, will remove later
+                    auto weightsCache =
+                        (_cfg.streamExecutorConfig._streams != 1 && socketId != -1) ? _socketWeights[socketId] : nullptr;
+
+                    auto isQuantizedFlag =
+                        (_cfg.lpTransformsMode == Config::On) &&
+                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+
+                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, isQuantizedFlag);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
-            } catch(...) {
+                graphLock._graph.CreateGraph(_network, ctx);
+            } catch (...) {
                 exception = std::current_exception();
             }
         };
@@ -198,19 +203,6 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
     return graphLock;
 }
 
-void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    {
-        std::lock_guard<std::mutex> lock{*_mutex.get()};
-        _cfg.readProperties(properties);
-    }
-    for (auto& g : _graphs) {
-        auto graphLock = GraphGuard::Lock(g);
-        if (graphLock._graph.IsReady()) {
-            graphLock._graph.setProperty(properties);
-        }
-    }
-}
-
 InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {
     return CreateAsyncInferRequestFromSync<AsyncInferRequest>();
 }
@@ -222,20 +214,12 @@ std::shared_ptr<ngraph::Function> ExecNetwork::GetExecGraphInfo() {
     return GetGraph()._graph.dump();
 }
 
-bool ExecNetwork::isLegacyAPI() const {
-    const auto& core = _plugin->GetCore();
-    if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
-
-    return !core->isNewAPI();
-}
-
 Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
     if (_graphs.empty())
         IE_THROW() << "No graph was found";
     /* legacy implementation return all the parameters which is actually not correct
      * since they are not reconfigurable. Fixed for new API */
-    Config engConfig = GetGraph()._graph.getProperty();
+    Config engConfig = GetGraph()._graph.getConfig();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -268,12 +252,12 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : graph.getProperty()._config) {
+        for (auto && key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graph.getProperty();
+        Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
@@ -290,9 +274,9 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     // @todo Can't we just use local copy (_cfg) instead?
     auto graphLock = GetGraph();
     const auto& graph = graphLock._graph;
-    const auto& config = graph.getProperty();
+    const auto& config = graph.getConfig();
 
-    if (isLegacyAPI()) {
+    if (_cfg.isLegacyApi) {
         return GetMetricLegacy(name, graph);
     }
 
@@ -311,7 +295,14 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
+            RO_property(ov::hint::execution_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::hint::enable_cpu_pinning.name()),
+            RO_property(ov::hint::scheduling_core_type.name()),
+            RO_property(ov::hint::enable_hyper_threading.name()),
+            RO_property(ov::execution_devices.name()),
+            RO_property(ov::intel_cpu::denormals_optimization.name()),
+            RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
         };
     }
 
@@ -345,201 +336,34 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
         const bool perfCount = config.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
     } else if (name == ov::hint::inference_precision) {
-        const auto enforceBF16 = config.enforceBF16;
-        const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::enable_cpu_pinning.name()) {
+        const bool use_pin = config.enableCpuPinning;
+        return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
+    } else if (name == ov::hint::scheduling_core_type) {
+        const auto core_type = config.schedulingCoreType;
+        return core_type;
+    } else if (name == ov::hint::enable_hyper_threading.name()) {
+        const bool use_ht = config.enableHyperThreading;
+        return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
+    } else if (name == ov::hint::execution_mode) {
+        return config.executionMode;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
+    } else if (name == ov::intel_cpu::denormals_optimization) {
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(config.fcSparseWeiDecompressionRate);
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */
     return GetMetricLegacy(name, graph);
-}
-
-bool ExecNetwork::canBeExecViaLegacyDynBatch(std::shared_ptr<const ov::Model> function, int64_t& maxBatchSize) const {
-    maxBatchSize = -1;
-    auto isDynBatchWithUpperBound = [maxBatchSize](const ov::PartialShape& shape) -> bool {
-        if (shape.rank().is_dynamic()) {
-            return false;
-        }
-
-        bool retVal = shape[0].is_dynamic() && shape[0].get_max_length() != maxBatchSize;
-        for (size_t i = 1; i < shape.size(); i++) {
-            retVal = retVal && shape[i].is_static();
-        }
-        return retVal;
-    };
-
-    if (function->get_parameters().size() != 1) {
-        return false;
-    }
-
-    auto param = *function->get_parameters().begin();
-    const auto shape = param->get_output_partial_shape(0);
-    if (shape.rank().is_dynamic()) {
-        return false;
-    }
-
-    if (shape.rank().get_length() < 2) {
-        return false;
-    } else {
-        if (maxBatchSize == -1) {
-            maxBatchSize = shape[0].get_max_length();
-
-            if (maxBatchSize == -1) {
-                return false;
-            }
-        }
-
-        if (!isDynBatchWithUpperBound(shape)) {
-            return false;
-        }
-    }
-
-    auto ops = function->get_ordered_ops();
-    for (auto op : ops) {
-        if (op->get_type_info() == ngraph::op::Constant::get_type_info_static()) {
-            continue;
-        }
-
-        auto type = TypeFromName(op->get_type_name());
-        if (!one_of(type, Type::Input,
-                          Type::Output,
-                          Type::Convolution,
-                          Type::Deconvolution,
-                          Type::Lrn,
-                          Type::Pooling,
-                          Type::FullyConnected,
-                          Type::MatMul,
-                          Type::Softmax,
-                          Type::Split,
-                          Type::Concatenation,
-                          Type::Eltwise,
-                          Type::Reshape,
-                          Type::Tile)) {
-            return false;
-        }
-
-        for (size_t i = 0; i < op->get_output_size(); i++) {
-            if (!isDynBatchWithUpperBound(op->get_output_partial_shape(i))) {
-                return false;
-            }
-        }
-
-        if (type == Type::Tile) {
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            if (!(tile && repeatsNode && repeatsNode->cast_vector<int64_t>()[0] == 1)) {
-                return false;
-            }
-        }
-
-        if (type == Type::Reshape) {
-            const auto inShape = op->get_input_partial_shape(0);
-            const auto outShape = op->get_output_partial_shape(0);
-            if (isDynBatchWithUpperBound(inShape) && isDynBatchWithUpperBound(outShape)) {
-                size_t inSize = 1, outSize = 1;
-                for (size_t i = 1; i < inShape.size(); i++) {
-                    inSize *= inShape[i].get_length();
-                }
-                for (size_t i = 1; i < outShape.size(); i++) {
-                    outSize *= outShape[i].get_length();
-                }
-
-                if (inSize != outSize) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-
-        if (type == Type::Split) {
-            const auto axis = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            if (!axis || axis->cast_vector<int64_t>()[0] == 0) {
-                return false;
-            }
-        }
-
-        if (type == Type::Concatenation) {
-            const auto concat = std::dynamic_pointer_cast<const ngraph::op::v0::Concat>(op);
-            if (!concat || concat->get_axis() == 0) {
-                return false;
-            }
-        }
-
-        if (type == Type::Softmax) {
-            const auto softmax = std::dynamic_pointer_cast<const ngraph::opset1::Softmax>(op);
-            if (!softmax || softmax->get_axis() == 0) {
-                return false;
-            }
-        }
-
-        if ((type == Type::MatMul || type == Type::FullyConnected) &&
-            (op->get_input_node_ptr(1)->get_type_info() != ngraph::op::Constant::get_type_info_static() ||
-                op->get_input_partial_shape(0).rank().get_length() < 2)) {
-            return false;
-        }
-
-        if (type == Type::Eltwise && std::dynamic_pointer_cast<ov::op::util::BinaryElementwiseArithmetic>(op) &&
-            !(op->get_input_node_ptr(0)->get_type_info() == ngraph::op::Constant::get_type_info_static() ||
-            op->get_input_node_ptr(1)->get_type_info() == ngraph::op::Constant::get_type_info_static()) &&
-                    op->get_input_partial_shape(0).rank().get_length() != op->get_input_partial_shape(1).rank().get_length()) {
-                return false;
-        }
-    }
-    return true;
-}
-
-bool ExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const {
-    InputsDataMap inputs = network.getInputsInfo();
-
-    if (inputs.empty())
-        return false;
-
-    auto function = network.getFunction();
-    if (function == nullptr) {
-        IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
-    }
-
-    auto ops = function->get_ordered_ops();
-    for (const auto& op : ops) {
-        auto type = TypeFromName(op->get_type_name());
-        if (type == Type::Tile) {
-            const auto repeatsNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
-            if (!repeatsNode)
-                return false;
-            const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
-            if (tile && repeatsNode->cast_vector<int64_t>()[0] == 1)
-                continue;
-        }
-
-        if (type == Type::Reshape) {
-            if (op->get_input_shape(0)[0] == op->get_output_shape(0)[0])
-                continue;
-        }
-
-        if (type != Type::Input &&
-            type != Type::Output &&
-            type != Type::Convolution &&
-            type != Type::Deconvolution &&
-            type != Type::Lrn &&
-            type != Type::Pooling &&
-            type != Type::FullyConnected &&
-            type != Type::MatMul &&
-            type != Type::Softmax &&
-            type != Type::Split &&
-            type != Type::Concatenation &&
-                type != Type::Eltwise) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 void ExecNetwork::Export(std::ostream& modelStream) {

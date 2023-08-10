@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <low_precision/align_quantization_parameters.hpp>
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/low_precision.hpp>
+#include <low_precision/markup_bias.hpp>
 #include <low_precision/markup_can_be_quantized.hpp>
 #include <low_precision/markup_quantization_granularity.hpp>
 #include <low_precision/transformation_context.hpp>
@@ -34,6 +35,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     markup->register_pass<ngraph::pass::low_precision::PropagatePrecisions>(params);
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
+    markup->register_pass<ngraph::pass::low_precision::MarkupBias>();
 
     common = std::make_shared<ngraph::pass::Manager>(passConfig);
     commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();

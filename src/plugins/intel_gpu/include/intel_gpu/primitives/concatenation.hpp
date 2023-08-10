@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @details Concatenation is used to concatenate multiple sources into one destination along specified dimension.
 /// @notes
@@ -39,6 +32,11 @@ namespace cldnn {
 ///   @li outputIdx : index of destination feature
 struct concatenation : public primitive_base<concatenation> {
     CLDNN_DECLARE_PRIMITIVE(concatenation)
+
+    concatenation() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @li Constructs concatenation primitive.
     /// @param id This primitive id.
     /// @param input Vector of input primitives ids.
@@ -65,8 +63,30 @@ struct concatenation : public primitive_base<concatenation> {
 
     /// @brief Dimension along which concatenation should take place
     int64_t axis;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const concatenation>(rhs);
+
+        return axis == rhs_casted.axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<concatenation>::save(ob);
+        ob << axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<concatenation>::load(ib);
+        ib >> axis;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

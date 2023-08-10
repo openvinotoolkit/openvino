@@ -1,38 +1,62 @@
 # Model Creation in OpenVINO™ Runtime {#openvino_2_0_model_creation}
 
-OpenVINO™ Runtime with API 2.0 includes the nGraph engine as a common part. The `ngraph` namespace has been changed to `ov`, but all other parts of the ngraph API have been preserved.
+@sphinxdirective
+
+.. meta::
+   :description: Model creation in OpenVINO™ Runtime API 2.0 is performed with 
+                 nGraph engine that has been preserved in the new API and its 
+                 namespace has been changed to 'ov'.
+
+
+OpenVINO™ Runtime with API 2.0 includes the nGraph engine as a common part. The ``ngraph`` namespace has been changed to ``ov``, but all other parts of the ngraph API have been preserved.
 
 The code snippets below show how to change the application code for migration to API 2.0.
 
-## nGraph API
+nGraph API
+####################
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ngraph.cpp ngraph:graph
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@sphinxtab{Python}
-@snippet docs/snippets/ngraph.py ngraph:graph
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ngraph.py
+         :language: Python
+         :fragment: ngraph:graph
 
-@endsphinxtabset
+   .. tab-item:: C++
+      :sync: cpp
 
-## API 2.0
+      .. doxygensnippet:: docs/snippets/ngraph.cpp
+         :language: cpp
+         :fragment: ngraph:graph
 
-@sphinxtabset
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_graph.cpp ov:graph
-@endsphinxtab
+API 2.0
+####################
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_graph.py ov:graph
-@endsphinxtab
 
-@endsphinxtabset
+.. tab-set::
 
-## Additional Resources
+   .. tab-item:: Python
+      :sync: py
 
-- [Hello Model Creation C++ Sample](../../../samples/cpp/model_creation_sample/README.md)
-- [Hello Model Creation Python Sample](../../../samples/python/model_creation_sample/README.md)
+      .. doxygensnippet:: docs/snippets/ov_graph.py
+         :language: Python
+         :fragment: ov:graph
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_graph.cpp
+         :language: cpp
+         :fragment: ov:graph
+
+
+Additional Resources
+####################
+
+* :doc:`Hello Model Creation C++ Sample <openvino_inference_engine_samples_model_creation_sample_README>`
+* :doc:`Hello Model Creation Python Sample <openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README>`
+
+@endsphinxdirective

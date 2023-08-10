@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset4.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -24,6 +24,72 @@ TEST(type_prop, gru_cell) {
     const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
 
     const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, hidden_size);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+}
+
+TEST(type_prop, gru_cell_with_bias) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 3;
+
+    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size});
+
+    const auto gru_cell = make_shared<opset4::GRUCell>(X, H_t, W, R, B, hidden_size);
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+}
+
+TEST(type_prop, gru_cell_with_bias_linear_before) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 3;
+
+    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
+
+    const auto gru_cell = make_shared<opset4::GRUCell>(X,
+                                                       H_t,
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       std::vector<string>{"sigmoid", "tanh"},
+                                                       std::vector<float>{},
+                                                       std::vector<float>{},
+                                                       0.f,
+                                                       true);
+
+    EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
+    EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
+}
+
+TEST(type_prop, gru_cell_default_ctor_linear_before) {
+    const size_t batch_size = 2;
+    const size_t input_size = 3;
+    const size_t hidden_size = 3;
+    const size_t gates_count = 3;
+
+    const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
+    const auto H_t = make_shared<op::Parameter>(element::f32, Shape{batch_size, hidden_size});
+    const auto W = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32, Shape{gates_count * hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::f32, Shape{(gates_count + 1) * hidden_size});
+
+    const auto gru_cell = make_shared<opset4::GRUCell>();
+    gru_cell->set_linear_before_reset(true);
+    gru_cell->set_arguments(OutputVector{X, H_t, W, R, B});
+    gru_cell->validate_and_infer_types();
+
     EXPECT_EQ(gru_cell->get_output_element_type(0), element::f32);
     EXPECT_EQ(gru_cell->get_output_shape(0), (Shape{batch_size, hidden_size}));
 }

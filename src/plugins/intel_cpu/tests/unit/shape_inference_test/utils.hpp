@@ -1,17 +1,51 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
 #include <gtest/gtest.h>
 
-#include <openvino/op/ops.hpp>
-#include <openvino/op/parameter.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "openvino/op/ops.hpp"
+#include "openvino/op/parameter.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "shape_inference/static_shape.hpp"
 
-#include "utils/shape_inference/static_shape.hpp"
+using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
+namespace ov {
+namespace intel_cpu {
+namespace {
+std::vector<StaticShapeRef> make_static_shape_refs(const ShapeVector& shapes) {
+    std::vector<StaticShapeRef> out;
+    out.reserve(shapes.size());
+    for (auto& s : shapes) {
+        out.emplace_back(s);
+    }
+    return out;
+}
+}  // namespace
 
-#pragma once
+template <class TIface = IStaticShapeInfer, class TTensorPtr = HostTensorPtr>
+void shape_inference(ov::Node* op,
+                     const std::vector<StaticShape>& input_shapes,
+                     std::vector<StaticShape>& output_shapes,
+                     const std::map<size_t, TTensorPtr>& constant_data = {}) {
+    const auto in_shapes = make_static_shape_refs(input_shapes);
+    const auto shape_infer = make_shape_inference(op->shared_from_this());
+    auto result = shape_infer->infer(in_shapes, ov::make_tensor_accessor(constant_data));
+    OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
+    output_shapes = std::move(*result);
+}
+
+template <class T = std::unordered_map<size_t, Tensor>>
+ShapeVector shape_inference(ov::Node* op, const ShapeVector& input_shapes, const T& constant_data = T{}) {
+    const auto in_shapes = intel_cpu::make_static_shape_refs(input_shapes);
+    const auto shape_infer = intel_cpu::make_shape_inference(op->shared_from_this());
+    auto result = shape_infer->infer(in_shapes, make_tensor_accessor(constant_data));
+    OPENVINO_ASSERT(result, "There are no output shapes in shape inference result");
+    return *result;
+}
+}  // namespace intel_cpu
+}  // namespace ov
 
 struct TestTensor {
     std::shared_ptr<ngraph::runtime::HostTensor> tensor;
@@ -31,7 +65,7 @@ struct TestTensor {
 
         ov::Shape s;
         for (auto dim : shape)
-            s.push_back(dim.get_length());
+            s.push_back(dim);
 
         if (values.size() > 0) {
             tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::from<T>(), s);
@@ -49,7 +83,7 @@ struct TestTensor {
 //      2                           tensor of scalar with value 2
 //      Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
-static void check_static_shape(ov::Node* op,
+inline void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
                                std::initializer_list<ov::intel_cpu::StaticShape> expect_shapes) {
     std::vector<ov::intel_cpu::StaticShape> output_shapes;
@@ -76,7 +110,7 @@ static void check_static_shape(ov::Node* op,
     }
 }
 
-static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
+inline void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
     int id = 0;
     EXPECT_EQ(op->outputs().size(), expect_shapes.size());
     for (auto& shape : expect_shapes) {
@@ -85,11 +119,11 @@ static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialSh
     }
 }
 
-using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
-
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {
 protected:
+    using op_type = TOp;
+
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;

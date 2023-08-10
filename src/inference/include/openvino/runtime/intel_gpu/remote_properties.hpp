@@ -34,7 +34,7 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
     case ContextType::VA_SHARED:
         return os << "VA_SHARED";
     default:
-        throw ov::Exception("Unsupported context type");
+        OPENVINO_THROW("Unsupported context type");
     }
 }
 
@@ -46,7 +46,7 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     } else if (str == "VA_SHARED") {
         context_type = ContextType::VA_SHARED;
     } else {
-        throw ov::Exception("Unsupported context type: " + str);
+        OPENVINO_THROW("Unsupported context type: ", str);
     }
     return is;
 }
@@ -125,7 +125,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
     case SharedMemType::DX_BUFFER:
         return os << "DX_BUFFER";
     default:
-        throw ov::Exception("Unsupported memory type");
+        OPENVINO_THROW("Unsupported memory type");
     }
 }
 
@@ -147,7 +147,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
     } else if (str == "DX_BUFFER") {
         share_mem_type = SharedMemType::DX_BUFFER;
     } else {
-        throw ov::Exception("Unsupported memory type: " + str);
+        OPENVINO_THROW("Unsupported memory type: ", str);
     }
     return is;
 }

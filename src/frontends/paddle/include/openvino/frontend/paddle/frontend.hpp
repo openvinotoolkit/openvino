@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,10 @@ public:
 
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
+    /// \brief Runs normalization passes on Model that was loaded with partial conversion
+    /// \param Model partially converted OV Model
+    void normalize(const std::shared_ptr<ov::Model>& model) const override;
+
 protected:
     /// \brief Check if FrontEnd can recognize model from given parts
     /// \param params Can be path to folder which contains __model__ file or path to
@@ -74,6 +78,7 @@ protected:
 
 protected:
     void try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>& models) const;
+    void fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const;
 
     static std::vector<std::shared_ptr<Model>> convert_each_node(
         const std::shared_ptr<InputModel>& frontend_model,

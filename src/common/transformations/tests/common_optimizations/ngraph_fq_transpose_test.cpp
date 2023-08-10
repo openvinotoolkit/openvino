@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,37 +20,38 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/op/sigmoid.hpp"
 
 using namespace testing;
 
 TEST_F(TransformationTestsF, FQTransposeTest1) {
     {
-        auto data = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
-        auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-        auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-        auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-        auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-        auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
+        auto data = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
+        auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto transpose_order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
 
-        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
-        auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
+        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
 
-        manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
-        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
+        manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
-        auto data = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 1}, {1, 2, 3});
-        auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
-        auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
-        auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
-        auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
+        auto data = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 1}, {1, 2, 3});
+        auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
+        auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
+        auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {2});
+        auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1}, {3});
 
-        auto fq = std::make_shared<ngraph::op::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
+        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{fq}, ngraph::ParameterVector{});
     }
@@ -58,25 +59,25 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
 
 TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
     auto create_graph = []() -> std::shared_ptr<ngraph::Function> {
-        auto data = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, 3, 1});
-        auto sigmoid = std::make_shared<ngraph::op::Sigmoid>(data);
-        auto input_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-        auto input_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-        auto output_low = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
-        auto output_high = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
-        auto transpose_order = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, 3, 1});
+        auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(data);
+        auto input_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto input_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto output_low = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {2});
+        auto output_high = ov::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {3});
+        auto transpose_order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {0, 2, 1});
 
         auto fq =
-            std::make_shared<ngraph::op::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
-        auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
+            std::make_shared<ov::op::v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{data});
     };
     function = create_graph();
 
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
-    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
+    manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });
 

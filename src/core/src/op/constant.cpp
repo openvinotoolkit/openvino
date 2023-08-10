@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 template <typename T>
 static inline string to_cpp_string(T value) {
@@ -47,6 +48,17 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
+    constructor_validate_and_infer_types();
+}
+
+ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
+    m_element_type = tensor.get_element_type();
+    m_shape = tensor.get_shape();
+    // Share data from ov::Tensor
+    m_data = make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                                    tensor.get_byte_size(),
+                                                                    tensor);
+
     constructor_validate_and_infer_types();
 }
 
@@ -119,9 +131,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
             fill_data<Type_t::u64>(ngraph::parse_string<uint64_t>(values[0]));
             break;
         case Type_t::undefined:
-            throw std::runtime_error("deserialize unsupported type undefined");
+            OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
-            throw std::runtime_error("deserialize unsupported type dynamic");
+            OPENVINO_THROW("deserialize unsupported type dynamic");
         }
         update_identical_flags(true, true);
     } else {
@@ -175,9 +187,9 @@ ov::op::v0::Constant::Constant(const element::Type& type,
             write_buffer<Type_t::u64>(ngraph::parse_string<uint64_t>(values));
             break;
         case Type_t::undefined:
-            throw std::runtime_error("deserialize unsupported type undefined");
+            OPENVINO_THROW("deserialize unsupported type undefined");
         case Type_t::dynamic:
-            throw std::runtime_error("deserialize unsupported type dynamic");
+            OPENVINO_THROW("deserialize unsupported type dynamic");
         }
         update_identical_flags(false, false);
     }
@@ -285,9 +297,8 @@ string ov::op::v0::Constant::convert_value_to_string(size_t index) const {
         rc = to_string(get_element_value<Type_t::u64>(index));
         break;
     case Type_t::undefined:
-        throw runtime_error("unsupported type");
     case Type_t::dynamic:
-        throw runtime_error("unsupported type");
+        OPENVINO_THROW("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -382,7 +393,7 @@ vector<string> ov::op::v0::Constant::get_value_strings() const {
         break;
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
-        throw runtime_error("unsupported type");
+        OPENVINO_THROW("unsupported type");
     }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -452,11 +463,6 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
         output_axis_set.insert(axis > 0 ? axis : 0);
     }
     return output_axis_set;
-}
-
-void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
-    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
-    m_shape = shape;
 }
 
 shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -552,6 +558,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
 bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
+    output->set_shape(m_shape);
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
@@ -561,9 +568,9 @@ bool ov::op::v0::Constant::has_evaluate() const {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }

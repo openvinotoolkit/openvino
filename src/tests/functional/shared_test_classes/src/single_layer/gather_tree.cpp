@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
     std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";

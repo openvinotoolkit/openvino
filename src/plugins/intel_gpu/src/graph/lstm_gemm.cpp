@@ -1,11 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "intel_gpu/runtime/error_handler.hpp"
 #include "lstm_gemm_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -44,7 +42,7 @@ std::string lstm_gemm_inst::to_string(lstm_gemm_node const& node) {
     json_composite lstm_gemm_info;
     lstm_gemm_info.add("weights id", weights_id);
     lstm_gemm_info.add("recurrent id", recurrent_id);
-    lstm_gemm_info.add("bias id", bias_id);
+    lstm_gemm_info.add("bias id", std::move(bias_id));
     lstm_gemm_info.add("hidden id", hidden_id);
     node_info->add("lstm gemm info", lstm_gemm_info);
     node_info->dump(primitive_description);

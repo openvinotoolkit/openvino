@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 from ..conftest import model_path
-import openvino.runtime.opset8 as ops
-from openvino.runtime import Type
-
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+import openvino.runtime.opset12 as ops
+from openvino import Type
 
 
 def test_output_replace(device):

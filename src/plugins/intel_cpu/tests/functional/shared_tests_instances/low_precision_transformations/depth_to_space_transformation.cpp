@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ const std::vector<ngraph::PartialShape> inputShapesBS2 = {
 const auto DepthToSpaceBS2 = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(inputShapesBS2),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::Values(ov::test::utils::DEVICE_CPU),
     ::testing::ValuesIn(modes),
     ::testing::Values(2)
 );
@@ -43,7 +43,7 @@ const std::vector<ngraph::PartialShape> inputShapesBS3 = {
 const auto DepthToSpaceBS3 = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(inputShapesBS3),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::Values(ov::test::utils::DEVICE_CPU),
     ::testing::ValuesIn(modes),
     ::testing::Values(3)
 );

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<lo
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "axis=" << axis << "_";
     result << "trgDev=" << targetDevice;
 

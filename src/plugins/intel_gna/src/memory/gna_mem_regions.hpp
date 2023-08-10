@@ -9,7 +9,8 @@
 
 #include "log/debug.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 /**
@@ -27,14 +28,12 @@ enum rRegion {
 };
 
 inline std::map<rRegion, std::string> GetAllRegionsToStrMap() {
-    return {
-        {REGION_INPUTS,  "REGION_INPUTS"},
-        {REGION_OUTPUTS, "REGION_OUTPUTS"},
-        {REGION_SCRATCH, "REGION_SCRATCH"},
-        {REGION_STATES,  "REGION_STATES"},
-        {REGION_RO,      "REGION_RO"},
-        {REGION_AUTO,    "REGION_AUTO"}
-    };
+    return {{REGION_INPUTS, "REGION_INPUTS"},
+            {REGION_OUTPUTS, "REGION_OUTPUTS"},
+            {REGION_SCRATCH, "REGION_SCRATCH"},
+            {REGION_STATES, "REGION_STATES"},
+            {REGION_RO, "REGION_RO"},
+            {REGION_AUTO, "REGION_AUTO"}};
 }
 
 inline std::string rRegionToStr(const rRegion region) {
@@ -47,4 +46,5 @@ inline std::string rRegionToStr(const rRegion region) {
 }
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

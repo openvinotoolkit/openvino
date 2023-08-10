@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -16,7 +16,7 @@ from tests_compatibility.test_onnx.utils import (
 )
 from tests_compatibility import (xfail_issue_35927,
                                  xfail_issue_44858,
-                                 xfail_issue_44968)
+                                 skip_dynamic_model)
 
 
 def test_reshape():
@@ -218,7 +218,7 @@ def test_concat():
             assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_44968
+@skip_dynamic_model
 def test_squeeze():
     data = np.arange(6, dtype=np.int32).reshape([1, 2, 3, 1])
     expected_output = data.reshape([2, 3])

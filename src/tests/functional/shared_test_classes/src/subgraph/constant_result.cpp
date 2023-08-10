@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParam
     std::tie(type, IS, inputPrecision, targetDevice) = obj.param;
     std::ostringstream result;
     result << "SubgraphType=" << type << "_";
-    result << "IS=" << CommonTestUtils::vec2str(IS) << "_";
+    result << "IS=" << ov::test::utils::vec2str(IS) << "_";
     result << "inPrc=" << inputPrecision << "_";
     result << "Device=" << targetDevice;
     return result.str();

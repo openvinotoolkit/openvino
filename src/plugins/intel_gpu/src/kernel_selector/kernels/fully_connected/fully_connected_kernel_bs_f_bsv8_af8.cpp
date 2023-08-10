@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,13 @@ ParamsKey FullyConnected_bs_f_bsv8_af8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_bs_f_bsv8_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -38,13 +44,6 @@ FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefa
     return dispatchData;
 }
 
-static bool check_input_layout(const DataTensor& t) {
-    bool b16_layout = false;
-    b16_layout |= t.GetLayout() == DataLayout::bs_f_bsv8__af8;
-    b16_layout |= DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::BATCH) == 0 && (t.Batch().v == 8);
-    return b16_layout;
-}
-
 static bool check_output_layout(const DataTensor& t) {
     bool b16_layout = false;
     b16_layout |= (t.GetLayout() == DataLayout::fb) && (t.Batch().v == 8);
@@ -61,20 +60,23 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
         return false;
 
     const auto& params = static_cast<const fully_connected_params&>(p);
-    const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
-    if (!params.engineInfo.bSubGroupShortSupport && params.inputs[0].GetDType() == Datatype::F16) {
+    if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
     }
 
     const bool bProperBatch = params.inputs[0].Batch().v >= 8 && params.inputs[0].Batch().v % 8 == 0;
     const bool bProperFeature = params.inputs[0].Feature().v >= 8 && params.inputs[0].Feature().v % 8 == 0;
-    const bool bProperInput = check_input_layout(params.inputs[0]);
     const bool bProperOutput = check_output_layout(params.outputs[0]);
-    const bool bSupportedLayout = optParams.allowInputReordering || bProperInput;
 
-    if (!bProperBatch || !bProperFeature || !bSupportedLayout || !bProperOutput) {
+    if (!bProperBatch || !bProperFeature || !bProperOutput) {
         return false;
+    }
+
+    if (!params.bias.empty()) {
+        if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
+            return false;
+        }
     }
 
     return true;

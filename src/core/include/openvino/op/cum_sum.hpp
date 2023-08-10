@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,13 +38,12 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    /// \return The default value for CumSum.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     bool is_exclusive() const {
         return m_exclusive;
     }

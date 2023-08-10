@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -59,8 +59,8 @@ void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void ReorgYolo::execute(dnnl::stream strm) {
-    const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const auto *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     int IW = (inDims.size() > 3) ? inDims[3] : 1;

@@ -25,22 +25,20 @@ void createDft(Program& p,
     const auto& out_shape = op->get_output_shape(0);
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!axes_constant) {
-        IE_THROW() << "Unsupported parameter nodes type in " << friendly_name << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
     auto axes = axes_constant->cast_vector<int64_t>();
-    uint8_t axis_correction = op->get_input_shape(0).size();
+    uint8_t axis_correction = static_cast<uint8_t>(op->get_input_shape(0).size());
     if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
         --axis_correction;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::normalize_axes(op.get(), axis_correction, axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<int64_t> signal_size;
     if (op->get_input_size() == 3) {
         auto signal_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
-        if (!signal_size_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << friendly_name << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(signal_size_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", friendly_name, " (", op->get_type_name(), ")");
         signal_size = signal_size_constant->cast_vector<int64_t>();
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,6 +58,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPU, VariadicSplitPad,
                                 ::testing::ValuesIn(padsEnd),
                                 ::testing::ValuesIn(padMode),
                                 ::testing::ValuesIn(netPrecision),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         VariadicSplitPad::getTestCaseName);
 }  // namespace

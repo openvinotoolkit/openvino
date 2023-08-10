@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,50 +14,54 @@ DataTensor::DataChannelArray DataTensor::dataChannelArray {{
     // explanation:
     // 0, 1, 2, 3, 4, 5, 6 means the ordering starts from X, then Y, then Z, then W, then F, then B
     // -1 means it's not used
-    //                                      X,  Y,  Z,  W,  F,  B
-    { DataLayout::f,                     { -1, -1, -1, -1,  0, -1 } },
-    { DataLayout::bf,                    { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::fb,                    { -1, -1, -1, -1,  1,  0 } },
-    { DataLayout::bfyx,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::yxfb,                  {  2,  3, -1, -1,  1,  0 } },
-    { DataLayout::byxf,                  {  1,  2, -1, -1,  0,  3 } },
-    { DataLayout::fyxb,                  {  1,  2, -1, -1,  3,  0 } },
-    { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::b_fs_zyx_fsv2,         {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv4,         {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv32,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv32, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv16, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv8_fsv4,   {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv4,   {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv4,  {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv16_fsv2,   {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv16_fsv2,  {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv8_fsv2,   {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv32_fsv32, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv32_fsv32,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_fs_zyx_bsv32_fsv16, {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bs_fs_yx_bsv32_fsv16,  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1,  0,  1 } },
-    { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1,  0,  3 } },
-    { DataLayout::bfzyx,                 {  0,  1,  2, -1,  3,  4 } },
-    { DataLayout::bzyxf,                 {  1,  2,  3, -1,  0,  4 } },
-    { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1,  3,  2 } },
-    { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::bfwzyx,                {  0,  1,  2,  3,  4,  5 } },
-    { DataLayout::nv12,                  {  0,  1, -1, -1,  2,  3 } },
-    { DataLayout::image_2d_rgba,         {  0,  1, -1, -1,  2,  3 } },
+    //                                      X,  Y,  Z,  W,  U,  V,  F,  B
+    { DataLayout::f,                     { -1, -1, -1, -1, -1, -1,  0, -1 } },
+    { DataLayout::bf,                    { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::fb,                    { -1, -1, -1, -1, -1, -1,  1,  0 } },
+    { DataLayout::bfyx,                  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::yxfb,                  {  2,  3, -1, -1, -1, -1,  1,  0 } },
+    { DataLayout::byxf,                  {  1,  2, -1, -1, -1, -1,  0,  3 } },
+    { DataLayout::byfx,                  {  0,  2, -1, -1, -1, -1,  1,  3 } },
+    { DataLayout::bxfy,                  {  2,  0, -1, -1, -1, -1,  1,  3 } },
+    { DataLayout::fyxb,                  {  1,  2, -1, -1, -1, -1,  3,  0 } },
+    { DataLayout::b_fs_yx_fsv2,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv4,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv16,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_yx_fsv32,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::b_fs_zyx_fsv2,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv4,         {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv16,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::b_fs_zyx_fsv32,        {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv32,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv32, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv16, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv16,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_yx_bsv4_fsv4,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_yx_bsv8_fsv4,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv8_fsv4,   {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv4,   {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv4,  {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv16_fsv2,   {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv16_fsv2,  {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv8_fsv2,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv8_fsv2,   {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv4_fsv2,    {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv32_fsv32, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv32_fsv32,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_fs_zyx_bsv32_fsv16, {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bs_fs_yx_bsv32_fsv16,  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bs_f_bsv8__af8,        { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::bs_f_bsv16__af8,       { -1, -1, -1, -1, -1, -1,  0,  1 } },
+    { DataLayout::winograd_2x3_s1_data,  {  2,  1, -1, -1, -1, -1,  0,  3 } },
+    { DataLayout::bfzyx,                 {  0,  1,  2, -1, -1, -1,  3,  4 } },
+    { DataLayout::bzyxf,                 {  1,  2,  3, -1, -1, -1,  0,  4 } },
+    { DataLayout::fs_b_yx_fsv32,         {  0,  1, -1, -1, -1, -1,  3,  2 } },
+    { DataLayout::b_fs_yx_32fp,          {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::bfwzyx,                {  0,  1,  2,  3, -1, -1,  4,  5 } },
+    { DataLayout::bfuwzyx,               {  0,  1,  2,  3,  4, -1,  5,  6 } },
+    { DataLayout::bfvuwzyx,              {  0,  1,  2,  3,  4,  5,  6,  7 } },
+    { DataLayout::nv12,                  {  0,  1, -1, -1, -1, -1,  2,  3 } },
+    { DataLayout::image_2d_rgba,         {  0,  1, -1, -1, -1, -1,  2,  3 } },
 }};
 
 WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
@@ -66,12 +70,14 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::io,                                          { -1, -1, -1,   1,   0, -1 } },
     { WeightsLayout::oiyx,                                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::ioyx,                                        {  0,  1, -1,   3,   2, -1 } },
-    { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
     { WeightsLayout::iyxo,                                        {  1,  2, -1,   3,   0, -1 } },
     { WeightsLayout::oyxi,                                        {  1,  2, -1,   0,   3, -1 } },
+    { WeightsLayout::oyix,                                        {  0,  2, -1,   1,   3, -1 } },
+    { WeightsLayout::oxiy,                                        {  2,  0, -1,   1,   3, -1 } },
     { WeightsLayout::yxio,                                        {  2,  3, -1,   1,   0, -1 } },
     { WeightsLayout::os_iyx_osv16,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32,                                {  0,  1, -1,   2,   3, -1 } },
+    { WeightsLayout::os_iyx_osv8,                                 {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv32__ai32,                          {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv64,                                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_iyx_osv16_rotate_180,                     {  0,  1, -1,   2,   3, -1 } },
@@ -80,6 +86,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_i_osv8__ai8,                              { -1, -1, -1,   0,   1, -1 } },
     { WeightsLayout::os_i_osv16__ai8,                             { -1, -1, -1,   0,   1, -1 } },
     { WeightsLayout::os_i_osv16,                                  { -1, -1, -1,   0,   1, -1 } },
+    { WeightsLayout::os_is_yx_osv16_isv2,                         {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_yx_osv16_isv16,                        {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osv16_isv16,                       {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::g_os_is_zyx_osv16_isv16,                     {  0,  1,  2,   3,   4,  5 } },
@@ -550,6 +557,28 @@ DataTensor DataTensor::FlattenEverything() const {
     return res;
 }
 
+void DataTensor::SwapXY() {
+    DataLayout l = Tensor::bfyx;
+
+    auto x = X();
+    auto y = Y();
+
+    if (GetLayout() != DataLayout::bfyx)
+        throw std::runtime_error("Unsupported - unsupported layout.");
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported shape.");
+
+    // Swap XY axes.
+    y.pitch = 1;
+    x.pitch = y.v + y.pad.Total();
+    std::vector<Dim> vec(ChannelsCount(l));
+    vec[Channelndex(l, DataChannelName::X)] = y;
+    vec[Channelndex(l, DataChannelName::Y)] = x;
+    vec[Channelndex(l, DataChannelName::FEATURE)] = Feature();
+    vec[Channelndex(l, DataChannelName::BATCH)] = Batch();
+    *this = {vec, dtype, l};
+}
+
 NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l) {
     std::vector<size_t> newDims = d;
 
@@ -568,6 +597,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case os_iyx_osv32:
             assert(newDims.size() == 4);
             newDims[3] = RoundUp(newDims[3], 32);
+            break;
+        case os_iyx_osv8:
+            assert(newDims.size() == 4);
+            newDims[3] = RoundUp(newDims[3], 8);
             break;
         case os_iyx_osv32__ai32:
             assert(newDims.size() == 4);
@@ -838,6 +871,11 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
         case gs_oi_yxs_gsv4_yxsv4:
             newDims[4] = RoundUp(newDims[4], 4);
             break;
+        case os_is_yx_osv16_isv2:
+            assert(newDims.size() == 4);
+            newDims[2] = RoundUp(newDims[2], 2);
+            newDims[3] = RoundUp(newDims[3], 16);
+            break;
         case os_is_yx_osv16_isv16:
             assert(newDims.size() == 4);
             newDims[2] = RoundUp(newDims[2], 16);
@@ -1051,5 +1089,22 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
 
     return {vec, t, l};
 }
+
+void WeightsTensor::SwapXY() {
+    auto x = X();
+
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported weight shape.");
+
+    std::vector<size_t> vec;
+    for (auto& d : dims) {
+        vec.push_back(d.v);
+    }
+    auto x_index = Channelndex(layout, WeightsChannelName::X);
+    auto y_index = Channelndex(layout, WeightsChannelName::Y);
+    std::swap(vec[x_index], vec[y_index]);
+    *this = {vec, dtype, layout};
+}
+
 }  // namespace Tensor
 }  // namespace kernel_selector

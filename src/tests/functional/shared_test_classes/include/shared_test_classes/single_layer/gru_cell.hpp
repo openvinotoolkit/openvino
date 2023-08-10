@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,9 @@ using GRUCellParams = typename std::tuple<
         std::vector<std::string>,          // activations
         float,                             // clip
         bool,                              // linear_before_reset
+        ngraph::helpers::InputLayerType,   // W input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // R input type (Constant or Parameter)
+        ngraph::helpers::InputLayerType,   // B input type (Constant or Parameter)
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 

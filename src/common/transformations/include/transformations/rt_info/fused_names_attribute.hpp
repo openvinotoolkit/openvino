@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,9 +88,3 @@ TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ov::Node>& n
 TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ov::Node>& node);
 
 }  // namespace ov
-
-namespace ngraph {
-using ov::FusedNames;
-using ov::getFusedNames;
-using ov::getFusedNamesVector;
-}  // namespace ngraph

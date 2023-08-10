@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
+GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -106,8 +106,7 @@ void GridSample::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, gridPrecision}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         implType,
-                         isDynamicNode());
+                         implType);
 }
 
 void GridSample::createPrimitive() {
@@ -134,6 +133,7 @@ void GridSample::createPrimitive() {
         jcp.cannelNum      = jcp.dynamicChannel ? 1lu : srcDataDims[1];
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (x64::mayiuse(x64::avx512_core)) {
         jitKernel.reset(new GridSampleKernel<x64::avx512_core>(jcp));
     } else if (x64::mayiuse(x64::avx2)) {
@@ -141,6 +141,7 @@ void GridSample::createPrimitive() {
     } else if (x64::mayiuse(x64::sse41)) {
         jitKernel.reset(new GridSampleKernel<x64::sse41>(jcp));
     }
+#endif // OPENVINO_ARCH_X86_64
     if (!jitKernel) {
         THROW_ERROR << " could not create JIT kernel.";
     }
@@ -178,13 +179,13 @@ void GridSample::createPrimitive() {
 }
 
 void GridSample::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
-    auto& gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
+    auto gridMemPtr = getParentEdgeAt(IN_GRID)->getMemoryPtr();
     if (!gridMemPtr || !gridMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input grid memory.";
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << " has not allocated output memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
@@ -202,12 +203,16 @@ void GridSample::prepareParams() {
 
         auto& p = execParamsPerThread[ithr];
 
+        p.workAmount = dstEnd - dstStart;
+        if (p.workAmount == 0lu) {
+            return;
+        }
+
         p.batchNum      = srcDataShape[0];
         p.channelsNum   = srcDataShape[1];
         p.srcHeightF[0] = srcDataShape[2];
         p.srcWidthF[0]  = srcDataShape[3];
 
-        p.workAmount = dstEnd - dstStart;
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB  = dstStart * dataTypeSize;
 
@@ -257,9 +262,9 @@ void GridSample::prepareParams() {
 }
 
 void GridSample::execute(dnnl::stream strm) {
-    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->GetPtr();
-    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->GetPtr());
-    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const void*    srcData = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getData();
+    const uint8_t* gridData = reinterpret_cast<uint8_t*>(getParentEdgeAt(IN_GRID)->getMemoryPtr()->getData());
+    uint8_t*       dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     auto threadBody = [&](const int ithr, const int nthr) {
         const auto& p = execParamsPerThread[ithr];

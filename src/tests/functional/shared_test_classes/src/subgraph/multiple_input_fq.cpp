@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,9 @@ std::string MultipleInputTest::getTestCaseName(const testing::TestParamInfo<mult
     result << "netPrecision=" << netPrecision.name() << "_";
     result << "IS=" << inputSize << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 

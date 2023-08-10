@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,14 @@
 #include <utility>
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
-#include <SetupAPI.h>
+#include <setupapi.h>
 #include <devguid.h>
 #include <cstring>
 #else
@@ -161,6 +166,16 @@ device_info init_device_info(const cl::Device& device) {
 
     info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
 
+    // For some reason nvidia runtime throws an exception (CL_INVALID_KERNEL_ARGS) for WG as follows:
+    // global: < 1 x 32 x 5184 >
+    // local: < 1 x 1 x 576 >
+    // While local  < 1 x 1 x 36 > works fine
+    // So below we limit max WG size by 64 which was selected based on few experiments.
+    constexpr int nvidia_vendor_id = 0x10DE;
+    if (info.vendor_id == nvidia_vendor_id) {
+        info.max_work_group_size = 64;
+    }
+
     info.max_local_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     info.max_global_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
@@ -173,40 +188,47 @@ device_info init_device_info(const cl::Device& device) {
     auto extensions = device.getInfo<CL_DEVICE_EXTENSIONS>();
     extensions.push_back(' ');  // Add trailing space to ease searching (search with keyword with trailing space).
 
+    info.supports_intel_planar_yuv = extensions.find("cl_intel_planar_yuv ") != std::string::npos;
     info.supports_fp16 = extensions.find("cl_khr_fp16 ") != std::string::npos;
     info.supports_fp64 = extensions.find("cl_khr_fp64 ") != std::string::npos;
     info.supports_fp16_denorms = info.supports_fp16 && (device.getInfo<CL_DEVICE_HALF_FP_CONFIG>() & CL_FP_DENORM) != 0;
 
-    info.supports_subgroups = extensions.find("cl_intel_subgroups") != std::string::npos;
-    info.supports_subgroups_short = extensions.find("cl_intel_subgroups_short") != std::string::npos;
-    info.supports_subgroups_char = extensions.find("cl_intel_subgroups_char") != std::string::npos;
+    info.supports_khr_subgroups = extensions.find("cl_khr_subgroups ") != std::string::npos;
+    info.supports_intel_subgroups = extensions.find("cl_intel_subgroups ") != std::string::npos;
+    info.supports_intel_subgroups_short = extensions.find("cl_intel_subgroups_short ") != std::string::npos;
+    info.supports_intel_subgroups_char = extensions.find("cl_intel_subgroups_char ") != std::string::npos;
+    info.supports_intel_required_subgroup_size = extensions.find("cl_intel_required_subgroup_size ") != std::string::npos;
 
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
+    info.supports_usm = extensions.find("cl_intel_unified_shared_memory ") != std::string::npos ||
+                        extensions.find("cl_intel_unified_shared_memory_preview ") != std::string::npos;
 
-    info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos;
+    info.supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io ") != std::string::npos;
 
-    info.supports_queue_families = extensions.find("cl_intel_command_queue_families") != std::string::npos;
+    info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
-    bool sub_group_sizes_supported = extensions.find("cl_intel_required_subgroup_size") != std::string::npos;
-    if (sub_group_sizes_supported) {
+    if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
     } else {
         // Set these values as reasonable default for most of the supported platforms
         info.supported_simd_sizes = {8, 16, 32};
     }
 
-    bool device_uuid_supported = extensions.find("cl_khr_device_uuid") != std::string::npos;
+    bool device_uuid_supported = extensions.find("cl_khr_device_uuid ") != std::string::npos;
     if (device_uuid_supported) {
-        static_assert(CL_UUID_SIZE_KHR == device_uuid::max_uuid_size, "");
-        info.uuid.val = device.getInfo<CL_DEVICE_UUID_KHR>();
+        static_assert(CL_UUID_SIZE_KHR == ov::device::UUID::MAX_UUID_SIZE, "");
+        static_assert(CL_LUID_SIZE_KHR == ov::device::LUID::MAX_LUID_SIZE, "");
+        info.luid.luid = device.getInfo<CL_DEVICE_LUID_KHR>();
+        info.uuid.uuid = device.getInfo<CL_DEVICE_UUID_KHR>();
     } else {
-        std::fill_n(std::begin(info.uuid.val), device_uuid::max_uuid_size, 0);
+        std::fill_n(std::begin(info.luid.luid), ov::device::LUID::MAX_LUID_SIZE, 0);
+        std::fill_n(std::begin(info.uuid.uuid), ov::device::UUID::MAX_UUID_SIZE, 0);
     }
 
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
+    bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     if (device_attr_supported) {
         info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -221,6 +243,10 @@ device_info init_device_info(const cl::Device& device) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_onednn)
             info.supports_immad = false;
+    } else if (nv_device_attr_supported) {
+        info.gfx_ver = {static_cast<uint16_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV>()),
+                        static_cast<uint8_t>(device.getInfo<CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV>()),
+                        0};
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
@@ -285,7 +311,7 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+    return _device == casted->get_device() && _platform == casted->get_platform();
 }
 
 }  // namespace ocl

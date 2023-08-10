@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
 #include <utils/general_utils.h>
-#include "kernels/gather_uni_kernel.hpp"
+#include "kernels/x64/gather_uni_kernel.hpp"
+#include <partitioned_mem_mgr.h>
+#include "shape_inference/custom/gather.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
@@ -41,8 +43,9 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(GATHER_AXIS))), batchDims(0) {
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, GatherShapeInferFactory(op)),
+      batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -90,6 +93,10 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
             THROW_ERROR << "has incorrect input parameter axis value: " << axis;
     }
+
+    if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
+        constIndices = indices->cast_vector<int>();
+    }
 }
 
 void Gather::initSupportedPrimitiveDescriptors() {
@@ -128,11 +135,30 @@ void Gather::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp, Precision::I32},
                           {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
                          {{LayoutType::ncsp, dataPrecision}},
-                         ref_any,
-                         isDynamicNode());
+                         ref_any);
+
+    // Let's check for the special inPlace memory use case
+    // in place only makes sense when we split by dense blocks since strided tensors are not supported by most nodes
+
+    const auto& parentdDims = inputShapes[0].getDims();
+    if (isAxisInputConst &&
+        0 == batchDims &&
+        1 == constIndices.size() &&
+        parentdDims[axis] != Shape::UNDEFINED_DIM &&
+        std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; })) {
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                        {LayoutType::ncsp, Precision::I32},
+                        {LayoutType::ncsp, Precision::I32, isAxisInputConst}},
+                        {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
+                        unknown);
+    }
 }
 
 void Gather::createPrimitive() {
+    if (isInPlace()) {
+        return;
+    }
+#if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize :
@@ -197,29 +223,32 @@ void Gather::createPrimitive() {
             }
         }
     }
-
+#endif
     Node::createPrimitive();
 }
 
 bool Gather::needPrepareParams() const {
+    if (isInPlace()) {
+        return false;
+    }
     bool result = inputShapesModified();
     if (!isAxisInputConst)
-        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
+        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
     return result;
 }
 
 void Gather::prepareParams() {
-    auto& dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input data memory.";
-    auto& idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
     if (!idxMemPtr || !idxMemPtr->isAllocated())
         THROW_ERROR << " has not allocated input indices memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
     if (!isAxisInputConst) {
-        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->GetPtr()))[0];
+        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
@@ -251,6 +280,7 @@ void Gather::prepareParams() {
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     const auto& selectedPD = getSelectedPrimitiveDescriptor();
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
         if (x64::mayiuse(x64::avx512_core)) {
@@ -258,16 +288,16 @@ void Gather::prepareParams() {
         } else if (x64::mayiuse(x64::avx2)) {
             selectedPD->setImplementationType(jit_avx2);
         }
-    } else {
-        selectedPD->setImplementationType(ref_any);
     }
+#endif
 }
 
 void Gather::execute(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
+        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData();
+        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -311,16 +341,19 @@ void Gather::execute(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::executeDynamicImpl(dnnl::stream strm) {
+#if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
+        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData();
+        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -351,12 +384,12 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
                 permIdxMask[0] = idxElPerVec - specIndicesSize;
                 int div = idxElPerVec / specIndicesSize;
                 int remainder = idxElPerVec % specIndicesSize;
-                for (int i = 1; i < idxElPerVec; i++) {
+                for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
-                    if (permIdxMask[i] == idxElPerVec)
+                    if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec)
                         permIdxMask[i] = idxElPerVec - specIndicesSize;
                 }
-                for (int i = 0; i < idxElPerVec; i++) {
+                for (uint64_t i = 0; i < idxElPerVec; i++) {
                     if (((start + i) % specIndicesSize) < (specIndicesSize - remainder))
                         beforeAxisDiff[i] = axisDim * div;
                     else
@@ -370,9 +403,11 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         };
 
         parallel_nt(0, threadBody);
-    } else {
-        execReference();
+
+        return;
     }
+#endif
+    execReference();
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
@@ -388,9 +423,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         p.permIdxMask[0] = idxElPerVec - specIndicesSize;
-        for (int i = 1; i < idxElPerVec; i++) {
+        for (uint64_t i = 1; i < idxElPerVec; i++) {
             p.permIdxMask[i] = p.permIdxMask[i - 1] + 1;
-            if (p.permIdxMask[i] == idxElPerVec)
+            if (static_cast<uint64_t>(p.permIdxMask[i]) == idxElPerVec)
                 p.permIdxMask[i] = idxElPerVec - specIndicesSize;
         }
 
@@ -414,7 +449,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
         int secondStart = start + idxElPerVec;
-        for (int i = 0; i < idxElPerVec; i++) {
+        for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
             p.specIdxDiff[i] = (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0)
@@ -425,15 +460,15 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
             for (size_t j = 0lu; j < 6lu; j++) {
-                if (p.afterAxPermMask[i] >= idxElPerVec)
+                if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec)
                     p.afterAxPermMask[i] -= afterAxisSize;
             }
         }
         if (specIndicesSize * afterAxisSize < idxElPerVec) {
             p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
-            for (int i = 1; i < idxElPerVec; i++) {
+            for (uint64_t i = 1; i < idxElPerVec; i++) {
                 p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
-                if (p.beforeAxPermMask[i] == idxElPerVec)
+                if (static_cast<uint64_t>(p.beforeAxPermMask[i]) == idxElPerVec)
                     p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
             }
         }
@@ -443,9 +478,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 }
 
 void Gather::execReference() {
-    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->GetPtr());
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
@@ -458,7 +493,7 @@ void Gather::execReference() {
         }
         const size_t idx = ii;
         const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
-        if (idx < axisDim) {
+        if (idx < static_cast<size_t>(axisDim)) {
             size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
@@ -476,6 +511,40 @@ void Gather::execReference() {
 
 bool Gather::created() const {
     return getType() == Type::Gather;
+}
+
+bool Gather::isExecutable() const {
+    return !isInPlace() && Node::isExecutable();
+}
+
+void Gather::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+    constexpr size_t outputPort = 0;
+
+    auto& config = selected_pd->getConfig();
+    size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
+    auto baseDim = inputShapes.front().getDims()[axis];
+    IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
+    auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+    auto index = constIndices.at(0);
+    ptrdiff_t offset = index < 0 ? baseDim + index : index;
+    const auto& childEdges = getChildEdgesAtPort(outputPort);
+    for (auto& childEdge : childEdges) {
+        IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
+            getName() << " with type " << getTypeStr();
+
+        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
+        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
+
+        childEdge->reuse(newMem);
+    }
 }
 
 }   // namespace node

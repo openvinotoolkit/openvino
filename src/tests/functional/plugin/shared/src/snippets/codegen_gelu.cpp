@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ namespace snippets {
         std::tie(netPrecision, inputShapes0, useSubgraph, targetDevice) = obj.param;
 
         std::ostringstream result;
-        result << "IS[0]=" << CommonTestUtils::vec2str(inputShapes0) << "_";
+        result << "IS[0]=" << ov::test::utils::vec2str(inputShapes0) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "overSnippet=" << (useSubgraph ? "yes" : "no") << "_";
         result << "targetDevice=" << targetDevice;
@@ -64,8 +64,8 @@ namespace snippets {
             "CodegenGelu");
 
         if (useSubgraph) {
-            ngraph::pass::InitNodeInfo().run_on_function(function);
-            ngraph::pass::ConstantFolding().run_on_function(function);
+            ov::pass::InitNodeInfo().run_on_model(function);
+            ngraph::pass::ConstantFolding().run_on_model(function);
         }
     }
 

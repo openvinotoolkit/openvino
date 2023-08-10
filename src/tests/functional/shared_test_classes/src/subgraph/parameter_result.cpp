@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,10 @@ std::string ParameterResultSubgraphTestBase::getTestCaseName(const testing::Test
     std::tie(inShape, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=";
-    result << CommonTestUtils::partialShape2str({inShape.first}) << "_";
+    result << ov::test::utils::partialShape2str({inShape.first}) << "_";
     result << "TS=";
     for (const auto& shape : inShape.second) {
-        result << CommonTestUtils::vec2str(shape) << "_";
+        result << ov::test::utils::vec2str(shape) << "_";
     }
     result << "TargetDevice=" << targetDevice;
     return result.str();

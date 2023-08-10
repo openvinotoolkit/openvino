@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -278,11 +278,11 @@ class If(Op):
         :return: if_node
         """
         then_graph_nodes = if_node.then_graph.nodes()
-        for idx in range(len(if_node.then_graph.get_op_nodes())):
-            then_graph_nodes[idx]['internal_layer_id'] = idx
+        for node in if_node.then_graph.get_op_nodes():
+            then_graph_nodes[node.id]['internal_layer_id'] = node.id
         else_graph_nodes = if_node.else_graph.nodes()
-        for idx in range(len(if_node.else_graph.get_op_nodes())):
-            else_graph_nodes[idx]['internal_layer_id'] = idx
+        for node in if_node.else_graph.get_op_nodes():
+            else_graph_nodes[node.id]['internal_layer_id'] = node.id
         return if_node.node
 
     def substitute_ie_attrs(self, new_attrs: dict):

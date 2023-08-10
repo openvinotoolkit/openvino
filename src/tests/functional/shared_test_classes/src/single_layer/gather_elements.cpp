@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ std::string GatherElementsLayerTest::getTestCaseName(const testing::TestParamInf
     std::tie(dataShape, indicesShape, axis, dPrecision, iPrecision, device) = obj.param;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
-    result << "IS=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "DS=" << ov::test::utils::vec2str(dataShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(indicesShape) << "_";
     result << "Ax=" << axis << "_";
     result << "DP=" << dPrecision.name() << "_";
     result << "IP=" << iPrecision.name() << "_";

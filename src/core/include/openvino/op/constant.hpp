@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,19 @@
 #include <cmath>
 #include <cstring>
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
+
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
+
+#ifdef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED_CONSTANT
+#endif
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -28,7 +38,13 @@ public:
 
     /// \brief Initialize a constant from tensor
     /// \param tensor The tensor with data
+    OPENVINO_SUPPRESS_DEPRECATED_START
     Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    /// \brief Initialize a constant from ov::Tensor
+    /// \param tensor The ov::Tensor with data
+    Constant(const ov::Tensor& tensor);
 
     /// \brief Constructs a tensor constant.
     ///
@@ -129,7 +145,7 @@ public:
             break;
         case Type_t::undefined:
         case Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -151,6 +167,7 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /// \brief Constructs a tensor constant with the supplied data
     ///
     /// \param type The element type of the tensor constant.
@@ -163,6 +180,7 @@ public:
         m_data = data;
         constructor_validate_and_infer_types();
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     Constant(const Constant& other);
     Constant(const Constant& other, const Shape& new_shape);
@@ -181,10 +199,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
     bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
@@ -223,16 +239,11 @@ public:
     ///        Repeated values are allowed.
     AxisSet get_axis_set_val() const;
 
-    /// \brief Update Constant shape. New shape size must equal to the data elements
-    /// count
-    ///
-    /// \param shape The shape of the tensor constant.
-    OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
-    void set_data_shape(const Shape& shape);
-
     /// \brief Return data size in bytes
     size_t get_byte_size() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return m_data->size();
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Wrapper around constructing a shared_ptr of a Constant
@@ -276,8 +287,9 @@ public:
     template <typename T>
     std::vector<T> get_vector() const {
         const T* p = get_data_ptr<T>();
-        if (p == nullptr)
-            throw std::runtime_error("Cannot create vector! Buffer is not allocated.");
+        if (p == nullptr) {
+            OPENVINO_THROW("Cannot create vector! Buffer is not allocated.");
+        }
         return std::vector<T>(p, p + shape_size(m_shape));
     }
 
@@ -344,7 +356,7 @@ public:
             cast_vector<Type_t::u64>(rc);
             break;
         default:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
@@ -353,13 +365,13 @@ public:
     }
 
     const void* get_data_ptr() const {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     template <typename T>
     const T* get_data_ptr() const {
-        if (sizeof(T) > m_element_type.size() && shape_size(m_shape) > 0) {
-            throw ov::Exception("Buffer over-read");
-        }
+        OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
 
         return static_cast<const T*>(get_data_ptr());
     }
@@ -435,6 +447,37 @@ private:
         output_vector.reserve(source_vector.size());
 
         std::transform(source_vector.begin(), source_vector.end(), std::back_inserter(output_vector), [](IN_T c) {
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+            if (!std::is_same<OUT_T, IN_T>::value) {
+                OPENVINO_ASSERT(!std::numeric_limits<IN_T>::is_signed || std::numeric_limits<OUT_T>::lowest() <= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+                OPENVINO_ASSERT(std::numeric_limits<OUT_T>::max() >= c,
+                                "Cannot cast vector from constant. Some values are outside the range.");
+            }
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
             return static_cast<OUT_T>(c);
         });
     }
@@ -504,32 +547,37 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
-#ifdef __GNUC__
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wsign-compare"
-#endif
 #ifdef __clang__
 #    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
-#endif
-#if defined(_MSC_VER)
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#elif defined(__GNUC__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#    pragma GCC diagnostic ignored "-Wbool-compare"
+#elif defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4018)
 #    pragma warning(disable : 4804)
 #endif
         if (!std::is_same<T, StorageDataType>::value) {
-            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
-                            std::numeric_limits<StorageDataType>::lowest() <= value);
-            OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+            OPENVINO_ASSERT(
+                !std::numeric_limits<T>::is_signed || std::numeric_limits<StorageDataType>::lowest() <= value,
+                "Cannot fill constant data. Values is outside the range.");
+            OPENVINO_ASSERT(std::numeric_limits<StorageDataType>::max() >= value,
+                            "Cannot fill constant data. Values is outside the range.");
         }
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
-#ifdef __clang__
-#    pragma GangC diagnostic pop
-#endif
-#ifdef __GNUC__
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#elif defined(__GNUC__)
 #    pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#    pragma warning(pop)
 #endif
 
         const auto size = shape_size(m_shape);
@@ -560,7 +608,9 @@ private:
     void allocate_buffer(bool memset_allocation);
 
     void* get_data_ptr_nc() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return (m_data ? m_data->get_ptr() : nullptr);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     template <element::Type_t ET>
@@ -638,7 +688,7 @@ private:
         const auto& target_type = m_element_type;
         size_t target_element_count = shape_size(m_shape);
         if (source.size() != target_element_count) {
-            throw std::runtime_error("Constant initializer does not match shape");
+            OPENVINO_THROW("Constant initializer does not match shape");
         }
         using Type_t = element::Type_t;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -697,7 +747,7 @@ private:
             break;
         case element::Type_t::undefined:
         case element::Type_t::dynamic:
-            throw std::runtime_error("unsupported type");
+            OPENVINO_THROW("unsupported type");
         }
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
@@ -742,7 +792,9 @@ private:
 
     element::Type m_element_type;
     Shape m_shape{};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_data;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes = true;

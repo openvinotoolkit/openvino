@@ -1,28 +1,29 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 from copy import copy, deepcopy
 
 from ..conftest import model_path
-import openvino.runtime.opset8 as ops
-from openvino.runtime import (
-    ConstOutput,
+import openvino.runtime.opset12 as ops
+from openvino import (
     Shape,
     PartialShape,
     Type,
+    Core,
+    OVAny,
+)
+from openvino.runtime import (
+    ConstOutput,
     Output,
     RTMap,
-    OVAny,
-    Core,
 )
 
 import pytest
 
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def test_const_output_type(device):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params)
            << "_" << param.fakeQuantize << "_"
-           << CommonTestUtils::vec2str(param.padsBegin) << CommonTestUtils::vec2str(param.padsEnd) << "_"
+           << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
            << padMode << "_" << (padMode == ngraph::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
     return result.str();
 }
@@ -58,6 +58,7 @@ void PadTransformation::Run() {
 }
 
 TEST_P(PadTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

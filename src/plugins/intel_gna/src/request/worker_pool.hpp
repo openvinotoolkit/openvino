@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,8 @@
 
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 /**
@@ -86,4 +87,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

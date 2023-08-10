@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,12 @@ namespace low_precision {
 
 VariadicSplitTransformation::VariadicSplitTransformation(const Params& params) : SplitTransformation(params) {
     MATCHER_SCOPE(VariadicSplitTransformation);
-    auto matcher = pattern::wrap_type<opset1::VariadicSplit>({
-        pattern::wrap_type<opset1::Multiply>(),
-        pattern::wrap_type<opset1::Constant>(),
-        pattern::wrap_type<opset1::Constant>() });
+    auto matcher = pattern::wrap_type<ov::opset1::VariadicSplit>({
+        pattern::wrap_type<ov::opset1::Multiply>(),
+        pattern::wrap_type<ov::opset1::Constant>(),
+        pattern::wrap_type<ov::opset1::Constant>() });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;

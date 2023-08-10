@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/mark_precision_sensitive_divides.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/utils/utils.hpp>
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertDivide) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 
     {
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, ConvertDivideInverse) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 
     {
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, ConvertDivideNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 
     {
@@ -95,7 +95,7 @@ TEST_F(TransformationTestsF, ConvertDivideScalar) {
 
         NGRAPH_CHECK(divide->get_output_partial_shape(0).rank().get_length() == 0);
 
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 
     {
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantPositive) {
         auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::ConvertDivideWithConstant>();
+        manager.register_pass<ov::pass::ConvertDivideWithConstant>();
     }
 
     {
@@ -142,7 +142,7 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantNegative) {
 
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
-        manager.register_pass<ngraph::pass::ConvertDivideWithConstant>();
+        manager.register_pass<ov::pass::ConvertDivideWithConstant>();
     }
 
     {
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, ConvertDivideWithConstantNegative) {
 TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{1, 3, 22, 22});
-        auto gather = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<ngraph::opset1::Convert>(gather, ngraph::element::f16);
         auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {0.5});
         auto divide = std::make_shared<ngraph::opset1::Divide>(convert, divide_constant);
@@ -176,8 +176,8 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 }
 
@@ -220,24 +220,24 @@ TEST_F(TransformationTestsF, ConvertDivide_If) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
         auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-        decomp->add_matcher<ngraph::pass::ConvertDivide>();
+        decomp->add_matcher<ov::pass::ConvertDivide>();
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
     {
-        // This test case checks that MarkPrecisionSensitiveDivides works correctly when Divide is included
+        // This test case checks that MarkDividesInShapeSubgraphs works correctly when Divide is included
         // into precision sensitive and non precision sensitive sub-graphs. So the potential problem here is
-        // that MarkPrecisionSensitiveDivides could traverse graph first form "add" output so all nodes including
+        // that MarkDividesInShapeSubgraphs could traverse graph first form "add" output so all nodes including
         // Divide will be marked as visited, but Divide and other nodes must also be visited again because of
-        // precision sensitive Interpolate second input. And to handle this MarkPrecisionSensitiveDivides has
+        // precision sensitive Interpolate second input. And to handle this MarkDividesInShapeSubgraphs has
         // special visited set for precision sensitive nodes which needs to be tested as well. So in the worst case
         // we will traverse each node twice.
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{1, 3, 22, 22});
-        auto gather = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<ngraph::opset1::Convert>(gather, ngraph::element::f16);
         auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{1}, {0.5});
         auto divide = std::make_shared<ngraph::opset1::Divide>(convert, divide_constant);
@@ -255,20 +255,20 @@ TEST_F(TransformationTestsF, ConvertDivideFP16ShapeOfSubgraphNegative2) {
 
         auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, convert_after, interp_attr);
 
-        // "add" node specially set as a first output, so MarkPrecisionSensitiveDivides will start graph traversal from
+        // "add" node specially set as a first output, so MarkDividesInShapeSubgraphs will start graph traversal from
         // it and after all nodes above are visited it will start traverse from "interpolate"
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add, interpolate},
                                                       ngraph::ParameterVector{data, data2});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 }
 
 TEST_F(TransformationTestsF, ConvertDivideFP32ShapeOfSubgraphNegative) {
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
-        auto gather = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+        auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
         auto convert = std::make_shared<ngraph::opset1::Convert>(gather, ngraph::element::f32);
         auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0.5});
         auto divide = std::make_shared<ngraph::opset1::Divide>(convert, divide_constant);
@@ -285,7 +285,7 @@ TEST_F(TransformationTestsF, ConvertDivideFP32ShapeOfSubgraphNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveDivides>();
-        manager.register_pass<ngraph::pass::ConvertDivide>();
+        manager.register_pass<ov::pass::MarkDividesInShapeSubgraphs>();
+        manager.register_pass<ov::pass::ConvertDivide>();
     }
 }

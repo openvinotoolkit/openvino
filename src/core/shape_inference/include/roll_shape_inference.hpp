@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,11 @@ namespace ov {
 namespace op {
 namespace v7 {
 
-template <class T>
-void shape_infer(const ov::op::v7::Roll* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Roll* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
 
     const auto& data_pshape = input_shapes[0];
     const auto& shift_pshape = input_shapes[1];
@@ -35,39 +34,20 @@ void shape_infer(const ov::op::v7::Roll* op,
         }
     }
 
-    if (axes_pshape.rank().is_static()) {
-        const auto& axes_rank = axes_pshape.size();
-        NODE_VALIDATION_CHECK(op, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
-    }
+    NODE_VALIDATION_CHECK(op,
+                          axes_pshape.rank().is_dynamic() || axes_pshape.size() <= 1,
+                          "Axes must be a scalar or 1D tensor.");
 
-    std::vector<int64_t> axes{};
-
-    if (get_data_as_int64<T>(2, op, axes, constant_data)) {
-        if (data_pshape.rank().is_static()) {
-            const auto& data_rank = data_pshape.size();
-            for (int64_t& axis : axes) {
-                NODE_VALIDATION_CHECK(op,
-                                      axis < static_cast<int64_t>(data_rank),
-                                      "Axes must be less than data tensor rank. Got "
-                                      "data tensor rank: ",
-                                      data_rank,
-                                      ", axis: ",
-                                      axis);
-                if (axis < 0) {
-                    axis += static_cast<int64_t>(data_rank);
-                }
-                NODE_VALIDATION_CHECK(op,
-                                      axis >= 0,
-                                      "Axes must be positive or equal to zero. Got "
-                                      "axis: ",
-                                      axis);
-            }
+    if (data_pshape.rank().is_static()) {
+        if (const auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            ov::normalize_axes(op, data_pshape.size(), *axes);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 
-    output_shapes[0] = input_shapes[0];
+    return {data_pshape};
 }
-
 }  // namespace v7
 }  // namespace op
 }  // namespace ov

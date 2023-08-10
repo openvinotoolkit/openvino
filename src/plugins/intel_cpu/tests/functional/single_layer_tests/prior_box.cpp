@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,13 +85,13 @@ public:
         result << "outPRC="  << outPrc << separator;
         result << "inL="     << inLayout << separator;
         result << "outL="    << outLayout << separator;
-        result << "min_size=" << CommonTestUtils::vec2str(attributes.min_size) << separator;
-        result << "max_size=" << CommonTestUtils::vec2str(attributes.max_size)<< separator;
-        result << "aspect_ratio=" << CommonTestUtils::vec2str(attributes.aspect_ratio)<< separator;
-        result << "density=" << CommonTestUtils::vec2str(attributes.density)<< separator;
-        result << "fixed_ratio=" << CommonTestUtils::vec2str(attributes.fixed_ratio)<< separator;
-        result << "fixed_size=" << CommonTestUtils::vec2str(attributes.fixed_size)<< separator;
-        result << "variance=" << CommonTestUtils::vec2str(attributes.variance)<< separator;
+        result << "min_size=" << ov::test::utils::vec2str(attributes.min_size) << separator;
+        result << "max_size=" << ov::test::utils::vec2str(attributes.max_size)<< separator;
+        result << "aspect_ratio=" << ov::test::utils::vec2str(attributes.aspect_ratio)<< separator;
+        result << "density=" << ov::test::utils::vec2str(attributes.density)<< separator;
+        result << "fixed_ratio=" << ov::test::utils::vec2str(attributes.fixed_ratio)<< separator;
+        result << "fixed_size=" << ov::test::utils::vec2str(attributes.fixed_size)<< separator;
+        result << "variance=" << ov::test::utils::vec2str(attributes.variance)<< separator;
         result << "step=" << attributes.step << separator;
         result << "offset=" << attributes.offset << separator;
         result << "clip=" << attributes.clip << separator;
@@ -117,8 +117,8 @@ protected:
                  inPrc, outPrc, inLayout, outLayout,
                  inputShapes, imageShapes, targetDevice) = GetParam();
 
-        selectedType = makeSelectedTypeStr("ref", inPrc);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        selectedType = makeSelectedTypeStr("ref_any", ov::test::ElementType::i32);
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({ inputShapes, imageShapes });
 
@@ -221,7 +221,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(imageShape),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PriorBoxLayerCPUTest::getTestCaseName);
 
 } // namespace

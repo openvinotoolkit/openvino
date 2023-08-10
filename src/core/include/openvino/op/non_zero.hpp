@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonZero : public Op {
 public:
-    OPENVINO_OP("NonZero", "opset3", op::Op, 3);
+    OPENVINO_OP("NonZero", "opset3", op::Op);
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.

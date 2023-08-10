@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"  // ov::Model
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -49,9 +50,24 @@ static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::
     return sinks;
 }
 
+static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::SinkVector& sinks) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    for (const auto& sink : sinks) {
+        auto node = std::dynamic_pointer_cast<ov::Node>(sink);
+        NGRAPH_CHECK(node != nullptr, "Sink {} is not instance of Node");
+        nodes.push_back(node);
+    }
+    return nodes;
+}
+
 void regclass_graph_Model(py::module m) {
     py::class_<ov::Model, std::shared_ptr<ov::Model>> model(m, "Model", py::module_local());
     model.doc() = "openvino.runtime.Model wraps ov::Model";
+
+    model.def(py::init([](const std::shared_ptr<ov::Model>& other) {
+                  return other;
+              }),
+              py::arg("other"));
 
     model.def(py::init([](const ov::ResultVector& res,
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
@@ -347,7 +363,7 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
                     new_shape.first = item.first.cast<ov::Output<ov::Node>>();
                 } else {
-                    throw py::type_error("Incorrect key type " + std::string(item.first.get_type().str()) +
+                    throw py::type_error("Incorrect key type " + std::string(py::str(item.first.get_type())) +
                                          " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
                 }
                 // check values
@@ -359,7 +375,7 @@ void regclass_graph_Model(py::module m) {
                     new_shape.second = ov::PartialShape(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
-                        "Incorrect value type " + std::string(item.second.get_type().str()) +
+                        "Incorrect value type " + std::string(py::str(item.second.get_type())) +
                         " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
                 }
                 new_shapes.insert(new_shape);
@@ -480,6 +496,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ParameterVector containing model parameters.
                     :rtype: ParameterVector
                  )");
+    model.def_property_readonly("parameters",
+                                &ov::Model::get_parameters,
+                                R"(
+                                        Return the model parameters.
+                                        
+                                        :return: ParameterVector containing model parameters.
+                                        :rtype: ParameterVector
+                                    )");
     model.def("get_results",
               &ov::Model::get_results,
               R"(
@@ -488,6 +512,14 @@ void regclass_graph_Model(py::module m) {
                     :return: ResultVector containing model parameters.
                     :rtype: ResultVector
                  )");
+    model.def_property_readonly("results",
+                                &ov::Model::get_results,
+                                R"(
+                                        Return a list of model outputs.
+
+                                        :return: ResultVector containing model parameters.
+                                        :rtype: ResultVector
+                                    )");
     model.def("get_result",
               &ov::Model::get_result,
               R"(
@@ -496,6 +528,14 @@ void regclass_graph_Model(py::module m) {
                     :return: Node object representing result.
                     :rtype: openvino.runtime.Node
                  )");
+    model.def_property_readonly("result",
+                                &ov::Model::get_result,
+                                R"(
+                                        Return single result.
+
+                                        :return: Node object representing result.
+                                        :rtype: openvino.runtime.Node
+                                    )");
     model.def("get_result_index",
               (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
               py::arg("value"),
@@ -561,6 +601,14 @@ void regclass_graph_Model(py::module m) {
 
                     :rtype: bool
                  )");
+    model.def_property_readonly("dynamic",
+                                &ov::Model::is_dynamic,
+                                R"(
+                                        Returns true if any of the op's defined in the model
+                                        contains partial shape.
+
+                                        :rtype: bool
+                                    )");
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)()) & ov::Model::input);
 
     model.def("input", (ov::Output<ov::Node>(ov::Model::*)(size_t)) & ov::Model::input, py::arg("index"));
@@ -664,6 +712,130 @@ void regclass_graph_Model(py::module m) {
                     :rtype: int
                  )");
 
+    model.def("remove_result",
+              &ov::Model::remove_result,
+              py::arg("result"),
+              R"(
+                Delete Result node from the list of results. Method will not delete node from graph.
+
+                :param result: Result node to delete.
+            )");
+
+    model.def("remove_parameter",
+              &ov::Model::remove_parameter,
+              py::arg("parameter"),
+              R"(
+            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            You need to replace Parameter with other operation manually.
+
+            Attention: Indexing of parameters can be changed.
+
+            Possible use of method is to replace input by variable. For it the following steps should be done:
+            * `Parameter` node should be replaced by `ReadValue`
+            * call remove_parameter(param) to remove input from the list
+            * check if any parameter indexes are saved/used somewhere, update it for all inputs because indexes can be changed
+            * call graph validation to check all changes
+
+            :param parameter: Parameter node to delete.
+        )");
+
+    model.def(
+        "remove_sink",
+        [](ov::Model& self, const py::object& node) {
+            if (py::isinstance<ov::op::v6::Assign>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                self.remove_sink(sink);
+            } else if (py::isinstance<ov::Node>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                self.remove_sink(sink);
+            } else {
+                throw py::type_error("Incorrect argument type. Sink node is expected as an argument.");
+            }
+        },
+        py::arg("sink"),
+        R"(
+                Delete sink node from the list of sinks. Method doesn't delete node from graph.
+
+                :param sink: Sink to delete.
+        )");
+
+    model.def("add_parameters",
+              &ov::Model::add_parameters,
+              py::arg("parameters"),
+              R"(
+                    Add new Parameter nodes to the list.
+
+                    Method doesn't change or validate graph, it should be done manually.
+                    For example, if you want to replace `ReadValue` node by `Parameter`, you should do the
+                    following steps:
+                    * replace node `ReadValue` by `Parameter` in graph
+                    * call add_parameter() to add new input to the list
+                    * call graph validation to check correctness of changes
+
+                    :param parameter: new Parameter nodes.
+                    :type parameter: List[op.Parameter]
+                 )");
+
+    model.def("add_results",
+              &ov::Model::add_results,
+              py::arg("results"),
+              R"(
+                    Add new Result nodes to the list.
+                    
+                    Method doesn't validate graph, it should be done manually after all changes.
+
+                    :param results: new Result nodes.
+                    :type results: List[op.Result]
+                 )");
+
+    model.def(
+        "add_sinks",
+        [](ov::Model& self, py::list& sinks) {
+            ov::SinkVector sinks_cpp;
+            for (py::handle sink : sinks) {
+                auto sink_cpp =
+                    std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                NGRAPH_CHECK(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                sinks_cpp.push_back(sink_cpp);
+            }
+            self.add_sinks(sinks_cpp);
+        },
+        py::arg("sinks"),
+        R"(
+                    Add new sink nodes to the list.
+                    
+                    Method doesn't validate graph, it should be done manually after all changes.
+
+                    :param sinks: new sink nodes.
+                    :type sinks: List[openvino.runtime.Node]
+                 )");
+
+    model.def(
+        "get_sinks",
+        [](ov::Model& self) {
+            auto sinks = self.get_sinks();
+            return cast_to_node_vector(sinks);
+        },
+        R"(
+            Return a list of model's sinks.
+
+            :return: a list of model's sinks.
+            :rtype: List[openvino.runtime.Node]
+        )");
+
+    model.def_property_readonly(
+        "sinks",
+        [](ov::Model& self) {
+            auto sinks = self.get_sinks();
+            return cast_to_node_vector(sinks);
+        },
+        R"(
+            Return a list of model outputs.
+
+            :return: ResultVector containing model parameters.
+            :rtype: ResultVector
+        )");
+
     model.def(
         "evaluate",
         [](ov::Model& self,
@@ -698,7 +870,7 @@ void regclass_graph_Model(py::module m) {
         )");
 
     model.def("__repr__", [](const ov::Model& self) {
-        std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
+        std::string class_name = Common::get_class_name(self);
 
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
         auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
@@ -706,6 +878,14 @@ void regclass_graph_Model(py::module m) {
         return "<" + class_name + ": '" + self.get_friendly_name() + "'\ninputs[\n" + inputs_str + "\n]\noutputs[\n" +
                outputs_str + "\n]>";
     });
+
+    model.def("__copy__", [](ov::Model& self) {
+        auto error_message =
+            py::detail::c_str(std::string("cannot copy 'openvino.runtime.Model. Please, use deepcopy instead."));
+        PyErr_SetString(PyExc_TypeError, error_message);
+        throw py::error_already_set();
+    });
+
     model.def("get_rt_info",
               (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
               py::return_value_policy::reference_internal,
@@ -722,47 +902,41 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(cpp_args));
+            return py::cast(self.get_rt_info<ov::Any>(cpp_args));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "get_rt_info",
         [](const ov::Model& self, const py::str& path) -> py::object {
-            return Common::utils::from_ov_any(self.get_rt_info<ov::Any>(path.cast<std::string>()));
+            return py::cast(self.get_rt_info<ov::Any>(path.cast<std::string>()));
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "has_rt_info",
         [](const ov::Model& self, const py::list& path) -> bool {
-            // FIXME: understand why has_rt_info causes Python crash
-            try {
-                std::vector<std::string> cpp_args(path.size());
-                for (size_t i = 0; i < path.size(); i++) {
-                    cpp_args[i] = path[i].cast<std::string>();
-                }
-                self.get_rt_info<ov::Any>(cpp_args);
-                return true;
-            } catch (ov::Exception&) {
-                return false;
+            std::vector<std::string> cpp_args(path.size());
+            for (size_t i = 0; i < path.size(); i++) {
+                cpp_args[i] = path[i].cast<std::string>();
             }
+            return self.has_rt_info(cpp_args);
         },
         py::arg("path"),
         R"(
@@ -796,7 +970,7 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), cpp_args);
         },
         py::arg("obj"),
         py::arg("path"),
@@ -811,7 +985,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "set_rt_info",
         [](ov::Model& self, const py::object& obj, const py::str& path) -> void {
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), path.cast<std::string>());
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), path.cast<std::string>());
         },
         py::arg("obj"),
         py::arg("path"),

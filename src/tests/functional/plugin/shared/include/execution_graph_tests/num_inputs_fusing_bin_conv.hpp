@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 
 namespace ExecutionGraphTests {
 
-class ExecGraphInputsFusingBinConv : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
+class ExecGraphInputsFusingBinConv : public ov::test::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
     std::shared_ptr<ngraph::Function> fnPtr;

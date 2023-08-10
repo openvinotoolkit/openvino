@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,16 @@
  * @file ie_version.hpp
  */
 #pragma once
+
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
 
 /**
  * @def IE_VERSION_MAJOR
@@ -20,8 +30,8 @@
  * @brief Defines Inference Engine patch version
  */
 
-#define IE_VERSION_MAJOR 2022
-#define IE_VERSION_MINOR 3
+#define IE_VERSION_MAJOR 2023
+#define IE_VERSION_MINOR 1
 #define IE_VERSION_PATCH 0
 
 #include "ie_api.h"
@@ -30,19 +40,20 @@
  * @brief Inference Engine C++ API
  */
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @struct Version
  * @brief  Represents version information that describes plugins and the inference engine runtime library
  */
 #pragma pack(push, 1)
-struct Version {
+struct INFERENCE_ENGINE_1_0_DEPRECATED Version {
     IE_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property
      * @brief An API version reflects the set of supported features
      */
-    struct ApiVersion {
+    struct INFERENCE_ENGINE_1_0_DEPRECATED ApiVersion {
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
         int major;  //!< A major version
         INFERENCE_ENGINE_DEPRECATED("Use IE_VERSION_[MAJOR|MINOR|PATCH] definitions, buildNumber property")
@@ -112,4 +123,5 @@ struct Version {
  */
 INFERENCE_ENGINE_API(const Version*) GetInferenceEngineVersion() noexcept;
 
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

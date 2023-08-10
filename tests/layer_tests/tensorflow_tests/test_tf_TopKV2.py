@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,17 +36,16 @@ class TestTopKV2(CommonTFLayerTest):
         dict(input_shape=[10], input_type=tf.float32, k=5, sorted=True, is_first_output=True, is_second_output=False),
         dict(input_shape=[2, 3, 10], input_type=tf.int32, k=10, sorted=True, is_first_output=True,
              is_second_output=False),
-        # Currently, OpenVINO TopK supports only TensorFlow TopK with sorted=True and the first output
-        # For other cases, we need to introduce new version of TopK in OpenVINO opset due to multiple misalignments
-        # described in 88024
-        pytest.param(dict(input_shape=[4, 12], input_type=tf.float32, k=10, sorted=True, is_first_output=True,
-                          is_second_output=True), marks=pytest.mark.xfail(reason="88024")),
+        dict(input_shape=[4, 12], input_type=tf.float32, k=10, sorted=True, is_first_output=True,
+             is_second_output=True),
+        # Expect stable mode implementation for sort_type=indices in OpenVINO. See 101503
         pytest.param(dict(input_shape=[5, 10], input_type=tf.int32, k=8, sorted=False, is_first_output=True,
-                          is_second_output=True), marks=pytest.mark.xfail(reason="88024")),
+                          is_second_output=True), marks=pytest.mark.xfail(reason="101503")),
     ]
 
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_topk_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
                            use_old_api):
         self._test(*self.create_topk_v2_net(**params),

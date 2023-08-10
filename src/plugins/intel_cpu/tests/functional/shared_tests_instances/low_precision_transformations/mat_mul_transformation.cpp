@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,22 @@ std::vector<MatMulTransformationTestValues> testValues = {
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul_original",
         "I8"
+    },
+    {
+        { 1, 1, 1, 4, 12, 2 },
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        { 1, 1, 1, 4, 2, 12 },
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        "matMul_original",
+        "I8"
+    },
+    {
+        { 12 },
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        { 12 },
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        "matMul_original/MM",
+        "I8"
     }
 };
 
@@ -46,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::PartialShape({ 1, 384, 1024 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
 }  // namespace

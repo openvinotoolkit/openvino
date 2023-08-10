@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@ public:
     Actual actual;
     Expected expected;
     std::string additionalLayer;
+    std::string postops_configuration;
 };
 
 typedef std::tuple<ngraph::element::Type,
@@ -94,10 +95,11 @@ public:
                                                   testValues.actual.dequantization2,
                                                   testValues.constInput,
                                                   testValues.actual.constValues,
-                                                  testValues.additionalLayer);
+                                                  testValues.additionalLayer,
+                                                  testValues.postops_configuration);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
         transform.transform(actualFunction);
 
         auto inputShape1Ref = inputShapes.first;
@@ -120,7 +122,8 @@ public:
                                                       testValues.constInput == -1 ? -1 : 1,
                                                       testValues.expected.constValues,
                                                       testValues.additionalLayer,
-                                                      testValues.expected.operationType);
+                                                      testValues.expected.operationType,
+                                                      testValues.postops_configuration);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
@@ -133,7 +136,8 @@ public:
                << "_" << testValues.actual.precision1 << "_" << testValues.actual.dequantization1 << "_"
                << testValues.actual.precision2 << "_" << testValues.actual.dequantization2 << "_"
                << testValues.constInput << "_" << testValues.actual.constValues << "_" << testValues.additionalLayer
-               << "_" << (testValues.params.updatePrecisions ? "true" : "false");
+               << "_" << testValues.postops_configuration << "_"
+               << (testValues.params.updatePrecisions ? "true" : "false");
         return result.str();
     }
 };
@@ -390,6 +394,38 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
       {{}, {}, {5.f}},
       {}},
      ""},
+    // Multiply with the value that mustn't be transformed (to avoid infinite values in multiply constant)
+    {false,
+     -1,
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      {}},
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      {{}, {}, {}},
+      {}},
+     ""},
+    // Subtract with the value that mustn't be transformed (to avoid infinite values in multiply constant)
+    {false,
+     -1,
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+      {}},
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+      {{}, {}, {}},
+      {}},
+     ""},
 
     // convolution before FQ (choose that branch)
     {false,
@@ -407,6 +443,23 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
       {{}, {}, {10.f}},
       {}},
      "convolution"},
+    // convolution before FQ
+    {false,
+     -1,
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {7.f}, {10.f}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {3.f}, {5.f}},
+      {}},
+     {ngraph::element::u8,
+      {{}, {}, {}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {17.f}, {0.5f}},
+      {{}, {}, {10.f}},
+      {}},
+     "convolution",
+     "bias_on_zero_input"},
     // convolution with multiple consumers before FQ ( FP32 on other branch due to possible quantize fusing )
     {false,
      -1,

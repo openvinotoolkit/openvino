@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ const std::vector<bool> normalizeVariance = {
 };
 
 const std::vector<float> epsilon = {
-        0.000000001
+        0.000000001f
 };
 
 const std::vector<std::string> epsMode = {
@@ -64,7 +64,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_1D, MVNMultiplyAdd,
                                 ::testing::ValuesIn(normalizeVariance),
                                 ::testing::ValuesIn(epsilon),
                                 ::testing::ValuesIn(epsMode),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MVNMultiplyAdd::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_2D, MVNMultiplyAdd,
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_2D, MVNMultiplyAdd,
                                 ::testing::ValuesIn(normalizeVariance),
                                 ::testing::ValuesIn(epsilon),
                                 ::testing::ValuesIn(epsMode),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MVNMultiplyAdd::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_3D, MVNMultiplyAdd,
@@ -88,7 +88,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MVNMultiplyAdd_3D, MVNMultiplyAdd,
                                 ::testing::ValuesIn(normalizeVariance),
                                 ::testing::ValuesIn(epsilon),
                                 ::testing::ValuesIn(epsMode),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             MVNMultiplyAdd::getTestCaseName);
 
 }  // namespace

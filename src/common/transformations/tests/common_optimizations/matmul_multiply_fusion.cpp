@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsScalarConstant) 
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulMultiplyFusion>();
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
 
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsNonScalarConstan
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulMultiplyFusion>();
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
 
     {
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantTransposedWeightsNonSca
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulMultiplyFusion>();
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
 
     {
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionNonConstantTransposedWeightsNon
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data, weights});
 
-        manager.register_pass<pass::MatMulMultiplyFusion>();
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
 
     {
@@ -121,7 +121,7 @@ TEST_P(MatMulMultiplyFusionDynamicShapes, FusionTest) {
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulMultiplyFusion>();
+        manager.register_pass<ov::pass::MatMulMultiplyFusion>();
     }
 
     if (can_fuse) {

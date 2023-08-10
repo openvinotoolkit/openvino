@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
 #include <memory>
 #include <strided_slice_shape_inference.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -97,38 +97,28 @@ TEST(type_prop, strided_slice_begin_incorrect_shape) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto begin = make_shared<op::Parameter>(element::i64, Shape{4, 5});
     auto end = make_shared<op::Parameter>(element::i64, Shape{4});
-    try {
-        auto strided_slice = make_shared<op::v1::StridedSlice>(data,
-                                                               begin,
-                                                               end,
-                                                               vector<int64_t>{1, 0, 1, 0},
-                                                               vector<int64_t>{1, 0, 1, 0});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect shape of begin exception not thrown.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Begin input must be 1D (begin rank:"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
+                                                                           begin,
+                                                                           end,
+                                                                           vector<int64_t>{1, 0, 1, 0},
+                                                                           vector<int64_t>{1, 0, 1, 0}),
+                    NodeValidationFailure,
+                    HasSubstr("Begin input must be 1D (has rank:"));
 }
 
 TEST(type_prop, strided_slice_end_incorrect_shape) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 4, 6, 8});
     auto begin = make_shared<op::Parameter>(element::i64, Shape{4});
     auto end = make_shared<op::Parameter>(element::i64, Shape{4, 5});
-    try {
-        auto strided_slice = make_shared<op::v1::StridedSlice>(data,
-                                                               begin,
-                                                               end,
-                                                               vector<int64_t>{1, 0, 1, 0},
-                                                               vector<int64_t>{1, 0, 1, 0});
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect shape of end exception not thrown.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("End input must be 1D (end rank:"));
-    } catch (...) {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+
+    OV_EXPECT_THROW(auto strided_slice = make_shared<op::v1::StridedSlice>(data,
+                                                                           begin,
+                                                                           end,
+                                                                           vector<int64_t>{1, 0, 1, 0},
+                                                                           vector<int64_t>{1, 0, 1, 0}),
+                    NodeValidationFailure,
+                    HasSubstr("End input must be 1D (has rank:"));
 }
 
 TEST(type_prop, strided_slice_default_stride_dynamic_shape_input_begin_not_1d) {
@@ -388,7 +378,7 @@ TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
 
     auto ss = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
 
-    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, -1}));
+    EXPECT_EQ(ss->get_output_partial_shape(0), PartialShape({{0, 20}, {0, 21}}));
 }
 
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
@@ -438,6 +428,49 @@ TEST(type_prop, strided_slice_use_default_ctor) {
     slice->validate_and_infer_types();
 
     ASSERT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 5, 12}));
+}
+
+TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
+    auto start = op::Constant::create(element::i64, Shape{3}, {0, 0, -7});
+    auto stop = op::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 0, INT64_MAX});
+    auto step = op::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              step,
+                                                              std::vector<int64_t>{1, 1, 0},
+                                                              std::vector<int64_t>{1, 1, 0});
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
+}
+
+TEST(type_prop, strided_slice_different_ranks) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = op::Constant::create(element::i64, Shape{1}, {0});
+    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              std::vector<int64_t>{1, 1, 1, 1, 1},
+                                                              std::vector<int64_t>{0, 0, 0, 0, 0});
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 2, 3, 4}));
+}
+
+TEST(type_prop, strided_slice_different_ranks_long_masks) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 4});
+    auto start = op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto stop = op::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{2, 2, 2, 2});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              std::vector<int64_t>{1, 1, 0, 1, 1},
+                                                              std::vector<int64_t>{0, 0, 1, 0, 0});
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 2, 3, 2}));
 }
 
 struct StridedSliceTestParams {
@@ -562,17 +595,17 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                              },
                              StridedSliceTestParams{
                                  "input_has_dynamic_dimensions_and_shrink_one",
-                                 {{8, 40}, 200, {100, 200}, 3},             // input_shape
-                                 {4},                                       // begin shape
-                                 {4},                                       // end shape
-                                 {4},                                       // strides shape
-                                 {0, 0, 0, 0},                              // begin mask
-                                 {0, 0, 0, 0},                              // end mask
-                                 {0, 0, 0, 0},                              // new axis mask
-                                 {1, 0, 0, 0},                              // shrink axis mask
-                                 {0, 0, 0, 0},                              // ellipsis mask
-                                 {{0, 200}, Dimension::dynamic(), {0, 3}},  // reference shape
-                                 element::f32                               // reference type
+                                 {{8, 40}, 200, {100, 200}, 3},  // input_shape
+                                 {4},                            // begin shape
+                                 {4},                            // end shape
+                                 {4},                            // strides shape
+                                 {0, 0, 0, 0},                   // begin mask
+                                 {0, 0, 0, 0},                   // end mask
+                                 {0, 0, 0, 0},                   // new axis mask
+                                 {1, 0, 0, 0},                   // shrink axis mask
+                                 {0, 0, 0, 0},                   // ellipsis mask
+                                 {{0, 200}, {0, 200}, {0, 3}},   // reference shape
+                                 element::f32                    // reference type
                              },
                              StridedSliceTestParams{
                                  "input_is_dynamic_rank",
@@ -617,6 +650,20 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                  element::f32               // reference type
                              },
                              StridedSliceTestParams{
+                                 "begin_strides_are_dynamic_rank_and_ellipsis_mask_present",
+                                 {3, 5, 4},                // input_shape
+                                 PartialShape::dynamic(),  // begin shape
+                                 {3},                      // end shape
+                                 {3},                      // strides shape
+                                 {0, 0, 1, 0},             // begin mask
+                                 {0, 0, 0, 0},             // end mask
+                                 {0, 0, 0, 0},             // new axis mask
+                                 {0, 0, 0, 0},             // shrink axis mask
+                                 {0, 1, 0, 0},             // ellipsis mask
+                                 {{0, 3}, 5, {0, 4}},      // reference shape
+                                 element::f32              // reference type
+                             },
+                             StridedSliceTestParams{
                                  "begin_end_strides_are_dynamic_rank",
                                  {3, 5, 4},                // input_shape
                                  PartialShape::dynamic(),  // begin shape
@@ -631,3 +678,69 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                  element::f32              // reference type
                              }),
                          StridedSliceShapeInferTest::get_test_case_name);
+
+using StridedSliceIntervalParams =
+    std::tuple<ov::PartialShape, ov::PartialShape, ov::PartialShape, int64_t, int64_t, int64_t, ov::PartialShape>;
+
+class StridedSliceIntervalTest : public TypePropOpTest<op::v1::StridedSlice>,
+                                 public WithParamInterface<StridedSliceIntervalParams> {
+protected:
+    void SetUp() override {
+        std::tie(data_shape, begin_shape, end_shape, begin_offset, end_offset, step, exp_shape) = GetParam();
+    }
+
+    ov::PartialShape data_shape, begin_shape, end_shape, exp_shape;
+    int64_t begin_offset, end_offset, step;
+};
+
+INSTANTIATE_TEST_SUITE_P(type_prop,
+                         StridedSliceIntervalTest,
+                         Values(StridedSliceIntervalParams({1024}, {{0, 20}}, {{10, 20}}, 0, 0, 1, {{0, 20}}),
+                                StridedSliceIntervalParams({1024}, {{0, 20}}, {{10, 20}}, 0, 0, 1, {{0, 20}}),
+                                StridedSliceIntervalParams({1024}, {{0, 20}}, {{10, 20}}, 10, 0, 1, {{0, 20}}),
+                                StridedSliceIntervalParams({-1}, {{0, 20}}, {{10, 20}}, 10, 0, 1, {{0, 20}}),
+                                StridedSliceIntervalParams({1024}, {{10, 20}}, {{0, 20}}, 0, 10, 1, {{0, 1013}}),
+                                StridedSliceIntervalParams({1024}, {{0, 10}}, {{0, 5}}, 0, 10, 1, {{1004, 1019}}),
+                                StridedSliceIntervalParams({{120, 1024}}, {{0, 10}}, {{0, 5}}, 0, 10, 1, {{100, 1019}}),
+                                StridedSliceIntervalParams({1024}, {{0, 1030}}, {{0, 2000}}, 1025, 10, 1, {{0, 1024}}),
+                                StridedSliceIntervalParams({1024}, {{0, 10}}, {{10, 20}}, 10, 0, 1, {{0, 20}}),
+                                StridedSliceIntervalParams({1024}, {{1, 12}}, {{0, 18}}, 10, 0, 2, {{0, 9}}),
+                                StridedSliceIntervalParams({1024}, {{10, 20}}, {{0, 20}}, 0, 10, 2, {{0, 507}}),
+                                StridedSliceIntervalParams({{100, 1024}}, {{10, 20}}, {{0, 20}}, 0, 10, 2, {{0, 507}}),
+                                StridedSliceIntervalParams({1024}, {10}, {30}, 0, 0, 2, {10}),
+                                StridedSliceIntervalParams({1024}, {{10, 15}}, {30}, 0, 0, 2, {{8, 10}}),
+                                StridedSliceIntervalParams({1024}, {{10, 15}}, {{30, 40}}, 0, 0, 2, {{8, 15}}),
+                                StridedSliceIntervalParams({{20, 1024}}, {{10, 15}}, {{30, 40}}, 0, 0, 2, {{3, 15}}),
+                                // reverse stride
+                                StridedSliceIntervalParams({1024}, {{0, 20}}, {{10, 20}}, 10, 0, -1, {{0, 1013}}),
+                                StridedSliceIntervalParams({-1}, {{0, 20}}, {{10, 20}}, 10, 0, -1, {-1}),
+                                StridedSliceIntervalParams({1024}, {{10, 20}}, {{0, 20}}, 0, 10, -1, {{0, 20}}),
+                                StridedSliceIntervalParams({1024}, {30}, {10}, 35, 40, -1, {25}),
+                                StridedSliceIntervalParams({1024}, {{0, 2000}}, {{0, 1030}}, 10, 1026, -1, {{0, 1024}}),
+                                StridedSliceIntervalParams({1024}, {30}, {10}, 0, 0, -2, {10}),
+                                StridedSliceIntervalParams({1024}, {{20, 30}}, {10}, 0, 0, -2, {{5, 10}}),
+                                StridedSliceIntervalParams({1024}, {{20, 30}}, {10}, 40, 0, -2, {{497, 502}}),
+                                StridedSliceIntervalParams({{100, 1024}}, {{20, 30}}, {10}, 40, 0, -2, {{35, 502}}),
+                                StridedSliceIntervalParams({1024}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{3, 10}}),
+                                StridedSliceIntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
+
+TEST_P(StridedSliceIntervalTest, begin_end_as_interval) {
+    using namespace ov::opset9;
+
+    const auto p_begin = std::make_shared<Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ShapeOf>(p_begin);
+    const auto begin =
+        std::make_shared<Subtract>(shape_of_begin, Constant::create(element::i64, Shape{1}, {begin_offset}));
+
+    const auto p_end = std::make_shared<Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ShapeOf>(p_end);
+    const auto end = std::make_shared<Subtract>(shape_of_end, Constant::create(element::i64, Shape{1}, {end_offset}));
+
+    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
+    const auto stride = Constant::create(element::i64, Shape{1}, {step});
+    const auto mask = std::vector<int64_t>{0};
+
+    const auto op = make_op(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
+}

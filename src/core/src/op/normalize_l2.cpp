@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <iterator>
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -37,8 +38,6 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(this, has_and_set_equal_bounds(input_value(1)), "Input axes must be Constant type");
-
     if (axes_rank.is_static()) {
         NODE_VALIDATION_CHECK(this,
                               axes_rank.get_length() <= 1,
@@ -65,8 +64,15 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
 
 AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto const_op = get_constant_from_source(input_value(1))) {
-        axes = const_op->get_axis_set_val();
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }
@@ -74,7 +80,7 @@ AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
 shared_ptr<Node> op::v0::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_NormalizeL2_clone_with_new_inputs);
     if (new_args.size() != 2) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<op::v0::NormalizeL2>(new_args.at(0), new_args.at(1), m_eps, m_eps_mode);
 }

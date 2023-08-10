@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,6 +71,7 @@
 #include "openvino/op/grid_sample.hpp"
 #include "openvino/op/grn.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/group_normalization.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/hard_sigmoid.hpp"

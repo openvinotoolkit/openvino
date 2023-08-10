@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,12 +77,12 @@ private:
 
         auto it = s_opsets.find(opset_ver);
         if (it == s_opsets.end()) {
-            throw ngraph::ngraph_error("Unsupported opset version requested.");
+            OPENVINO_THROW("Unsupported opset version requested.");
         }
         return it->second();
     }
 
-    const ngraph::OpSet& m_opset = ngraph::get_opset10();
+    const ngraph::OpSet& m_opset = ngraph::get_opset11();
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
 };
 }  // namespace

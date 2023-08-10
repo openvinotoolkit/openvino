@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,13 +47,14 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace:
 
 std::shared_ptr<OutPortPlace> OpPlace::get_output_port_paddle(const std::string& outputName,
                                                               int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
+    FRONT_END_GENERAL_CHECK((size_t)outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
 }
 
 std::shared_ptr<InPortPlace> OpPlace::get_input_port_paddle(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK((size_t)inputPortIndex <= m_input_ports.at(inputName).size(),
+                            "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
@@ -145,13 +146,14 @@ std::vector<Place::Ptr> OpPlace::get_consuming_ports() const {
 }
 
 Place::Ptr OpPlace::get_output_port(const std::string& outputName, int outputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(outputPortIndex <= m_output_ports.at(outputName).size(),
+    FRONT_END_GENERAL_CHECK((size_t)outputPortIndex <= m_output_ports.at(outputName).size(),
                             "outputPortIndex is Out of bounds.");
     return m_output_ports.at(outputName)[outputPortIndex];
 }
 
 Place::Ptr OpPlace::get_input_port(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex <= m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
+    FRONT_END_GENERAL_CHECK((size_t)inputPortIndex <= m_input_ports.at(inputName).size(),
+                            "inputPortIndex is out of bounds.");
     return m_input_ports.at(inputName)[inputPortIndex];
 }
 
@@ -211,7 +213,7 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
     const auto& var_type = var_desc.type();
     if (var_type.type() == ::paddle::framework::proto::VarType::LOD_TENSOR) {
         const auto& tensor_desc = var_type.lod_tensor().tensor();
-        m_type = TYPE_MAP[tensor_desc.data_type()];
+        m_type = get_ov_type(tensor_desc.data_type());
         m_pshape = PartialShape(std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
     }
 }

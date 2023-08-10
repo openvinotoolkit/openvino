@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define N_ROUNDS 10
 #define STATISTIC_MAXIMIZING_MULTIPLIER_N 0xD2511F53UL

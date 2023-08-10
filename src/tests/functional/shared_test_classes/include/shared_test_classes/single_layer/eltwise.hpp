@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 // NOTE: WILL BE REWORKED (31905)
+
+#pragma once
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -15,7 +17,7 @@ typedef std::tuple<
     std::vector<InputShape>,           // input shapes
     ngraph::helpers::EltwiseTypes,     // eltwise op type
     ngraph::helpers::InputLayerType,   // secondary input type
-    CommonTestUtils::OpType,           // op type
+    ov::test::utils::OpType,           // op type
     ElementType,                       // Net precision
     ElementType,                       // In precision
     ElementType,                       // Out precision

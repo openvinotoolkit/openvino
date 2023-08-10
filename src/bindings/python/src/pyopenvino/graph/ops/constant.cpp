@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/constant.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 
 #include <pybind11/buffer_info.h>
 #include <pybind11/numpy.h>
@@ -10,10 +10,10 @@
 #include <pybind11/stl.h>
 
 #include <stdexcept>
-#include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "pyopenvino/graph/ops/constant.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
@@ -25,6 +25,38 @@ std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
         byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
     }
     return byte_strides;
+}
+
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
+    auto element_type = self.get_element_type();
+    auto shape = self.get_shape();
+    if (element_type == ov::element::boolean) {
+        return _get_byte_strides<char>(shape);
+    } else if (element_type == ov::element::f16) {
+        return _get_byte_strides<ov::float16>(shape);
+    } else if (element_type == ov::element::f32) {
+        return _get_byte_strides<float>(shape);
+    } else if (element_type == ov::element::f64) {
+        return _get_byte_strides<double>(shape);
+    } else if (element_type == ov::element::i8) {
+        return _get_byte_strides<int8_t>(shape);
+    } else if (element_type == ov::element::i16) {
+        return _get_byte_strides<int16_t>(shape);
+    } else if (element_type == ov::element::i32) {
+        return _get_byte_strides<int32_t>(shape);
+    } else if (element_type == ov::element::i64) {
+        return _get_byte_strides<int64_t>(shape);
+    } else if (element_type == ov::element::u8 || element_type == ov::element::u1) {
+        return _get_byte_strides<uint8_t>(shape);
+    } else if (element_type == ov::element::u16) {
+        return _get_byte_strides<uint16_t>(shape);
+    } else if (element_type == ov::element::u32) {
+        return _get_byte_strides<uint32_t>(shape);
+    } else if (element_type == ov::element::u64) {
+        return _get_byte_strides<uint64_t>(shape);
+    } else {
+        throw std::runtime_error("Unsupported data type!");
+    }
 }
 
 template <typename T>
@@ -68,6 +100,18 @@ void regclass_graph_op_Constant(py::module m) {
                                                                                                "Constant",
                                                                                                py::buffer_protocol());
     constant.doc() = "openvino.runtime.op.Constant wraps ov::op::v0::Constant";
+    // Numpy-based constructor
+    constant.def(py::init([](py::array& array, bool shared_memory) {
+                     return Common::object_from_data<ov::op::v0::Constant>(array, shared_memory);
+                 }),
+                 py::arg("array"),
+                 py::arg("shared_memory") = false);
+    // Tensor-based constructors
+    constant.def(py::init([](ov::Tensor& tensor, bool shared_memory) {
+                     return Common::object_from_data<ov::op::v0::Constant>(tensor, shared_memory);
+                 }),
+                 py::arg("tensor"),
+                 py::arg("shared_memory") = false);
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<char>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<ov::float16>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<float>&>());
@@ -144,5 +188,38 @@ void regclass_graph_op_Constant(py::module m) {
         } else {
             throw std::runtime_error("Unsupported data type!");
         }
+    });
+
+    constant.def_property_readonly(
+        "data",
+        [](ov::op::v0::Constant& self) {
+            auto ov_type = self.get_element_type();
+            auto dtype = Common::ov_type_to_dtype().at(ov_type);
+            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+                return py::array(dtype, self.get_byte_size(), self.get_data_ptr(), py::cast(self));
+            }
+            return py::array(dtype, self.get_shape(), _get_strides(self), self.get_data_ptr(), py::cast(self));
+        },
+        R"(
+            Access to Constant's data.
+
+            Returns numpy array with corresponding shape and dtype.
+            For Constants with openvino specific element type, such as u1,
+            it returns linear array, with uint8 / int8 numpy dtype.
+
+            Note: this access method reflects shared memory if it was applied during initialization.
+
+            :rtype: numpy.array
+        )");
+
+    constant.def("__repr__", [](const ov::op::v0::Constant& self) {
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i) {
+            if (i > 0) {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + Common::get_class_name(self) + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
 }

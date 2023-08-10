@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ TEST(TransformationTests, FusedNamesCleanup) {
         function = std::make_shared<Function>(NodeVector{add2}, ParameterVector{data});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConstantFolding>();
         manager.run_passes(function);
         ASSERT_NO_THROW(check_rt_info(function));
 

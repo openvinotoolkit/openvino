@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "arg_max_min_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils_legacy.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
@@ -61,7 +60,7 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     auto format = input_layout.format;
     auto sizes = input_layout.get_dims();
     if (desc->axis >= static_cast<int64_t>(sizes.size()) || desc->axis < 0) {
-        IE_THROW() << "Incorrect arg_max_min axis.";
+        OPENVINO_THROW("Incorrect arg_max_min axis.");
     }
     sizes[desc->axis] = desc->top_k;
     return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};
@@ -75,23 +74,35 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
     auto input_layout = impl_param.get_input_layout();
 
     ov::op::v1::TopK op;
-    op.set_axis(input_layout.get<ShapeType>().rank(), desc->axis);
+    auto input_rank = input_layout.get<ShapeType>().rank();
+    op.set_axis(input_rank, desc->axis);
     op.set_mode(desc->mode);
     op.set_sort_type(desc->sort);
 
-    std::vector<ShapeType> output_shapes = { ShapeType{}, ShapeType{} };
+    std::vector<ShapeType> output_shapes = {ShapeType{}, ShapeType{}};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         ShapeType{}
     };
 
-    int64_t top_k = desc->top_k;
+    auto& constant_mem = impl_param.memory_deps;
+    if (desc->top_k > 0) {
+        std::unordered_map<size_t, ov::Tensor> const_data;
+        auto topk = desc->top_k;
+        auto top_k_tensor = ov::Tensor(ov::element::u32, ov::Shape{1}, static_cast<void*>(&topk));
+        const_data = { {1, top_k_tensor} };
 
-    auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&top_k));
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
-        {1, top_k_tensor}
-    };
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+    } else if (constant_mem.count(1)) {
+        std::unordered_map<size_t, ov::Tensor> const_data;
+        auto target_shape_mem = constant_mem.at(1);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
+        const_data.emplace(1, make_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
+
+        output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+    } else {
+        output_shapes[0] = output_shapes[1] = ShapeType::dynamic(input_layout.get<ShapeType>().size());
+    }
 
     for (size_t i = 0; i < desc->num_outputs; ++i) {
         auto dt = desc->output_data_types[i].value_or(input_layout.data_type);

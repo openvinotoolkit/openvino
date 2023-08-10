@@ -74,7 +74,7 @@ public:
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "direction=" << direction << "_";
@@ -104,7 +104,7 @@ protected:
         std::vector<TargetShapeParams> targetShapes;
         std::tie(bounds, targetShapes) = inShapeParams;
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         seqLengthInIdx = (seqType == SEQ_TYPE::LSTM ? 3 : 2);
 
@@ -273,10 +273,6 @@ TEST_P(SequenceCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
 }
 
-const std::vector<SEQ_TYPE> nodeType = {
-    SEQ_TYPE::GRU, SEQ_TYPE::LSTM, SEQ_TYPE::RNN
-};
-
 const std::vector<size_t> hiddenSizes = {
     1, 10
 };
@@ -317,12 +313,25 @@ std::vector<bool> linearBeforeReset = {true, false};
 
 std::vector<ElementType> netPrecisions = { ElementType::f32 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic, SequenceCPUTest,
-            ::testing::Combine(::testing::ValuesIn(nodeType),
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_lstm_rnn, SequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn({SEQ_TYPE::LSTM, SEQ_TYPE::RNN}),
                                ::testing::ValuesIn(hiddenSizes),
                                ::testing::ValuesIn(inputSizes),
                                ::testing::ValuesIn(inShapeParams_dynamic),
                                ::testing::ValuesIn(activations_lstm_support),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(linearBeforeReset),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
+            SequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SequenceCPUTest_dynamic_gru, SequenceCPUTest,
+            ::testing::Combine(::testing::Values(SEQ_TYPE::GRU),
+                               ::testing::ValuesIn(hiddenSizes),
+                               ::testing::ValuesIn(inputSizes),
+                               ::testing::ValuesIn(inShapeParams_dynamic),
+                               ::testing::ValuesIn(activations_gru_support),
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(linearBeforeReset),
                                ::testing::ValuesIn(direction),

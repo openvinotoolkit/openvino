@@ -1,19 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/deformable_convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
 
+#include "deformable_convolution_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/runtime/reference/deformable_convolution.hpp"
-#include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
                                                      const Output<Node>& filters,
@@ -70,74 +65,47 @@ bool op::v8::DeformableConvolution::visit_attributes(AttributeVisitor& visitor) 
 void op::v8::DeformableConvolution::validate_and_infer_types() {
     OV_OP_SCOPE(DeformableConvolution_v8_validate_and_infer_types);
 
-    DeformableConvolutionBase::validate_and_infer_types();
-    if (inputs().size() == 4) {
-        const ov::PartialShape& data_pshape = get_input_partial_shape(0);
-        const ov::PartialShape& filters_pshape = get_input_partial_shape(2);
-        const ov::PartialShape& mask_pshape = get_input_partial_shape(3);
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& offsets_et = get_input_element_type(1);
+    const auto& filters_et = get_input_element_type(2);
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, data_batch_et, offsets_et) &&
+                              element::Type::merge(result_et, result_et, filters_et),
+                          "Element types of inputs do not match. Got: data batch (",
+                          data_batch_et,
+                          "), offsets (",
+                          offsets_et,
+                          ") and filters (",
+                          filters_et,
+                          ")");
+
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
+
+    if (get_input_size() == 4) {
         element::Type mask_et = get_input_element_type(3);
 
         NODE_VALIDATION_CHECK(this,
                               mask_et.is_real() || mask_et.is_integral_number(),
                               "Element type of Mask input must be numeric. Got: ",
                               mask_et);
-
-        NODE_VALIDATION_CHECK(this,
-                              mask_pshape.rank().compatible(4),
-                              "Mask input must be of rank 4. Got: ",
-                              mask_pshape.rank());
-
-        if (mask_pshape.rank().is_static() && mask_pshape[1].is_static()) {
-            if (filters_pshape.rank().is_static() && filters_pshape[2].is_static() && filters_pshape[3].is_static()) {
-                auto offsets_channels =
-                    m_deformable_group * filters_pshape[2].get_length() * filters_pshape[3].get_length();
-                NODE_VALIDATION_CHECK(this,
-                                      mask_pshape[1].get_length() == offsets_channels,
-                                      "The channels dimension of mask input is not "
-                                      "compatible with filters and 'deformable group' attribute. "
-                                      "Mask input shape: ",
-                                      mask_pshape,
-                                      ", deformable 'group' attribute value: ",
-                                      m_deformable_group,
-                                      ", filters shape: ",
-                                      filters_pshape);
-            }
-            // At least we can check if mask channels is evenly divisible by deformable
-            // group attribute
-            NODE_VALIDATION_CHECK(this,
-                                  mask_pshape[1].get_length() % m_deformable_group == 0,
-                                  "The channels dimension of mask input must be "
-                                  "evenly divisible by the 'deformable group' value along the "
-                                  "channels axis. Offsets input shape: ",
-                                  mask_pshape,
-                                  ", 'deformable group' attribute value: ",
-                                  m_deformable_group);
-
-            if (data_pshape.rank().is_static()) {
-                NODE_VALIDATION_CHECK(this,
-                                      mask_pshape[0].compatible(data_pshape[0]),
-                                      "Data batch and mask batch dimension must be same value. Got: ",
-                                      mask_pshape[0],
-                                      " and ",
-                                      data_pshape[0]);
-            }
-        }
-
-        ov::PartialShape result_pshape = get_output_partial_shape(0);
-        if (result_pshape.rank().is_static() && mask_pshape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(
-                this,
-                result_pshape[2].compatible(mask_pshape[2]) && result_pshape[3].compatible(mask_pshape[3]),
-                "Spatial dimensions of mask and output must be equal. Got: ",
-                mask_pshape[2],
-                ", ",
-                mask_pshape[3],
-                " and ",
-                result_pshape[2],
-                ", ",
-                result_pshape[3]);
-        }
     }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != convolution::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -208,3 +176,41 @@ std::shared_ptr<Node> op::v1::DeformableConvolution::clone_with_new_inputs(const
                                                    m_group,
                                                    m_deformable_group);
 }
+
+void op::v1::DeformableConvolution::validate_and_infer_types() {
+    OV_OP_SCOPE(DeformableConvolution_v1_validate_and_infer_types);
+
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& offsets_et = get_input_element_type(1);
+    const auto& filters_et = get_input_element_type(2);
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, data_batch_et, offsets_et) &&
+                              element::Type::merge(result_et, result_et, filters_et),
+                          "Element types of inputs do not match. Got: data batch (",
+                          data_batch_et,
+                          "), offsets (",
+                          offsets_et,
+                          ") and filters (",
+                          filters_et,
+                          ")");
+
+    NODE_VALIDATION_CHECK(this,
+                          result_et.is_real() || result_et.is_integral_number(),
+                          "Element type of inputs must be numeric. Got: ",
+                          result_et);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    auto num_spatial = deformable_conv::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != convolution::num_spatial_undefined) {
+        resize_attributes(num_spatial);
+    }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
+    set_output_type(0, result_et, output_shapes[0]);
+}
+}  // namespace ov

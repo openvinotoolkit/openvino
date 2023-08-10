@@ -1,213 +1,169 @@
 /* overrides */
-.switcher-set, .prev-next-bottom {display: none;}
-
+.switcher-set, .prev-next-bottom, .bd-toc {display: none!important;}
 #openvino-documentation > h1 {
-	display: none;
+    display: none;
 }
 
-img {
-	cursor: default;
-}
-/* === OPENVINO INTRO ================================================= */
-
-.openvino-intro-text {
-
-	font-size: 1.3em;
-}
-/* === OPENVINO CHART ================================================= */
-
-.openvino-chart {
-	width: 100%;
-	margin: 0px auto;
+h1 {
+    /*font-size: var(--pst-font-size-h2);*/
+    /*margin-bottom: 3rem;*/
+    display: none!important;
 }
 
-/* === PANELS ================================================= */
 
-.homepage-panels {
-	background: #0068B5;
-	border: none!important;
-	border-radius: 0!important;
-}
-.homepage-panels p.card-text  {
-	color:white;
-}
-.homepage-panels p:first-of-type {
-	border-bottom: 1px solid white;
+#ov-homepage-banner, .openvino-diagram, .ov-homepage-higlight-grid {
+    margin-bottom: 90px!important;
 }
 
-/* === SEPARATOR HEADERS ================================================= */
-.HP_separator-header { 
-	font-weight: bold;
-	text-align: center;
-	width: 100%;
-	height: 2em;
-	line-height: 2em;
-	margin: 40px auto;
+#ov-homepage-banner {
+    padding: 2rem;
+    background-color: #76CEFF;
+    background-image: linear-gradient(346deg, #728EFA 0%, #76CEFF 50%, #BBE8BD 100%);
+    border-bottom: 5px solid #0068b5;
 }
 
-.HP_separator-header p { 
-	display: inline-block;
-	line-height: 1em;
-	margin: 0 auto;
-	color: #0068B5;
-	background-color: #fff;
-	padding: 0 15px;
-}
-
-.HP_separator-header::before { 
+#ov-homepage-banner p:first-of-type {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+    color: rgb(38, 38, 38);
     display: block;
-	content: "";
-	position: relative;
-	top: 1em;
-	margin: 0;
-    border-top: 1px solid #0068B5;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 1em;
+    text-align: left;
+}
+
+#ov-homepage-banner .line-block {
+    line-height: 1.5;
+    text-align: left;
+    color: #000000;
+}
+
+.ov-homepage-banner-btn {
+    transition: 0.7s;
+    font-weight: bold;
+    background-color: #0068b5;
+    color: #ffffff !important;
+}
+
+.ov-homepage-banner-btn:hover {
+    background-color: white!important;
+    color: var(--sd-color-primary)!important;
+}
+
+#ov-homepage-banner > p:nth-child(3) {
+    margin-bottom: 0;
+}
+
+#ov-homepage-banner a,
+#ov-homepage-banner a:visited {
+    text-decoration: none;
+    color: #00A3F6;
+    transition: .7s;
+    font-weight: 600;
+}
+
+#ov-homepage-banner a:hover {
+    color: #653171;
+}
+
+.openvino-diagram {
+    width: 65%;
+    margin-bottom: 3rem;
+}
+
+@media (max-width: 720px) {
+    .openvino-diagram {
+        width: 90%;
+    }
+}
+
+.ov-homepage-higlight-grid {
+    padding: 0;
+}
+
+.ov-homepage-higlight-grid > div {
+    justify-content:space-evenly;
+    row-gap: 20px;
+}
+
+.ov-homepage-higlight-grid > div > div.sd-col {
+    width: 230px;
+    min-height: 300px;
+    padding: 0;
+    margin-inline: 5px;
+}
+
+.ov-homepage-higlight-grid .sd-card {
+    box-shadow: 0 0 20px 5px #f3f3f3!important;
+    transition: 0.5s;
+    overflow: hidden;
+}
+
+.ov-homepage-higlight-grid .sd-card-hover:hover {
+    border-color: var(--sd-color-card-border)!important;
+    transform: scale(1.00)!important;
+}
+
+.ov-homepage-higlight-grid .sd-shadow-sm:hover {
+    box-shadow: 0 0 10px 2px rgba(108,36,240,0.3) !important;
+}
+
+.ov-homepage-higlight-grid .sd-card-title {
+    height: 52.781px;
+    margin-bottom: 2rem;
+}
+
+.ov-homepage-higlight-grid .sd-card-text {
+    font-size: 0.9rem;
+}
+
+.ov-homepage-higlight-grid .sd-card::after {
+    align-self: flex-end;
+    display: block;
+    content: "LEARN MORE";
     width: 100%;
-	z-index: -1;
+    font-size: 0.8rem;
+    text-align: center;
+    padding-top: 0.8rem;
+    font-weight: 600;
+    color: #00A3F6;
+    height: 3rem;
+    background-color: #CDEDFF;
 }
 
-img.HP_img_chart {
-	width: 90%;
-    display: block;
-    margin: 0 auto;
+.ov-homepage-feature-grid .sd-col {
+    padding: 0;
+    max-width: 48%;
 }
 
-/* === OV workflow chart ===================================================== */	
-#HP_flow-container {
-	margin: 0 auto;
-	width: 90%;
+.ov-homepage-feature-grid .sd-card {
+    border: none;
+    box-shadow: 0 0 20px 2px #f3f3f3!important;
+    /* box-shadow: none!important; */
 }
 
-#HP_flow-container div {
-	margin: 0;
-	float: left;
-}
-
-div.HP_flow-arrow {
-	width: 5%;
-	padding: 40px 5px;
-}
-
-div.HP_flow-btn {
-	width: 30%;
-	background-repeat: no-repeat;
-}
-
-#HP_flow-container div.HP_flow-btn:nth-of-type(1) {
-	background-image: url("../images/OV_flow_model.svg");
-}
-#HP_flow-container div.HP_flow-btn:nth-of-type(3) {
-	background-image: url("../images/OV_flow_optimization.svg");
-}
-#HP_flow-container div.HP_flow-btn:nth-of-type(5) {
-	background-image: url("../images/OV_flow_deployment.svg");
-}
-
-div.HP_flow-btn a img {
-	width: 100%;
-	visibility: hidden;
-}
-
-div.HP_flow-btn:hover a img {
-	visibility: visible;
+.ov-homepage-feature-grid .sd-row {
+    gap: 1rem;
+    justify-content: center;
 }
 
 
-/* === INFORMATION BOXES ================================================= */
-.HP_infoboxes {
-	width: 100%;
-	height: auto;
-	margin: 0; 
-	margin-bottom: 10px;
-}
-.HP_infoboxes a {
-	background-color: #0068B5;
-	height: 150px;
-	padding: 5px 2%;
-	float: left;
-	margin: 0 1% 10px 1%;
-	width: 32%;
-}
-
-.HP_infoboxes a p,
-.HP_infoboxes a h3 {
-	color: #fff;
-	margin: 0;
-	text-align: left;
-	
-	transition: all 0.5s;
-	-webkit-transition: all 0.5s;
-	-moz-transition: all 0.5s;
-	-o-transition: all 0.5s;
-	-ms-transition: all 0.5s;
-}
-.HP_infoboxes a h3 {
-	display: table-cell;
-	width: 300px;
-	vertical-align: middle;
-	height: 35px;
-	border-bottom: solid 1px #fff;
-	font-weight: bold;
-	font-size: 1em;
-	margin-bottom: 5px;
-}
-.HP_infoboxes a p {
-	font-size: 0.9em;
-	line-height: 1.5em;
-	    margin-top: 5px;
-}
-
-.HP_infoboxes a:hover h3 {
-	font-size: 1.1em;
-	text-decoration:none !important;
-}
-/*.HP_infoboxes a:hover p {
-	margin-top: 10px;
-	text-decoration:none !important;
+/* =================================================================== */
+/* @media screen and (min-width: 720px) {
+    main.col-xl-7.bd-content {
+        flex: 0 0 75%!important;
+        max-width: 75%!important;
+    }
 }*/
 
-/* === screen wide =================================================== */
-/* =================================================================== */
-@media only screen and (min-width: 901px) {
-	.HP_infoboxes a {
-		width: 32%;
-	}	
-	.HP_infoboxes a:nth-of-type(1), 
-	.HP_infoboxes a:nth-of-type(4), 
-	.HP_infoboxes a:nth-of-type(7) {
-		margin-left: 0;
-	}
-	.HP_infoboxes a:nth-of-type(3), 
-	.HP_infoboxes a:nth-of-type(6), 
-	.HP_infoboxes a:nth-of-type(9) {
-		margin-right: 0;
-	}	
+@media screen and (max-width: 535px) {
+    .ov-homepage-feature-grid .sd-row {
+        flex-direction: column;
+        align-items: center;
+    }
+    .ov-homepage-feature-grid .sd-col {
+        max-width: 100%;
+    }
 }
-/* === screen narrow ================================================== */
-/* =================================================================== */
-@media only screen and (max-width: 900px) {
-	.HP_infoboxes a {
-		width: 48%;
-		margin-left: 0;
-		margin-right: 2%;
-	}	
-	.HP_infoboxes a:nth-of-type(2n) {
-		margin-left: 2%;
-		margin-right: 0;
-	}	
-}
-/* =================================================================== */
-@media only screen and (max-width: 500px) {
-	#HP_flow-container div {
-		float: none;
-		margin: 0 auto;
-	}
-
-	div.HP_flow-arrow {
-		display: none;
-	}
-
-	div.HP_flow-btn {
-		width: 50%;
-	}
-}
-

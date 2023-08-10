@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,9 @@ static void CreateLRNOp(Program& p, const std::shared_ptr<ngraph::op::v0::LRN>& 
     std::string layerName = layer_type_name_ID(op);
 
     auto axis_const = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (!axis_const) {
-        IE_THROW() << "Unsupported axes node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
+    OPENVINO_ASSERT(axis_const != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     auto axis_value = axis_const->cast_vector<int64_t>();
-    auto localSize = op->get_nsize();
+    auto localSize = static_cast<uint32_t>(op->get_nsize());
 
     auto lrnPrim = cldnn::lrn(layerName,
                               inputs[0],

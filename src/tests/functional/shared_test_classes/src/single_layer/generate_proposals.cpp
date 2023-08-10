@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ void GenerateProposalsLayerTest::SetUp() {
 
     inType = outType = netPrecision;
     targetDevice = targetName;
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice == ov::test::utils::DEVICE_GPU) {
         if (netPrecision == element::Type_t::f16) {
             abs_threshold = 0.2;
         } else {
@@ -115,7 +115,7 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});
@@ -124,7 +124,7 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
 
 void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                          const std::vector<ov::Tensor>& actual) {
-    if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+    if (targetDevice != ov::test::utils::DEVICE_GPU) {
         SubgraphBaseTest::compare(expected, actual);
         return;
     }

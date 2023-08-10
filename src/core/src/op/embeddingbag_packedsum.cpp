@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,6 @@ shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const Outp
     } else if (new_args.size() == 3) {
         return make_shared<op::v3::EmbeddingBagPackedSum>(new_args.at(0), new_args.at(1), new_args.at(2));
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }

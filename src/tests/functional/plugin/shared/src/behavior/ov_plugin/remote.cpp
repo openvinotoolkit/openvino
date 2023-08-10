@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,19 +104,18 @@ TEST_P(OVRemoteTest, inferWithRemoteNoThrow) {
 
     {
         auto input_remote_tensor = context.create_tensor(input->get_element_type(), input->get_shape(), tensor_parameters);
-        ASSERT_NO_THROW(infer_request.set_tensor(input->get_friendly_name(), input_remote_tensor));
+        ASSERT_NO_THROW(infer_request.set_input_tensor(0, input_remote_tensor));
         ASSERT_NO_THROW(infer_request.infer());
     }
     auto output = function->get_results().front();
     {// Host accessable output if input is remote by default
         ov::Tensor tensor;
-        ASSERT_NO_THROW(tensor = infer_request.get_tensor(
-            ngraph::op::util::create_ie_output_name(output->input_value(0))));
+        ASSERT_NO_THROW(tensor = infer_request.get_output_tensor(0));
         ASSERT_NO_THROW(tensor.data());
     }
     {// Infer with remote on input and outputs
         auto output_remote_tensor = context.create_tensor(output->get_element_type(), output->get_shape(), tensor_parameters);
-        ASSERT_NO_THROW(infer_request.set_tensor(ngraph::op::util::create_ie_output_name(output->input_value(0)), output_remote_tensor));
+        ASSERT_NO_THROW(infer_request.set_output_tensor(0, output_remote_tensor));
         ASSERT_NO_THROW(infer_request.infer());
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace SubgraphTestsDefinitions {
 class NotFusedConvSimpleOp : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         auto inputParams = builder::makeParams(element::f32, {{1, 3, 12, 9}, {1, 16, 12, 9}});
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));

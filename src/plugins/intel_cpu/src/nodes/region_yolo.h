@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ struct jit_uni_logistic_kernel {
 
 class RegionYolo : public Node {
 public:
-    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RegionYolo(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -66,7 +66,7 @@ private:
     std::string errorPrefix;
 
     int block_size;
-    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel;
+    std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
 
     union U {

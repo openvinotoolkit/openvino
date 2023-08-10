@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 /// Kernels
 /// 0: Only boxes exceeding SCORE_THRESHOLD are copied to intermediate-buffer0.
@@ -29,14 +28,12 @@
 ///  - desc: sorted box num for batch*class
 
 /// optional input variables
-/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0 
+/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0
 /// IOU_THRESHOLD_VAL        TO_ACCUMULATOR_TYPE(iou_threshold[0]),   default is ACCUMULATOR_VAL_ZERO
 /// SCORE_THRESHOLD_VAL      TO_ACCUMULATOR_TYPE(score_threshold[0]), default is ACCUMULATOR_VAL_ZERO
 /// SOFT_NMS_SIGMA_VAL       TO_ACCUMULATOR_TYPE(soft_nms_sigma[0]),  default is ACCUMULATOR_VAL_ZERO
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            sizeof(SBOX_INFO) * NUM_BOXES
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define NUM_BATCHES     INPUT0_BATCH_NUM
 #define NUM_BOXES       INPUT0_FEATURE_NUM
@@ -83,8 +80,8 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
 {
 #if BOX_ENCODING == 0
     /// CORNER
-    const COORD_TYPE areaA = (boxA[3] - boxA[1]) * (boxA[2] - boxA[0]);
-    const COORD_TYPE areaB = (boxB[3] - boxB[1]) * (boxB[2] - boxB[0]);
+    const float areaA = convert_float(boxA[3] - boxA[1]) * convert_float(boxA[2] - boxA[0]);
+    const float areaB = convert_float(boxB[3] - boxB[1]) * convert_float(boxB[2] - boxB[0]);
 
     const COORD_TYPE intersection_ymin = max(boxA[0], boxB[0]);
     const COORD_TYPE intersection_xmin = max(boxA[1], boxB[1]);
@@ -92,8 +89,8 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     const COORD_TYPE intersection_xmax = min(boxA[3], boxB[3]);
 #else
     /// CENTER
-    const COORD_TYPE areaA = boxA[3] * boxA[2];
-    const COORD_TYPE areaB = boxB[3] * boxB[2];
+    const float areaA = convert_float(boxA[3]) * convert_float(boxA[2]);
+    const float areaB = convert_float(boxB[3]) * convert_float(boxB[2]);
     const COORD_TYPE halfWidthA = boxA[2] / 2;
     const COORD_TYPE halfHeightA = boxA[3] / 2;
     const COORD_TYPE halfWidthB = boxB[2] / 2;
@@ -108,10 +105,10 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     if (areaA <= 0.0f || areaB <= 0.0f)
         return 0.0f;
 
-    const COORD_TYPE intersection_area = max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f)) *
-                                         max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f));
-    const COORD_TYPE union_area = areaA + areaB - intersection_area;
-    return convert_float(intersection_area / union_area);
+    const float intersection_area = convert_float(max(intersection_xmax - intersection_xmin, TO_COORD_TYPE(0.f))) *
+                                    convert_float(max(intersection_ymax - intersection_ymin, TO_COORD_TYPE(0.f)));
+    const float union_area = areaA + areaB - intersection_area;
+    return intersection_area / union_area;
 }
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
@@ -183,7 +180,7 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
         // Set pivot element at its correct position
         // in sorted array
         const int p = FUNC_CALL(partition)(arr, l, h);
-  
+
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {
@@ -481,14 +478,21 @@ KERNEL (non_max_suppression_ref_stage_2)(
             if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
                 --i;
                 sortedBoxList[i] = next_candidate;
-                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum);
+                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum - 1);
             }
         }
     }
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
-        selectedBoxList[selectedBoxNum].batchId = -1;
+        int b = selectedBoxNum;
+        #ifdef REUSE_INTERNAL_BUFFER
+            for (; b < NUM_BOXES; ++b) {
+                selectedBoxList[b].batchId = -1;
+            }
+        #else
+            selectedBoxList[b].batchId = -1;
+        #endif
     }
 }
 #endif /* NMS_STAGE_2 */

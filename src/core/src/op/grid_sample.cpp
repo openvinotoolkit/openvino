@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,12 +26,16 @@ bool op::v9::GridSample::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v9::GridSample::validate_and_infer_types() {
     OV_OP_SCOPE(v9_GridSample_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_real(),
-                          "The element type of the grid input tensor must be a floating point type.");
+    if (!get_input_element_type(1).is_dynamic()) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(1).is_real(),
+                              "The element type of the grid input tensor must be a floating point type.");
+    }
 
-    std::vector<PartialShape> out_shapes(1);
-    shape_infer(this, {get_input_partial_shape(0), get_input_partial_shape(1)}, out_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto out_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), out_shapes[0]);
 }
 
@@ -69,6 +73,7 @@ NGRAPH_API EnumNames<op::v9::GridSample::PaddingMode>& EnumNames<op::v9::GridSam
     return enum_names;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 template <element::Type_t DATA_ET, element::Type_t GRID_ET>
@@ -125,8 +130,10 @@ bool evaluate_grid_sample(const HostTensorPtr& output,
 
 bool op::v9::GridSample::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_GridSample_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, 2), "Invalid GridSample input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid GridSample output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return evaluate_grid_sample(outputs[0], inputs[0], inputs[1], m_attributes);
 }

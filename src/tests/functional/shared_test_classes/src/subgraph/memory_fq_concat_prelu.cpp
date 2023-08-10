@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,7 @@ std::string MemoryFqConcatPrelu::getTestCaseName(const testing::TestParamInfo<Me
     std::tie(input, netPrecision, targetName, additional_config, strided_slice_params, fake_quantize_params) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(input[0]) << "_";
+    results << "IS=" << ov::test::utils::vec2str(input[0]) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const &item : additional_config) {

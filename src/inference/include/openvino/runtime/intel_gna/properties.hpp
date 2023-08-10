@@ -37,7 +37,7 @@ static constexpr Property<std::string, PropertyMutability::RO> library_full_vers
  * This option should be used with floating point value serialized to string with . (dot) as a decimal separator
  * @ingroup ov_runtime_gna_prop_cpp_api
  * @details In the case of multiple inputs, individual scale factors can be provided using the
- *  map where key is layer name and value is scale factor
+ *  map where key is layer name and value is scale factor. The input name shall not contain symbol ":".
  * Example:
  * \code{.cpp}
  * ov::Core core;
@@ -87,7 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& execution
     case ExecutionMode::SW_FP32:
         return os << "GNA_SW_FP32";
     default:
-        throw ov::Exception{"Unsupported execution mode!"};
+        OPENVINO_THROW("Unsupported execution mode!");
     }
 }
 
@@ -105,7 +105,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
     } else if (str == "GNA_SW_FP32") {
         execution_mode = ExecutionMode::SW_FP32;
     } else {
-        throw ov::Exception{"Unsupported execution mode: " + str};
+        OPENVINO_THROW("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -117,9 +117,15 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
  */
 enum class HWGeneration {
     UNDEFINED = 0,  //!< GNA HW generation is undefined
+    GNA_1_0 = 4,    //!< GNA HW generation 1.0
+    GNA_1_0_E = 9,  //!< GNA HW generation 1.0 embedded
     GNA_2_0 = 1,    //!< GNA HW generation 2.0
     GNA_3_0 = 2,    //!< GNA HW generation 3.0
+    GNA_3_1 = 5,    //!< GNA HW generation 3.1
     GNA_3_5 = 3,    //!< GNA HW generation 3.5
+    GNA_3_5_E = 6,  //!< GNA HW generation 3.5 embedded
+    GNA_3_6 = 7,    //!< GNA HW generation 3.6
+    GNA_4_0 = 8,    //!< GNA HW generation 4.0
 };
 
 /** @cond INTERNAL */
@@ -127,14 +133,26 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
     switch (hw_generation) {
     case HWGeneration::UNDEFINED:
         return os << "UNDEFINED";
+    case HWGeneration::GNA_1_0:
+        return os << "GNA_1_0";
+    case HWGeneration::GNA_1_0_E:
+        return os << "GNA_1_0_E";
     case HWGeneration::GNA_2_0:
         return os << "GNA_2_0";
     case HWGeneration::GNA_3_0:
         return os << "GNA_3_0";
+    case HWGeneration::GNA_3_1:
+        return os << "GNA_3_1";
     case HWGeneration::GNA_3_5:
         return os << "GNA_3_5";
+    case HWGeneration::GNA_3_5_E:
+        return os << "GNA_3_5_E";
+    case HWGeneration::GNA_3_6:
+        return os << "GNA_3_6";
+    case HWGeneration::GNA_4_0:
+        return os << "GNA_4_0";
     default:
-        throw ov::Exception{"Unsupported HW generation!"};
+        OPENVINO_THROW("Unsupported HW generation!");
     }
 }
 
@@ -143,14 +161,26 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
     is >> str;
     if (str == "UNDEFINED") {
         hw_generation = HWGeneration::UNDEFINED;
+    } else if (str == "GNA_1_0") {
+        hw_generation = HWGeneration::GNA_1_0;
+    } else if (str == "GNA_1_0_E") {
+        hw_generation = HWGeneration::GNA_1_0_E;
     } else if (str == "GNA_2_0") {
         hw_generation = HWGeneration::GNA_2_0;
     } else if (str == "GNA_3_0") {
         hw_generation = HWGeneration::GNA_3_0;
+    } else if (str == "GNA_3_1") {
+        hw_generation = HWGeneration::GNA_3_1;
     } else if (str == "GNA_3_5") {
         hw_generation = HWGeneration::GNA_3_5;
+    } else if (str == "GNA_3_5_E") {
+        hw_generation = HWGeneration::GNA_3_5_E;
+    } else if (str == "GNA_3_6") {
+        hw_generation = HWGeneration::GNA_3_6;
+    } else if (str == "GNA_4_0") {
+        hw_generation = HWGeneration::GNA_4_0;
     } else {
-        throw ov::Exception{"Unsupported HW generation: " + str};
+        OPENVINO_THROW("Unsupported HW generation: ", str);
     }
     return is;
 }
@@ -164,18 +194,18 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
 static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
 
 /**
- * @brief The option to override the GNA HW execution target. May be one of GNA_2_0, GNA_3_0.
+ * @brief The option to override the GNA HW execution target. May be one of GNA_2_0, GNA_3_0, GNA_3_5.
  * By default (in case of no value set) the behavior depends on GNA HW availability:
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
  * A fully supported GNA HW generation means it must be supported by both the OV GNA Plugin and the core GNA Library.
- * Currently, the latest supported GNA HW generation corresponds to GNA_3_0.
+ * Currently, the latest supported GNA HW generation corresponds to GNA_3_5.
  * @ingroup ov_runtime_gna_prop_cpp_api
  */
 static constexpr Property<HWGeneration> execution_target{"GNA_HW_EXECUTION_TARGET"};
 
 /**
- * @brief The option to override the GNA HW compile target. May be one of GNA_2_0, GNA_3_0.
+ * @brief The option to override the GNA HW compile target. May be one of GNA_2_0, GNA_3_0, GNA_3_5.
  * By default the same as execution_target.
  * @ingroup ov_runtime_gna_prop_cpp_api
  */
@@ -207,7 +237,7 @@ inline std::ostream& operator<<(std::ostream& os, const PWLDesignAlgorithm& pwl_
     case PWLDesignAlgorithm::UNIFORM_DISTRIBUTION:
         return os << "UNIFORM_DISTRIBUTION";
     default:
-        throw ov::Exception{"Unsupported PWL design algorithm!"};
+        OPENVINO_THROW("Unsupported PWL design algorithm!");
     }
 }
 
@@ -221,7 +251,7 @@ inline std::istream& operator>>(std::istream& is, PWLDesignAlgorithm& pwl_design
     } else if (str == "UNIFORM_DISTRIBUTION") {
         pwl_design_algo = PWLDesignAlgorithm::UNIFORM_DISTRIBUTION;
     } else {
-        throw ov::Exception{"Unsupported PWL design algorithm: " + str};
+        OPENVINO_THROW("Unsupported PWL design algorithm: ", str);
     }
     return is;
 }

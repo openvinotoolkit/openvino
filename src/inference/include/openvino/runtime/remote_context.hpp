@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
-namespace InferenceEngine {
-class RemoteContext;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class Core;
+class IRemoteContext;
 class CompiledModel;
 
 /**
@@ -36,8 +33,8 @@ class CompiledModel;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to the remote context implementation.
-    std::vector<std::shared_ptr<void>> _so;  //!< Reference to the shared object that loaded implementation.
+    std::shared_ptr<IRemoteContext> _impl;  //!< Pointer to the remote context implementation.
+    std::shared_ptr<void> _so;              //!< Reference to the shared object that loaded implementation.
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.
@@ -45,8 +42,7 @@ protected:
      * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if a plugin
      * object is destroyed.
      */
-    RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl,
-                  const std::vector<std::shared_ptr<void>>& so);
+    RemoteContext(const std::shared_ptr<IRemoteContext>& impl, const std::shared_ptr<void>& so);
     friend class ov::Core;
     friend class ov::CompiledModel;
 
@@ -81,6 +77,12 @@ public:
      * @return Reference to the current object.
      */
     RemoteContext& operator=(RemoteContext&& other) = default;
+
+    /**
+     * @brief Checks if current RemoteContext object is initialized
+     * @return `true` if current RemoteContext object is initialized, `false` - otherwise
+     */
+    operator bool() const noexcept;
 
     /**
      * @brief Destructor that preserves unloading order of implementation object and reference to the library.

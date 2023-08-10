@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherND : public op::util::GatherNDBase {
 public:
-    OPENVINO_OP("GatherND", "opset5", op::util::GatherNDBase, 5);
+    OPENVINO_OP("GatherND", "opset5", op::util::GatherNDBase);
     GatherND() = default;
 
     /// \brief Constructs a GatherND operation.

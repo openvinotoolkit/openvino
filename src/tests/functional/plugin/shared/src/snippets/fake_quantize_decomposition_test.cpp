@@ -29,7 +29,7 @@ std::string FakeQuantizeDecompositionTest::getTestCaseName(testing::TestParamInf
         "nullptr" :
         (std::string(type_info.name) + "_" + std::string(type_info.version_id));
 
-    result << "IS=" << CommonTestUtils::vec2str(values.inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(values.inputShape) << "_";
     result << "netPRC=" << values.modelType << "_";
     result << "D=" << targetDevice << "_";
     result << "IN=" << values.inputType << "_";
@@ -66,6 +66,7 @@ void FakeQuantizeDecompositionTest::SetUp() {
 }
 
 TEST_P(FakeQuantizeDecompositionTest, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
     const auto operation = std::get<1>(this->GetParam());

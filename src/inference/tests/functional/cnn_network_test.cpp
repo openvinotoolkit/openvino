@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,7 +101,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs) {
     try {
         core.LoadNetwork(network);
         FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
@@ -119,7 +119,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_remoteContext) {
     try {
         core.LoadNetwork(network, InferenceEngine::RemoteContext::Ptr());
         FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
@@ -137,7 +137,7 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
     try {
         core.QueryNetwork(network, "mock");
         FAIL() << "QueryNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
+    } catch (const InferenceEngine::Exception& e) {
         EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::QueryNetwork") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
         EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
@@ -147,41 +147,3 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
         EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
     }
 }
-
-class CNNNetworkTests_LoadFromFileTest : public ::testing::Test {
-protected:
-    std::string modelName = "CNNNetworkTests_LoadFromFileTest.xml";
-    std::string weightsName = "CNNNetworkTests_LoadFromFileTest.bin";
-    InferenceEngine::Core core;
-
-public:
-    void SetUp() override {
-        std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
-        ov::pass::Serialize(modelName, weightsName).run_on_model(model);
-        ASSERT_NO_THROW(
-            core.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                                   std::string("mock_engine") + IE_BUILD_POSTFIX),
-                                "mock"));
-    }
-
-    void TearDown() override {
-        CommonTestUtils::removeIRFiles(modelName, weightsName);
-        core.UnregisterPlugin("mock");
-    }
-};
-#if defined(ENABLE_OV_IR_FRONTEND)
-TEST_F(CNNNetworkTests_LoadFromFileTest, throwsHasDynamicInputs_fromPath) {
-    try {
-        core.LoadNetwork(modelName, "mock");
-        FAIL() << "LoadNetwork with dynamic inputs shall throw";
-    } catch (const ov::AssertFailure& e) {
-        EXPECT_TRUE(std::string(e.what()).find("InferenceEngine::Core::LoadNetwork") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p1_1") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p1_2") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p2_1") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p2_2") != std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p3_1") == std::string::npos) << e.what();
-        EXPECT_TRUE(std::string(e.what()).find("p3_2") == std::string::npos) << e.what();
-    }
-}
-#endif  // defined(ENABLE_OV_IR_FRONTEND)

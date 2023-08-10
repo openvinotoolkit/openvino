@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
  **/
 #pragma once
 
+#include "openvino/c/auto/properties.h"
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_compiled_model.h"
 #include "openvino/c/ov_core.h"
@@ -27,5 +28,6 @@
 #include "openvino/c/ov_prepostprocess.h"
 #include "openvino/c/ov_property.h"
 #include "openvino/c/ov_rank.h"
+#include "openvino/c/ov_remote_context.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,9 @@
 #include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+namespace ov {
+namespace op {
 namespace eye {
 namespace {
 template <ov::element::Type_t ET>
@@ -58,40 +61,21 @@ ov::op::v9::Eye::Eye(const Output<Node>& num_rows,
 
 void ov::op::v9::Eye::validate_and_infer_types() {
     OV_OP_SCOPE(v9_Eye_validate_and_infer_types);
-    const auto& num_rows_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          num_rows_et == element::i32 || num_rows_et == element::i64,
-                          "Type of the 'num_rows' should be int32 or int64. Got: ",
-                          num_rows_et);
-    const auto& num_columns_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          num_columns_et == element::i32 || num_columns_et == element::i64,
-                          "Type of the 'num_columns' should be int32 or int64. Got: ",
-                          num_columns_et);
-    const auto& diagonal_index_et = get_input_element_type(2);
-    NODE_VALIDATION_CHECK(this,
-                          diagonal_index_et == element::i32 || diagonal_index_et == element::i64,
-                          "Type of the 'diagonal_index' should be int32 or int64. Got: ",
-                          diagonal_index_et);
 
-    const auto& num_rows_pshape = get_input_partial_shape(0);
-    const auto& num_columns_pshape = get_input_partial_shape(1);
-    const auto& diagonal_index_pshape = get_input_partial_shape(2);
-    std::vector<ov::PartialShape> input_shapes = {num_rows_pshape, num_columns_pshape, diagonal_index_pshape};
-
-    if (get_input_size() == 4) {
-        const auto& batch_shape_et = get_input_element_type(3);
+    for (size_t i = 0; i < get_input_size(); ++i) {
+        const auto& input_et = get_input_element_type(i);
         NODE_VALIDATION_CHECK(this,
-                              batch_shape_et == element::i32 || batch_shape_et == element::i64,
-                              "Type of the 'batch_shape' should be int32 or int64. Got: ",
-                              batch_shape_et);
-        const auto& batch_shape_pshape = get_input_partial_shape(3);
-        input_shapes.push_back(batch_shape_pshape);
+                              input_et == element::i32 || input_et == element::i64,
+                              "Type of the ",
+                              eye::shape_names[i],
+                              " should be int32 or int64. Got: ",
+                              input_et);
     }
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_out_type(), output_shapes[0]);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, get_out_type(), output_shape);
 }
 
 bool ov::op::v9::Eye::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -108,7 +92,7 @@ std::shared_ptr<ov::Node> ov::op::v9::Eye::clone_with_new_inputs(const ov::Outpu
     } else if (new_args.size() == 4) {
         return std::make_shared<v9::Eye>(new_args[0], new_args[1], new_args[2], new_args[3], m_output_type);
     } else {
-        throw ov::Exception("Eye has incorrect input number: " + std::to_string(new_args.size()));
+        OPENVINO_THROW("Eye has incorrect input number: ", new_args.size());
     }
 }
 
@@ -131,17 +115,14 @@ bool ov::op::v9::Eye::has_evaluate() const {
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
     OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    const auto& num_rows_data = inputs[0];
+    int64_t diagonal_index;
 
-    int64_t diagonal_index = 0;
-    std::vector<ov::PartialShape> input_shapes;
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     if (get_input_size() > 1) {
-        const auto& num_columns_data = inputs[1];
         const auto& diagonal_index_data = inputs[2];
 
         switch (diagonal_index_data->get_element_type()) {
@@ -152,32 +133,26 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             diagonal_index = diagonal_index_data->get_data_ptr<const int64_t>()[0];
             break;
         default:
-            throw ov::Exception("Unsupported type of input `diagonal_index` in Eye operation: " +
-                                diagonal_index_data->get_element_type().get_type_name());
-        }
-
-        constant_data = {{0, num_rows_data}, {1, num_columns_data}, {2, diagonal_index_data}};
-
-        input_shapes = {num_rows_data->get_partial_shape(),
-                        num_columns_data->get_partial_shape(),
-                        diagonal_index_data->get_partial_shape()};
-
-        if (get_input_size() > 3) {
-            const auto& batch_shape_data = inputs[3];
-            constant_data.insert({3, batch_shape_data});
-            input_shapes.push_back(batch_shape_data->get_partial_shape());
+            OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
+                           diagonal_index_data->get_element_type().to_string());
         }
     } else {
-        constant_data = {{0, num_rows_data}};
-        input_shapes = {num_rows_data->get_partial_shape()};
+        diagonal_index = 0;
     }
 
-    shape_infer(this, input_shapes, output_shapes, constant_data);
+    std::vector<ov::PartialShape> input_shapes;
+    input_shapes.reserve(inputs.size());
 
-    OPENVINO_ASSERT(ov::PartialShape(output_shapes[0]).is_static(), "Eye op evaluate needs output shape to be static.");
-    ov::Shape output_shape = output_shapes[0].to_shape();
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        input_shapes.push_back(inputs[i]->get_partial_shape());
+    }
+
+    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
+
     outputs[0]->set_element_type(get_out_type());
     outputs[0]->set_shape(output_shape);
 
     return eye::evaluate_eye(outputs[0], diagonal_index);
 }
+}  // namespace op
+}  // namespace ov

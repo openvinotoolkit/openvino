@@ -1,42 +1,51 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import pytest
 
-import openvino.runtime.opset8 as ov
-from tests.runtime import get_runtime
-from tests.test_graph.util import run_op_node
-
-
-def test_onehot():
-    runtime = get_runtime()
-    param = ov.parameter([3], dtype=np.int32)
-    model = ov.one_hot(param, 3, 1, 0, 0)
-    computation = runtime.computation(model, param)
-
-    expected = np.eye(3)[np.array([1, 0, 2])]
-    input_data = np.array([1, 0, 2], dtype=np.int32)
-    result = computation(input_data)
-    assert np.allclose(result, expected)
+import openvino.runtime as ov
 
 
-def test_one_hot():
-    data = np.array([0, 1, 2], dtype=np.int32)
-    depth = 2
-    on_value = 5
-    off_value = 10
-    axis = -1
-    excepted = [[5, 10], [10, 5], [10, 10]]
+@pytest.mark.parametrize(("depth", "on_value", "off_value", "axis", "expected_shape"), [
+    (2, 5, 10, -1, [3, 2]),
+    (3, 1, 0, 0, [3, 3]),
+])
+def test_one_hot(depth, on_value, off_value, axis, expected_shape):
+    param = ov.opset11.parameter([3], dtype=np.int32)
+    node = ov.opset11.one_hot(param, depth, on_value, off_value, axis)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "OneHot"
+    assert list(node.get_output_shape(0)) == expected_shape
 
-    result = run_op_node([data, depth, on_value, off_value], ov.one_hot, axis)
-    assert np.allclose(result, excepted)
 
-
-def test_range():
+# Test Range-1
+def test_range_1():
     start = 5
     stop = 35
     step = 5
 
-    result = run_op_node([start, stop, step], ov.range)
-    assert np.allclose(result, [5, 10, 15, 20, 25, 30])
+    node = ov.opset11.range(start, stop, step)
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "Range"
+    assert list(node.get_output_shape(0)) == [6]
+
+
+# Test Range-4
+@pytest.mark.parametrize(("destination_type", "expected_type"), [
+    ("i64", ov.Type.i64),
+    ("i32", ov.Type.i32),
+    ("f32", ov.Type.f32),
+])
+def test_range_4(destination_type, expected_type):
+    start = 5
+    stop = 35
+    step = 5
+
+    node = ov.opset12.range(start, stop, step, destination_type)
+
+    assert node.get_output_size() == 1
+    assert node.get_type_name() == "Range"
+    assert list(node.get_output_shape(0)) == [6]
+    assert node.get_element_type() == expected_type

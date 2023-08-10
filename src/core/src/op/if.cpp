@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,19 +75,6 @@ bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::v8::If::validate_and_infer_type_body(
-    const std::shared_ptr<ov::Model>& body,
-    const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors) {
-    for (const auto& input_description : input_descriptors) {
-        auto index = input_description->m_input_index;
-
-        auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
-        auto input_partial_shape = input_value(index).get_partial_shape();
-        body_parameter->set_partial_shape(input_partial_shape);
-    }
-    body->validate_nodes_and_infer_types();
-}
-
 void ov::op::v8::If::validate_and_infer_types() {
     OV_OP_SCOPE(v8_If_validate_and_infer_types);
 
@@ -111,15 +98,21 @@ void ov::op::v8::If::validate_and_infer_types() {
     }
 
     // Trying to get cond as const value
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(if_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         // If cond is const shape and inference is run for one of bodies another body is skipped
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        // Condition is constant we only need to validate one body
+        if (val[0]) {
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        } else {
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        }
         auto output_nodes = outputs();
 
         auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;
@@ -165,14 +158,20 @@ void ov::op::v8::If::validate_and_infer_types() {
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
+            element::Type merged_type;
             NODE_VALIDATION_CHECK(this,
-                                  then_node_result.get_element_type() == else_node_result.get_element_type(),
-                                  "type of then_body output is not equal type of else_body output");
+                                  element::Type::merge(merged_type,
+                                                       then_node_result.get_element_type(),
+                                                       else_node_result.get_element_type()),
+                                  "type of then_body output ",
+                                  then_node_result.get_element_type(),
+                                  " is not equal type of else_body output",
+                                  else_node_result.get_element_type());
 
             // shape inference for output and associated with it body outputs
             auto partial_shape =
                 resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
-            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
+            set_output_type(output_index, merged_type, partial_shape);
         }
     }
 }
@@ -186,8 +185,8 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_model(*get_then_body()));
-    op->set_else_body(clone_model(*get_else_body()));
+    op->set_then_body(get_then_body()->clone());
+    op->set_else_body(get_else_body()->clone());
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {
@@ -200,30 +199,6 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
     op->validate_and_infer_types();
 
     return op;
-}
-
-ov::op::v8::If::OutputMap ov::op::v8::If::get_mapping_outputs_on_body_description(
-    const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors) {
-    OutputMap outputs_map = OutputMap();
-    std::unordered_set<int64_t> checked_results_in_body;
-
-    for (const auto& output_description : output_descriptors) {
-        auto out_index = output_description->m_output_index;
-        auto internal_result_index = output_description->m_body_value_index;
-        NODE_VALIDATION_CHECK(this,
-                              checked_results_in_body.count(internal_result_index) == 0,
-                              "Incorrect associating in then_body! Result ",
-                              internal_result_index,
-                              " is already associated with another output!");
-        NODE_VALIDATION_CHECK(this,
-                              outputs_map.count(out_index) == 0,
-                              "Incorrect associating in then_body! Several results try to "
-                              "associate with the same output!");
-        checked_results_in_body.insert(internal_result_index);
-        outputs_map.insert({out_index, output_description});
-    }
-
-    return outputs_map;
 }
 
 void ov::op::v8::If::set_input(const Output<Node>& value,

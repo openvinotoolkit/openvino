@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
-#include "gru_cell_shape_inference.hpp"
+#include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "rnn_base_shape_inference.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 
 namespace internal {
-template <class ShapeType>
-void shape_infer(const ov::op::internal::AUGRUCell* op,
-                 const std::vector<ShapeType>& input_shapes,
-                 std::vector<ShapeType>& output_shapes) {
+template <class ShapeType, class TRShape = result_shape_t<ShapeType>>
+std::vector<TRShape> shape_infer(const ov::op::internal::AUGRUCell* op, const std::vector<ShapeType>& input_shapes) {
     constexpr size_t expected_in_shapes_count = 6;
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == expected_in_shapes_count,
@@ -24,7 +23,9 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
                           input_shapes.size(),
                           ".");
 
-    rnn::gru_cell_shape_infer(op, input_shapes, output_shapes);
+    constexpr auto num_gates = 3;
+    constexpr auto num_state_nodes = 1;
+    auto output_shapes = rnn::cell_base_shape_infer(op, input_shapes, num_gates, num_state_nodes);
 
     // `A` input shape validation // [batch_size, 1]
     const auto& a_shape = input_shapes.back();
@@ -38,6 +39,7 @@ void shape_infer(const ov::op::internal::AUGRUCell* op,
         }
         NODE_VALIDATION_CHECK(op, a_shape[1].compatible(1), "The last dimension of `A` shape must be equal to `1`.");
     }
+    return output_shapes;
 }
 }  // namespace internal
 }  // namespace op

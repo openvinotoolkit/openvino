@@ -1,120 +1,145 @@
 # Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
-As described in the [Integrate OpenVINO™ with Your Application](integrate_with_your_application.md), a common application flow consists of the following steps:
-
-1. **Create a Core object**: First step to manage available devices and read model objects
-
-2. **Read the Intermediate Representation**: Read an Intermediate Representation file into an object of the `ov::Model`
-
-3. **Prepare inputs and outputs**: If needed, manipulate precision, memory layout, size or color format
-
-4. **Set configuration**: Pass device-specific loading configurations to the device
-
-5. **Compile and Load Network to device**: Use the `ov::Core::compile_model()` method with a specific device
-
-6. **Set input data**: Specify input tensor
-
-7. **Execute**: Carry out inference and process results
-
-Step 5 can potentially perform several time-consuming device-specific optimizations and network compilations,
-and such delays can lead to a bad user experience on application startup. To avoid this, some devices offer
-import/export network capability, and it is possible to either use the [Compile tool](../../tools/compile_tool/README.md)
-or enable model caching to export compiled model automatically. Reusing cached model can significantly reduce compile model time.
-
-### Set "cache_dir" config option to enable model caching
-
-To enable model caching, the application must specify a folder to store cached blobs, which is done like this:
-
 @sphinxdirective
 
-.. tab:: C++
+.. meta::
+   :description: Enabling model caching to export compiled model 
+                 automatically and reusing it can significantly 
+                 reduce duration of model compilation on application startup.
+
+
+As described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`, 
+a common application flow consists of the following steps:
+
+1. | **Create a Core object**: 
+   |   First step to manage available devices and read model objects
+2. | **Read the Intermediate Representation**: 
+   |   Read an Intermediate Representation file into an object of the `ov::Model <classov_1_1Model.html#doxid-classov-1-1-model>`__
+3. | **Prepare inputs and outputs**: 
+   |   If needed, manipulate precision, memory layout, size or color format
+4. | **Set configuration**: 
+   |   Pass device-specific loading configurations to the device
+5. | **Compile and Load Network to device**: 
+   |   Use the `ov::Core::compile_model() <classov_1_1Core.html#doxid-classov-1-1-core-1a46555f0803e8c29524626be08e7f5c5a>`__ method with a specific device
+6. | **Set input data**: 
+   |   Specify input tensor
+7. | **Execute**: 
+   |   Carry out inference and process results
+
+Step 5 can potentially perform several time-consuming device-specific optimizations and network compilations. 
+To reduce the resulting delays at application startup, you can use Model Caching. It exports the compiled model 
+automatically and reuses it to significantly reduce the model compilation time.
+
+.. important:: 
+
+   Not all devices support the network import/export feature. They will perform normally but will not
+   enable the compilation stage speed-up.
+
+
+Set "cache_dir" config option to enable model caching
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+To enable model caching, the application must specify a folder to store the cached blobs:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part0]
+
+   .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part0]
 
-.. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
-         :language: python
-         :fragment: [ov:caching:part0]
+With this code, if the device specified by ``device_name`` supports import/export model capability, 
+a cached blob is automatically created inside the ``/path/to/cache/dir`` folder.
+If the device does not support the import/export capability, cache is not created and no error is thrown.
 
-@endsphinxdirective
+Note that the first ``compile_model`` operation takes slightly longer, as the cache needs to be created - 
+the compiled blob is saved into a cache file:
 
-With this code, if the device specified by `device_name` supports import/export model capability, a cached blob is automatically created inside the `/path/to/cache/dir` folder.
-If the device does not support import/export capability, cache is not created and no error is thrown.
+.. image:: _static/images/caching_enabled.svg
 
-Depending on your device, total time for compiling model on application startup can be significantly reduced.
-Also note that the very first `compile_model` (when cache is not yet created) takes slightly longer time to "export" the compiled blob into a cache file:
 
-![caching_enabled]
-
-### Even faster: use compile_model(modelPath)
+Make it even faster: use compile_model(modelPath)
++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In some cases, applications do not need to customize inputs and outputs every time. Such application always
-call `model = core.read_model(...)`, then `core.compile_model(model, ..)` and it can be further optimized.
+call ``model = core.read_model(...)``, then ``core.compile_model(model, ..)``, which can be further optimized.
 For these cases, there is a more convenient API to compile the model in a single call, skipping the read step:
 
-@sphinxdirective
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part1]
+
+   .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part1]
 
-.. tab:: Python
+
+With model caching enabled, the total load time is even shorter, if ``read_model`` is optimized as well.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_caching.py
-         :language: python
-         :fragment: [ov:caching:part1]
+         :language: py
+         :fragment: [ov:caching:part2]
 
-@endsphinxdirective
-
-With model caching enabled, total load time is even smaller, if `read_model` is optimized as well.
-
-@sphinxdirective
-
-.. tab:: C++
+   .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part2]
 
-.. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
-         :language: python
-         :fragment: [ov:caching:part2]
+.. image:: _static/images/caching_times.svg
 
-@endsphinxdirective
+Advanced Examples
+++++++++++++++++++++
 
-![caching_times]
-
-### Advanced Examples
-
-Not every device supports network import/export capability. For those that don't, enabling caching has no effect.
+Not every device supports the network import/export capability. For those that don't, enabling caching has no effect.
 To check in advance if a particular device supports model caching, your application can use the following code:
 
-@sphinxdirective
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part3]
+
+   .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ov_caching.cpp
          :language: cpp
          :fragment: [ov:caching:part3]
 
-.. tab:: Python
 
-      .. doxygensnippet:: docs/snippets/ov_caching.py
-         :language: python
-         :fragment: [ov:caching:part3]
+.. note::
+
+   For GPU, model caching is currently supported fully for static models only. For dynamic models,
+   kernel caching is used and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file.
+   See the :doc:`GPU plugin documentation <openvino_docs_OV_UG_supported_plugins_GPU>`. 
 
 @endsphinxdirective
-
-> **NOTE**: For GPU, model caching is currently implemented as a preview feature. Before it is fully supported, kernel caching can be used in the same manner: by setting the CACHE_DIR configuration key to a folder where the cache should be stored (see the [GPU plugin documentation](supported_plugins/GPU.md)).
-> To activate the preview feature of model caching, set the OV_GPU_CACHE_MODEL environment variable to 1.
-
-
-[caching_enabled]: ../img/caching_enabled.png
-[caching_times]: ../img/caching_times.png

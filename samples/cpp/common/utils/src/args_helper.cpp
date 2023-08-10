@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,7 +171,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;
 
     const std::vector<ov::Output<const ov::Node>> inputs = network.inputs();
-    for (const ov::Output<const ov::Node> input : inputs) {
+    for (const ov::Output<const ov::Node>& input : inputs) {
         slog::info << "    inputs" << slog::endl;
 
         const std::string name = input.get_names().empty() ? "NONE" : input.get_any_name();
@@ -185,7 +185,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     }
 
     const std::vector<ov::Output<const ov::Node>> outputs = network.outputs();
-    for (const ov::Output<const ov::Node> output : outputs) {
+    for (const ov::Output<const ov::Node>& output : outputs) {
         slog::info << "    outputs" << slog::endl;
 
         const std::string name = output.get_names().empty() ? "NONE" : output.get_any_name();
@@ -345,8 +345,8 @@ ov::element::Type getPrecision(std::string value,
 
 ov::element::Type getPrecision2(const std::string& value) {
     static const std::unordered_map<std::string, ov::element::Type> supported_precisions = {
-        {"FP32", ov::element::f32},
-        {"FP16", ov::element::f16},
+        {"F32", ov::element::f32},
+        {"F16", ov::element::f16},
         {"BF16", ov::element::bf16},
         {"U64", ov::element::u64},
         {"I64", ov::element::i64},

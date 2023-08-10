@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace v3 {
 ///
 class OPENVINO_API Asinh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Asinh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    OPENVINO_OP("Asinh", "opset4", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs an Asinh operation.
     Asinh() = default;

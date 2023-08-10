@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/convolution_base.hpp"
 
 namespace ov {
 namespace op {
@@ -14,9 +15,9 @@ namespace v1 {
 /// \brief BinaryConvolution operation.
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API BinaryConvolution : public Op {
+class OPENVINO_API BinaryConvolution : public util::ConvolutionFwdPropBase {
 public:
-    OPENVINO_OP("BinaryConvolution", "opset1", op::Op, 1);
+    OPENVINO_OP("BinaryConvolution", "opset1", op::util::ConvolutionFwdPropBase);
 
     enum class BinaryConvolutionMode {
         // Interpret input data and kernel values: 0 as -1, 1 as 1
@@ -63,41 +64,6 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    /// \return The strides.
-    const Strides& get_strides() const {
-        return m_strides;
-    }
-    void set_strides(const Strides& strides) {
-        m_strides = strides;
-    }
-    /// \return The dilations.
-    const Strides& get_dilations() const {
-        return m_dilations;
-    }
-    void set_dilations(const Strides& dilations) {
-        m_dilations = dilations;
-    }
-    /// \return The padding-below sizes (possibly negative).
-    const CoordinateDiff& get_pads_begin() const {
-        return m_pads_begin;
-    }
-    void set_pads_begin(const CoordinateDiff& pads_begin) {
-        m_pads_begin = pads_begin;
-    }
-    /// \return The padding-above sizes (possibly negative).
-    const CoordinateDiff& get_pads_end() const {
-        return m_pads_end;
-    }
-    void set_adding_above(const CoordinateDiff& pads_end) {
-        m_pads_end = pads_end;
-    }
-    /// \return The pad type for convolution.
-    const PadType& get_auto_pad() const {
-        return m_auto_pad;
-    }
-    void set_auto_pad(const PadType& auto_pad) {
-        m_auto_pad = auto_pad;
-    }
     /// \return The mode of convolution.
     const BinaryConvolutionMode& get_mode() const {
         return m_mode;
@@ -115,13 +81,9 @@ public:
 
 protected:
     BinaryConvolutionMode mode_from_string(const std::string& mode) const;
-    Strides m_strides;
-    Strides m_dilations;
-    CoordinateDiff m_pads_begin;
-    CoordinateDiff m_pads_end;
+
     BinaryConvolutionMode m_mode;
     float m_pad_value;
-    PadType m_auto_pad;
 };
 }  // namespace v1
 }  // namespace op

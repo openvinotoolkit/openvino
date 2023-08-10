@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReverseSequence, ReverseSequenceLayerTest,
                             ::testing::ValuesIn(reversSeqLengthsVecShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         ReverseSequenceLayerTest::getTestCaseName);
 
 }  // namespace

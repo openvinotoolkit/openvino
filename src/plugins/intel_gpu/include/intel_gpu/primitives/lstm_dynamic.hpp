@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward Long Short-Term Memory (LSTM_DYNAMIC) layer.
 /// @details The current implementation of LSTM_DYNAMIC is described the following equations.
@@ -26,6 +19,10 @@ namespace cldnn {
 /// Where f = Sigmoid, g = Tanh, and h = Tanh.
 struct lstm_dynamic : public primitive_base<lstm_dynamic> {
     CLDNN_DECLARE_PRIMITIVE(lstm_dynamic)
+
+    lstm_dynamic() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
@@ -86,6 +83,63 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
     /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
     bool input_forget;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_combine(seed, last_hidden_state.empty());
+        seed = hash_combine(seed, last_cell_state.empty());
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, initial_hidden.empty());
+        seed = hash_combine(seed, initial_cell.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_dynamic>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(last_hidden_state.empty()) &&
+               cmp_fields(last_cell_state.empty()) &&
+               cmp_fields(initial_hidden.empty()) &&
+               cmp_fields(initial_cell.empty()) &&
+               cmp_fields(bias.empty());
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_dynamic>::save(ob);
+        ob << dyn_length;
+        ob << weights;
+        ob << recurrent;
+        ob << last_hidden_state;
+        ob << last_cell_state;
+        ob << bias;
+        ob << initial_hidden;
+        ob << initial_cell;
+        ob << clip;
+        ob << input_forget;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_dynamic>::load(ib);
+        ib >> dyn_length;
+        ib >> weights;
+        ib >> recurrent;
+        ib >> last_hidden_state;
+        ib >> last_cell_state;
+        ib >> bias;
+        ib >> initial_hidden;
+        ib >> initial_cell;
+        ib >> clip;
+        ib >> input_forget;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -112,7 +166,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

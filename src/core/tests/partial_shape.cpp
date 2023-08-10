@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 
@@ -208,12 +208,12 @@ TEST(partial_shape, to_shape_static) {
 
 TEST(partial_shape, to_shape_dims_dynamic) {
     PartialShape ps{2, 4, Dimension::dynamic(), 8};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, to_shape_rank_dynamic) {
     PartialShape ps{PartialShape::dynamic()};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, tensor_descriptor_from_shape) {
@@ -685,6 +685,7 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s2.relaxes(s1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(partial_shape, partial_shape_project_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
     PartialShape s2 = project(s1, AxisSet{284, 0, 103});
@@ -782,6 +783,22 @@ TEST(partial_shape, changed_dimension_by_reference) {
     ASSERT_TRUE(s.is_static());
 }
 
+TEST(partial_shape, emplace_back_new_dimension) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5};
+
+    s.emplace_back(3, 5);
+
+    ASSERT_EQ(s, PartialShape({2, 3, -1, 5, {3, 5}}));
+}
+
+TEST(partial_shape, copy_with_back_inserter_iterator) {
+    PartialShape s{2, 3, Dimension::dynamic(), 5}, s_copy;
+
+    std::copy(s.begin(), s.end(), std::back_inserter(s_copy));
+
+    ASSERT_EQ(s_copy, s);
+}
+
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
     auto node = std::make_shared<op::Parameter>(element::f32, Shape{});
     PartialShape data_shape{PartialShape::dynamic()};
@@ -792,7 +809,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -802,6 +819,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok) {
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
@@ -817,6 +835,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_data
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -830,6 +849,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_data
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_window_dilation) {
@@ -842,6 +862,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 0, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -855,6 +876,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_window_strides) {
@@ -867,6 +889,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
     Strides window_strides{1, 1, 1, 0};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -880,6 +903,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_zero_wind
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ok) {
@@ -893,6 +917,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ok
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -902,6 +927,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ok
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
@@ -916,6 +942,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ze
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -929,6 +956,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ze
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_neg_padding_ok) {
@@ -941,6 +969,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ne
     Strides window_strides{1, 1, 1, 1};
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -950,6 +979,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_dynamic_ne
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
@@ -965,6 +995,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_ok
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -974,6 +1005,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_ok
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
@@ -989,6 +1021,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -1002,6 +1035,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_dilated_dim_zero) {
@@ -1015,6 +1049,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 3, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -1028,6 +1063,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_window_all_in_padding_ok) {
@@ -1041,6 +1077,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1050,6 +1087,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
@@ -1065,6 +1103,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -1078,6 +1117,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_wi
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_dilated_window_not_all_in_padding) {
@@ -1091,6 +1131,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_di
     Strides window_dilation{1, 1, 2, 1};
     bool is_window_all_in_padding_allowed = false;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1100,6 +1141,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_static_dynamic_di
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(result_shape.same_scheme(PartialShape::dynamic(4)));
 }
@@ -1115,6 +1157,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1124,6 +1167,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 4, Dimension::dynamic()}));
@@ -1140,6 +1184,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1149,6 +1194,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, Dimension::dynamic()}));
@@ -1165,6 +1211,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1174,6 +1221,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, Dimension::dynamic()}));
@@ -1190,6 +1238,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -1203,6 +1252,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dynamic_window_not_too_big_padding) {
@@ -1216,6 +1266,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 1, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
                                                                       data_shape,
                                                                       data_dilation,
@@ -1225,6 +1276,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                       window_strides,
                                                                       window_dilation,
                                                                       is_window_all_in_padding_allowed);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     ASSERT_TRUE(
         result_shape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 2, Dimension::dynamic()}));
@@ -1241,6 +1293,7 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
     Strides window_dilation{1, 1, 2, 1};
     bool is_window_all_in_padding_allowed = true;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
         {
             PartialShape result_shape = infer_windowed_reduction_output_shape(node.get(),
@@ -1254,4 +1307,5 @@ TEST(partial_shape, infer_windowed_reduction_rank_static_dynamic_rank_static_dyn
                                                                               is_window_all_in_padding_allowed);
         },
         NodeValidationFailure);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

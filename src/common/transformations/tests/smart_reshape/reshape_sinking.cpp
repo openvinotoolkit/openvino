@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct ReshapeSinkingAttributes {
 };
 
 class ReshapeSinkingTest : public testing::WithParamInterface<ReshapeSinkingAttributes>,
-                           public CommonTestUtils::TestsCommon {};
+                           public ov::test::TestsCommon {};
 
 TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
     auto p = GetParam();
@@ -40,7 +40,7 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
 }
 
 class ReshapeSinkingTestWithAdd : public testing::WithParamInterface<ReshapeSinkingAttributes>,
-                                  public CommonTestUtils::TestsCommon {};
+                                  public ov::test::TestsCommon {};
 
 TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
     auto p = GetParam();

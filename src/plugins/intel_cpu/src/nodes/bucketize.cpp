@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include <ngraph/opsets/opset3.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 #include "ie_parallel.hpp"
 #include "bucketize.h"
 
@@ -30,8 +30,8 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassThroughShapeInferFactory()) {
+Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -177,9 +177,9 @@ void Bucketize::execute(dnnl::stream strm) {
 }
 
 void Bucketize::prepareParams() {
-    auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
-    auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
+    auto inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory didn't allocate.";
     if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())
@@ -213,9 +213,9 @@ bool Bucketize::isExecutable() const {
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>
 void Bucketize::bucketize() {
-    const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    const auto *boundaries_data = reinterpret_cast<const T_BOUNDARIES *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    auto *output_data = reinterpret_cast<T_IND *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *boundaries_data = reinterpret_cast<const T_BOUNDARIES *>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto *output_data = reinterpret_cast<T_IND *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));

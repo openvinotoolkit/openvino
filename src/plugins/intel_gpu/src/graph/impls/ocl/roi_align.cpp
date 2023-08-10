@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "roi_align_inst.h"
 #include "roi_align/roi_align_kernel_ref.h"
 #include "roi_align/roi_align_kernel_selector.h"
-#include "roi_align_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -50,7 +48,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory()};
         args.outputs = {instance.output_memory_ptr()};
@@ -61,7 +59,6 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<roi_align>();
-        const auto& input_layout = impl_param.get_input_layout(0);
         const auto& rois_layout = impl_param.get_input_layout(1);
         const auto& batches_layout = impl_param.get_input_layout(2);
 
@@ -99,3 +96,4 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::roi_align)

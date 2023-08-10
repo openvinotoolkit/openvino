@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 
 namespace kernel_selector {
 
-ReorderWeightsKernelSelctor::ReorderWeightsKernelSelctor() {
+ReorderWeightsKernelSelector::ReorderWeightsKernelSelector() {
     Attach<ReorderWeightsKernel>();
     Attach<ReorderWeightsWinograd2x3Kernel>();
     Attach<ReorderWeightsWinograd6x3Kernel>();
@@ -23,7 +23,7 @@ ReorderWeightsKernelSelctor::ReorderWeightsKernelSelctor() {
     Attach<ReorderWeightsOpt>();
 }
 
-KernelsData ReorderWeightsKernelSelctor::GetBestKernels(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsKernelSelector::GetBestKernels(const Params& params, const optional_params& options) const {
     return GetNaiveBestKernel(params, options, KernelType::REORDER);
 }
 }  // namespace kernel_selector

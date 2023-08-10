@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
         result << "shape=" << param.input.shape;
         result << "_iType=" << param.input.type;
         if (!param.reductionAxes.empty()) {
-            result << "_reductionAccess=" << CommonTestUtils::vec2str(param.reductionAxes.to_vector());
+            result << "_reductionAccess=" << ov::test::utils::vec2str(param.reductionAxes.to_vector());
         } else {
             result << "_acrossChannels=" << (param.acrossChannels ? "TRUE" : "FALSE");
         }
@@ -169,7 +169,7 @@ public:
         std::ostringstream result;
         result << "shape=" << param.input.shape;
         result << "_iType=" << param.input.type;
-        result << "_reductionAccess=" << CommonTestUtils::vec2str(param.reductionAxes.shape);
+        result << "_reductionAccess=" << ov::test::utils::vec2str(param.reductionAxes.shape);
         result << "_normalizeVariance=" << (param.normalizeVariance ? "TRUE" : "FALSE");
         result << "_eps=" << param.eps;
         result << "_eps_mode=" << param.epsMode;

@@ -1,89 +1,149 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
-#include <legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
+
+using namespace ov;
+
+// #include <legacy/transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+// #include <legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 
 namespace SubgraphTestsDefinitions {
 
 std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<ConvEltwiseFusionParams> &obj) {
-    ngraph::NodeTypeInfo conv_type, eltwise_type;
-    std::tuple<ngraph::NodeTypeInfo, int64_t> t;
-    ngraph::Shape input_shape, weights_shape, const_shape;
-    ngraph::element::Type precision;
+    std::tuple<NodeTypeInfo, size_t> conv_params;
+    NodeTypeInfo conv_type, eltwise_type;
+    bool negative;
+    Shape input_shape, weights_shape, const_shape;
+    element::Type precision;
     std::string targetName;
-    int64_t expected_number_of_ops;
-    std::tie(conv_type, t, input_shape, weights_shape, const_shape, precision, targetName) = obj.param;
-    std::tie(eltwise_type, expected_number_of_ops) = t;
+    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetName) = obj.param;
+    size_t num_inputs;
+    std::tie(conv_type, num_inputs) = conv_params;
     std::ostringstream results;
 
     results << conv_type.name << "_";
+    results << "NumInputs=" << num_inputs << "_";
+    results << "Negative=" << std::boolalpha << negative << "_";
     results << eltwise_type.name << "_";
-    results << "Input" << CommonTestUtils::vec2str(input_shape);
-    results << "Weights" << CommonTestUtils::vec2str(weights_shape);
-    results << "Const" << CommonTestUtils::vec2str(const_shape);
+    results << "Input" << ov::test::utils::vec2str(input_shape);
+    results << "Weights" << ov::test::utils::vec2str(weights_shape);
+    results << "Const" << ov::test::utils::vec2str(const_shape);
     results << "netPRC=" << precision << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();
 }
 
 void ConvEltwiseFusion::SetUp() {
-    ngraph::NodeTypeInfo conv_type, eltwise_type;
-    std::tuple<ngraph::NodeTypeInfo, int64_t> t;
-    ngraph::Shape input_shape, weights_shape, const_shape;
-    ngraph::element::Type precision;
-    int64_t expected_number_of_ops;
-    std::tie(conv_type, t, input_shape, weights_shape, const_shape, precision, targetDevice) = this->GetParam();
-    std::tie(eltwise_type, expected_number_of_ops) = t;
-    ngraph::pass::Manager manager;
+    std::tuple<NodeTypeInfo, size_t> conv_params;
+    NodeTypeInfo conv_type, eltwise_type;
+    bool negative;
+    Shape input_shape, weights_shape, const_shape;
+    element::Type precision;
+    size_t num_inputs;
+    std::tie(conv_params, eltwise_type, negative, input_shape, weights_shape, const_shape, precision, targetDevice) = this->GetParam();
+    std::tie(conv_type, num_inputs) = conv_params;
+    pass::Manager manager;
+
     {
-        auto param = std::make_shared<ngraph::opset4::Parameter>(precision, input_shape);
+        auto param = std::make_shared<opset11::Parameter>(precision, input_shape);
         auto spatial_dims = input_shape.size() - 2;
 
-        ngraph::Shape strides(spatial_dims, 1);
+        Shape strides(spatial_dims, 1);
         std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
-        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, {}, true);
-        auto eltwise_const = ngraph::builder::makeConstant<float>(precision, const_shape, {}, true);
-        std::shared_ptr<ngraph::Node> conv;
-        if (conv_type == ngraph::opset4::Convolution::get_type_info_static()) {
-            conv = std::make_shared<ngraph::opset4::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::GroupConvolution::get_type_info_static()) {
-            conv = std::make_shared<ngraph::opset4::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::ConvolutionBackpropData::get_type_info_static()) {
-            conv = std::make_shared<ngraph::opset4::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
-        } else if (conv_type == ngraph::opset4::GroupConvolutionBackpropData::get_type_info_static()) {
-            conv = std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 2));
+        auto eltwise_const = ngraph::builder::makeConstant<float>(precision, const_shape, std::vector<float>(shape_size(const_shape), 3));
+        std::shared_ptr<Node> conv;
+        if (conv_type == opset11::Convolution::get_type_info_static()) {
+            conv = std::make_shared<opset11::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == opset11::GroupConvolution::get_type_info_static()) {
+            conv = std::make_shared<opset11::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == opset11::ConvolutionBackpropData::get_type_info_static()) {
+            if (num_inputs == 3) {
+                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
+                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+            } else {
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+            }
+        } else if (conv_type == opset11::GroupConvolutionBackpropData::get_type_info_static()) {
+            if (num_inputs == 3) {
+                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
+                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+            } else {
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+            }
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
 
-        std::shared_ptr<ngraph::Node> eltwise;
-        if (eltwise_type == ngraph::opset4::Multiply::get_type_info_static()) {
-            eltwise = std::make_shared<ngraph::opset4::Multiply>(conv, eltwise_const);
-            manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-            manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-            manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-            manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
-        } else if (eltwise_type == ngraph::opset4::Add::get_type_info_static()) {
-            eltwise = std::make_shared<ngraph::opset4::Add>(conv, eltwise_const);
-            manager.register_pass<ngraph::pass::ConvertConvolutions>();
-            manager.register_pass<ngraph::pass::ConvFusion>();
+        std::shared_ptr<Node> eltwise;
+        if (eltwise_type == opset11::Multiply::get_type_info_static()) {
+            eltwise = std::make_shared<opset11::Multiply>(conv, eltwise_const);
+            manager.register_pass<ov::pass::ConvolutionMultiplyFusion>();
+            manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+            manager.register_pass<ov::pass::ConvolutionBackpropDataMultiplyFusion>();
+            manager.register_pass<ov::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+        } else if (eltwise_type == opset11::Add::get_type_info_static()) {
+            eltwise = std::make_shared<opset11::Add>(conv, eltwise_const);
+            // manager.register_pass<pass::ConvertConvolutions>();
+            // manager.register_pass<pass::ConvFusion>();
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
 
-        function = std::make_shared<ngraph::Function>(ngraph::OutputVector{eltwise}, ngraph::ParameterVector{param}, "conv_eltwise");
+        function = std::make_shared<Model>(eltwise, ParameterVector{param}, "conv_eltwise");
     }
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<pass::ConstantFolding>();
 
-    auto cloned_function = ngraph::clone_function(*function);
+    std::shared_ptr<Model> function_ref;
+
+    if (!negative) {
+        auto param = std::make_shared<opset11::Parameter>(precision, input_shape);
+        auto spatial_dims = input_shape.size() - 2;
+
+        Shape strides(spatial_dims, 1);
+        std::vector<ptrdiff_t> pad_begin(spatial_dims, 0), pad_end(spatial_dims, 0);
+        auto weights = ngraph::builder::makeConstant<float>(precision, weights_shape, std::vector<float>(shape_size(weights_shape), 6));
+        std::shared_ptr<Node> conv;
+        if (conv_type == opset11::Convolution::get_type_info_static()) {
+            conv = std::make_shared<opset11::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == opset11::GroupConvolution::get_type_info_static()) {
+            conv = std::make_shared<opset11::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
+        } else if (conv_type == opset11::ConvolutionBackpropData::get_type_info_static()) {
+            if (num_inputs == 3) {
+                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
+                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+            } else {
+                conv = std::make_shared<opset11::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+            }
+        } else if (conv_type == opset11::GroupConvolutionBackpropData::get_type_info_static()) {
+            if (num_inputs == 3) {
+                auto output_shape = std::make_shared<opset11::Constant>(element::u64, Shape{spatial_dims},
+                        std::vector<size_t>(input_shape.begin() + 2, input_shape.end()));
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, output_shape, strides, pad_begin, pad_end, strides);
+            } else {
+                conv = std::make_shared<opset11::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
+            }
+        }
+
+        function_ref = std::make_shared<Model>(conv, ParameterVector{param}, "conv_eltwise_ref");
+    } else {
+        function_ref = function->clone();
+    }
+
+    auto cloned_function = function->clone();
     manager.run_passes(cloned_function);
 
-    ASSERT_EQ(cloned_function->get_ops().size(), expected_number_of_ops);
+    auto res = compare_functions(cloned_function, function_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 } // namespace SubgraphTestsDefinitions

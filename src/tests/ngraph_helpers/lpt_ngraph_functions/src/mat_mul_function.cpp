@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -234,10 +234,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     auto dequantization1Op = makeDequantization(input1, deqSructure1);
     auto dequantization2Op = makeDequantization(input2, deqSructure2);
 
-    std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
+    std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::MatMul>>(
         std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(dequantization1Op, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantization2Op, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization1Op, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization2Op, element::f32).get(),
         false,
         false);
 
@@ -273,10 +273,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
         weights.shape,
         weights.values);
 
-    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
+    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::MatMul>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-        ngraph::op::TemporaryReplaceOutputType(lastDequantizationBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weightsConst, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(lastDequantizationBefore, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weightsConst, element::f32).get(),
         false,
         false);
     matMul->set_friendly_name("matMul");

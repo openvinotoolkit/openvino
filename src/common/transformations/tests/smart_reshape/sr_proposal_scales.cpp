@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -42,7 +42,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
     }
 
     InferenceEngine::CNNNetwork network(f);
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -69,7 +69,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -81,7 +81,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
     }
 
     InferenceEngine::CNNNetwork network(f);
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -107,7 +107,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -120,7 +120,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);
@@ -148,7 +148,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -161,7 +161,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
 
     InferenceEngine::CNNNetwork network(f);
 
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
     ASSERT_NO_THROW(network.setBatchSize(2));
     check_unique_names(f, unh);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,9 +28,11 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
+    bool outputStatic;
+
     std::string targetDevice;
 
-    std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
+    std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, outputStatic, targetDevice) = obj.param;
 
     ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -44,12 +46,12 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : shapes) {
-        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        result << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     result << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
 
@@ -58,6 +60,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
     result << "sortResultType=" << sortResultType << "_sortResCrossBatch=" << sortResCB << "_nmsEta=" << nmsEta << "_normalized=" << normalized << "_";
+    result << "outputStatic=" << outputStatic;
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -348,17 +351,10 @@ void MulticlassNmsLayerTest::SetUp() {
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
-    std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
-        this->GetParam();
+    std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar,
+             m_outStaticShape, targetDevice) = this->GetParam();
 
     init_input_shapes(shapes);
-
-    // input is dynamic shape -> output will be dynamic shape
-    // input is static shape -> output will be static shape
-    const auto inputDynamicParam = {shapes[0].first, shapes[1].first};
-    m_outStaticShape = std::any_of(inputDynamicParam.begin(), inputDynamicParam.end(), [](const ov::PartialShape& shape) {
-        return shape.rank() == 0;
-    });
 
     ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -391,26 +387,7 @@ void MulticlassNmsLayerTest::SetUp() {
 
     const auto nms = CreateNmsOp(paramOuts);
 
-    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
-        function = std::make_shared<Function>(nms, params, "MulticlassNMS");
-    } else if (!m_outStaticShape) {
-        OutputVector results = {
-            std::make_shared<opset5::Result>(nms->output(0)),
-            std::make_shared<opset5::Result>(nms->output(1)),
-            std::make_shared<opset5::Result>(nms->output(2))
-        };
-        function = std::make_shared<Function>(results, params, "MulticlassNMS");
-    } else {
-        auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(paramsPrec, Shape {1}, {1}));
-        auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
-        auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
-        OutputVector results = {
-            std::make_shared<opset5::Result>(nms_0_identity),
-            std::make_shared<opset5::Result>(nms_1_identity),
-            std::make_shared<opset5::Result>(nms_2_identity)
-        };
-        function = std::make_shared<Function>(results, params, "MulticlassNMS");
-    }
+    function = std::make_shared<Function>(nms, params, "MulticlassNMS");
 }
 
 } // namespace subgraph

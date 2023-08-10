@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -44,12 +44,12 @@ TEST(type_prop, if_simple_test) {
     Shape out0_shape{32, 40, 10};
     auto sh = result0->get_output_shape(0);
     EXPECT_EQ(sh, out0_shape);
-    // Check that If validation validates both bodies
+    // Check that If validation when condition is constant validates single body
     convert_then_op->set_convert_element_type(ov::element::f16);
     convert_else_op->set_convert_element_type(ov::element::f16);
     if_op->validate_and_infer_types();
-    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::f16);
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f32);
 }
 
 TEST(type_prop, if_non_const_condition_test) {
@@ -223,7 +223,7 @@ TEST(type_prop, if_dynamic_output) {
     auto dynamic_shape = result0->get_output_partial_shape(0);
 
     EXPECT_EQ(X_shape.size(), dynamic_shape.rank().get_length());
-    for (auto shape_index = 0; shape_index < X_shape.size(); shape_index++) {
+    for (size_t shape_index = 0; shape_index < X_shape.size(); shape_index++) {
         auto x_shape_it = X_shape.begin();
         auto y_shape_it = Y_shape.begin();
         auto res_it = dynamic_shape.begin();
@@ -334,4 +334,82 @@ TEST(type_prop, if_scalar_and_1d_static_union) {
     PartialShape out_shape{PartialShape::dynamic(1)};
     auto sh = result0->get_output_partial_shape(0);
     EXPECT_EQ(sh, out_shape);
+}
+
+TEST(type_prop, if_element_type_dynamic) {
+    // That which we iterate over
+    auto X = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
+    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, false);
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Yt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Ye = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    // Body
+    auto then_op = std::make_shared<op::v1::Add>(Xt, Yt);
+    auto then_op_res = std::make_shared<op::Result>(then_op);
+
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt});
+
+    auto else_op = std::make_shared<op::v1::Maximum>(Xe, Ye);
+    auto else_op_res = std::make_shared<op::Result>(else_op);
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye});
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_op_res, else_op_res);
+    auto result0 = make_shared<op::Result>(res);
+    Shape out0_shape{32, 40, 10};
+    auto sh = result0->get_output_shape(0);
+    EXPECT_EQ(sh, out0_shape);
+    // Check that If validation when condition is constant validates single body
+    if_op->validate_and_infer_types();
+    EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+}
+
+TEST(type_prop, if_invalid_false_body) {
+    // That which we iterate over
+    auto X = make_shared<op::Parameter>(element::f16, Shape{32, 40, 10});
+    auto Y = make_shared<op::Parameter>(element::f16, Shape{32, 40});
+    auto cond = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, false);
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto Xt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Yt = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Xe = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto Ye = make_shared<op::Parameter>(element::dynamic, PartialShape::dynamic());
+    // Body
+    auto axes_4d = opset5::Constant::create(element::i32, ngraph::Shape{2}, {2, 3});
+    auto then_reduce_op = std::make_shared<op::v1::ReduceMean>(Xt, Yt);
+    auto then_op = std::make_shared<op::v1::Add>(then_reduce_op, Yt);
+    auto then_op_res = std::make_shared<op::Result>(then_op);
+
+    auto then_body = make_shared<ngraph::Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt});
+
+    auto axes_3d = opset5::Constant::create(element::i32, ngraph::Shape{1}, {2});
+    auto else_reduce_op = std::make_shared<op::v1::ReduceMean>(Xe, axes_3d);
+    auto else_op = std::make_shared<op::v1::Add>(else_reduce_op, Ye);
+    auto else_op_res = std::make_shared<op::Result>(else_op);
+    auto else_body = make_shared<ngraph::Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye});
+    auto if_op = make_shared<op::v8::If>(cond);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(X, Xt, Xe);
+    if_op->set_input(Y, Yt, Ye);
+    auto res = if_op->set_output(then_op_res, else_op_res);
+    auto result0 = make_shared<op::Result>(res);
+    Shape out0_shape{32, 40};
+    auto sh = result0->get_output_shape(0);
+    EXPECT_EQ(sh, out0_shape);
+    // Check that If validation when condition is constant validates single body
+    if_op->validate_and_infer_types();
+    EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
+    EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
 }

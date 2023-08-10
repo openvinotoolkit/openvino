@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@ shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Exp>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace expop {
 namespace {
 template <element::Type_t ET>
@@ -60,7 +61,9 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Exp_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return expop::evaluate_exp(inputs[0], outputs[0]);
 }
 

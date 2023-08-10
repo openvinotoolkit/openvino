@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ protected:
      std::string cpuNodeType;
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         nodeType convType;
         size_t numOut;
         std::tie(convType, numOut) = this->GetParam();
@@ -69,7 +69,7 @@ protected:
         }
 
         ResultVector results;
-        for (int i = 0; i < numOut; i++) {
+        for (size_t i = 0; i < numOut; i++) {
             auto mockNode = std::make_shared<opset5::Multiply>(conv->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
             results.push_back(std::make_shared<opset5::Result>(mockNode));
         }

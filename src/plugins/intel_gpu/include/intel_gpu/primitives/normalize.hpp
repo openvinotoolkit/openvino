@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes the input using an L2 norm and multiplies the output with scale value.
 /// The scale can be equal for all channels or one scale per channel.
@@ -33,6 +26,10 @@ namespace cldnn {
 ///   @li scale(i) : the scale value of the i-th feature map.
 struct normalize : public primitive_base<normalize> {
     CLDNN_DECLARE_PRIMITIVE(normalize)
+
+    normalize() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs normalize primitive.
     /// @param id This primitive id.
@@ -62,10 +59,38 @@ struct normalize : public primitive_base<normalize> {
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, across_spatial);
+        seed = hash_combine(seed, epsilon);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const normalize>(rhs);
+
+        return across_spatial == rhs_casted.across_spatial &&
+               epsilon == rhs_casted.epsilon;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<normalize>::save(ob);
+        ob << scale_input;
+        ob << across_spatial;
+        ob << epsilon;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<normalize>::load(ib);
+        ib >> scale_input;
+        ib >> across_spatial;
+        ib >> epsilon;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/max_pool.hpp"
 
 #include "itt.hpp"
+#include "max_pool_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
@@ -40,11 +41,10 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void op::v1::MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v1_MaxPool_validate_and_infer_types);
 
-    MaxPoolBase::validate_and_infer_types();
-
-    const ov::PartialShape output_shape = infer_output_shape(Strides{});  // no dilations of the filter window
-
-    set_output_type(0, get_input_element_type(0), output_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -59,10 +59,7 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_auto_pad);
 }
 
-shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
-}
-
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maxpool {
 namespace {
 template <element::Type_t ET>
@@ -113,21 +110,10 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
 }  // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    auto arg_shape = inputs[0]->get_partial_shape();
-    auto pads_begin_s = get_pads_begin();
-    auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, Strides(m_kernel.size(), 1), pads_end_s, pads_begin_s);
-    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
-    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
-    auto out_shape = infer_batched_pooling_forward(this,
-                                                   arg_shape,
-                                                   pads_begin,
-                                                   pads_end,
-                                                   get_kernel(),
-                                                   get_strides(),
-                                                   true,
-                                                   get_rounding_type() == op::RoundingType::CEIL,
-                                                   Strides{});  // no dilation of the window
+    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool::evaluate_maxpool(inputs[0],
                                      outputs[0],
@@ -290,17 +276,18 @@ bool ngraph::op::v8::MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void op::v8::MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
 
-    MaxPoolBase::validate_and_infer_types();
-
     const auto input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_axis = ngraph::normalize_axis(this, m_axis, input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    const ov::PartialShape output_shape = infer_output_shape(m_dilations);
-
-    set_output_type(0, get_input_element_type(0), output_shape);
-    set_output_type(1, m_index_element_type, output_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, m_index_element_type, output_shapes[1]);
 }
 
 shared_ptr<Node> op::v8::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -339,21 +326,10 @@ bool op::v8::MaxPool::has_evaluate() const {
 bool op::v8::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v8_MaxPool_evaluate);
 
-    const auto arg_shape = inputs[0]->get_partial_shape();
-    auto pads_begin_s = get_pads_begin();
-    auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, get_dilations(), pads_end_s, pads_begin_s);
-    CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
-    CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
-    auto out_shape = infer_batched_pooling_forward(this,
-                                                   arg_shape,
-                                                   pads_begin,
-                                                   pads_end,
-                                                   get_kernel(),
-                                                   get_strides(),
-                                                   true,
-                                                   get_rounding_type() == op::RoundingType::CEIL,
-                                                   get_dilations());
+    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape()};
+    auto pads_begin = m_pads_begin;
+    auto pads_end = m_pads_end;
+    auto out_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     return maxpool_v8::evaluate_maxpool(inputs[0],
                                         outputs[0],

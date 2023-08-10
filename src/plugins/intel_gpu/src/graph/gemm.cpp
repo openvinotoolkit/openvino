@@ -1,11 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "gemm_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <utility>
@@ -80,6 +77,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto output_format = input0_layout.format;
 
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
+
     return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
 
@@ -100,13 +101,12 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
     op.set_transpose_a(prim->transpose_input0);
     op.set_transpose_b(prim->transpose_input1);
 
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], output_type, input0_layout.format, prim->output_paddings[0]} };
 }
@@ -114,8 +114,7 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts,
-                                                       const layout& output_layout) {
+                                                       const std::vector<layout>& input_layouts) {
     auto get_updated_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
         ov::PartialShape updated_input_pshape;
 
@@ -165,7 +164,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     layouts[0].set_partial_shape(updated_input0_pshape);
     layouts[1].set_partial_shape(updated_input1_pshape);
 
-    if (input_layouts.size() == 3) {
+    if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
         auto updated_bias_pshape = get_updated_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
         layouts[2].set_partial_shape(updated_bias_pshape);
@@ -199,8 +198,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
             return idx;
         };
 
-        output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = N;
-        output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = M;
+        output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = std::move(N);
+        output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
         updated_output_layout.set_partial_shape(output_pshape);
     }
     return updated_output_layout;
@@ -216,7 +215,7 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     std::stringstream primitive_description;
 
     json_composite gemm_info;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.get_inputs_count(); i++) {
         gemm_info.add("input_" + std::to_string(i), node.input(i).id());
     }
     gemm_info.add("alpha", alpha);

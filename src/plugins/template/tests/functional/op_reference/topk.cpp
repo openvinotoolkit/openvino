@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset3.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -36,7 +37,7 @@ struct TopKParams {
 class ReferenceTopKTest : public testing::TestWithParam<TopKParams>, public CommonReferenceTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -74,7 +75,7 @@ struct TopKParamsResnet50 {
 class ReferenceTopKTestResnet50 : public testing::TestWithParam<TopKParamsResnet50>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result5Value.data, params.result5Index.data,
@@ -82,7 +83,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParamsResnet50>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -211,7 +212,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestResnet
 class ReferenceTopKTestMaxMinSort : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result0.data, params.result1.data};
@@ -538,7 +539,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestMaxMin
 class ReferenceTopKTestBackend : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result0.data, params.result1.data};
@@ -559,59 +560,6 @@ private:
 
 TEST_P(ReferenceTopKTestBackend, CompareWithRefs) {
     Exec();
-}
-
-template <element::Type_t ET, element::Type_t ET2, element::Type_t ET_OUT>
-std::vector<TopKParams> generateParamsV3() {
-    using T = typename element_type_traits<ET>::value_type;
-    using T2 = typename element_type_traits<ET2>::value_type;
-    using T_OUT = typename element_type_traits<ET_OUT>::value_type;
-    std::vector<TopKParams> params {
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MAX,
-            opset1::TopK::SortType::SORT_VALUES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
-            0,
-            "topk_mode_sort_order"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MAX,
-            opset1::TopK::SortType::SORT_INDICES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
-            0,
-            "topk_mode_sort_order_1"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MIN,
-            opset1::TopK::SortType::SORT_VALUES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
-            0,
-            "topk_mode_sort_order_2"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MIN,
-            opset1::TopK::SortType::SORT_INDICES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
-            0,
-            "topk_mode_sort_order_3"),
-    };
-    return params;
 }
 
 std::vector<TopKParams> generateCombinedParamsBackend() {
@@ -643,7 +591,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestBacken
 class ReferenceTopKTest1dMaxMin : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params, params.outIdx);
         inputData = {params.A.data};
         if (params.outIdx != 0) {
@@ -654,7 +602,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -1459,7 +1407,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestInt64,
 class ReferenceTopKTestSingleOutput : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result1.data};
@@ -1706,4 +1654,103 @@ TEST(ReferenceTopKTestInvalidV3, topk_v3_invalid_k) {
     const auto k_negative = opset1::Constant::create(element::i8, Shape{}, {-1});
     EXPECT_THROW(opset3::TopK(data, k_negative, 0, "max", "index"), ngraph::NodeValidationFailure);
 }
+
+class ReferenceTopKv11StableTest : public ReferenceTopKTest {
+public:
+    void SetUp() override {
+        const auto& params = GetParam();
+        function = CreateFunction(params);
+        inputData = {params.A.data};
+        refOutData = {
+            params.result0.data,  // stable output values
+            params.result1.data,  // stable output indices
+            params.result0.data   // unstable output values
+                                  // unstable output indices need not be compared, by definition these might differ for
+                                  // equal data values
+        };
+    }
+
+private:
+    static std::shared_ptr<Model> CreateFunction(const TopKParams& params) {
+        const auto A = std::make_shared<opset11::Parameter>(params.A.type, params.A.shape);
+        const auto k = opset11::Constant::create(params.k.type, params.k.shape, params.k.data.data());
+        const auto topk_stable =
+            std::make_shared<opset11::TopK>(A, k, params.axis, params.mode, params.sort, params.result1.type, true);
+        const auto topk_unstable =
+            std::make_shared<opset11::TopK>(A, k, params.axis, params.mode, params.sort, params.result1.type, false);
+
+        return std::make_shared<Model>(
+            OutputVector{topk_stable->output(0), topk_stable->output(1), topk_unstable->output(0)},
+            ParameterVector{A});
+    }
+};
+
+TEST_P(ReferenceTopKv11StableTest, CompareWithRefs) {
+    Exec();
+}
+
+template <element::Type_t ET, element::Type_t ET2, element::Type_t ET_OUT>
+std::vector<TopKParams> generateParamsForStableTest() {
+    using T = typename element_type_traits<ET>::value_type;
+    using T2 = typename element_type_traits<ET2>::value_type;
+    using T_OUT = typename element_type_traits<ET_OUT>::value_type;
+    std::vector<TopKParams> params{
+        TopKParams(reference_tests::Tensor(ET, {2, 7}, std::vector<T>{5, 4, 3, 1, 7, 1, 3, 2, 1, 2, 5, 1, 7, 3}),
+                   reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
+                   1,
+                   opset1::TopK::Mode::MIN,
+                   opset1::TopK::SortType::SORT_VALUES,
+                   reference_tests::Tensor(ET, {2, 3}, std::vector<T>{1, 1, 3, 1, 1, 2}),
+                   reference_tests::Tensor(ET_OUT, {2, 3}, std::vector<T_OUT>{3, 5, 2, 1, 4, 0}),
+                   0,
+                   "repeated_values"),
+        TopKParams(reference_tests::Tensor(ET,
+                                           {7, 3},
+                                           std::vector<T>{
+                                               5, 7, 1, 7, 9, 1, 5, 7, 2, 2, 8, 2, 7, 7, 5, 8, 1, 4, 2, 2, 3,
+                                           }),
+                   reference_tests::Tensor(ET2, {}, std::vector<T2>{4}),
+                   0,
+                   opset1::TopK::Mode::MAX,
+                   opset1::TopK::SortType::SORT_VALUES,
+                   reference_tests::Tensor(ET, {4, 3}, std::vector<T>{8, 9, 5, 7, 8, 4, 7, 7, 3, 5, 7, 2}),
+                   reference_tests::Tensor(ET_OUT, {4, 3}, std::vector<T_OUT>{5, 1, 4, 1, 3, 5, 4, 0, 6, 0, 2, 2}),
+                   0,
+                   "repeated_values"),
+        TopKParams(reference_tests::Tensor(ET,
+                                           {2, 3, 3},
+                                           std::vector<T>{1, 3, 3, 1, 2, 4, 2, 2, 3, 7, 7, 1, 7, 9, 7, 5, 7, 7}),
+                   reference_tests::Tensor(ET2, {}, std::vector<T2>{2}),
+                   1,
+                   opset1::TopK::Mode::MIN,
+                   opset1::TopK::SortType::SORT_VALUES,
+                   reference_tests::Tensor(ET, {2, 2, 3}, std::vector<T>{1, 2, 3, 1, 2, 3, 5, 7, 1, 7, 7, 7}),
+                   reference_tests::Tensor(ET_OUT, {2, 2, 3}, std::vector<T_OUT>{0, 1, 0, 1, 2, 2, 2, 0, 0, 0, 2, 1}),
+                   0,
+                   "repeated_values"),
+    };
+    return params;
+}
+
+std::vector<TopKParams> generateCombinedParamsForStableTest() {
+    std::vector<std::vector<TopKParams>> generatedParams{
+        generateParamsForStableTest<element::Type_t::i32, element::Type_t::i32, element::Type_t::i32>(),
+        generateParamsForStableTest<element::Type_t::i64, element::Type_t::i64, element::Type_t::i64>(),
+        generateParamsForStableTest<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsForStableTest<element::Type_t::u64, element::Type_t::i32, element::Type_t::i64>(),
+        generateParamsForStableTest<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsForStableTest<element::Type_t::f32, element::Type_t::i32, element::Type_t::i32>(),
+    };
+    std::vector<TopKParams> combinedParams;
+    for (auto& params : generatedParams) {
+        std::move(params.begin(), params.end(), std::back_inserter(combinedParams));
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs,
+                         ReferenceTopKv11StableTest,
+                         testing::ValuesIn(generateCombinedParamsForStableTest()),
+                         ReferenceTopKv11StableTest::getTestCaseName);
+
 } // namespace

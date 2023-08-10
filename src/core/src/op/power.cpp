@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace power {
 namespace {
 template <element::Type_t ET>

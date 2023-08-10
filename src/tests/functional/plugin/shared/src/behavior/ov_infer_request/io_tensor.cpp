@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,12 @@ void OVInferRequestIOTensorTest::SetUp() {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OVInferRequestTests::SetUp();
-    req = execNet.create_infer_request();
+    try {
+        req = execNet.create_infer_request();
+    } catch (const std::exception& ex) {
+        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]"
+               << std::endl;
+    }
     input = execNet.input();
     output = execNet.output();
 }
@@ -32,11 +37,6 @@ void OVInferRequestIOTensorTest::TearDown() {
     OVInferRequestTests::TearDown();
 }
 
-TEST_P(OVInferRequestIOTensorTest, Cancreate_infer_request) {
-    ov::InferRequest req;
-    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-}
-
 TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForInput) {
     ASSERT_THROW(req.set_tensor(input, {}), ov::Exception);
 }
@@ -46,7 +46,7 @@ TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForOutput) {
     ASSERT_THROW(req.set_tensor(output, {}), ov::Exception);
 }
 
-TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
+TEST_P(OVInferRequestIOTensorTest, canSetAndGetInput) {
     auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, tensor));
     ov::Tensor actual_tensor;
@@ -59,7 +59,7 @@ TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
     ASSERT_EQ(input.get_shape(), actual_tensor.get_shape());
 }
 
-TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeOutput) {
+TEST_P(OVInferRequestIOTensorTest, canSetAndGetOutput) {
     auto tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
     req.set_tensor(output, tensor);
     auto actual_tensor = req.get_tensor(output);
@@ -114,39 +114,23 @@ TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputDoNotReAllocateData) {
 }
 
 TEST_P(OVInferRequestIOTensorTest, secondCallGetInputAfterInferSync) {
+    ov::Tensor tensor1, tensor2;
     OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    ov::Tensor tensor1, tensor2;
-    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
     OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
 TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferSync) {
+    ov::Tensor tensor1, tensor2;
     OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
-    ov::Tensor tensor1, tensor2;
-    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
     OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
     ASSERT_EQ(tensor1.data(), tensor2.data());
-}
-
-TEST_P(OVInferRequestIOTensorTest, canSetInputTensorForInferRequest) {
-    auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
-    ASSERT_EQ(input_tensor.data(), actual_tensor.data());
-}
-
-TEST_P(OVInferRequestIOTensorTest, canSetOutputBlobForInferRequest) {
-    auto output_tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
-    ASSERT_EQ(output_tensor.data(), actual_tensor.data());
 }
 
 TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
@@ -155,6 +139,11 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
     auto output_tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
     OV_ASSERT_NO_THROW(req.infer());
+
+    auto actual_input_tensor = req.get_tensor(input);
+    ASSERT_EQ(actual_input_tensor.data(), input_tensor.data());
+    auto actual_output_tensor = req.get_tensor(output);
+    ASSERT_EQ(actual_output_tensor.data(), output_tensor.data());
 }
 
 TEST_P(OVInferRequestIOTensorTest, canInferWithGetIn) {
@@ -166,18 +155,29 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetIn) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
-TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
-    ov::Tensor output_tensor;
+TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
+    ov::Tensor input_tensor, output_tensor;
+    auto in_shape = input.get_shape();
+    auto out_shape = output.get_shape();
+
+    // imitates blob reallocation
+    OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+
     OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20, 20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
+
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
-TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
-    const ov::Shape shape1 = {1, 1, 32, 32};
-    const ov::Shape shape2 = {1, 1, 40, 40};
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedInputTensorThrow) {
+    const ov::Shape shape1 = {1, 2, 32, 32};
+    const ov::Shape shape2 = {1, 2, 40, 40};
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
     OV_ASSERT_NO_THROW(function->reshape(shapes));
@@ -196,13 +196,10 @@ TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
     ASSERT_ANY_THROW(req.infer());
 }
 
-TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
-    const ov::Shape shape1 = {1, 1, 32, 32};
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetChangedOutputTensorThrow) {
+    const ov::Shape shape1 = {1, 2, 32, 32};
     ov::Shape shape2;
-    if (target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos)
-        shape2 = ov::Shape{1, 20};
-    else
-        shape2 = ov::Shape{1, 4, 20, 20};
+    shape2 = ov::Shape{1, 4, 20, 20};
 
     std::map<std::string, ov::PartialShape> shapes;
     shapes[function->inputs().back().get_any_name()] = shape1;
@@ -232,7 +229,7 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
@@ -246,7 +243,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
     std::tie(element_type, target_device, config) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    function = ngraph::builder::subgraph::makeConvPoolRelu();
+    function = ngraph::builder::subgraph::makeSplitConcat();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
 }
@@ -288,7 +285,7 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
-        using namespace CommonTestUtils;
+        using namespace ov::test::utils;
         for (auto &configItem : configuration) {
             result << "configItem=" << configItem.first << "_";
             configItem.second.print(result);
@@ -302,34 +299,179 @@ void OVInferRequestCheckTensorPrecision::SetUp() {
     std::tie(element_type, target_device, config) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    {
-        auto parameter1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
-        auto parameter2 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{parameter1, parameter2}, 1);
-        auto result = std::make_shared<ov::op::v0::Result>(concat);
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter1, parameter2});
+}
+
+bool OVInferRequestCheckTensorPrecision::compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
+    void* data1;
+    void* data2;
+    try {
+        data1 = t1.data();
+    } catch (const ov::Exception&) {
+        // Remote tensor
+        data1 = nullptr;
     }
-    compModel = core->compile_model(model, target_device, config);
-    req = compModel.create_infer_request();
+    try {
+        data2 = t2.data();
+    } catch (const ov::Exception&) {
+        // Remote tensor
+        data2 = nullptr;
+    }
+    return t1.get_element_type() == t2.get_element_type() && t1.get_shape() == t2.get_shape() &&
+           t1.get_byte_size() == t2.get_byte_size() && t1.get_size() == t2.get_size() &&
+           t1.get_strides() == t2.get_strides() && data1 == data2;
+}
+
+void OVInferRequestCheckTensorPrecision::createInferRequest() {
+    try {
+        compModel = core->compile_model(model, target_device, config);
+        request = compModel.create_infer_request();
+
+        if (std::count(precisions.begin(), precisions.end(), element_type) == 0) {
+            FAIL() << "Precision " << element_type.c_type_string()
+                    << " is marked as unsupported but the network was loaded successfully";
+        }
+    } catch (std::runtime_error& e) {
+        const std::string errorMsg = e.what();
+        const auto expectedMsg = exp_error_str_;
+        ASSERT_STR_CONTAINS(errorMsg, expectedMsg);
+        EXPECT_TRUE(errorMsg.find(expectedMsg) != std::string::npos)
+            << "Wrong error message, actual error message: " << errorMsg << ", expected: " << expectedMsg;
+        if (std::count(precisions.begin(), precisions.end(), element_type) == 0) {
+            GTEST_SKIP_(expectedMsg.c_str());
+        } else {
+            FAIL() << "Precision " << element_type.c_type_string()
+                    << " is marked as supported but the network was not loaded";
+        }
+    }
 }
 
 void OVInferRequestCheckTensorPrecision::TearDown() {
-    compModel = {};
-    req = {};
     APIBaseTest::TearDown();
 }
 
-void OVInferRequestCheckTensorPrecision::Run() {
-    EXPECT_EQ(element_type, compModel.input(0).get_element_type());
-    EXPECT_EQ(element_type, compModel.input(1).get_element_type());
-    EXPECT_EQ(element_type, compModel.output().get_element_type());
-    EXPECT_EQ(element_type, req.get_input_tensor(0).get_element_type());
-    EXPECT_EQ(element_type, req.get_input_tensor(1).get_element_type());
-    EXPECT_EQ(element_type, req.get_output_tensor().get_element_type());
+TEST_P(OVInferRequestCheckTensorPrecision, getInputFromFunctionWithSingleInput) {
+    model = ngraph::builder::subgraph::makeSplitConcat({1, 4, 24, 24}, element_type);
+    createInferRequest();
+
+    ov::Tensor tensor1, tensor2;
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.input()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.input().get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input().get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
-TEST_P(OVInferRequestCheckTensorPrecision, CheckInputsOutputs) {
-    Run();
+TEST_P(OVInferRequestCheckTensorPrecision, getOutputFromFunctionWithSingleInput) {
+    model = ngraph::builder::subgraph::makeSplitConcat({1, 4, 24, 24}, element_type);
+    createInferRequest();
+
+    ov::Tensor tensor1, tensor2;
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.output()));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.output().get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output().get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+}
+
+TEST_P(OVInferRequestCheckTensorPrecision, getInputsFromFunctionWithSeveralInputs) {
+    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    createInferRequest();
+
+    ov::Tensor tensor1, tensor2;
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.input(0)));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input(0)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.input(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(0));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.input(1)));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input(1)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.input(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->input(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_input_tensor(1));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+}
+
+TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromFunctionWithSeveralOutputs) {
+    model = ngraph::builder::subgraph::makeMultipleInputOutputDoubleConcat({1, 1, 32, 32}, element_type);
+    createInferRequest();
+
+    ov::Tensor tensor1, tensor2;
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.output(0)));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(0)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.output(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.output(1)));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(1)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.output(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+}
+
+TEST_P(OVInferRequestCheckTensorPrecision, getOutputsFromSplitFunctionWithSeveralOutputs) {
+    model = ngraph::builder::subgraph::makeSingleSplit({1, 4, 24, 24}, element_type);
+    createInferRequest();
+
+    ov::Tensor tensor1, tensor2;
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.output(0)));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(0)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.output(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(0).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(0));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor1 = request.get_tensor(compModel.output(1)));
+    try {
+        // To avoid case with remote tensors
+        tensor1.data();
+        EXPECT_FALSE(compareTensors(tensor1, tensor2));
+    } catch (const ov::Exception&) {
+    }
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(1)));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(compModel.output(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_tensor(model->output(1).get_any_name()));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
+    EXPECT_NO_THROW(tensor2 = request.get_output_tensor(1));
+    EXPECT_TRUE(compareTensors(tensor1, tensor2));
 }
 
 }  // namespace behavior

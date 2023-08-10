@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,35 +10,36 @@
 
 namespace ov {
 namespace op {
-namespace v3 {
 
-template <class T>
-void shape_infer(const ScatterElementsUpdate* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::ScatterElementsUpdateBase* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
     const auto& data_shape = input_shapes[0];
     const auto& indices_shape = input_shapes[1];
     const auto& updates_shape = input_shapes[2];
     const auto& axis_shape = input_shapes[3];
-    auto& output_shape = output_shapes[0];
-    output_shape = data_shape;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NODE_VALIDATION_CHECK(op,
-                          axis_shape.compatible(T{}) || axis_shape.compatible(T{1}),
+                          is_rank_compatible_any_of(axis_shape.rank(), {0, 1}),
                           "Axis input shape are required to be scalar or 1D tensor. ",
                           "Got: ",
                           axis_shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto& data_rank = data_shape.rank();
+    const auto& indices_rank = indices_shape.rank();
 
     NODE_VALIDATION_CHECK(op,
-                          indices_shape.rank().compatible(data_shape.rank()),
+                          indices_rank.compatible(data_rank),
                           "Indices rank and data rank are required to be equal. ",
                           "Got: ",
-                          indices_shape.rank(),
+                          indices_rank,
                           " and: ",
-                          data_shape.rank());
+                          data_rank);
 
     NODE_VALIDATION_CHECK(op,
                           indices_shape.compatible(updates_shape),
@@ -48,28 +49,23 @@ void shape_infer(const ScatterElementsUpdate* op,
                           " and: ",
                           updates_shape);
 
-    if (data_shape.rank().is_dynamic())
-        return;
-
-    std::vector<int64_t> axis_input;
-    if (get_data_as_int64<T>(3, op, axis_input, constant_data)) {
-        auto axis = axis_input[0];
-
-        int64_t data_rank_length = data_shape.rank().get_length();
-        NODE_VALIDATION_CHECK(op,
-                              (-data_rank_length <= axis) && (axis <= data_rank_length - 1),
-                              "Axis value has to be in range [-r, r-1] where r is rank of data shape. ",
-                              " Data rank: ",
-                              data_rank_length,
-                              ", range:[",
-                              -data_rank_length,
-                              ", ",
-                              data_rank_length - 1,
-                              "]. Got axis value: ",
-                              axis);
+    if (data_shape.rank().is_static()) {
+        if (const auto axis_input = get_input_const_data_as<TShape, int64_t>(op, 3, ta)) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            ov::normalize_axis(op, (*axis_input)[0], data_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        }
     }
+    return {data_shape};
 }
 
-}  // namespace v3
+namespace v12 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ScatterElementsUpdate* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return ov::op::shape_infer(op, input_shapes, ta);
+}
+}  // namespace v12
 }  // namespace op
 }  // namespace ov

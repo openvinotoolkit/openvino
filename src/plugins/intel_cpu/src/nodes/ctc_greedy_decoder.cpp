@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@ bool CTCGreedyDecoder::isSupportedOperation(const std::shared_ptr<const ngraph::
     return true;
 }
 
-CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -70,9 +70,9 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
 }
 
 void CTCGreedyDecoder::execute(dnnl::stream strm) {
-    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
-    const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
-    float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->getData());
+    const float* sequenceMask = reinterpret_cast<const float *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->getData());
+    float* outputSequences = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];

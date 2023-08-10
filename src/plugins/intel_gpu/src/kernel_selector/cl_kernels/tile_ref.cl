@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-KERNEL(tile_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(tile_ref)(OPTIONAL_SHAPE_INFO_ARG
+                 const __global INPUT0_TYPE* input,
+                 __global OUTPUT_TYPE* output)
 {
     const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
     const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;

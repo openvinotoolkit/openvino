@@ -1,23 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 /// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag.
 struct embedding_bag : public primitive_base<embedding_bag> {
     CLDNN_DECLARE_PRIMITIVE(embedding_bag)
+
+    embedding_bag() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Select type of embedding_bag operation
     enum embedding_bag_type {
@@ -45,8 +42,36 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     tensor output_shape;
     /// @brief Default index
     int32_t default_index;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, type);
+        seed = hash_combine(seed, default_index);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const embedding_bag>(rhs);
+
+        return type == rhs_casted.type &&
+               default_index == rhs_casted.default_index;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<embedding_bag>::save(ob);
+        ob << make_data(&type, sizeof(embedding_bag_type));
+        ob << output_shape;
+        ob << default_index;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<embedding_bag>::load(ib);
+        ib >> make_data(&type, sizeof(embedding_bag_type));
+        ib >> output_shape;
+        ib >> default_index;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

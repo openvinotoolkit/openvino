@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/gemm.hpp"
 #include "primitive_inst.h"
@@ -18,7 +17,6 @@ public:
     using parent::parent;
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-    size_t inputs_count() const { return this->get_primitive()->input_size(); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
@@ -36,8 +34,7 @@ public:
     static std::string to_string(gemm_node const& node);
 
     static std::vector<layout> transform_input_layouts(const std::shared_ptr<const gemm> primitive,
-                                                       const std::vector<layout>& input_layouts,
-                                                       const layout& output_layout);
+                                                       const std::vector<layout>& input_layouts);
     static layout transform_output_layout(const std::shared_ptr<const gemm> primitive, const std::vector<layout>& input_layouts, const layout& output_layout);
 
     typed_primitive_inst(network& network, gemm_node const& node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 3, 1}, {1, 3, 1}}, {0.f}, {255.f}, {0.f, 0.f, 0.f}, {255.f, 25.5f, 255.f} },
         { std::vector<float>(4 * 2, 2.f), ngraph::element::i8, ngraph::Shape{ 2, 4 } },
         {},
-        { ngraph::element::f32, {}, {{0.1f, 0.01}, ngraph::element::f32, ngraph::Shape{ 2, 1 }} },
+        { ngraph::element::f32, {}, {{0.1f, 0.01f}, ngraph::element::f32, ngraph::Shape{ 2, 1 }} },
         "MatMul",
         "U8"
     },
@@ -99,7 +99,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(testValues)),
     MatMulWithConstantTransformation::getTestCaseName);
 }  // namespace

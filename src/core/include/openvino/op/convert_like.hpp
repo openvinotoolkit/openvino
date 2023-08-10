@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvertLike : public Op {
 public:
-    OPENVINO_OP("ConvertLike", "opset1", op::Op, 1);
+    OPENVINO_OP("ConvertLike", "opset1", op::Op);
 
     /// \brief Constructs a conversion operation.
     ConvertLike() = default;

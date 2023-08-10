@@ -1,80 +1,157 @@
 # Configurations for Intel® Processor Graphics (GPU) with OpenVINO™ {#openvino_docs_install_guides_configurations_for_intel_gpu}
 
-
 @sphinxdirective
+
+.. meta::
+   :description: Learn how to provide additional configuration for Intel® 
+                 Processor Graphics (GPU) to work with Intel® Distribution of 
+                 OpenVINO™ toolkit on your system.
+
 
 .. _gpu guide:
 
-@endsphinxdirective
+To use the OpenVINO™ GPU plug-in and transfer the inference to the graphics of the Intel® processor (GPU), the Intel® graphics driver must be properly configured on the system.
 
+Linux
+#####
 
+To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-## Linux
+If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
 
-If you have installed OpenVINO Runtime from the archive file, follow these steps to work with GPU:
+- For Arc GPU, kernel 6.2 or higher is recommended. 
+- For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
-1. Go to the install_dependencies directory:
-   ```sh
-   cd <INSTALL_DIR>/install_dependencies/
-   ```
+Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install the `Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/tag/23.22.26516.18>`__ and its dependencies: 
 
-2. Install the **Intel® Graphics Compute Runtime for OpenCL™** driver components required to use the GPU plugin and write custom layers for Intel® Integrated Graphics. The drivers are not included in the package. To install it, run this script:
-   ```sh
-   sudo -E ./install_NEO_OCL_driver.sh
-   ```
-   > **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
-   
-   The script compares the driver version on the system to the current version. If the driver version on the system is higher or equal to the current version, the script does 
-   not install a new driver. If the version of the driver is lower than the current version, the script uninstalls the lower version and installs the current version with your permission:
-   ![](../img/NEO_check_agreement.png) 
+- `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
+- `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
+- `OpenCL ICD loader package <https://github.com/KhronosGroup/OpenCL-ICD-Loader>`__
 
-   Higher hardware versions require a higher driver version, namely 20.35 instead of 19.41. If the script fails to uninstall the driver, uninstall it manually. During the script execution, you may see the following command line output:  
-   ```sh
-   Add OpenCL user to video group    
-   ```
-   Ignore this suggestion and continue.<br>
-   You can also find the most recent version of the driver, installation procedure and other information on the [Intel® software for general purpose GPU capabilities](https://dgpu-docs.intel.com/index.html) site.
+.. tab-set::
 
-3. **Optional:** Install header files to allow compilation of new code. You can find the header files at [Khronos OpenCL™ API Headers](https://github.com/KhronosGroup/OpenCL-Headers.git).
+   .. tab-item:: Ubuntu 22.04 LTS
+      :sync: ubuntu-22
 
-You've completed all required configuration steps to perform inference on processor graphics.
-@sphinxdirective
+      Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__ and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
+      
+      Alternatively, you can add the apt repository by following the `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__. Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero` apt packages:
+      
+      .. code-block:: sh
+      
+         apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
 
+   .. tab-item:: Ubuntu 20.04 LTS
+      :sync: ubuntu-20
+
+      Ubuntu 20.04 LTS is not updated with the latest driver versions. You can install the updated versions up to the version 22.43 from apt:
+      
+      .. code-block:: sh
+         
+         apt-get update && apt-get install -y --no-install-recommends curl gpg gpg-agent && \
+         curl https://repositories.intel.com/graphics/intel-graphics.key | gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg && \
+         echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list && \
+         apt-get update
+         apt-get update && apt-get install -y --no-install-recommends intel-opencl-icd intel-level-zero-gpu level-zero
+      
+      Alternatively, download older `deb` version from `here <https://github.com/intel/compute-runtime/releases>`__. Note that older driver version might not include some of the bug fixes and might be not supported on some latest platforms. Check the supported hardware for the versions you are installing.
+
+   .. tab-item:: RedHat UBI 8
+      :sync: redhat-8
+
+      Follow the `guide <https://dgpu-docs.intel.com/driver/installation.html#rhel-install-steps>`__ to add Yum repository.
+      
+      Install following packages: 
+      
+      .. code-block:: sh
+      
+         yum install intel-opencl level-zero intel-level-zero-gpu intel-igc-core intel-igc-cm intel-gmmlib intel-ocloc
+      
+      Install the OpenCL ICD Loader via:
+      
+      .. code-block:: sh
+      
+         rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm
+      
 .. _gpu guide windows:
 
+Windows
+#######
+
+To install the Intel Graphics Driver for Windows, follow the `driver installation instructions <https://www.intel.com/content/www/us/en/support/articles/000005629/graphics.html>`_.
+
+To check if the driver has been installed:
+
+1. Type **device manager** in the **Search Windows** field and press Enter. **Device Manager** will open.
+2. Click the drop-down arrow to display **Display Adapters**. You can see the adapter that is installed in your computer: 
+
+   .. image:: _static/images/DeviceManager.PNG
+      :width: 400
+
+3. Right-click on the adapter name and select **Properties**.
+4. Click the **Driver** tab to view the driver version.
+
+   .. image:: _static/images/DeviceDriverVersion.svg
+      :width: 400
+
+Your device driver has been updated and is now ready to use your GPU.
+
+.. _wsl-install:
+
+Windows Subsystem for Linux (WSL)
+#################################
+
+WSL allows developers to run a GNU/Linux development environment for the Windows operating system. Using the GPU in WSL is very similar to a native Linux environment.
+
+.. note::
+
+   Make sure your Intel graphics driver is updated to version **30.0.100.9955** or later. You can download and install the latest GPU host driver `here <https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html>`__.
+
+Below are the required steps to make it work with OpenVINO:
+
+- Install the GPU drivers as described :ref:`above <wsl-instal>`.
+- Run the following commands in PowerShell to view the latest version of WSL2:
+
+  .. code-block:: sh
+
+     wsl --update
+     wsl --shutdown
+  
+- When booting Ubuntu 20.04 or Ubuntu 22.04, install the same drivers as described above in the Linux section
+
+.. note:: 
+   
+   In WSL, the GPU device is accessed via the character device `/dev/drx`, while for native Linux OS it is accessed via `/dev/dri`.
+
+Additional Resources
+####################
+
+The following Intel® Graphics Driver versions were used during OpenVINO's internal validation:
+
++------------------+-------------------------------------------------------------------------------------------+
+| Operation System | Driver version                                                                            |
++==================+===========================================================================================+
+| Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
++------------------+-------------------------------------------------------------------------------------------+
+| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__       |
++------------------+-------------------------------------------------------------------------------------------+
+
+
+What’s Next?
+############
+
+* :doc:`GPU Device <openvino_docs_OV_UG_supported_plugins_GPU>`
+* :doc:`Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image <openvino_docs_install_guides_installing_openvino_docker_linux>`
+* `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
+* `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
+* `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
+
 @endsphinxdirective
 
-## Windows
-
-This section will help you check if you require driver installation. Install indicated version or higher.
-
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
-[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
-
-To check if you have this driver installed:
-
-1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
-
-2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
-   ![](../img/DeviceManager.PNG)
-
-3. Right-click the adapter name and select **Properties**.
-
-4. Click the **Driver** tab to see the driver version. 
-   ![](../img/DeviceDriverVersion.PNG)
-
-You are done updating your device driver and are ready to use your GPU.
-## What’s Next?
-
-You can try out the toolkit with:
-
-Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
-
-Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
 

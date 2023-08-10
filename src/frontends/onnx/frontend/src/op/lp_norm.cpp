@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -29,7 +30,9 @@ OutputVector lp_norm(const Node& node) {
     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
 
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const size_t normalize_axis = ngraph::normalize_axis(node.get_description(), axis, data_rank);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     CHECK_VALID_NODE(node,
                      p_norm == 1 || p_norm == 2,
@@ -51,3 +54,4 @@ OutputVector lp_norm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

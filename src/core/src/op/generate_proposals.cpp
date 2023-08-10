@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,12 +51,11 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, m_attrs.post_nms_count > 0, "Attribute post_nms_count must be larger than 0.");
     NODE_VALIDATION_CHECK(this, m_attrs.nms_eta == 1.0, "Attribute min_size must be 1.0.");
 
-    std::vector<PartialShape> output_shapes = {PartialShape{}, PartialShape{}, PartialShape{}};
     std::vector<PartialShape> input_shapes = {get_input_partial_shape(0),
                                               get_input_partial_shape(1),
                                               get_input_partial_shape(2),
                                               get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& input_et = get_input_element_type(0);
     set_output_type(0, input_et, output_shapes[0]);
@@ -67,4 +66,9 @@ void op::v9::GenerateProposals::validate_and_infer_types() {
                           "The third output type must be int64 or int32.");
     set_output_type(2, roi_num_type, output_shapes[2]);
 }
+
+void op::v9::GenerateProposals::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
 }  // namespace ov

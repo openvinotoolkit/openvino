@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "primitive_base.hpp"
 
 #include "lstm_gemm_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
 #include "lstm/lstm_gemm_kernel_selector.h"
 #include "lstm/lstm_gemm_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -28,8 +24,8 @@ struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
@@ -78,14 +74,14 @@ public:
         } else {  // For unidirectional input
             lstm_gemm_params.input_direction = 0;
         }
-
+        lstm_gemm_params.set_dynamic_shape_offsets();
         auto lstm_gemm_optional_params =
             get_default_optional_params<kernel_selector::lstm_gemm_optional_params>(impl_param.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);
 
-        return make_unique<lstm_gemm_impl>(arg, best_kernel);
+        return make_unique<lstm_gemm_impl>(best_kernel);
     }
 };
 
@@ -105,3 +101,4 @@ attach_lstm_gemm_impl::attach_lstm_gemm_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_gemm_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_gemm)

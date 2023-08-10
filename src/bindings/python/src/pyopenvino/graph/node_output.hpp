@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,10 @@ void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::
 template<>
 void def_type_dependent_functions<ov::Node>(py::class_<ov::Output<ov::Node>,
                                             std::shared_ptr<ov::Output<ov::Node>>>& output);
+
+template<>
+void def_type_dependent_functions<const ov::Node>(py::class_<ov::Output<const ov::Node>,
+                                                  std::shared_ptr<ov::Output<const ov::Node>>>& output);
 
 template <typename VT>
 void regclass_graph_Output(py::module m, std::string typestring)
@@ -150,13 +154,13 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 :return: A dictionary of user defined data.
                 :rtype: openvino.runtime.RTMap
              )");
-    output.def("__repr__", [typestring](const ov::Output<VT>& self) {
+    output.def("__repr__", [](const ov::Output<VT>& self) {
         std::stringstream shape_type_ss;
 
         auto names_str = Common::docs::container_to_string(self.get_names(), ", ");
         shape_type_ss << " shape" << self.get_partial_shape() << " type: " << self.get_element_type();
 
-        return "<" + typestring + "Output: names[" + names_str + "]" + shape_type_ss.str() + ">";
+        return "<" + Common::get_class_name(self) + ": names[" + names_str + "]" + shape_type_ss.str() + ">";
     });
 
     output.def_property_readonly("node", &ov::Output<VT>::get_node_shared_ptr);

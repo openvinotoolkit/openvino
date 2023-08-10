@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/depth_to_space.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 
 #include <string>
 #include <memory>
@@ -20,9 +18,10 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<NodeFuseParams>(depth_to_space::type_id());
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using depth_to_space_node = typed_program_node<depth_to_space>;
@@ -33,10 +32,11 @@ class typed_primitive_inst<depth_to_space> : public typed_primitive_inst_base<de
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(depth_to_space_node const& node, kernel_impl_params const& impl_param);
     static layout calc_output_layout(depth_to_space_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(depth_to_space_node const& node);
 
-public:
     typed_primitive_inst(network& network, depth_to_space_node const& desc);
 };
 

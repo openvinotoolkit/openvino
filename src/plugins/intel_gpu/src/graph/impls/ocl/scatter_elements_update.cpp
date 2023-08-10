@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "scatter_elements_update_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "scatter_elements_update_inst.h"
 #include "scatter_update/scatter_elements_update_kernel_selector.h"
 #include "scatter_update/scatter_elements_update_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -100,3 +96,4 @@ attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scatter_elements_update_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scatter_elements_update)

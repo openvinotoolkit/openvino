@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,9 +69,7 @@ static void CreateCommonReshapeOp(Program& p, const std::shared_ptr<ngraph::Node
             cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
             p.add_primitive(*op, cldnn::reorder(reorderId,
                                                 reshape_input,
-                                                outputLayout,
-                                                std::vector<float>(),
-                                                cldnn::reorder_mean_mode::subtract));
+                                                outputLayout));
             reshape_input = cldnn::input_info(reorderId);
         }
 

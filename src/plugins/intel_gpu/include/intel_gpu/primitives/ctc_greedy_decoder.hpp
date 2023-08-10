@@ -1,22 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief CTC greedy decoder primitve
 struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
     CLDNN_DECLARE_PRIMITIVE(ctc_greedy_decoder)
+
+    ctc_greedy_decoder() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs ctc_greedy_decoder primitive.
     /// @param id This primitive id.
@@ -38,8 +35,40 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
     bool ctc_merge_repeated;
     tensor output_tensor;
     primitive_id second_output;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, blank_index);
+        seed = hash_combine(seed, ctc_merge_repeated);
+        seed = hash_combine(seed, second_output.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const ctc_greedy_decoder>(rhs);
+
+        return blank_index == rhs_casted.blank_index &&
+               ctc_merge_repeated == rhs_casted.ctc_merge_repeated &&
+               second_output.empty() == rhs_casted.second_output.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<ctc_greedy_decoder>::save(ob);
+        ob << blank_index;
+        ob << ctc_merge_repeated;
+        ob << output_tensor;
+        ob << second_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<ctc_greedy_decoder>::load(ib);
+        ib >> blank_index;
+        ib >> ctc_merge_repeated;
+        ib >> output_tensor;
+        ib >> second_output;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

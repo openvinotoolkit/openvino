@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@ namespace ngraph {
 namespace builder {
         std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                         const std::vector<size_t> numSplits,
-                                                        size_t axis) {
-            auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(element::u64, ngraph::Shape{},
-                                                                          std::vector<size_t>{axis});
+                                                        int64_t axis) {
+            auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(element::i64, ngraph::Shape{},
+                                                                          std::vector<int64_t>{axis});
             auto numSplit = std::make_shared<ngraph::opset3::Constant>(element::u64, ngraph::Shape{numSplits.size()},
                                                                        numSplits);
             auto VariadicSplitNode = std::make_shared<ngraph::opset3::VariadicSplit>(in, splitAxisOp, numSplit);

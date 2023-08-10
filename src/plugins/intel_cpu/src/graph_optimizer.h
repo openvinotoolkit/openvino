@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,14 @@ public:
     void ApplyImplSpecificGraphOptimizations(Graph& graph);
 
 private:
+    void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
+    void FuseFCAndWeightsDecompression(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);
     void MergeConvertAndScaleShift(Graph& graph);
+    void FuseFCAndConvertOnWeights(Graph& graph);
+    void FuseFCAndTransposeOnWeights(Graph& graph);
     void FuseFullyConnectedAndSimpleOperation(Graph &graph);
     void FuseMatMulAndSimpleOperation(Graph &graph);
     void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &graph);
@@ -44,6 +48,7 @@ private:
     void FuseClampAndFakeQuantize(Graph &graph);
     void MergeTransposeAndReorder(Graph &graph);
     void reshapeRnnSeq(Graph &graph);
+    void RemoveSameConvert(Graph &graph);
 };
 
 }   // namespace intel_cpu

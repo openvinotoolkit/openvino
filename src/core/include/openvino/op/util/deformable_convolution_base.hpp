@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,14 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/convolution_base.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 /// \brief Base class for operations DeformableConvolution v1 and DeformableConvolution
 /// v8.
-class OPENVINO_API DeformableConvolutionBase : public Op {
+class OPENVINO_API DeformableConvolutionBase : public util::ConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolutionBase", "util");
 
@@ -46,38 +47,7 @@ public:
                               int64_t deformable_group = 1);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
-    void validate_and_infer_types() override;
 
-    const Strides& get_strides() const {
-        return m_strides;
-    }
-    void set_strides(const Strides& strides) {
-        m_strides = strides;
-    }
-    const Strides& get_dilations() const {
-        return m_dilations;
-    }
-    void set_dilations(const Strides& dilations) {
-        m_dilations = dilations;
-    }
-    const CoordinateDiff& get_pads_begin() const {
-        return m_pads_begin;
-    }
-    void set_pads_begin(const CoordinateDiff& pads_begin) {
-        m_pads_begin = pads_begin;
-    }
-    const CoordinateDiff& get_pads_end() const {
-        return m_pads_end;
-    }
-    void set_pads_end(const CoordinateDiff& pads_end) {
-        m_pads_end = pads_end;
-    }
-    const PadType& get_auto_pad() const {
-        return m_auto_pad;
-    }
-    void set_auto_pad(const PadType& auto_pad) {
-        m_auto_pad = auto_pad;
-    }
     int64_t get_group() const {
         return m_group;
     }
@@ -92,11 +62,6 @@ public:
     }
 
 protected:
-    Strides m_strides;
-    Strides m_dilations;
-    CoordinateDiff m_pads_begin;
-    CoordinateDiff m_pads_end;
-    PadType m_auto_pad;
     int64_t m_group;
     int64_t m_deformable_group;
 };

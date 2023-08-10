@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,7 +156,10 @@ std::ostream& operator<<(std::ostream& s, const TopKMode& type);
 /// \brief Implicit broadcast specification
 struct OPENVINO_API AutoBroadcastSpec {
     AutoBroadcastSpec() : m_type(AutoBroadcastType::NONE), m_axis(0) {}
-    AutoBroadcastSpec(AutoBroadcastType type) : m_type(type), m_axis(0) {}
+    AutoBroadcastSpec(AutoBroadcastType type) {
+        m_type = type;
+        m_axis = (m_type == AutoBroadcastType::PDPD) ? -1 : 0;
+    }
     AutoBroadcastSpec(const char* type) : AutoBroadcastSpec(type_from_string(type)) {}
     AutoBroadcastSpec(AutoBroadcastType type, int64_t axis) : m_type(type), m_axis(axis) {}
 
@@ -170,10 +173,6 @@ struct OPENVINO_API AutoBroadcastSpec {
     bool operator!=(const AutoBroadcastSpec& a) const {
         return !(*this == a);
     }
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NUMPY")
-    static const AutoBroadcastSpec NUMPY;
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NONE")
-    static const AutoBroadcastSpec NONE;
 
 private:
     AutoBroadcastType type_from_string(const std::string& type) const;
@@ -182,7 +181,10 @@ private:
 /// \brief Implicit broadcast specification
 struct OPENVINO_API BroadcastModeSpec {
     BroadcastModeSpec() : m_type(BroadcastType::NUMPY), m_axis(0) {}
-    BroadcastModeSpec(BroadcastType type) : m_type(type), m_axis(0) {}
+    BroadcastModeSpec(BroadcastType type) {
+        m_type = type;
+        m_axis = (m_type == BroadcastType::PDPD) ? -1 : 0;
+    }
     BroadcastModeSpec(const char* type) : BroadcastModeSpec(as_enum<BroadcastType>(type)) {}
     BroadcastModeSpec(BroadcastType type, int64_t axis) : m_type(type), m_axis(axis) {}
 

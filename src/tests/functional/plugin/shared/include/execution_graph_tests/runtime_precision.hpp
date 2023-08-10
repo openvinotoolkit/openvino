@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ using ExecGraphRuntimePrecisionParams = std::tuple<
 >;
 
 class ExecGraphRuntimePrecision : public testing::WithParamInterface<ExecGraphRuntimePrecisionParams>,
-                                 public CommonTestUtils::TestsCommon {
+                                 public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj);
     std::string targetDevice;

@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select mode for the @ref reduce layer
 enum class reduce_mode : uint16_t {
@@ -49,6 +42,10 @@ enum class reduce_mode : uint16_t {
 struct reduce : public primitive_base<reduce> {
     CLDNN_DECLARE_PRIMITIVE(reduce)
 
+    reduce() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs reduce primitive
     /// @param id This primitive id
     /// @param input Input primitive id
@@ -67,8 +64,38 @@ struct reduce : public primitive_base<reduce> {
     std::vector<int64_t> axes;
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
     bool keep_dims;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_range(seed, axes.begin(), axes.end());
+        seed = hash_combine(seed, keep_dims);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reduce>(rhs);
+
+        return mode == rhs_casted.mode &&
+               axes == rhs_casted.axes &&
+               keep_dims == rhs_casted.keep_dims;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reduce>::save(ob);
+        ob << make_data(&mode, sizeof(reduce_mode));
+        ob << axes;
+        ob << keep_dims;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reduce>::load(ib);
+        ib >> make_data(&mode, sizeof(reduce_mode));
+        ib >> axes;
+        ib >> keep_dims;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

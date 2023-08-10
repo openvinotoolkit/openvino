@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               loop_condition_rank.compatible(1) || loop_condition_rank.compatible(0),
                               "Rank of ExecutionCondition input must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(loop_execution_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -85,7 +87,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               body_condition_rank.compatible(0) || body_condition_rank.compatible(1),
                               "Rank of BodyExecutionCondition output must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& cond_value = get_constant_from_source(body_execution_condition)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -101,7 +105,9 @@ void op::v5::Loop::validate_and_infer_types() {
         // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
         for (const auto& desc : get_input_descriptions()) {
             if (m_bodies[0]->get_parameters().at(desc->m_body_parameter_index) == cond_param) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 if (const auto& cond_value = get_constant_from_source(input_value(desc->m_input_index))) {
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(this,
                                           val.size() == 1,
@@ -124,7 +130,9 @@ void op::v5::Loop::validate_and_infer_types() {
                               trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
                               "Rank of TripCount input must be equal to 0 or 1");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& trip_count_val = get_constant_from_source(trip_count)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
                               val.size() == 1,
@@ -162,12 +170,16 @@ void op::v5::Loop::validate_and_infer_types() {
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
             const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            const auto& input_type = inputs().at(index).get_source_output().get_element_type();
+            body_parameter->set_element_type(input_type);
             if (input_partial_shape.rank().is_dynamic()) {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic());
             } else {
                 auto out_shape = input_partial_shape;
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto axis =
                     ngraph::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
             }
@@ -176,19 +188,21 @@ void op::v5::Loop::validate_and_infer_types() {
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
         }
     }
 
@@ -274,7 +288,9 @@ void op::v5::Loop::validate_and_infer_types() {
             if (zero_number_of_iter) {
                 out_shape = ov::PartialShape{0};
             } else if (out_shape.rank().is_static()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 const auto axis = ngraph::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
                     out_shape = ov::PartialShape{1};
@@ -331,6 +347,7 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
     ngraph::runtime::reference::loop(m_bodies[0],
@@ -341,6 +358,7 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                      inputs);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);
@@ -361,7 +379,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     dst.m_num_iterations = m_num_iterations;
     dst.m_special_body_ports = m_special_body_ports;
 
-    dst.m_bodies[0] = clone_function(*get_function());
+    dst.m_bodies[0] = get_function()->clone();
 
     for (auto& input_description : m_input_descriptions[0]) {
         dst.m_input_descriptions[0].push_back(input_description->copy());

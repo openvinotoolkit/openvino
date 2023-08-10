@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@ using namespace BehaviorTestsDefinitions;
 
 using namespace InferenceEngine::PluginConfigParams;
 
+// defined in plugin_name.cpp
+extern const char * cpu_plugin_file_name;
+
 namespace {
 //
 // IE Class Common tests with <pluginName, deviceName params>
@@ -15,7 +18,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassCommon, IEClassBasicTestP,
-        ::testing::Values(std::make_pair("openvino_intel_cpu_plugin", "CPU")));
+        ::testing::Values(std::make_pair(cpu_plugin_file_name, "CPU")));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassNetworkTestP, IEClassNetworkTestP,

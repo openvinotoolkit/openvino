@@ -1,9 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/runtime/properties.hpp"
+
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <tuple>
@@ -20,12 +23,6 @@ namespace cldnn {
 enum class device_type {
     integrated_gpu = 0,
     discrete_gpu = 1
-};
-
-/// @brief Structure to represent gpu device UUID
-struct device_uuid {
-    static const constexpr size_t max_uuid_size = 16;
-    std::array<uint8_t, max_uuid_size> val;
 };
 
 /// @brief Defines version of GFX IP
@@ -55,12 +52,15 @@ struct device_info {
     bool supports_fp16;                         ///< Does engine support FP16.
     bool supports_fp64;                         ///< Does engine support FP64.
     bool supports_fp16_denorms;                 ///< Does engine support denormalized FP16.
-    bool supports_subgroups;                    ///< Does engine support cl_intel_subgroups extension.
-    bool supports_subgroups_short;              ///< Does engine support cl_intel_subgroups_short extension.
-    bool supports_subgroups_char;               ///< Does engine support cl_intel_subgroups_char extension.
-    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension. Check program build with this option.
+    bool supports_khr_subgroups;                ///< Does engine support cl_khr_subgroups extension.
+    bool supports_intel_subgroups;              ///< Does engine support cl_intel_subgroups extension.
+    bool supports_intel_subgroups_short;        ///< Does engine support cl_intel_subgroups_short extension.
+    bool supports_intel_subgroups_char;         ///< Does engine support cl_intel_subgroups_char extension.
+    bool supports_intel_required_subgroup_size; ///< Does engine support cl_intel_required_subgroup_size extension.
+    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
+    bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
@@ -83,7 +83,8 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
 
-    device_uuid uuid;                           ///< UUID of the gpu device
+    ov::device::UUID uuid;                      ///< UUID of the gpu device
+    ov::device::LUID luid;                      ///< LUID of the gpu device
 };
 
 /// @}

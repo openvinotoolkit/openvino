@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_ops/augru_sequence.hpp"
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ov;

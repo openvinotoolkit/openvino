@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "itt.hpp"
 
-using namespace ov;
-
+namespace ov {
 op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, const Attributes& attrs)
     : Op(arguments),
       m_attrs{attrs} {}
@@ -81,13 +80,16 @@ bool op::util::MulticlassNmsBase::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::util::MulticlassNmsBase::SortResultType& type) {
+void op::util::MulticlassNmsBase::set_attrs(op::util::MulticlassNmsBase::Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
+std::ostream& operator<<(std::ostream& s, const op::util::MulticlassNmsBase::SortResultType& type) {
     return s << as_string(type);
 }
 
-namespace ov {
 template <>
-NGRAPH_API EnumNames<op::util::MulticlassNmsBase::SortResultType>&
+OPENVINO_API EnumNames<op::util::MulticlassNmsBase::SortResultType>&
 EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
     static auto enum_names = EnumNames<op::util::MulticlassNmsBase::SortResultType>(
         "op::util::MulticlassNmsBase::SortResultType",

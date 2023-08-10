@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,15 +17,15 @@ namespace {
         ::testing::ValuesIn(std::vector<std::vector<size_t>>{{}, {10, 2, 2, 2}}),               // offsets input shape
         ::testing::Values(2),                                                                   // output_dim
         ::testing::Values(2),                                                                   // group_size
-        ::testing::ValuesIn(std::vector<float>{1.0, 0.5, 0.0625}),                              // spatial scale
+        ::testing::ValuesIn(std::vector<float>{1.0f, 0.5f, 0.0625f}),                           // spatial scale
         ::testing::ValuesIn(std::vector<std::vector<int64_t>>{{1, 1}, {2, 2}, {3, 3}, {2, 3}}), // spatial_bins_x_y
-        ::testing::ValuesIn(std::vector<float>{0.0, 0.01, 0.5}),                                // trans_std
+        ::testing::ValuesIn(std::vector<float>{0.0f, 0.01f, 0.5f}),                             // trans_std
         ::testing::Values(2));
 
     const auto deformablePSROICases_test_params = ::testing::Combine(
         deformablePSROIParams,
         ::testing::Values(InferenceEngine::Precision::FP32), // Net precision
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));     // Device name
+        ::testing::Values(ov::test::utils::DEVICE_CPU));     // Device name
 
     INSTANTIATE_TEST_SUITE_P(smoke_TestsDeformablePSROIPooling, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params,
                             DeformablePSROIPoolingLayerTest::getTestCaseName);
@@ -39,13 +39,13 @@ namespace {
         ::testing::Values(3),                                                      // group_size
         ::testing::ValuesIn(std::vector<float>{0.0625}),                           // spatial scale
         ::testing::ValuesIn(std::vector<std::vector<int64_t>>{{4, 4}}),            // spatial_bins_x_y
-        ::testing::ValuesIn(std::vector<float>{0.1}),                              // trans_std
+        ::testing::ValuesIn(std::vector<float>{0.1f}),                             // trans_std
         ::testing::Values(3));                                                     // part_size
 
     const auto deformablePSROICases_test_params_advanced = ::testing::Combine(
         deformablePSROIParams_advanced,
         ::testing::Values(InferenceEngine::Precision::FP32), // Net precision
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));     // Device name
+        ::testing::Values(ov::test::utils::DEVICE_CPU));     // Device name
 
     INSTANTIATE_TEST_SUITE_P(smoke_TestsDeformablePSROIPooling_advanced, DeformablePSROIPoolingLayerTest, deformablePSROICases_test_params_advanced,
                             DeformablePSROIPoolingLayerTest::getTestCaseName);

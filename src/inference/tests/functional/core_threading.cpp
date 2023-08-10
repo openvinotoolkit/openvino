@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,13 @@
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <mutex>
-#include <ngraph_functions/subgraph_builders.hpp>
 #include <thread>
 
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
-#    if __GLIBC_MINOR__ >= 34
-#        define OV_TEST_GLIBC_VERSION_GREATER_2_34
+#    if __GLIBC_MINOR__ < 34
+#        define OV_TEST_GLIBC_VERSION_LESS_2_34
 #    endif
 #endif
 
@@ -30,29 +29,15 @@ protected:
     std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
 
 public:
-    static std::string generateTestFilePrefix() {
-        // Generate unique file names based on test name, thread id and timestamp
-        // This allows execution of tests in parallel (stress mode)
-        auto testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
-        std::string testName = testInfo->test_case_name();
-        testName += testInfo->name();
-        testName = std::to_string(std::hash<std::string>()(testName));
-        std::stringstream ss;
-        auto ts = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch());
-        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
-        testName = ss.str();
-        return testName;
-    }
     void SetUp() override {
-        auto prefix = generateTestFilePrefix();
+        auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(modelName, weightsName);
+        ov::test::utils::removeIRFiles(modelName, weightsName);
     }
 
     void runParallel(std::function<void(void)> func,
@@ -77,7 +62,7 @@ public:
     void safeAddExtension(InferenceEngine::Core& ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
-                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception& ex) {
@@ -109,7 +94,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     runParallel(
         [&]() {
             const std::string deviceName = std::to_string(index++);
-            ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                  std::string("mock_engine") + IE_BUILD_POSTFIX),
                               deviceName);
             ie.GetVersions(deviceName);
@@ -129,7 +114,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << CommonTestUtils::getExecutableDirectory();
+        file << ov::test::utils::getExecutableDirectory();
         file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
@@ -161,7 +146,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
 TEST_F(CoreThreadingTests, GetAvailableDevices) {
-#ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
+#ifdef OV_TEST_GLIBC_VERSION_LESS_2_34
     GTEST_SKIP();
 #endif
     InferenceEngine::Core ie;

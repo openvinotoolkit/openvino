@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <file_utils.h>
 #include <gtest/gtest.h>
 
-#include <cpp/ie_plugin.hpp>
-
 #include "common_test_utils/file_utils.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ::testing;
@@ -16,7 +15,7 @@ using namespace std;
 class SharedObjectOVTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+        return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
                                                       std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 

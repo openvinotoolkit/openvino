@@ -1,10 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <map>
@@ -15,17 +23,19 @@
 #include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_fakequantize.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "so_extension.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
@@ -135,7 +145,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        ext_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
@@ -275,14 +285,14 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
                     // TODO: figure a way to safely handle unused outputs
                     if (named_outputs.count(port.parameter())) {
                         const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == (size_t)port.arguments_size(),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
                             const auto& var_name = port.arguments()[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
-                            // usually means that it was overwritten using setTensorValue
+                            // usually means that it was overwritten using set_tensor_value
                             nodes_dict[var_name] = ng_outputs[idx];
                         }
                     }
@@ -336,9 +346,23 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
     }
 }
 
+void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
+}
+
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     // FrontEnd can only load model specified by one path, one file or two files.
-    if (variants.empty() || variants.size() > 2)
+    if (variants.empty() || variants.size() > 2 + extra_variants_num)
         return false;
 
     // Validating first path, it must contain a model
@@ -360,7 +384,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -376,7 +400,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    if (variants.size() == 1) {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+    if (variants.size() == 1 + extra_variants_num) {
         // The case when folder with __model__ and weight files is provided or .pdmodel file
         if (variants[0].is<std::string>()) {
             std::string m_path = variants[0].as<std::string>();
@@ -394,7 +420,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             auto p_model_stream = variants[0].as<std::istream*>();
             return std::make_shared<InputModel>(std::vector<std::istream*>{p_model_stream}, m_telemetry);
         }
-    } else if (variants.size() == 2) {
+    } else if (variants.size() == 2 + extra_variants_num) {
         // The case when .pdmodel and .pdparams files are provided
         std::ifstream model_stream;
         std::ifstream weights_stream;
@@ -430,7 +456,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
+    normalize(f[0]);
     return f[0];
 }
 
@@ -444,7 +472,9 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         result->validate_and_infer_types();
     }
 
+    fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -475,8 +505,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             return named_outputs;
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
-
+    normalize(f[0]);
     return f[0];
 }
 
@@ -514,15 +545,21 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
+}
+
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion GetAPIVersion() {
+PADDLE_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* GetFrontEndData() {
+PADDLE_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
@@ -531,7 +568,9 @@ PADDLE_C_API void* GetFrontEndData() {
 
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }

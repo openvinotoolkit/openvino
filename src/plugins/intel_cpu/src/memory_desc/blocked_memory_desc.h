@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,17 +11,17 @@
 namespace ov {
 namespace intel_cpu {
 
-#define BLOCKED_DESC_FULL_MASK 0xffffffff
-#define BLOCKED_DESC_EMPTY_MASK 0x0
-#define BLOCKED_DESC_SKIP_OFFSET_MASK 0x7fffffff
-#define BLOCKED_DESC_OFFSET_MASK_POS 31
-
 class BlockedMemoryDesc : public virtual MemoryDesc {
 public:
     using CmpMask = std::bitset<32>;
 
 public:
-    BlockedMemoryDesc() {}
+    BlockedMemoryDesc() = default;
+
+    static constexpr CmpMask FULL_MASK{0xffffffff};
+    static constexpr CmpMask EMPTY_MASK{0x0};
+    static constexpr CmpMask SKIP_OFFSET_MASK{0x7fffffff};
+    static constexpr size_t  OFFSET_MASK_POS{31};
 
     /**
      * @brief Returns the blocked dimensions
@@ -43,13 +43,6 @@ public:
      * @return offsets
      */
     virtual const VectorDims& getOffsetPaddingToData() const = 0;
-
-    /**
-     * @brief Returns the offset to the current memory block
-     *
-     * @return offset
-     */
-    virtual size_t getOffsetPadding() const = 0;
 
     /**
      * @brief Returns strides for each dimension
@@ -81,8 +74,9 @@ public:
      * @return the result of the compatibility check
      */
     virtual bool isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const = 0;
+    using MemoryDesc::isCompatible;
 
-    virtual ~BlockedMemoryDesc() = default;
+    ~BlockedMemoryDesc() override = default;
 
     std::string serializeFormat() const override;
 
@@ -94,7 +88,7 @@ protected:
      * Doesn't perform descs specific attributes check
      * @return true if compatible, otherwise false
      */
-    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = BLOCKED_DESC_FULL_MASK) const;
+    bool isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask = FULL_MASK) const;
 
     mutable VectorDims blockedDims;
     mutable VectorDims strides;

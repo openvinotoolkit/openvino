@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 

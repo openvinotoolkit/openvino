@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ struct LSTMStatesAttributes {
 };
 
 class LSTMStatesBroadcastTest : public testing::WithParamInterface<LSTMStatesAttributes>,
-                                public CommonTestUtils::TestsCommon {};
+                                public ov::test::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
     auto p = GetParam();
@@ -44,7 +44,7 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
 }
 
 class LSTMStatesBroadcastTestWithTI : public testing::WithParamInterface<LSTMStatesAttributes>,
-                                      public CommonTestUtils::TestsCommon {};
+                                      public ov::test::TestsCommon {};
 
 TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
     auto p = GetParam();

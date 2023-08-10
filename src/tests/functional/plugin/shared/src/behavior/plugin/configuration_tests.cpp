@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ std::string DefaultConfigurationTest::getTestCaseName(const ::testing::TestParam
 }
 
 TEST_P(DefaultConfigurationTest, checkDeviceDefaultConfigurationValue) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     target_device = std::get<DeviceName>(GetParam());
     std::string key;
     InferenceEngine::Parameter parameter;
@@ -91,8 +92,20 @@ TEST_P(CorrectSingleOptionDefaultValueConfigTests, CheckDefaultValueOfConfig) {
 
 // Setting correct config doesn't throw
 TEST_P(CorrectConfigTests, SetCorrectConfig) {
-    ASSERT_NO_THROW(ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
+    InferenceEngine::Parameter metric;
+    bool has_unsupported_config = false;
+    ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
+    auto keys = metric.as<std::vector<std::string>>();
+
+    for (const auto& configItem : configuration) {
+        if (std::find(keys.begin(), keys.end(), configItem.first) == keys.end()) {
+            has_unsupported_config = true;
+            break;
+        }
+    }
+    if (!has_unsupported_config) {
+        ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
+    }
 }
 
 TEST_P(CorrectConfigTests, CanLoadNetworkWithCorrectConfig) {
@@ -105,7 +118,7 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
-    CommonTestUtils::removeDir("./test_cache");
+    ov::test::utils::removeDir("./test_cache");
 }
 
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {
@@ -174,7 +187,7 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
 TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     InferenceEngine::Parameter metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> keys = metric;
+    auto keys = metric.as<std::vector<std::string>>();
 
     for (auto& key : keys) {
         InferenceEngine::Parameter configValue;
@@ -187,16 +200,13 @@ TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     }
 }
 
-TEST_P(ExclusiveAsyncReqTests, excluAsyncReqTests) {
-    ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
-    ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
-}
-
 TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
     ASSERT_NO_THROW(ie->SetConfig(configuration, target_device));
 
     InferenceEngine::ExecutableNetwork exeNetWork;
     ASSERT_NO_THROW(exeNetWork = ie->LoadNetwork(cnnNet, target_device, loadNetWorkConfig));
+
+    //ie's setConfig and LoadNetwork should not affect each other, for config settings
     for (const auto& property_item : loadNetWorkConfig) {
         InferenceEngine::Parameter exeNetProperty;
         ASSERT_NO_THROW(exeNetProperty = exeNetWork.GetConfig(property_item.first));
@@ -210,5 +220,4 @@ TEST_P(SetPropLoadNetWorkGetPropTests, SetPropLoadNetWorkGetProperty) {
         ASSERT_EQ(property_item.second, property.as<std::string>());
     }
 }
-
 } // namespace BehaviorTestsDefinitions

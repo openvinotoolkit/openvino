@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,8 @@ private:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
     DispatchData SetDefault(const mvn_params& params) const override;

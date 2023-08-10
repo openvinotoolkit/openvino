@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ie_api.h"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace InferenceEngine {
 
@@ -22,7 +23,7 @@ namespace InferenceEngine {
  *        It would be wrapped into std::function object
  * @ingroup ie_dev_api_threading
  */
-using Task = std::function<void()>;
+using Task = ov::threading::Task;
 
 /**
 * @interface ITaskExecutor
@@ -36,14 +37,13 @@ concurrency.
 *         - Immediate task executor can be used to satisfy `InferenceEngine::ITaskExecutor` interface restrictions but
 run tasks in current thread.
 * @note  Implementation should guaranty thread safety of all methods
-* @section Synchronization
 *        It is `InferenceEngine::ITaskExecutor` user responsibility to wait for task execution completion.
 *        The `c++11` standard way to wait task completion is to use `std::packaged_task` or `std::promise` with
 `std::future`.
 *        Here is an example of how to use `std::promise` to wait task completion and process task's exceptions:
  * @snippet example_itask_executor.cpp itask_executor:define_pipeline
  */
-class INFERENCE_ENGINE_API_CLASS(ITaskExecutor) {
+class INFERENCE_ENGINE_API_CLASS(ITaskExecutor) : virtual public ov::threading::ITaskExecutor {
 public:
     /**
      * A shared pointer to ITaskExecutor interface
@@ -54,12 +54,6 @@ public:
      * @brief      Destroys the object.
      */
     virtual ~ITaskExecutor() = default;
-
-    /**
-     * @brief Execute InferenceEngine::Task inside task executor context
-     * @param task A task to start
-     */
-    virtual void run(Task task) = 0;
 
     /**
      * @brief Execute all of the tasks and waits for its completion.

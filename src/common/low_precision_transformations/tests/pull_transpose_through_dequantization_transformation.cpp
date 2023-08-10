@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,7 @@ public:
         const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
         decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+        decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
@@ -126,7 +126,12 @@ TEST_P(PullTransposeThroughDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::Shape> inputShapes = {ngraph::Shape({1, 960, 7, 7}), ngraph::Shape({4, 960, 7, 7})};
+// clang-format off
+
+const std::vector<ngraph::Shape> inputShapes = {
+    ngraph::Shape({1, 960, 7, 7}),
+    ngraph::Shape({4, 960, 7, 7})
+};
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
     {ngraph::Shape({}), ngraph::Shape({1, 1, 1, 1})},
@@ -178,37 +183,54 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
     //             \         /
     //               Multiply
     //
-    {LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-     // ActualValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {3, 3, 960, 1}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false},
-       {{0.03f}, element::f32, {/* from parameter */}, false}},
-      {},  // reshape1
-      {},  // multiply
-      {{2, 3, 0, 1}},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}},
-     // ExpectedValues
-     {ngraph::element::u8,
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
-       {{0.02f}, element::f32, {}, false}},
-      {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
-      {{ngraph::element::f32, false},
-       {{127.f}, element::f32, {/* from parameter */}, false},
-       {{0.03f}, element::f32, {/* from parameter */}, false}},
-      {},
-      {},
-      {},
-      {{960, 1, 1, 3, 3}},
-      ngraph::element::f32,
-      {}}}};
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32, false},
+                {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+                {{0.02f}, element::f32, {}, false}
+            },
+            {std::vector<float>{2.f}, ngraph::element::i8, {3, 3, 960, 1}},
+            {
+                {ngraph::element::f32, false},
+                {{127.f}, element::f32, {/* from parameter */}, false},
+                {{0.03f}, element::f32, {/* from parameter */}, false}
+            },
+            {},  // reshape1
+            {},  // multiply
+            {{2, 3, 0, 1}},
+            {{960, 1, 1, 3, 3}},
+            ngraph::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32, false},
+                {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
+                {{0.02f}, element::f32, {}, false}
+            },
+            {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
+            {
+                {ngraph::element::f32, false},
+                {{127.f}, element::f32, {/* from parameter */}, false},
+                {{0.03f}, element::f32, {/* from parameter */}, false}
+            },
+            {},
+            {},
+            {},
+            {{960, 1, 1, 3, 3}},
+            ngraph::element::f32,
+            {}
+        }
+    }
+};
+
+// clang-format on
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          PullTransposeThroughDequantizationTransformation,

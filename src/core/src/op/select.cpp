@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/select.hpp"
 
 #include <memory>
-#include <ngraph/validation_util.hpp>
-#include <select_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/not.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/validation_util.hpp"
+#include "select_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -41,11 +40,10 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2)};
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -61,6 +59,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace detail {
 namespace {
 template <element::Type_t ET>
@@ -118,10 +117,20 @@ bool evaluate_select(const HostTensorVector& output_values,
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Select_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+}
+
+bool op::v1::Select::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Select::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Select::has_evaluate() const {

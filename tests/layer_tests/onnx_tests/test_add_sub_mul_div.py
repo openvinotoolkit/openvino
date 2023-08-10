@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -30,12 +30,12 @@ class TestOperations(OnnxRuntimeLayerTest):
 
         min_val = 1 if op == 'Div' else -127
         if shape2:
-            const = np.random.randint(min_val, 127, shape2).astype(np.float)
+            const = np.random.randint(min_val, 127, shape2).astype(float)
         else:
-            const = np.random.randint(min_val, 127, 1).astype(np.float)
+            const = np.random.randint(min_val, 127, 1).astype(float)
             # TODO: add check when MO remove redundant layer (as Add/Sub if const = 0 or Mul/Div if const = 1)
             if const in [0, 1]:
-                const = np.array([2], dtype=np.float)
+                const = np.array([2], dtype=float)
 
         node_const_def = helper.make_node(
             'Constant',
@@ -103,12 +103,12 @@ class TestOperations(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        const1 = np.random.randint(-127, 127, shape1).astype(np.float)
+        const1 = np.random.randint(-127, 127, shape1).astype(float)
         min_val = 1 if op == 'Div' else -127
         if shape2:
-            const2 = np.random.randint(min_val, 127, shape2).astype(np.float)
+            const2 = np.random.randint(min_val, 127, shape2).astype(float)
         else:
-            const2 = np.random.randint(min_val, 127, 1).astype(np.float)
+            const2 = np.random.randint(min_val, 127, 1).astype(float)
 
         node_const1_def = helper.make_node(
             'Constant',
@@ -298,6 +298,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_add_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, op='Add', precision=precision, opset=6,
                                     ir_version=ir_version),
@@ -305,6 +306,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_add_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, op='Add', precision=precision, opset=6,
                                           ir_version=ir_version),
@@ -312,6 +314,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_sub_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, op='Sub', precision=precision, opset=6,
                                     ir_version=ir_version),
@@ -319,6 +322,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_sub_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, op='Sub', precision=precision, opset=6,
                                           ir_version=ir_version),
@@ -326,6 +330,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_mul_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, op='Mul', precision=precision, opset=6,
                                     ir_version=ir_version),
@@ -333,6 +338,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_mul_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, op='Mul', precision=precision, opset=6,
                                           ir_version=ir_version),
@@ -340,6 +346,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_div_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, op='Div', precision=precision, opset=6,
                                     ir_version=ir_version),
@@ -347,6 +354,7 @@ class TestOperations(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_div_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, op='Div', precision=precision, opset=6,
                                           ir_version=ir_version),

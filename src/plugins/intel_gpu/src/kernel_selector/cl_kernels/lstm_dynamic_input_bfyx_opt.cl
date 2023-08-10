@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 #include "include/sub_group.cl"
@@ -36,7 +37,7 @@
 #define INC_OFFSET(_offset, _value) _offset += _value
 #define SIMD_SIZE 8
 
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(lstm_dynamic_input_bfyx_opt)(
     const __global INPUT0_TYPE* input,
     const __global DYN_LENGTH_TYPE* dyn_lengths,
@@ -91,14 +92,14 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
         UNIT_TYPE8 BLOCK_W7 = UNIT_BLOCK_READ8(weights, calcuation_offset); INC_OFFSET(calcuation_offset, WEIGHTS_SIZE_Y);
 
         UNIT_TYPE input_value = input[input_offset];
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 0), BLOCK_W0);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 1), BLOCK_W1);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 2), BLOCK_W2);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 3), BLOCK_W3);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 4), BLOCK_W4);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 5), BLOCK_W5);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 6), BLOCK_W6);
-        MAD_1X8(dot_prod, intel_sub_group_shuffle(input_value, 7), BLOCK_W7);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 0), BLOCK_W0);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 1), BLOCK_W1);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 2), BLOCK_W2);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 3), BLOCK_W3);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 4), BLOCK_W4);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 5), BLOCK_W5);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 6), BLOCK_W6);
+        MAD_1X8(dot_prod, _sub_group_shuffle(input_value, 7), BLOCK_W7);
 
         input_offset += SIMD_SIZE;
     }

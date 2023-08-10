@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SoftPlus : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("SoftPlus", "opset4", util::UnaryElementwiseArithmetic, 4);
+    OPENVINO_OP("SoftPlus", "opset4", util::UnaryElementwiseArithmetic);
 
     SoftPlus() = default;
     /// \brief Constructs an SoftPlus operation.

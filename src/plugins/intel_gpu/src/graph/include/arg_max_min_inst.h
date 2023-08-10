@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "primitive_inst.h"
@@ -20,11 +19,7 @@ public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
     program_node& input() const { return get_dependency(0); }
 
-    uint32_t get_output_nums() const {
-        return (get_primitive()->input_size() == 3 ? 2 : get_primitive()->output_size());
-    }
-    bool has_second_output() const { return get_output_nums() == 2; }
-    bool use_multiple_outputs() const { return get_primitive()->input_size() != 3; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using arg_max_min_node = typed_program_node<arg_max_min>;

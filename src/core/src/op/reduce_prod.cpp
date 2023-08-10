@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/reduce_prod.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
@@ -21,23 +20,20 @@ op::v1::ReduceProd::ReduceProd(const Output<Node>& arg, const Output<Node>& redu
     constructor_validate_and_infer_types();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::ReduceProd::get_default_value() const {
-    return ngraph::make_constant_from_string("1", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_ReduceProd_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ReduceProd>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reduce_prod {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     runtime::reference::product(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
@@ -62,11 +58,13 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceProd_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return reduce_prod::evaluate_product(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
@@ -87,22 +85,22 @@ bool op::v1::ReduceProd::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
-                  ub = input_value(0).get_tensor().get_upper_value();
-    if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
+
+    const auto &lb = input_value(0).get_tensor().get_lower_value(), ub = input_value(0).get_tensor().get_upper_value();
+    if (!lb || !ub || !tensor_is_positive(lb) || !tensor_is_positive(ub))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

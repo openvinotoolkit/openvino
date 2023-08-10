@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceL1 : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceL1", "opset4", util::ArithmeticReductionKeepDims, 4);
+    OPENVINO_OP("ReduceL1", "opset4", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a reducet L1-norm operation.
     ReduceL1() = default;
     /// \brief Constructs a reduce L1-norm operation.
@@ -25,11 +25,6 @@ public:
     /// \param reduction_axes The axis positions (0-based) to be eliminated.
     /// \param keep_dims If set to true it holds axes that are used for reduction.
     ReduceL1(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims = false);
-
-    /// \return The default value for Reduce.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

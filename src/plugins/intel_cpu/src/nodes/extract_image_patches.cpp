@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
@@ -266,10 +266,11 @@ private:
     void prepare_table() {
         align(64);
         L(gather_index_table);
-        for (int32_t i = 0; i < vlen / sizeof(int32_t); i++)
+        for (size_t i = 0; i < vlen / sizeof(int32_t); i++)
             dd(i * jpp.SW * jpp.dtype_size);
     }
 };
+#endif // OPENVINO_ARCH_X86_64
 
 bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -283,7 +284,7 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Does not support pad type: " + ngraph::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
+        if (!everyone_is(2u, extImgPatcher->get_sizes().size(), extImgPatcher->get_strides().size(), extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
@@ -327,8 +328,8 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -398,7 +399,7 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.prcSize);
         }
     };
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }
@@ -418,10 +419,10 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute(dnnl::stream strm) {
     if (execPtr) {
-        auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
-        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
-        const auto inStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto src = getParentEdgeAt(0)->getMemoryPtr()->getData();
+        auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData();
+        const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
         IE_THROW() << "Can't execute extract image patches node. Primitive wasn't created";
@@ -440,8 +441,8 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
     const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = kw * RW - PL;
-        const int64_t ih_start = kh * RH - PT;
+        const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
+        const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
 
@@ -481,6 +482,7 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
+#if defined(OPENVINO_ARCH_X86_64)
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
     const auto& jpp = pKernel->jpp;
@@ -507,6 +509,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
         args.w_hi_pad = iw_hpad;
         (*pKernel)(&args);
     });
+#endif // OPENVINO_ARCH_X86_64
 }
 
 jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecutor::fillJpp(
@@ -585,6 +588,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     const VectorDims& rates,
     const ExtImgPatcherPadType& padType,
     const size_t prcSize) {
+#if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
         pKernel.reset(new jit_extract_image_patches_kernel<x64::avx512_core>(jpp));
@@ -598,6 +602,7 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 
     if (pKernel)
         pKernel->create_ker();
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(

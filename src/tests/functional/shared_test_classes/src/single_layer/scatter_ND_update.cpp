@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
     std::tie(shapeDescript, inputPrecision, indicesPrecision, targetName) = obj.param;
     std::tie(inShape, indicesShape, indicesValue, updateShape) = shapeDescript;
     std::ostringstream result;
-    result << "InputShape=" << CommonTestUtils::vec2str(inShape) << "_";
-    result << "IndicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
-    result << "UpdateShape=" << CommonTestUtils::vec2str(updateShape) << "_";
+    result << "InputShape=" << ov::test::utils::vec2str(inShape) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(indicesShape) << "_";
+    result << "UpdateShape=" << ov::test::utils::vec2str(updateShape) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";
     result << "targetDevice=" << targetName << "_";

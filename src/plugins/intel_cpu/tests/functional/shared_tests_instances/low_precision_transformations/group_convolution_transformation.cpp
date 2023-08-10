@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -41,6 +42,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         0,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -50,6 +52,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "Convolution",
         "U8"
     },
@@ -59,27 +62,142 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         {
             256ul,
-            ngraph::Shape { 6, 1, 1, 1 },
+            {/* will be filled in automatically */},
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f }
         },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-        "",
-        ""
+        true,
+        "Convolution",
+        "U8"
+    },
+    // group convolution without reshape, tensor quantization
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        false,
+        "Convolution",
+        "U8"
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
-         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
          ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::ValuesIn(addPrecisionPreserved)),
          GroupConvolutionTransformation::getTestCaseName);
+
+namespace test_values_4d {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 6, 24, 24 }, { 1, 24, 18, 18 }},
+};
+
+const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
+    // group convolution without reshape, per channel quantization
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 3, 8, 1, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
+        false,
+        "Convolution",
+        "U8"
+    },
+    // group convolution without reshape, per channel quantization with different values
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 3, 8, 1, 1, 1 },
+            {-127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f},
+            {127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f},
+            {-127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f},
+            {127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f}
+        },
+        false,
+        "Convolution",
+        "U8"
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+     ::testing::Combine(
+         ::testing::ValuesIn(netPrecisions),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
+         ::testing::ValuesIn(trasformationParamValues),
+         ::testing::ValuesIn(inputShapes),
+         ::testing::ValuesIn(params),
+         ::testing::Values(false)),
+         GroupConvolutionTransformation::getTestCaseName);
+}  // namespace test_values_4d
+
+namespace test_values_3d {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{ 1, 6, 24 }, { 1, 24, 18 }},
+};
+
+const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
+    // group convolution without reshape, per channel quantization
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 3, 8, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
+        false,
+        "Convolution",
+        "U8"
+    },
+    // group convolution without reshape, per channel quantization with different values
+    {
+        3ul,
+        -1,
+        { 256ul, ngraph::Shape { 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, ngraph::Shape { 3, 8, 1, 1 },
+            {-127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f},
+            {127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f},
+            {-127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f,
+             -127.f, -12.7f, -1.27f, -127.f, -12.7f, -1.27f, -127.f, -12.7f},
+            {127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f,
+             127.f, 12.7f, 1.27f, 127.f, 12.7f, 1.27f, 127.f, 12.7f}
+        },
+        false,
+        "Convolution",
+        "U8"
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+     ::testing::Combine(
+         ::testing::ValuesIn(netPrecisions),
+         ::testing::Values(ov::test::utils::DEVICE_CPU),
+         ::testing::ValuesIn(trasformationParamValues),
+         ::testing::ValuesIn(inputShapes),
+         ::testing::ValuesIn(params),
+         ::testing::Values(false)),
+         GroupConvolutionTransformation::getTestCaseName);
+}  // namespace test_values_3d
 
 namespace depthwise {
 const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
@@ -94,6 +212,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "",
         ""
     },
@@ -103,13 +222,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         {
             256ul,
-            ngraph::Shape { 6, 1, 1, 1 },
+            {/* will be filled in automatically */},
             { 0.f },
             { 25.5f },
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f }
         },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "",
         ""
     },
@@ -119,13 +239,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         -1,
         {
             256ul,
-            ngraph::Shape { 6, 1, 1, 1 },
+            {/* will be filled in automatically */},
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f },
             { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f },
             { 25.5f, 25.5f, 25.5f / 2.f, 25.5f / 2.f, 25.5f / 4.f, 25.5f / 4.f }
         },
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        true,
         "",
         ""
     }
@@ -134,7 +255,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
@@ -142,4 +263,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     GroupConvolutionTransformation::getTestCaseName);
 } // namespace depthwise
 
+namespace i8_3d {
+const std::vector<std::pair<ngraph::PartialShape, ngraph::Shape>> inputShapes = {
+    {{1, 6, 1, 24, 24}, {1, 24, 1, 18, 18}},
+    {{1, 24, 8, 12, 12}, {1, 24, 1, 1, 1}}
+};
+
+const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
+    // group convolution, tensor quantization
+    {
+        3ul,
+        -1,
+        {256ul, ngraph::Shape{1, 1, 1, 1, 1}, {-12.8f}, {12.7f}, {-12.8f}, {12.7f}},
+        {255ul, ngraph::Shape { 1, 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f }},
+        true,
+        "Convolution",
+        "I8"
+    },
+};
+
+const std::vector<bool> addPrecisionPreserved = {false};
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(params),
+        ::testing::ValuesIn(addPrecisionPreserved)),
+    GroupConvolutionTransformation::getTestCaseName);
+}  // namespace i8_3d
 }  // namespace
+

@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "normalize_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "normalize_inst.h"
 #include "normalize/normalize_kernel_selector.h"
 #include "normalize/normalize_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -30,8 +24,8 @@ struct normalize_impl : typed_primitive_impl_ocl<normalize> {
     }
 
 protected:
-     kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+     kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         args.scale_table = instance.scale_memory();
         return args;
     }
@@ -78,3 +72,4 @@ attach_normalize_impl::attach_normalize_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::normalize_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::normalize)

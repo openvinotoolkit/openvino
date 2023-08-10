@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -64,6 +64,8 @@ private:
     int32_t m_keepTopK = 0;
     float m_nmsEta = 0.0f;
     bool m_normalized = true;
+
+    bool m_outStaticShape = false;
 
     std::string m_errorPrefix;
 

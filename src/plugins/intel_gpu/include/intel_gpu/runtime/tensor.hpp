@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include "format.hpp"
 #include "compounds.hpp"
 #include "utils.hpp"
+
+#include <openvino/core/partial_shape.hpp>
 
 #include <map>
 #include <list>
@@ -29,7 +31,7 @@ namespace cldnn {
 
 constexpr int32_t tensor_batch_dim_max = 1;
 constexpr int32_t tensor_feature_dim_max = 1;
-constexpr int32_t tensor_spatial_dim_max = 4;
+constexpr int32_t tensor_spatial_dim_max = 6;
 constexpr int32_t tensor_group_dim_max = 1;
 constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_group_dim_max;
 
@@ -318,6 +320,15 @@ public:
         return os;
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_range(seed, batch.begin(),      batch.end());
+        seed = hash_range(seed, feature.begin(),    feature.end());
+        seed = hash_range(seed, spatial.begin(),    spatial.end());
+        seed = hash_range(seed, group.begin(),      group.end());
+        return seed;
+    }
+
     std::string to_string() const {
         std::stringstream out;
         const char* delim = "";
@@ -335,7 +346,7 @@ public:
             delim = ",";
         }
 
-        std::vector<std::string> spatial_dim_names = {", x", ", y", ", z", ", w"};
+        std::vector<std::string> spatial_dim_names = {", x", ", y", ", z", ", w", ", u", ", v"};
         for (size_t i = 0; i < spatial.size(); ++i) {
             out << spatial_dim_names[i] << ":" << spatial[i];
         }
@@ -460,84 +471,45 @@ public:
        * @endcode
      */
     tensor transform(cldnn::format new_fmt, value_type default_size) const {
-        cldnn::format format = cldnn::format::bfwzyx;
-        auto val_order = format.internal_order();
+        cldnn::format default_fmt = cldnn::format::bfvuwzyx;
+        auto val_order = default_fmt.internal_order();
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
-        auto tmp = 1;
-        auto tmp_z = 1;
-        auto tmp_w = 1;
-        for (size_t i = 0; i < format.order().size(); i++) {
-            auto c = val_order[i];
-            // skip f and y, z for the formats that do not have it
-            if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
-                 (new_fmt == format::bs_xs_xsv8_bsv16) ||
-                 (new_fmt == format::os_i_osv8__ai8) ||
-                 (new_fmt == format::os_i_osv16__ai8) ||
-                 (new_fmt == format::bs_x_bsv16)) &&
-                ((c == 'f') ||
-                 (c == 'y') ||
-                 (c == 'z') ||
-                 (c == 'w'))) {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
+        const auto& new_traits = format::traits(new_fmt);
+        static const std::map<char, char> flatten_mapping = {
+            { 'v', 'u'},
+            { 'u', 'w'},
+            { 'w', 'z'},
+            { 'z', 'y'}
+        };
 
-                tmp *= old_sizes[i];
-                continue;
+        for (size_t i = 0; i < default_fmt.order().size(); i++) {
+            auto target_dim = val_order[i]; //bfxywzuv
+            while (!new_traits.has_dimension(target_dim)) {
+                if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
+                    target_dim = flatten_mapping.at(target_dim);
+                } else {
+                    target_dim = new_fmt.order().back();
+                }
             }
 
-            // skip z for the formats that do not have it
-            if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 && new_fmt != format::bzyxf &&
-                  new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16 && new_fmt != format::bs_fs_zyx_bsv16_fsv32 &&
-                  new_fmt != format::bs_fs_zyx_bsv32_fsv16 && new_fmt != format::bs_fs_zyx_bsv32_fsv32 &&
-                  new_fmt != format::b_fs_zyx_fsv2 && new_fmt != format::b_fs_zyx_fsv4 &&
-                  new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4 &&
-                  new_fmt != format::bs_fs_zyx_bsv16_fsv2 && new_fmt != format::bs_fs_zyx_bsv16_fsv4)) && (c == 'z')) {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                tmp_z *= old_sizes[i];
-                continue;
+            auto new_pos = new_order.find(target_dim);
+            if (new_pos != std::string::npos) {
+                if (new_sizes[new_pos] == -1) {
+                    new_sizes[new_pos] = old_sizes[i];
+                } else {
+                    new_sizes[new_pos] *= old_sizes[i];
+                }
             }
-
-            if (new_fmt != format::bfwzyx && c == 'w') {
-                if (new_order[i] == '?')
-                    new_sizes[i] = default_size;
-
-                if (new_fmt == format::bfzyx || new_fmt == format::b_fs_zyx_fsv16 ||
-                    new_fmt == format::bs_fs_zyx_bsv16_fsv16 || new_fmt == format::b_fs_zyx_fsv32 ||
-                    new_fmt == format::bs_fs_zyx_bsv16_fsv32)
-                    tmp_w *= old_sizes[i];
-                else
-                    tmp_z *= old_sizes[i];
-                continue;
-            }
-
-            auto new_pos = new_order.find(c);
-            if (new_pos == std::string::npos)
-                throw std::invalid_argument("cannot convert to new format");
-            new_sizes[new_pos] = old_sizes[i];
         }
 
-        // in case of formats with smaller number of dimensions than input, flatten is performed below
-        if (tmp != 1 || tmp_z != 1 || tmp_w != 1) {
-            for (size_t i = 0; i < format.order().size(); i++) {
-                auto c = val_order[i];
-                if (c == 'x') {
-                    auto new_pos = new_order.find(c);
-                    new_sizes[new_pos] *= tmp;
-                }
-                if (c == 'y') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_z;
-                }
-                if (c == 'z') {
-                    auto new_pos = new_order.find(c);
-                    if (new_pos != std::string::npos)
-                        new_sizes[new_pos] *= tmp_w;
-                }
+        for (size_t i = 0; i < new_order.size(); i++) {
+            auto c = new_order[i]; //bfxywz
+            if (c == '?')
+                continue;
+            if (new_sizes[i] == -1) {
+                new_sizes[i] = 1;
             }
         }
 
@@ -641,6 +613,21 @@ public:
             offset = offset * my_sizes[i] + adjusted_coords[i];
         }
         return offset;
+    }
+
+    /// @brief Returns partial shape of the requested rank
+    /// @param rank The requested rank of partial shape
+    /// @param format_dims Number of actual dimensions for layout's format
+    ov::PartialShape get_partial_shape(size_t rank, size_t format_dims) const {
+        ov::Shape shape;
+        size_t i = 0;
+        for (; i < std::min(static_cast<size_t>(2), rank); ++i) {
+            shape.push_back(_sizes[i]);
+        }
+        for (; i < rank; ++i) {
+            shape.push_back(_sizes[format_dims - (i - 2) - 1]);
+        }
+        return ov::PartialShape(shape);
     }
 
     /// @brief Returns a tensor containing values maximum from @p lhs and @p rhs.

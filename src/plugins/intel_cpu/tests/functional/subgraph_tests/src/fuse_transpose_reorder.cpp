@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<
     Precision inPrec;
     std::tie(inputShape, inPrec) = obj.param;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "Precision=" << inPrec.name();
 
     return result.str();
@@ -44,7 +44,7 @@ void FuseTransposeAndReorderTest::CheckTransposeCount(size_t expectedTransposeCo
 }
 
 void FuseTransposeAndReorderTest::SetUp() {
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     std::tie(inputShape, inPrec) = this->GetParam();
     CreateGraph();
@@ -318,19 +318,19 @@ void FuseTransposeAndReorderTest4::CreateGraph() {
     auto memFmt = nhwc;
 
     auto inputParams = ngraph::builder::makeParams(ngPrc, {inputShape});
-    const auto relu = std::make_shared<ov::opset8::Relu>(inputParams[0]);
-    const auto transposeOrder = ov::opset8::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
-    const auto transpose1 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    const auto relu = std::make_shared<ov::op::v0::Relu>(inputParams[0]);
+    const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
+    const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv1 = ngraph::builder::makeConvolution(transpose1, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv1->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto transpose2 = std::make_shared<ov::opset8::Transpose>(relu, transposeOrder);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
     const auto conv2 = ngraph::builder::makeConvolution(transpose2, ngPrc, kernel, stride, padBegin,
                                                     padEnd, dilation, ngraph::op::PadType::AUTO, convOutChannels);
     conv2->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
-    const auto add = std::make_shared<ov::opset8::Add>(conv1, conv2);
+    const auto add = std::make_shared<ov::op::v1::Add>(conv1, conv2);
 
-    ov::ResultVector results{std::make_shared<ov::opset8::Result>(add->output(0))};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add->output(0))};
     function = std::make_shared<ov::Model>(results, inputParams, "TransposeReorder");
 }
 

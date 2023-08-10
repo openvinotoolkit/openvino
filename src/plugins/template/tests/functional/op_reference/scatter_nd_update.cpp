@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,4 +198,53 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedParams() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs, ReferenceScatterNDUpdateLayerTest,
     testing::ValuesIn(generateScatterNDUpdateCombinedParams()), ReferenceScatterNDUpdateLayerTest::getTestCaseName);
+
+class ReferenceScatterNDUpdateLayerNegativeTest : public ReferenceScatterNDUpdateLayerTest{
+};
+
+TEST_P(ReferenceScatterNDUpdateLayerNegativeTest, CompareWithRefsNegative) {
+    LoadNetwork();
+    FillInputs();
+    inferRequest = executableNetwork.create_infer_request();
+    const auto& functionParams = function->get_parameters();
+
+    for (size_t i = 0; i < functionParams.size(); ++i) {
+        inferRequest.set_tensor(executableNetwork.input(i), inputData[i]);
+    }
+
+    ASSERT_THROW(inferRequest.infer(), ov::Exception);
+}
+
+template <element::Type_t IN_ET, element::Type_t IU_ET>
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateNegativeParams() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    using U = typename element_type_traits<IU_ET>::value_type;
+    std::vector<ScatterNDUpdateParams> scatterParams {
+        // scatter_nd_update_2x3_with_out_of_bounds_index
+        ScatterNDUpdateParams(reference_tests::Tensor({2, 3}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                              reference_tests::Tensor({1, 2}, IU_ET, std::vector<U>{1, 3}),
+                              reference_tests::Tensor({1}, IN_ET, std::vector<T>{10}),
+                              reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
+                              "scatter_nd_update_2x3_with_out_of_bounds_index"),
+    };
+    return scatterParams;
+}
+
+std::vector<ScatterNDUpdateParams> generateScatterNDUpdateCombinedNegativeParams() {
+    const std::vector<std::vector<ScatterNDUpdateParams>> scatterTypeParams {
+        generateScatterNDUpdateNegativeParams<element::Type_t::f32, element::Type_t::i64>()
+    };
+    std::vector<ScatterNDUpdateParams> combinedParams;
+
+    for (const auto& params : scatterTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterNDUpdate_With_Hardcoded_Refs, ReferenceScatterNDUpdateLayerNegativeTest,
+    testing::ValuesIn(generateScatterNDUpdateCombinedNegativeParams()), ReferenceScatterNDUpdateLayerNegativeTest::getTestCaseName);
+
+
 } // namespace

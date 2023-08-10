@@ -1,16 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define SIMD 16
 #define FSV 16
-#define unroll_for  __attribute__((opencl_unroll_hint(READ_OFFSET))) for
-
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
 
 #if !defined REDUCE_BATCH
     #define REDUCE_BATCH 0
@@ -100,11 +95,11 @@ inline ACCUMULATOR_TYPE FUNC(sub_group_reduce)(ACCUMULATOR_TYPE acc) {
             acc = sub_group_reduce_min(acc);
         #elif REDUCE_PROD_MODE
             ACCUMULATOR_TYPE next = ACCUMULATOR_VAL_ONE;
-            acc *= intel_sub_group_shuffle_down(acc, next, 8);
-            acc *= intel_sub_group_shuffle_down(acc, next, 4);
-            acc *= intel_sub_group_shuffle_down(acc, next, 2);
-            acc *= intel_sub_group_shuffle_down(acc, next, 1);
-            acc  = intel_sub_group_shuffle(acc, 0);
+            acc *= _sub_group_shuffle_down(acc, next, 8);
+            acc *= _sub_group_shuffle_down(acc, next, 4);
+            acc *= _sub_group_shuffle_down(acc, next, 2);
+            acc *= _sub_group_shuffle_down(acc, next, 1);
+            acc  = _sub_group_shuffle(acc, 0);
         #elif REDUCE_AND_MODE
             acc = sub_group_all(acc);
         #elif REDUCE_OR_MODE
@@ -142,7 +137,7 @@ inline uint FUNC(calc_linear_offset)(uint b, uint f, uint y, uint x) {
     return index;
 }
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(reduce_fsv16)(
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output
@@ -161,7 +156,7 @@ KERNEL(reduce_fsv16)(
     const uint xy   = (uint)get_global_id(1) * READ_OFFSET;
     const uint x    = xy % ALIGN(COMMON_OUTPUT_SIZE_X, READ_OFFSET);
     const uint y    = xy / ALIGN(COMMON_OUTPUT_SIZE_X, READ_OFFSET);
-#endif
+#endif  // !IS_REDUCE_XY
     const uint bf   = (uint)get_global_id(2) * SIMD;
     const uint b    = bf / ALIGN(COMMON_OUTPUT_FEATURE_NUM, SIMD);
     const uint f    = bf % ALIGN(COMMON_OUTPUT_FEATURE_NUM, SIMD);
@@ -257,7 +252,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
                     INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
-                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0) && !ZERO_INVARIANT_REDUCTION
                         if (fi + FSV <= INPUT0_FEATURE_NUM)
                             input = BLOCK_READ(data, offset);
                         else
@@ -274,7 +269,7 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
                 #if INPUT0_SIZE_X % READ_OFFSET != 0
                     for (uint xi = x_leftover_start; xi < x_leftover_end; ++xi) {
                         INPUT0_TYPE leftovers = INIT_VAL;
-                        #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0)
+                        #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0) && !ZERO_INVARIANT_REDUCTION
                             if (fi + FSV <= INPUT0_FEATURE_NUM)
                                 leftovers = DT_INPUT_BLOCK_READ(data, offset);
                             else
@@ -335,13 +330,25 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
         if (get_sub_group_local_id() == 0)
             output[out_idx] = final_result;
     #endif
-#else
+#else  // !REDUCE_X
     ACCUMULATOR_VEC acc = (ACCUMULATOR_VEC)(INIT_VAL);
     for (uint bi = batch_out; bi < batch_max_val; ++bi) {
         for (uint fi = feature_out; fi < feature_max_val; fi += FSV) {
+
             for (uint yi = y_out; yi < y_max_val; ++yi) {
                 for (uint xi = x_out; xi < x_max_val; ++xi) {
-                    INPUT_VEC input = BLOCK_READ(data, offset);
+                    #if REDUCE_FEATURE && (INPUT0_FEATURE_NUM % FSV != 0) && !ZERO_INVARIANT_REDUCTION
+                        INPUT_VEC input = (INPUT_VEC)(INPUT_INIT_VAL);
+                        if (fi + FSV <= INPUT0_FEATURE_NUM)
+                            input = BLOCK_READ(data, offset);
+                        else
+                            if (fi + get_sub_group_local_id() < INPUT0_FEATURE_NUM)
+                                for (int i = 0; i < READ_OFFSET; ++i)
+                                    input[i] = data[offset + get_sub_group_local_id() + i * get_max_sub_group_size()];
+                    #else
+                        INPUT_VEC input = BLOCK_READ(data, offset);
+                    #endif
+
                     unroll_for (int i = 0; i < READ_OFFSET; ++i)
                         acc[i] = FUNC_CALL(apply_reduce)(acc[i], input[i]);
                     offset += input_x_pitch;
@@ -401,12 +408,11 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
             #endif
         }
     }
-#endif
+#endif  // !REDUCE_X
 }
 
 #undef SIMD
 #undef FSV
-#undef unroll_for
 #undef BLOCK_READ
 #undef READ_OFFSET
 #undef INPUT_VEC

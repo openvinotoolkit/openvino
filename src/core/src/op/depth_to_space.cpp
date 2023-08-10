@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace ngraph;
 
@@ -36,22 +37,20 @@ bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor) {
 
 std::shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_DepthToSpace_clone_with_new_inputs);
-    if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
-    }
+    check_new_args_count(this, new_args);
     return std::make_shared<DepthToSpace>(new_args.at(0), m_mode, m_blocksize);
 }
 
 void op::DepthToSpace::validate_and_infer_types() {
     OV_OP_SCOPE(v0_DepthToSpace_validate_and_infer_types);
 
-    const auto& data_type = get_input_element_type(0);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_type, output_shapes[0]);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_depth_to_space(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
@@ -78,6 +77,7 @@ bool op::DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTenso
     OV_OP_SCOPE(v0_DepthToSpace_evaluate);
     return evaluate_depth_to_space(outputs, inputs, m_blocksize, m_mode);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::DepthToSpace::has_evaluate() const {
     OV_OP_SCOPE(v0_DepthToSpace_has_evaluate);
@@ -86,6 +86,14 @@ bool op::DepthToSpace::has_evaluate() const {
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::op::v0::DepthToSpace::DepthToSpaceMode& type) {
     return s << as_string(type);
+}
+
+void op::v0::DepthToSpace::set_block_size(size_t block_size) {
+    m_blocksize = block_size;
+}
+
+void op::v0::DepthToSpace::set_mode(DepthToSpaceMode mode) {
+    m_mode = mode;
 }
 
 namespace ov {

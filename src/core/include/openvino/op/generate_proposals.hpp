@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,8 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+
+    void set_attrs(Attributes attrs);
 
     const element::Type& get_roi_num_type() const {
         return m_roi_num_type;

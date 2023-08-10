@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,10 @@
 #include "openvino/runtime/common.hpp"
 #include "system_allocator.hpp"  // IE private header
 
+IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 struct BlobAllocator : public IAllocator {
-    BlobAllocator(const std::shared_ptr<ov::AllocatorImpl>& impl) : _impl{impl} {}
+    BlobAllocator(const ov::Allocator& impl) : _impl{impl} {}
 
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
@@ -22,7 +23,7 @@ struct BlobAllocator : public IAllocator {
 
     void* alloc(const size_t size) noexcept override {
         try {
-            return size_map.emplace(_impl->allocate(size), size).first->first;
+            return size_map.emplace(_impl.allocate(size), size).first->first;
         } catch (...) {
             return nullptr;
         }
@@ -32,24 +33,23 @@ struct BlobAllocator : public IAllocator {
         try {
             auto size = size_map.at(handle);
             size_map.erase(handle);
-            _impl->deallocate(handle, size);
+            _impl.deallocate(handle, size);
             return true;
         } catch (...) {
             return false;
         }
     }
 
-    std::shared_ptr<ov::AllocatorImpl> _impl;
+    ov::Allocator _impl;
     std::unordered_map<void*, size_t> size_map;
 };
 }  // namespace InferenceEngine
 
 namespace ov {
-struct BlobAllocator : public runtime::AllocatorImpl {
-    BlobAllocator(const std::shared_ptr<ie::IAllocator>& impl = std::make_shared<ie::SystemMemoryAllocator>())
-        : _impl{impl} {}
+struct BlobAllocator {
+    BlobAllocator() : _impl{std::make_shared<ie::SystemMemoryAllocator>()} {}
 
-    void* allocate(const size_t bytes, const size_t alignment) override {
+    void* allocate(const size_t bytes, const size_t alignment) {
         OPENVINO_ASSERT(alignment == alignof(max_align_t),
                         "Aligned deallocation is not implemented. alignment: ",
                         alignment);
@@ -58,7 +58,7 @@ struct BlobAllocator : public runtime::AllocatorImpl {
         return handle;
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) override {
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
         OPENVINO_ASSERT(bytes == 0, "Sized deallocation is not implemented. bytes: ", bytes);
         OPENVINO_ASSERT(alignment == alignof(max_align_t),
                         "Aligned deallocation is not implemented. alignment: ",
@@ -67,14 +67,10 @@ struct BlobAllocator : public runtime::AllocatorImpl {
         OPENVINO_ASSERT(res != false, "Can not deallocate storage");
     }
 
-    bool is_equal(const AllocatorImpl& other) const override {
-        auto other_blob_allocator = dynamic_cast<const BlobAllocator*>(&other);
-        if (other_blob_allocator == nullptr)
-            return false;
-        if (other_blob_allocator->_impl == _impl)
+    bool is_equal(const BlobAllocator& other) const {
+        if (other._impl == _impl)
             return true;
-        auto other_system_memory_allocator =
-            dynamic_cast<const ie::SystemMemoryAllocator*>(other_blob_allocator->_impl.get());
+        auto other_system_memory_allocator = dynamic_cast<const ie::SystemMemoryAllocator*>(other._impl.get());
         auto system_allocator = dynamic_cast<const ie::SystemMemoryAllocator*>(_impl.get());
         if (system_allocator != nullptr && other_system_memory_allocator != nullptr)
             return true;
@@ -84,3 +80,4 @@ struct BlobAllocator : public runtime::AllocatorImpl {
     std::shared_ptr<ie::IAllocator> _impl;
 };
 }  // namespace ov
+IE_SUPPRESS_DEPRECATED_END

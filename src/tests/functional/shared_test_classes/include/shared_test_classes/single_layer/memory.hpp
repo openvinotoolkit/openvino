@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,13 @@ protected:
         return std::make_shared<ngraph::opset6::Assign>(value, variable);
     }
 
+    virtual void CreateCommonFunc();
+
+    ov::element::Type ngPrc;
+    ov::Shape inputShape;
+
 private:
     void CreateTIFunc();
-    void CreateCommonFunc();
     void ApplyLowLatency();
 
     InferenceEngine::Precision netPrecision;
@@ -52,8 +56,6 @@ private:
     ngraph::helpers::MemoryTransformation transformation;
 
     int64_t iteration_count;
-    ngraph::element::Type ngPrc;
-    InferenceEngine::SizeVector inputShape;
 };
 
 class MemoryTestV3 : public MemoryTest {

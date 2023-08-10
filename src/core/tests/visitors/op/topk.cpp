@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/opsets/opset11.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -52,4 +52,26 @@ TEST(attributes, topk_v3_op) {
     EXPECT_EQ(g_topk->get_mode(), topk->get_mode());
     EXPECT_EQ(g_topk->get_sort_type(), topk->get_sort_type());
     EXPECT_EQ(g_topk->get_index_element_type(), topk->get_index_element_type());
+}
+
+TEST(attributes, topk_v11_op) {
+    NodeBuilder::get_ops().register_factory<ov::opset11::TopK>();
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 1, 3, 7});
+    const auto k = make_shared<op::Parameter>(element::i32, Shape{});
+
+    const auto axis = 0;
+    const auto mode = ov::op::v11::TopK::Mode::MAX;
+    const auto sort_type = ov::op::v11::TopK::SortType::SORT_VALUES;
+    const auto idx_type = ov::element::i32;
+    const auto stable = true;
+
+    const auto topk = make_shared<ov::opset11::TopK>(data, k, axis, mode, sort_type, idx_type, stable);
+    NodeBuilder builder(topk, {data, k});
+    const auto g_topk = ov::as_type_ptr<ov::opset11::TopK>(builder.create());
+
+    EXPECT_EQ(g_topk->get_axis(), topk->get_axis());
+    EXPECT_EQ(g_topk->get_mode(), topk->get_mode());
+    EXPECT_EQ(g_topk->get_sort_type(), topk->get_sort_type());
+    EXPECT_EQ(g_topk->get_index_element_type(), topk->get_index_element_type());
+    EXPECT_EQ(g_topk->get_stable(), topk->get_stable());
 }

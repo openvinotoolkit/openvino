@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API EmbeddingBagOffsetsSum : public util::EmbeddingBagOffsetsBase {
 public:
-    OPENVINO_OP("EmbeddingBagOffsetsSum", "opset3", util::EmbeddingBagOffsetsBase, 3);
+    OPENVINO_OP("EmbeddingBagOffsetsSum", "opset3", util::EmbeddingBagOffsetsBase);
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.
     EmbeddingBagOffsetsSum() = default;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,13 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 
@@ -59,10 +61,10 @@ bool make_compatible_shape(const ngraph::PartialShape& input_shape, std::vector<
 
 ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
     MATCHER_SCOPE(ConvertBroadcast3);
-    auto broadcast = pattern::wrap_type<opset3::Broadcast>();
+    auto broadcast = pattern::wrap_type<ov::op::v3::Broadcast>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto broadcast = std::dynamic_pointer_cast<opset3::Broadcast>(m.get_match_root());
+        auto broadcast = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
         }
@@ -73,44 +75,44 @@ ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
         const auto& input_element_type = input.get_element_type();
 
         if (broadcast_type == op::BroadcastType::NUMPY) {
-            input = std::make_shared<opset1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::NUMPY);
+            input = std::make_shared<ov::op::v1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::NUMPY);
         } else if (broadcast_type == op::BroadcastType::PDPD) {
-            input = std::make_shared<opset1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PDPD);
+            input = std::make_shared<ov::op::v1::Broadcast>(input, target_shape_input, op::AutoBroadcastType::PDPD);
         } else if (broadcast_type == op::BroadcastType::NONE) {
-            input = std::make_shared<opset1::Broadcast>(input,
-                                                        target_shape_input,
-                                                        broadcast->input_value(2),
-                                                        op::AutoBroadcastType::NONE);
+            input = std::make_shared<ov::op::v1::Broadcast>(input,
+                                                            target_shape_input,
+                                                            broadcast->input_value(2),
+                                                            op::AutoBroadcastType::NONE);
         } else if (broadcast_type == op::BroadcastType::BIDIRECTIONAL) {
             if (auto const_target_shape =
-                    std::dynamic_pointer_cast<opset1::Constant>(target_shape_input.get_node_shared_ptr())) {
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input.get_node_shared_ptr())) {
                 const auto& input_shape = input.get_partial_shape();
                 const auto& target_shape = const_target_shape->cast_vector<size_t>();
                 std::vector<size_t> aligned_target_shape{target_shape};
                 if (make_compatible_shape(input_shape, aligned_target_shape)) {
-                    input = std::make_shared<opset1::Broadcast>(
+                    input = std::make_shared<ov::op::v1::Broadcast>(
                         input,
-                        opset1::Constant::create(element::i64,
-                                                 Shape({aligned_target_shape.size()}),
-                                                 aligned_target_shape));
+                        ov::op::v0::Constant::create(element::i64,
+                                                     Shape({aligned_target_shape.size()}),
+                                                     aligned_target_shape));
                 } else {
                     if (input_element_type == element::boolean) {
-                        input = std::make_shared<opset1::LogicalAnd>(
+                        input = std::make_shared<ov::op::v1::LogicalAnd>(
                             input,
-                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                            ov::op::v0::Constant::create(input_element_type, target_shape, {1}));
                     } else {
-                        input = std::make_shared<opset1::Multiply>(
+                        input = std::make_shared<ov::op::v1::Multiply>(
                             input,
-                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                            ov::op::v0::Constant::create(input_element_type, target_shape, {1}));
                     }
                 }
             } else {
-                auto constant_one = opset1::Constant::create(input_element_type, {1}, {1});
-                auto broadcast_ones = std::make_shared<opset1::Broadcast>(constant_one, target_shape_input);
+                auto constant_one = ov::op::v0::Constant::create(input_element_type, {1}, {1});
+                auto broadcast_ones = std::make_shared<ov::op::v1::Broadcast>(constant_one, target_shape_input);
                 if (input_element_type == element::boolean) {
-                    input = std::make_shared<ov::opset1::LogicalAnd>(input, broadcast_ones);
+                    input = std::make_shared<ov::op::v1::LogicalAnd>(input, broadcast_ones);
                 } else {
-                    input = std::make_shared<ov::opset1::Multiply>(input, broadcast_ones);
+                    input = std::make_shared<ov::op::v1::Multiply>(input, broadcast_ones);
                 }
                 copy_runtime_info(broadcast, broadcast_ones);
             }

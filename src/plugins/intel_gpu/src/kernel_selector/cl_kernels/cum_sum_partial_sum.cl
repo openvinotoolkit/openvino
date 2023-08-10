@@ -1,37 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
-#include "include/batch_headers/fetch_data.cl"
-
-///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#elif INPUT0_DIMS == 6
-    return INPUT0_GET_INDEX(b, f, w, z, y, x);
-#else
-#error cum_sum_ref.cl: input format - not supported
-#endif
-}
-
-///////////////////////// Output Index /////////////////////////
-inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#elif OUTPUT_DIMS == 6
-    return OUTPUT_GET_INDEX(b, f, w, z, y, x);
-#else
-#error cum_sum_ref.cl: output format - not supported
-#endif
-}
+#include "include/fetch_utils.cl"
 
 inline void FUNC(get_indices)(int *axes)
 {
@@ -87,8 +58,6 @@ inline void FUNC(get_indices)(int *axes)
 #endif
 }
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if CUM_SUM_PARTIAL_SUM
 inline uint FUNC(get_current_index)(int axis, int i)
 {
@@ -99,7 +68,7 @@ inline uint FUNC(get_current_index)(int axis, int i)
 #endif
 }
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(cum_sum_partial_sum)(
     const __global INPUT0_TYPE* input,
@@ -160,7 +129,7 @@ inline uint FUNC(get_current_index)(int i)
 }
 
 // main
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 KERNEL(cum_sum_final)(
     const __global PARTIAL_TYPE* partial,

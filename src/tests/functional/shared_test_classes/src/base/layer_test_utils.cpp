@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,13 +9,13 @@
 
 #include <thread>
 
+#include "openvino/runtime/device_id_parser.hpp"
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
-
-#include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
+#include "ie_icore.hpp"
 
 namespace LayerTestsUtils {
 
@@ -24,31 +24,35 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f), abs_threshold(-1.f) {
 }
 
 void LayerTestsCommon::Run() {
+    bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
+
+    ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
+         ov::test::utils::PassRate::Statuses::SKIPPED :
+         ov::test::utils::PassRate::Statuses::CRASHED;
+
+    auto &s = ov::test::utils::OpSummary::getInstance();
+    s.setDeviceName(targetDevice);
+    s.updateOPsStats(function, status);
+
+    if (isCurrentTestDisabled)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+
     if (functionRefs == nullptr) {
         functionRefs = ngraph::clone_function(*function);
         functionRefs->set_friendly_name("refFunction");
     }
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
-    auto &s = ov::test::utils::OpSummary::getInstance();
-    s.setDeviceName(targetDevice);
-
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::SKIPPED);
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-    } else {
-        s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::CRASHED);
-    }
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
         try {
             LoadNetwork();
@@ -67,9 +71,9 @@ void LayerTestsCommon::Run() {
             s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
         s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::HANGED);
         IE_THROW() << "Crash happens";
     }
@@ -78,7 +82,7 @@ void LayerTestsCommon::Run() {
 void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -99,7 +103,7 @@ void LayerTestsCommon::Serialize(ngraph::pass::Serialize::Version ir_version) {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void LayerTestsCommon::QueryNetwork() {
@@ -122,7 +126,7 @@ void LayerTestsCommon::QueryNetwork() {
             ASSERT_EQ(res.second, ctx->getDeviceName());
         } catch (...) {
             // otherwise, compare with originally used device name
-            ASSERT_EQ(res.second, targetDevice);
+            ASSERT_EQ(ov::DeviceIDParser(res.second).get_device_name(), targetDevice);
         }
         actual.insert(res.first);
     }
@@ -366,6 +370,16 @@ void LayerTestsCommon::LoadNetwork() {
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
+void LayerTestsCommon::ExpectLoadNetworkToThrow(const std::string& msg) {
+    std::string what;
+    try {
+        LoadNetwork();
+    } catch (const std::exception& e) {
+        what.assign(e.what());
+    }
+    EXPECT_STR_CONTAINS(what.c_str(), msg.c_str());
+}
+
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
@@ -392,11 +406,6 @@ void LayerTestsCommon::ConfigureInferRequest() {
         auto blob = inputs[i];
         inferRequest.SetBlob(info->name(), blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
 }
 
 void LayerTestsCommon::Infer() {
@@ -408,8 +417,8 @@ void LayerTestsCommon::Infer() {
 }
 
 void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {

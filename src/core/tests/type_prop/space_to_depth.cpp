@@ -1,13 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 #define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 
@@ -47,25 +48,45 @@ TEST(type_prop, space_to_depth_output_shape_depth_first_5D) {
     ASSERT_EQ(space_to_depth->get_shape(), (Shape{1, 12 * 8, 4 / 2, 1080 / 2, 1616 / 2}));
 }
 
+TEST(type_prop, space_to_depth_output_shape_depth_first_5D_1) {
+    auto a_shape = PartialShape{{1, 4}, {12, 36}, 1080, 1616};
+    set_shape_labels(a_shape, 10);
+    auto A = make_shared<op::Parameter>(element::f32, a_shape);
+    const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
+    auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 1);
+
+    EXPECT_EQ(space_to_depth->get_element_type(), element::f32);
+    EXPECT_EQ(space_to_depth->get_output_partial_shape(0), a_shape);
+    EXPECT_THAT(get_shape_labels(space_to_depth->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+}
+
 TEST(type_prop, space_to_depth_output_shape_when_space_is_static) {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape{{1, 4}, {12, 36}, 1080, 1616});
+    auto a_shape = PartialShape{{1, 4}, {12, 36}, 1080, 1616};
+    set_shape_labels(a_shape, 10);
+    auto A = make_shared<op::Parameter>(element::f32, a_shape);
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
-    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
-    ASSERT_EQ(space_to_depth->get_output_partial_shape(0),
+    EXPECT_EQ(space_to_depth->get_element_type(), element::f32);
+    EXPECT_EQ(space_to_depth->get_output_partial_shape(0),
               (PartialShape{{1, 4}, {12 * 4, 36 * 4}, 1080 / 2, 1616 / 2}));
+    EXPECT_THAT(get_shape_labels(space_to_depth->get_output_partial_shape(0)),
+                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
 }
 
 TEST(type_prop, space_to_depth_output_shape_when_space_is_dynamic) {
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape{{1, 4}, {12, 36}, {100, 1081}, {99, 1616}});
+    auto a_shape = PartialShape{{1, 4}, {12, 36}, {100, 1081}, {99, 1616}};
+    set_shape_labels(a_shape, 10);
+    auto A = make_shared<op::Parameter>(element::f32, a_shape);
     const auto mode = ngraph::op::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST;
     auto space_to_depth = make_shared<op::SpaceToDepth>(A, mode, 2);
 
-    ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
-    ASSERT_EQ(
+    EXPECT_EQ(space_to_depth->get_element_type(), element::f32);
+    EXPECT_EQ(
         space_to_depth->get_output_partial_shape(0),
         (PartialShape{{1, 4}, {12 * 4, 36 * 4}, {DIV_ROUND_UP(100, 2), 1081 / 2}, {DIV_ROUND_UP(99, 2), 1616 / 2}}));
+    EXPECT_THAT(get_shape_labels(space_to_depth->get_output_partial_shape(0)),
+                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
 }
 
 TEST(type_prop, space_to_depth_dynamic_shape_static_rank) {
@@ -84,6 +105,23 @@ TEST(type_prop, space_to_depth_dynamic_shape_dynamic_rank) {
 
     ASSERT_EQ(space_to_depth->get_element_type(), element::f32);
     ASSERT_EQ(space_to_depth->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, space_to_depth_default_ctor) {
+    auto A = make_shared<op::Parameter>(element::f64, PartialShape{{1, 4}, {12, 36}, 900, 3});
+
+    const auto space_to_depth = make_shared<op::SpaceToDepth>();
+    space_to_depth->set_block_size(3);
+    space_to_depth->set_mode(op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST);
+    space_to_depth->set_argument(0, A);
+    space_to_depth->validate_and_infer_types();
+
+    EXPECT_EQ(space_to_depth->get_block_size(), 3);
+    EXPECT_EQ(space_to_depth->get_mode(), op::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST);
+    EXPECT_EQ(space_to_depth->get_input_size(), 1);
+    EXPECT_EQ(space_to_depth->get_output_size(), 1);
+    EXPECT_EQ(space_to_depth->get_element_type(), element::f64);
+    EXPECT_EQ(space_to_depth->get_output_partial_shape(0), (PartialShape{{1, 4}, {12 * 9, 36 * 9}, 900 / 3, 3 / 3}));
 }
 
 TEST(type_prop, space_to_depth_input_rank_not_supported) {

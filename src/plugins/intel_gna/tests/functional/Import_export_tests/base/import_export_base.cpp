@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
     std::tie(inputShape, netPrecision, targetDevice, exportConfiguration, importConfiguration, appHeader) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     for (auto const& configItem : exportConfiguration) {
@@ -85,7 +85,8 @@ void ImportNetworkTestBase::TestRun(bool isModelChanged) {
 
     for (const auto& next_input : importedExecNetwork.GetInputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetInputsInfo()[next_input.first]);
-        Compare(next_input.second->getTensorDesc(), compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
+        Compare(next_input.second->getTensorDesc(),
+                compiledExecNetwork.GetInputsInfo()[next_input.first]->getTensorDesc());
     }
     for (const auto& next_output : importedExecNetwork.GetOutputsInfo()) {
         ASSERT_NO_THROW(compiledExecNetwork.GetOutputsInfo()[next_output.first]);
@@ -100,4 +101,4 @@ void ImportNetworkTestBase::TestRun(bool isModelChanged) {
     }
 }
 
-} // namespace FuncTestUtils
+}  // namespace FuncTestUtils

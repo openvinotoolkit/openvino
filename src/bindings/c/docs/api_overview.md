@@ -207,12 +207,11 @@ enum colorformat_e {
 
 ​    BGR,         ///< BGR color format, default in OpenVINO
 
+​    GRAY,        ///< GRAY color format
+
 ​    RGBX,        ///< RGBX color format with X ignored during inference
 
 ​    BGRX,        ///< BGRX color format with X ignored during inference
-
-​    NV12,        ///< NV12 color format represented as compound Y+UV blob
-
 };
 ```
 
@@ -398,12 +397,12 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `ie_core_config` - A dictionary of configuration parameters as keys and their values.
     - `device_name` - A device name of a target plugin.
   - Return value: Status code of the operation: OK(0) for success.
-- `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name )`
+- `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin, const char *device_name )`
 
   - Description: Registers a new device and a plugin which implement this device inside Inference Engine.
   - Parameters:
-    - `core`- A pointer to `ie_core_t` instance.
-    - `plugin_name` - A name of a plugin. Depending on a platform, plugin_name is wrapped with a shared library suffix and a prefix to identify a full name of the library.
+    - `core` - A pointer to `ie_core_t` instance.
+    - `plugin` - A path (absolute or relative) or name of a plugin. Depending on platform, plugin is wrapped with shared library suffix and prefix to identify library full name
     - `device_name` - A target device name for the plugin. If not specified, the method registers.
       a plugin with the default name.
   - Return value: Status code of the operation: OK(0) for success.
@@ -702,19 +701,6 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
     - `timeout` - Time to wait in milliseconds or special (0, -1) cases described above. If not specified, `timeout` value is set to -1 by default.
 
   - Return value:  Status code of the operation: OK(0) for success.
-
-- `IEStatusCode ie_infer_request_set_batch(ie_infer_request_t *infer_request, const size_t size)`
-
-  - Description:  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that created this request.
-
-    NOTE:** Support of dynamic batch size depends on the target plugin.
-
-  - Parameters:
-
-    - `infer_request` -A pointer to a `ie_infer_request_t` instance.
-    - `size` - New batch size to be used by all the following inference calls for this request.
-
-  - Return value: Status code of the operation: OK(0) for success.
 
 ## Blob
 

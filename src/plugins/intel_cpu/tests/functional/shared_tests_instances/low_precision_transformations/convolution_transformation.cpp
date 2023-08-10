@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         true,
         {
             255ul, ngraph::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
-            { -1.52806e-39f, -0.2, -0.3, -0.3, -0.2, -0.1 }, { 1.52806e-39f, 0.2, 0.3, 0.3, 0.2, 0.1 }
+            { -1.52806e-39f, -0.2f, -0.3f, -0.3f, -0.2f, -0.1f }, { 1.52806e-39f, 0.2f, 0.3f, 0.3f, 0.2f, 0.1f }
         },
         false,
         "Convolution",
@@ -116,6 +116,33 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "Convolution",
         "U8"
     },
+    // not supported quantization level on data
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    },
+    // not supported quantization level on data & weights
+    {
+        { 65536ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    },
+    // not supported quantization level on weights
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        false,
+        { 65536ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-12.7f}, {12.7f}},
+        false,
+        "Convolution",
+        "FP32"
+    }
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -127,7 +154,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
@@ -151,7 +178,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformatio
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(incorrectWeightsParams)),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
@@ -177,7 +204,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
      ::testing::Combine(
              ::testing::ValuesIn(netPrecisions),
              ::testing::ValuesIn(shapes),
-             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+             ::testing::Values(ov::test::utils::DEVICE_CPU),
              ::testing::ValuesIn(trasformationParamValues),
              ::testing::ValuesIn(params)),
              ConvolutionTransformation::getTestCaseName);

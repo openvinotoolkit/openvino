@@ -1,23 +1,27 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#define ONEDNN_PRIMITIVE_SERIALIZATION
+
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
 #include "utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "runtime/ocl/ocl_event.hpp"
 
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <list>
@@ -30,38 +34,62 @@ namespace onednn {
 
 static std::mutex cacheAccessMutex;
 
-template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
+template <class PType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     const engine* _engine;
-    std::shared_ptr<DescType> _desc;
     std::shared_ptr<dnnl::primitive_attr> _attrs;
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
+    dnnl::memory::desc _scratchpad_md;
+    bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
-                                std::shared_ptr<DescType> desc,
-                                std::shared_ptr<dnnl::primitive_attr> attrs,
-                                const PrimDescType& pd,
-                                kernel_selector::WeightsReorderParams weights_reorder = {})
+            const ExecutionConfig& config,
+            std::shared_ptr<dnnl::primitive_attr> attrs,
+            const PrimDescType& pd,
+            std::shared_ptr<WeightsReorderParams> weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
-          _engine(&engine),
-          _desc(desc),
-          _attrs(attrs),
-          _pd(pd) {
-            build_primitive();
+        _engine(&engine),
+        _attrs(attrs),
+        _pd(pd) {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+
+            _scratchpad_md = _pd.scratchpad_desc();
+
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
+
+            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+                if (_scratchpad_md.get_size() > 0) {
+                    static std::atomic_llong total{0};
+                    int64_t size = _scratchpad_md.get_size() / 1048576;
+                    total += size;
+                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
+                        << ", " << size << "MB, total " << total << "MB" << std::endl;
+                }
+            }
+
+            build_primitive(config);
         }
 
-    typed_primitive_onednn_impl(const engine& engine)
+    typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
         : typed_primitive_impl<PType>({}, "undef"),
-          _engine(&engine),
-          _pd(),
-          _prim() {
-    }
+        _engine(&engine),
+        _pd(),
+        _prim() {
+            _enable_profiling = config.get_property(ov::enable_profiling);
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+                _enable_profiling = true;
+            }
+        }
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
-          _desc(nullptr), _pd(), _prim() {
+          _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
 
@@ -72,47 +100,24 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     //     [ dnnl::primitive_desc ]
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
-        if (_attrs.get() == nullptr) {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        if (_attrs->get() == nullptr) {
             ob << false;
         } else {
             ob << true;
         }
 
-        if (_attrs.get() != nullptr) {
+        if (_attrs->get() != nullptr) {
             {
-                int mask;
-                std::vector<float> scales;
-                std::vector<int32_t> zero_points;
-
-                _attrs.get()->get_output_scales(mask, scales);
-                ob << mask << scales;
-
-                scales.clear();
-                _attrs.get()->get_scales(DNNL_ARG_SRC_0, mask, scales);
-                ob << mask << scales;
-                scales.clear();
-                _attrs.get()->get_scales(DNNL_ARG_SRC_1, mask, scales);
-                ob << mask << scales;
-
-                _attrs.get()->get_zero_points(DNNL_ARG_SRC, mask, zero_points);
-                ob << mask << zero_points;
-                zero_points.clear();
-                _attrs.get()->get_zero_points(DNNL_ARG_WEIGHTS, mask, zero_points);
-                ob << mask << zero_points;
-                zero_points.clear();
-                _attrs.get()->get_zero_points(DNNL_ARG_DST, mask, zero_points);
-                ob << mask << zero_points;
-            }
-            {
-                dnnl::scratchpad_mode _scratchpad_mode = _attrs.get()->get_scratchpad_mode();
+                dnnl::scratchpad_mode _scratchpad_mode = _attrs->get_scratchpad_mode();
                 ob << make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
             }
             {
-                dnnl::fpmath_mode _fmath_mode = _attrs.get()->get_fpmath_mode();
+                dnnl::fpmath_mode _fmath_mode = _attrs->get_fpmath_mode();
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
             }
             {
-                const dnnl::post_ops _post_ops = _attrs.get()->get_post_ops();
+                const dnnl::post_ops _post_ops = _attrs->get_post_ops();
 
                 ob << _post_ops.len();
                 for (int idx = 0; idx < _post_ops.len(); ++idx) {
@@ -131,13 +136,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         ob << zero_point;
                         ob << make_data(&data_type, sizeof(dnnl::memory::data_type));
                     } else if (_kind == dnnl::primitive::kind::eltwise) {
-                        float scale;
                         dnnl::algorithm aalgorithm;
                         float alpha;
                         float beta;
 
-                        _post_ops.get_params_eltwise(idx, scale, aalgorithm, alpha, beta);
-                        ob << scale;
+                        _post_ops.get_params_eltwise(idx, aalgorithm, alpha, beta);
                         ob << make_data(&aalgorithm, sizeof(dnnl::algorithm));
                         ob << alpha;
                         ob << beta;
@@ -145,24 +148,16 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::memory::data_type weights_data_type;
                         dnnl::memory::data_type bias_data_type;
                         dnnl::memory::data_type dst_data_type;
-                        int mask;
-                        std::vector<float> scales;
+                        dnnl::memory::dim kernel_size;
+                        dnnl::memory::dim stride_size;
+                        dnnl::memory::dim padding_l_size;
 
-                        try {
-                            _post_ops.get_params_dw_k3s1p1(idx, weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                            int stride = 1;
-                            ob << stride;
-                        } catch (...) {
-                            _post_ops.get_params_dw_k3s2p1(idx, weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                            int stride = 2;
-                            ob << stride;
-                        }
+                        _post_ops.get_params_dw(idx, weights_data_type, bias_data_type, dst_data_type, kernel_size, stride_size, padding_l_size);
 
                         ob << make_data(&weights_data_type, sizeof(dnnl::memory::data_type));
                         ob << make_data(&bias_data_type, sizeof(dnnl::memory::data_type));
                         ob << make_data(&dst_data_type, sizeof(dnnl::memory::data_type));
-                        ob << mask;
-                        ob << scales;
+                        ob << kernel_size << stride_size << padding_l_size;
                     } else if (_kind == dnnl::primitive::kind::binary) {
                         dnnl::algorithm aalgorithm;
                         dnnl::memory::desc src1_desc;
@@ -170,7 +165,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         _post_ops.get_params_binary(idx, aalgorithm, src1_desc);
 
                         ob << make_data(&aalgorithm, sizeof(dnnl::algorithm));
-                        ob << make_data(&src1_desc, sizeof(dnnl::memory::desc));
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
 
@@ -182,14 +176,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             }
             {
                 float scale, shift;
-                _attrs.get()->get_rnn_data_qparams(scale, shift);
+                _attrs->get_rnn_data_qparams(scale, shift);
                 ob << scale << shift;
             }
             {
                 int mask;
                 std::vector<float> scales;
 
-                _attrs.get()->get_rnn_weights_qparams(mask, scales);
+                _attrs->get_rnn_weights_qparams(mask, scales);
 
                 ob << mask;
                 ob << scales;
@@ -198,85 +192,47 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 int mask;
                 std::vector<float> scales;
 
-                _attrs.get()->get_rnn_weights_projection_qparams(mask, scales);
+                _attrs->get_rnn_weights_projection_qparams(mask, scales);
 
                 ob << mask;
                 ob << scales;
             }
         }
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_attrs;
         ib >> has_attrs;
 
         if (has_attrs) {
             {
-                int mask;
-                std::vector<float> scales;
-                ib >> mask >> scales;
-
-                _attrs.get()->set_output_scales(mask, scales);
-            }
-            {
-                int mask;
-                std::vector<float> scales;
-                bool default_output_scales = true;
-
-                _attrs.get()->get_output_scales(mask, scales);
-                for (float scale : scales) {
-                    if (scale != 1.) {
-                        default_output_scales = false;
-                        break;
-                    }
-                }
-
-                scales.clear();
-                ib >> mask >> scales;
-                if (default_output_scales)
-                    _attrs.get()->set_scales(DNNL_ARG_SRC_0, mask, scales);
-                scales.clear();
-                ib >> mask >> scales;
-                if (default_output_scales)
-                    _attrs.get()->set_scales(DNNL_ARG_SRC_1, mask, scales);
-            }
-            {
-                int mask;
-                std::vector<int32_t> zero_points;
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_SRC, mask, zero_points);
-                zero_points.clear();
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_WEIGHTS, mask, zero_points);
-                zero_points.clear();
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_DST, mask, zero_points);
-            }
-            {
-                dnnl::scratchpad_mode _scratchpad_mode;
+                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::user;
                 ib >> make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
-                _attrs.get()->set_scratchpad_mode(_scratchpad_mode);
+                _attrs->set_scratchpad_mode(_scratchpad_mode);
             }
             {
-                dnnl::fpmath_mode _fmath_mode;
+                dnnl::fpmath_mode _fmath_mode = dnnl::fpmath_mode::any;
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
-                _attrs.get()->set_fpmath_mode(_fmath_mode);
+                _attrs->set_fpmath_mode(_fmath_mode);
             }
             {
+                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+                const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
-
                 int post_ops_len;
 
                 ib >> post_ops_len;
                 for (int idx = 0; idx < post_ops_len; ++idx) {
-                    dnnl::primitive::kind _kind;
+                    dnnl::primitive::kind _kind = dnnl::primitive::kind::undef;
 
                     ib >> make_data(&_kind, sizeof(dnnl::primitive::kind));
 
                     if (_kind == dnnl::primitive::kind::sum) {
                         float scale;
                         int32_t zero_point;
-                        dnnl::memory::data_type data_type;
+                        dnnl::memory::data_type data_type = dnnl::memory::data_type::undef;
 
                         ib >> scale;
                         ib >> zero_point;
@@ -284,44 +240,43 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
                         _post_ops.append_sum(scale, zero_point, data_type);
                     } else if (_kind == dnnl::primitive::kind::eltwise) {
-                        float scale;
-                        dnnl::algorithm aalgorithm;
+                        dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         float alpha;
                         float beta;
 
-                        ib >> scale;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
                         ib >> alpha;
                         ib >> beta;
-                        _post_ops.append_eltwise(scale, aalgorithm, alpha, beta);
+                        _post_ops.append_eltwise(aalgorithm, alpha, beta);
                     } else if (_kind == dnnl::primitive::kind::convolution) {
-                        int stride;
-                        dnnl::memory::data_type weights_data_type;
-                        dnnl::memory::data_type bias_data_type;
-                        dnnl::memory::data_type dst_data_type;
-                        int mask;
-                        std::vector<float> scales;
+                        dnnl::memory::data_type weights_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::data_type bias_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::data_type dst_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::dim kernel_size;
+                        dnnl::memory::dim stride_size;
+                        dnnl::memory::dim padding_l_size;
 
-                        ib >> stride;
                         ib >> make_data(&weights_data_type, sizeof(dnnl::memory::data_type));
                         ib >> make_data(&bias_data_type, sizeof(dnnl::memory::data_type));
                         ib >> make_data(&dst_data_type, sizeof(dnnl::memory::data_type));
-                        ib >> mask;
-                        ib >> scales;
+                        ib >> kernel_size >> stride_size >> padding_l_size;
 
-                        if (stride == 1) {
-                            _post_ops.append_dw_k3s1p1(weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                        } else {
-                            _post_ops.append_dw_k3s2p1(weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                        }
+                        _post_ops.append_dw(weights_data_type, bias_data_type, dst_data_type,
+                                            kernel_size, stride_size, padding_l_size);
                     } else if (_kind == dnnl::primitive::kind::binary) {
-                        dnnl::algorithm aalgorithm;
-                        dnnl::memory::desc src1_desc;
-
+                        dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
-                        ib >> make_data(&src1_desc, sizeof(dnnl::memory::desc));
 
-                        _post_ops.append_binary(aalgorithm, src1_desc);
+                        if (fused_desc.at(idx).dims.size() > 0) {
+                            _post_ops.append_binary(aalgorithm,
+                                dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
+                        } else {
+                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
+                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
+                                                            fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+
+                            _post_ops.append_binary(aalgorithm, md);
+                        }
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
                         ib >> mask;
@@ -329,14 +284,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                     }
                 }
 
-                _attrs.get()->set_post_ops(_post_ops);
+                _attrs->set_post_ops(_post_ops);
             }
             {
                 float scale;
                 float shift;
 
                 ib >> scale >> shift;
-                _attrs.get()->set_rnn_data_qparams(scale, shift);
+                _attrs->set_rnn_data_qparams(scale, shift);
             }
             {
                 int mask;
@@ -345,7 +300,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> mask;
                 ib >> scales;
 
-                _attrs.get()->set_rnn_weights_qparams(mask, scales);
+                _attrs->set_rnn_weights_qparams(mask, scales);
             }
             {
                 int mask;
@@ -354,16 +309,19 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> mask;
                 ib >> scales;
 
-                _attrs.get()->set_rnn_weights_projection_qparams(mask, scales);
+                _attrs->set_rnn_weights_projection_qparams(mask, scales);
             }
 
             _engine = &ib.get_engine();
         }
+#endif
     }
 
 private:
-    std::string get_cache_directory() const {
-        auto path = _engine->configuration().kernels_cache_path;
+    using primitive_impl::get_arguments;
+
+    std::string get_cache_directory(const ExecutionConfig& config) const {
+        auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
             return {};
         }
@@ -374,8 +332,8 @@ private:
         return path;
     }
 
-    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
-        auto path = get_cache_directory();
+    std::string generate_cache_path_from_key(const ExecutionConfig& config, std::vector<uint8_t> key) const {
+        auto path = get_cache_directory(config);
         if (path.empty()) {
             return {};
         }
@@ -385,13 +343,11 @@ private:
         return path + std::to_string(hash) + ".onednn.cl_cache";
     }
 
-    void build_primitive() {
-        auto cache_outpath = get_cache_directory();
+    void build_primitive(const ExecutionConfig& config) {
+        auto cache_outpath = get_cache_directory(config);
 
-        if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-            if (env_p[0] == '1') {
-                cache_outpath = "";
-            }
+        if (!config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            cache_outpath = "";
         }
 
         if (cache_outpath.empty()) {
@@ -403,7 +359,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
             }
 
             if (cache.empty()) {
@@ -412,7 +368,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);
@@ -422,22 +378,6 @@ private:
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
-
-    static bool has_output_scales(const std::shared_ptr<dnnl::primitive_attr>& attr) {
-        int mask;
-        std::vector<float> scales;
-        attr->get_output_scales(mask, scales);
-        const auto drfv = reinterpret_cast<const int32_t&>(DNNL_RUNTIME_F32_VAL);
-        return !scales.empty() && (reinterpret_cast<const int32_t&>(scales[0]) == drfv);
-    }
-
-    static bool has_zero_points(int arg, const std::shared_ptr<dnnl::primitive_attr>& attr) {
-        int mask;
-        std::vector<int32_t> zp;
-        attr->get_zero_points(arg, mask, zp);
-        const auto drsv = reinterpret_cast<const int32_t&>(DNNL_RUNTIME_S32_VAL);
-        return !zp.empty() && (reinterpret_cast<const int32_t&>(zp[0]) == drsv);
-    }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
         auto& engine = instance.get_network().get_engine();
@@ -452,7 +392,7 @@ protected:
         for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
             auto post_op_type = cur_post_ops[post_op_idx].op_type;
             auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
-            auto onednn_post_op_idx = has_output_scales(_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
+            auto onednn_post_op_idx = post_op_idx;
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
             switch (post_op_type) {
@@ -460,12 +400,14 @@ protected:
                 case onednn_post_op_type::eltwise_clip:
                 case onednn_post_op_type::eltwise_linear:
                 case onednn_post_op_type::eltwise_round:
+                case onednn_post_op_type::eltwise_hardsigmoid:
                 {
                     // onednn elwise doesn't need any data from memory buffers
                     break;
                 }
 
                 case onednn_post_op_type::binary_add:
+                case onednn_post_op_type::binary_sub:
                 case onednn_post_op_type::binary_mul:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
@@ -484,14 +426,6 @@ protected:
                     auto binary_op_mem = instance.fused_memory(memory_offset);
                     args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
                                  binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
-                    break;
-                }
-
-                case onednn_post_op_type::scale:
-                {
-                    auto scale_op_mem = instance.fused_memory(memory_offset);
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_op_mem->get_layout(), dnnl::memory::format_tag::a, true);
-                    args.insert({DNNL_ARG_ATTR_OUTPUT_SCALES, scale_op_mem->get_onednn_memory(desc)});
                     break;
                 }
 
@@ -525,14 +459,20 @@ protected:
 
         {
             auto& input = instance.input_memory(0);
-            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(0));
+            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
             args.insert({DNNL_ARG_SRC, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        if (_scratchpad_md.get_size() != 0) {
+            // onednn primitive can have only 1 scratchpad memory.
+            auto scratchpad = instance.get_intermediates_memories()[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 
         configure_post_ops_arguments(instance, args);
@@ -540,17 +480,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&) override { }
-
-    event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
-        if (events.size() == 1 && !is_output)
-            return events[0];
-
-        if (group && !is_output)
-            return stream.group_events(events);
-
-        return stream.enqueue_marker(events, is_output);
-    }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized())
@@ -562,27 +492,55 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
         auto& network = instance.get_network();
-        auto& engine = network.get_engine();
         auto& stream = network.get_stream();
-        auto profiling = engine.configuration().enable_profiling;
         auto net_id = network.get_id();
         event::ptr event;
 
-        if (profiling) {
-            stream.finish();
-            event = stream.create_user_event(false);
+        if (_enable_profiling) {
+            if (instance.can_be_optimized()) {
+                event = stream.create_user_event(true);
+            } else {
+                dnnl::reset_profiling(stream.get_onednn_stream());
+            }
         }
 
         if (!instance.can_be_optimized()) {
-            _prim.execute(stream.get_onednn_stream(), _args[net_id]);
-        }
+            try {
+                _prim.execute(stream.get_onednn_stream(), _args[net_id]);
+            } catch (dnnl::error& err) {
+                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
+                    ov::intel_gpu::ForceExit();
+                }
+                throw;    // rethrowing dnnl::error if not out_of_memory
+            }
 
-        if (profiling) {
-            stream.finish();
-            event->set();
+            if (_enable_profiling) {
+                // Call wait() function here instead of finish() to prevent cache flushing,
+                // this synchronization point is needed for correct OneDNN's profiling process
+                stream.wait();
+
+                std::vector<uint64_t> duration = dnnl::get_profiling_data(stream.get_onednn_stream(), dnnl::profiling_data_kind::time);
+                OPENVINO_ASSERT(duration.size() == 1, "[GPU] oneDNN profiling data is expected to have info only for single primitive ",
+                                                      "actual number is ", duration.size());
+
+                event = std::make_shared<ocl::ocl_event>(duration[0]);
+            } else {
+                // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
+                // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
+                // return it as oneDNN primitive's event as it is a single option for proper synchronization
+                if (instance.needs_completion_event())
+                    event = stream.enqueue_marker({});
+            }
         }
 
         return event;
+    }
+
+    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+        if (_scratchpad_md.get_size() == 0)
+            return {};
+        return {{{1, 1, 1, (tensor::value_type)(_scratchpad_md.get_size())}, cldnn::data_types::u8, format::bfyx}};
     }
 };
 

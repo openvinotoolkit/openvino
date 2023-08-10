@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,6 +241,76 @@ const char expected_serialized_model[] = R"V0G0N(
 </net>
 )V0G0N";
 
+const char expected_serialized_model_cpu[] = R"V0G0N(
+<?xml version="1.0"?>
+<net name="addmul_abc" version="10">
+	<layers>
+		<layer id="0" name="C" type="Input">
+			<data shape="1" element_type="f32" execOrder="2" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="B" type="Input">
+			<data shape="1" element_type="f32" execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="A" type="Input">
+			<data shape="1" element_type="f32" execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Y" type="Subgraph">
+			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node2,add_node3,add_node4,Y" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Y/sink_port_0" type="Output">
+			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="Y/sink_port_0" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="2" />
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="3" />
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="4" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
@@ -258,15 +328,15 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string model_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
 
-    m_out_xml_path = model_name + XML_EXT;
-    m_out_bin_path = model_name + BIN_EXT;
+    m_out_xml_path = filePrefix + XML_EXT;
+    m_out_bin_path = filePrefix + BIN_EXT;
 }
 
 void ExecGraphSerializationTest::TearDown() {
     APIBaseTest::TearDown();
-    CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
+    ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
 bool ExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
@@ -354,7 +424,11 @@ TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    if (target_device == "CPU" || target_device == "AUTO:CPU" || target_device == "MULTI:CPU") {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model_cpu));
+    } else {
+        ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    }
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
@@ -372,7 +446,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;

@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "intel_gpu/runtime/profiling.hpp"
+#include "openvino/util/util.hpp"
 #include "ocl_base_event.hpp"
 #include <memory>
 #include <list>
 
-#ifdef _WIN32
-#pragma warning(push)
-#pragma warning(disable : 4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
-                                 // so turn it off
-#endif
+OPENVINO_DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                           // so turn it off
 
 namespace cldnn {
 namespace ocl {
@@ -43,9 +41,7 @@ private:
     bool is_set_impl() override;
 };
 
-#ifdef _WIN32
-#pragma warning(pop)
-#endif
+OPENVINO_DISABLE_WARNING_MSVC_END(4250)
 
 }  // namespace ocl
 }  // namespace cldnn

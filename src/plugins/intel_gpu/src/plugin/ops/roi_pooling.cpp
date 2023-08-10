@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v
     std::string layerName = layer_type_name_ID(op);
 
     cldnn::pooling_mode mode = GetPoolingMode(op->get_mode());
-    int group_size = op->get_group_size();
-    int output_dim = op->get_output_dim();
+    int group_size = static_cast<int>(op->get_group_size());
+    int output_dim = static_cast<int>(op->get_output_dim());
     float spatial_scale = op->get_spatial_scale();
     int spatial_bins_x = op->get_spatial_bins_x();
     int spatial_bins_y = op->get_spatial_bins_y();
@@ -96,8 +96,8 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
 
     // params
     auto out_size = op->get_output_size();
-    int pooled_height = out_size[0];
-    int pooled_width = out_size[1];
+    int pooled_height = static_cast<int>(out_size[0]);
+    int pooled_width = static_cast<int>(out_size[1]);
     float spatial_scale = op->get_spatial_scale();
     bool position_sensitive = false;
 

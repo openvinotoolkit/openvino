@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,18 @@ namespace ov {
 namespace intel_gpu {
 
 static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
+    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+
+    // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
+    for (size_t i = 0; i < constDims.size(); i++) {
+        shuffled_dims[i] = TensorValue(constDims[i < 2 ? i : (constDims.size() - 1 - i)]);
+    }
     cldnn::tensor constTensor;
     switch (constDims.size()) {
+    case 8:
+    case 7:
+        constTensor = cldnn::tensor(shuffled_dims);
+        break;
     case 6: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]),
                                         TensorValue(constDims[5]), TensorValue(constDims[4]),
                                         TensorValue(constDims[3]), TensorValue(constDims[2]));
@@ -45,7 +55,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
         break;
     case 0: constTensor = cldnn::tensor(1, 1, 1, 1);
         break;
-    default: IE_THROW() << "Invalid constant blob dimensions";
+    default: OPENVINO_THROW("Invalid constant blob dimensions");
     }
     return constTensor;
 }
@@ -86,6 +96,40 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                                  }
                              };
 
+    auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
+        if (ngraph::op::is_binary_elementwise_arithmetic(op) ||
+            ngraph::op::is_binary_elementwise_logical(op) ||
+            ngraph::op::is_binary_elementwise_comparison(op)) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
+        for (size_t i = 0; i < op->get_input_size(); i++) {
+            auto& in_shape = op->get_input_partial_shape(i);
+            if (in_shape.size() > 1)
+                return false;
+        }
+        return true;
+    };
+
+    auto is_convert_into_binary_eltwise = [&] (ov::Node* op) -> bool {
+        if (ngraph::is_type<ngraph::op::v0::Convert>(op)) {
+            for (size_t i = 0; i < op->get_output_size(); ++i) {
+                auto convertUsers = op->get_output_target_inputs(i);
+                for (auto user : convertUsers) {
+                    if (is_binary_eltwise(user.get_node()) &&
+                        is_all_inputs_1d(user.get_node())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
@@ -96,17 +140,12 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
-        } else if (ngraph::op::is_binary_elementwise_arithmetic(outOp) ||
-                   ngraph::op::is_binary_elementwise_logical(outOp) ||
-                   ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) {
-            bool all_inputs_1d = true;
-            for (size_t j = 0; j < outOp->get_input_size(); j++) {
-                auto& in_shape = outOp->get_input_partial_shape(j);
-                if (in_shape.size() > 1)
-                    all_inputs_1d = false;
-            }
-            consts[op].needsBatchInterpretation = all_inputs_1d && constDims.size() == 1;
+        } else if (((is_binary_eltwise(outOp) || ngraph::is_type<ngraph::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
+                     is_convert_into_binary_eltwise(outOp)) {
+            consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ngraph::is_type<ngraph::op::v1::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v7::Gather>(outOp) ||
+                   ngraph::is_type<ngraph::op::v8::Gather>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
@@ -122,7 +161,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
             //       [N] --> [1, N, 1, 1]
             //
             // 2. Multi-dims slope tensor is handled by the numpy broadcasting rule that is defined at
-            //    'https://docs.openvino.ai/latest/openvino_docs_ops_broadcast_rules.html'.
+            //    'https://docs.openvino.ai/2023.0/openvino_docs_ops_broadcast_rules.html'.
             //   ex) [N, 1, 1] --> [1, N, 1, 1]
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
@@ -134,11 +173,10 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
-        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1) {
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolution>(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
-                constDims[2] = constDims[3];                        // The weight cldnn tensor adds 1d to the end
-                constDims[3] = 1;                                   // as the input cldnn tensor does.
+                constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         }
     }
@@ -153,7 +191,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
     auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = constTensor.count();
+        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
@@ -170,7 +208,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
     if (props.swapOI) {
         size_t expected_min_rank = 2 + (props.hasGroupDimension ? 1 : 0);
         if (expected_min_rank > constDims.size())
-            IE_THROW() << "Invalid constant properties or shape";
+            OPENVINO_THROW("Invalid constant properties or shape");
 
         if (props.hasGroupDimension) {
             std::swap(newDims[2], newDims[1]);
@@ -201,12 +239,9 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << initialconstPrimID << ": constant]" << std::endl;
-        }
-        cldnn::memory::ptr mem = p.GetEngine().allocate_memory(constLayout, false);
-        auto& stream = p.GetEngine().get_program_stream();
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
+        cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <openvino/openvino.hpp>
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -35,7 +36,7 @@ struct ModelContext {
 
 class OVInferConsistencyTest : public
     testing::WithParamInterface<OVInferConsistencyTestParamsTuple>,
-    public CommonTestUtils::TestsCommon {
+    public ov::test::TestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ParamType>&
         obj);

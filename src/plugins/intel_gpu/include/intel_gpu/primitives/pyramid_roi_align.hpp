@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs RoI Align using image pyramid.
 /// @details Applies RoI Align to layer from the image pyramid.
@@ -29,6 +23,10 @@ namespace cldnn {
 ///   using billinear interpolation of surrounding values to avoid quantization.
 struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     CLDNN_DECLARE_PRIMITIVE(pyramid_roi_align)
+
+    pyramid_roi_align() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @param id This primitive id.
     /// @param rois Input RoI boxes as tuple [x1, y1, x2, y2] describing two opposite corners of the region.
@@ -64,8 +62,41 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     int sampling_ratio;
     std::vector<int> pyramid_scales;
     int pyramid_starting_level;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, pyramid_starting_level);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const pyramid_roi_align>(rhs);
+
+        return output_size == rhs_casted.output_size &&
+               sampling_ratio == rhs_casted.sampling_ratio &&
+               pyramid_scales == rhs_casted.pyramid_scales &&
+               pyramid_starting_level == rhs_casted.pyramid_starting_level;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<pyramid_roi_align>::save(ob);
+        ob << output_size;
+        ob << sampling_ratio;
+        ob << pyramid_scales;
+        ob << pyramid_starting_level;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<pyramid_roi_align>::load(ib);
+        ib >> output_size;
+        ib >> sampling_ratio;
+        ib >> pyramid_scales;
+        ib >> pyramid_starting_level;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace {
             ::testing::Values(ov::element::f32),
             ::testing::Values(ov::Shape {1, 384, 4096}),
             ::testing::Values(true, false),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(ov::test::utils::DEVICE_CPU)),
             CodegenGelu::getTestCaseName);
 }  // namespace
 } // namespace snippets

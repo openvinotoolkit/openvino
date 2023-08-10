@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 
 #include "low_precision/rt_info/shared_value_attribute.hpp"
 #include "low_precision/rt_info/attribute_parameters.hpp"
@@ -59,7 +58,7 @@ public:
  */
 class LP_TRANSFORMATIONS_API IntervalsAlignmentAttribute : public SharedAttribute<IntervalsAlignmentSharedValue> {
 public:
-    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::IntervalsAlignment", "", ov::RuntimeAttribute);
     IntervalsAlignmentAttribute() = default;
     IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval combinedInterval, size_t levels);
     IntervalsAlignmentAttribute(
@@ -71,7 +70,7 @@ public:
     static ov::Any create(
         const std::shared_ptr<ngraph::Node>& node,
         const AttributeParameters& params = AttributeParameters());
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     std::string to_string() const override;
 
     // specify subgraph original levels

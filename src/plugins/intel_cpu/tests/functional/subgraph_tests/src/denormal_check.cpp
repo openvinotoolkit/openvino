@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ void SetUp() override {
     constexpr size_t alignment = 64; // bytes cache line size, to avoid denormals zeroing due to memory reallocation in the input node implementation
     const ov::Shape inpShape = {1, 24, 3, 3};
     targetStaticShapes.push_back({inpShape});
-    targetDevice = CommonTestUtils::DEVICE_CPU;
+    targetDevice = ov::test::utils::DEVICE_CPU;
 
     const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
@@ -97,7 +97,9 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
         for (size_t i = 0; i < elemsCount; ++i) {
             if (randomIndexSet.count(i)) {
                 auto denormal = random.Generate(denormalsRange) + 1;
-                pConstStorage->get_ptr()[i] = *(reinterpret_cast<float*>(&denormal));
+                float tmp;
+                memcpy(&tmp, &denormal, sizeof(float));
+                pConstStorage->get_ptr()[i] = tmp;
             } else {
                 pConstStorage->get_ptr()[i] = randomRange[i];
             }

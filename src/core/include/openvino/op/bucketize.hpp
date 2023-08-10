@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Bucketize : public Op {
 public:
-    OPENVINO_OP("Bucketize", "opset3", op::Op, 3);
+    OPENVINO_OP("Bucketize", "opset3", op::Op);
 
     Bucketize() = default;
     /// \brief Constructs a Bucketize node

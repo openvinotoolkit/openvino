@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 
 #include <memory>
 #include <shared_node_info.hpp>
-#include <test_common.hpp>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -1034,6 +1034,31 @@ TEST(model, add_output_port) {
     EXPECT_EQ(f->get_results()[1]->input_value(0).get_node(), relu1.get());
 }
 
+TEST(model, add_output_to_new_subgraph) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    relu1->set_friendly_name("relu1");
+    relu1->get_output_tensor(0).set_names({"relu_t1"});
+
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    relu2->set_friendly_name("relu2");
+    relu2->get_output_tensor(0).set_names({"relu_t2"});
+    auto f = std::make_shared<ov::Model>(relu2, ov::ParameterVector{arg0});
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(f->get_results().size(), 1);
+
+    ov::Output<ov::Node> out;
+    EXPECT_NO_THROW(
+        out = f->add_output(ov::opset8::Constant::create(ov::element::i32, {1}, std::vector<int32_t>{1})->output(0)));
+    EXPECT_NO_THROW(f->get_ordered_ops());
+    EXPECT_EQ(out.get_node(), f->get_results()[1].get());
+    EXPECT_EQ(f->get_results().size(), 2);
+}
+
 TEST(model, add_output_incorrect_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
@@ -1333,6 +1358,63 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
     return true;
 }
 }  // namespace
+
+TEST(model, topological_sort_throws_if_loop_with_one_node) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu2->relu2
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
+    ov::replace_node(relu1, relu2);
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_several_nodes) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu2->relu3->relu2
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
+    auto relu3 = std::make_shared<ov::opset8::Relu>(relu2);
+    ov::replace_node(relu1, relu3);
+
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_control_dependency) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+
+    // Loop relu1->relu2->relu1
+    relu1->add_control_dependency(relu2);
+
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_control_dependency_only) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg1);
+    auto result1 = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu0->relu1->relu0
+    relu0->add_control_dependency(relu1);
+    relu1->add_control_dependency(relu0);
+
+    ASSERT_THROW(
+        std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{arg0, arg1}),
+        ov::Exception);
+}
 
 TEST(model, topological_sort_caching_basic) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
@@ -1892,7 +1974,7 @@ TEST(model, clone_model_function) {
     auto input1 = model->input(0);
     auto input2 = model->input("data1");
 
-    auto cloned_model = ov::clone_model(*model);
+    auto cloned_model = model->clone();
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
@@ -2039,4 +2121,17 @@ TEST(model, set_complex_meta_information) {
     f->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
     check_rt_info(f);
+}
+
+TEST(model, create_model) {
+    EXPECT_NO_THROW(ov::Model({}, ""));
+    EXPECT_THROW(ov::Model(ov::ResultVector{nullptr}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(nullptr, {}, ""), ov::Exception);
+    EXPECT_NO_THROW(ov::Model(ov::ResultVector{}, ov::ParameterVector{}, ""));
+    EXPECT_THROW(ov::Model({nullptr}, {nullptr}, {nullptr}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model({nullptr}, {}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {nullptr}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {nullptr}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::OutputVector{ov::Output<ov::Node>{nullptr, 0}}, {}, {}, {}, ""), ov::Exception);
 }

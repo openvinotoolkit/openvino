@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -9,59 +9,73 @@
 
 #include "utils.hpp"
 
-template <class T>
-inline void dynamic_inference(const T& input_shape, T& output_shape, bool keep_dims) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
-}
+namespace ov {
+namespace op {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
+                                        bool keep_dims,
+                                        const std::vector<TShape>& input_shapes,
+                                        const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
-template <>
-inline void dynamic_inference<ov::PartialShape>(const ov::PartialShape& input_shape,
-                                                ov::PartialShape& output_shape,
-                                                bool keep_dims) {
-    output_shape = keep_dims ? ov::PartialShape::dynamic(input_shape.rank()) : ov::PartialShape::dynamic();
-}
+    const auto& data_shape = input_shapes[0];
+    const auto& data_rank = data_shape.rank();
+    const auto& axes_shape = input_shapes[1];
+    const auto& axes_rank = axes_shape.rank();
 
-template <class T>
-void reduce_shape_infer(const ov::op::util::ReductionBase* op,
-                        bool keep_dims,
-                        const T& input_shape,
-                        T& output_shape,
-                        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    const auto& data_rank = input_shape.rank();
-    std::vector<int64_t> axes_val;
-    bool axes_are_known = get_data_as_int64<T>(1, op, axes_val, constant_data);
+    std::vector<TRShape> output_shapes;
+    output_shapes.reserve(1);
 
-    if (data_rank.is_static() && axes_are_known) {
-        ov::normalize_axes(op, data_rank.get_length(), axes_val);
+    NODE_VALIDATION_CHECK(op,
+                          axes_rank.compatible(0) || axes_rank.compatible(1),
+                          "Axes input must be a scalar or 1D input. Got: ",
+                          axes_shape);
+
+    const auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
+
+    if (data_rank.is_static() && axes_val) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        ov::normalize_axes(op, data_rank.get_length(), *axes_val);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         if (keep_dims) {
-            output_shape = input_shape;
-            for (const auto& axis : axes_val)
+            output_shapes.push_back(data_shape);
+            auto& output_shape = output_shapes[0];
+            for (const auto& axis : *axes_val) {
                 output_shape[axis] = 1;
-            return;
+            }
+        } else {
+            output_shapes.resize(1);
+            auto& output_shape = output_shapes[0];
+            for (size_t i = 0; i < data_shape.size(); ++i) {
+                if (std::find(axes_val->begin(), axes_val->end(), i) == axes_val->end()) {
+                    output_shape.push_back(data_shape[i]);
+                }
+            }
         }
-        for (int64_t i = 0; i < data_rank.get_length(); ++i)
-            if (find(axes_val.begin(), axes_val.end(), i) == axes_val.end())
-                output_shape.push_back(input_shape[i]);
     } else {
-        dynamic_inference(input_shape, output_shape, keep_dims);
+        if (keep_dims) {
+            output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
+        } else {
+            output_shapes.push_back(ov::PartialShape::dynamic());
+        }
     }
+    return output_shapes;
 }
 
-template <class T>
-void shape_infer(const ov::op::util::ArithmeticReductionKeepDims* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
+// API: TensorAccessor to constant data
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::ArithmeticReductionKeepDims* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    return reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
 }
 
-template <class T>
-void shape_infer(const ov::op::util::LogicalReductionKeepDims* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
-    reduce_shape_infer(op, op->get_keep_dims(), input_shapes[0], output_shapes[0], constant_data);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::LogicalReductionKeepDims* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    return reduce_shape_infer(op, op->get_keep_dims(), input_shapes, tensor_accessor);
 }
+}  // namespace op
+}  // namespace ov

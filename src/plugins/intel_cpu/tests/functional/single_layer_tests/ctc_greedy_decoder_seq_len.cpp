@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ public:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
             size_t N;
@@ -84,7 +84,7 @@ protected:
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
         selectedType = "ref_any_FP32";
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
         const auto& in_dyn_N = shapes.first[0];
         const auto& in_dyn_T = shapes.first[1];
@@ -123,7 +123,7 @@ protected:
         inputs.clear();
         const auto& funcInputs = function->inputs();
         const auto& dataShape = targetInputStaticShapes[0];
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
             if (i == 0) {
@@ -144,7 +144,7 @@ protected:
                 std::uniform_int_distribution<unsigned long> dist(1, seqLen);
 
                 std::vector<int32_t> sequenceLenData(B, 0);
-                for (int b = 0; b < B; b++) {
+                for (size_t b = 0; b < B; b++) {
                     const int len = dist(gen);
                     sequenceLenData[b] = len;
                 }

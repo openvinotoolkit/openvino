@@ -1,29 +1,83 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/tensorflow/frontend.hpp"
 
+#include "graph_iterator_meta.hpp"
 #include "graph_iterator_proto.hpp"
+#include "graph_iterator_proto_txt.hpp"
+#include "graph_iterator_saved_model.hpp"
+#include "helper_ops/internal_operation.hpp"
 #include "helper_transforms/block_lstm_replacer.hpp"
+#include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
+#include "helper_transforms/saved_model_unused_remover.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
-#include "pass/transpose_sinking.hpp"
-#include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/resolve_names_collisions.hpp"
+#include "transformations/switch_merge_resolve.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
+
+void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
+                                             std::set<std::string>& unsupported_operations,
+                                             std::unordered_map<std::string, std::string>& failures) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto& internal_op = std::dynamic_pointer_cast<InternalOperation>(node)) {
+            // handle internal operations separately
+            // which can have elaborated reason of unconverted operation
+            // like Const of string type
+            auto op_type = internal_op->get_no_conversion_reason();
+            if (unsupported_operations.count(op_type) > 0) {
+                continue;
+            }
+            unsupported_operations.insert(op_type);
+        } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
+            auto op_type = fw_node->get_decoder()->get_op_type();
+            // if this operation is encountered among unsupported operations
+            // or conversion failures, skip it
+            if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
+                continue;
+            }
+            auto fw_node_attrs = fw_node->get_attrs();
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+                // save only the first encountered failure that is more improtant for developer
+                // that means the translator is found but the conversion is failed
+                failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
+            } else {
+                // found new unsupported operation
+                unsupported_operations.insert(op_type);
+            }
+        }
+        if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());
+            for (int i = 0; i < subgraphs_size; ++i) {
+                get_unsupported_operations_and_failures(fw_node->get_function(i), unsupported_operations, failures);
+            }
+        }
+    }
+}
+
 void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
                               const TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
@@ -32,8 +86,8 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    ov::OutputVector ng_inputs = node->input_values();
-    NodeContext node_ctx(node->get_decoder(), ng_inputs);
+    ov::OutputVector ov_inputs = node->input_values();
+    NodeContext node_ctx(node->get_decoder(), ov_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -41,350 +95,303 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto old_output = old_outputs.begin();
 
     for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
-        old_output->replace(*new_output);
+        old_output->replace(new_output->port);
     }
 }
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
-void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
-                               const std::string& model_name,
-                               bool fail_fast,
-                               bool no_conversion,
-                               std::shared_ptr<ov::Model>& ng_function) const {
-    // a map from operation names to generated OV Output<TFNodeDecoder>
-    tensorflow::OpMap ng_op_map;
-
-    ov::ParameterVector params;
-    ov::ResultVector results;
-    const auto& model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV Model");
-    const auto& operation_places = model_tf->get_op_places();
-    const auto& model_inputs = model_tf->get_inputs();
-    const auto& model_outputs = model_tf->get_outputs();
-    const auto& model_frozen_inputs = model_tf->get_tensor_values();
-    std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
-
-    const auto& TRANSLATE_OP_MAP = m_op_translators;
-    if (no_conversion) {
-        const std::set<std::string> required_types{"Placeholder", "NoOp"};
-        for (const auto& name : required_types) {
-            translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
-        }
-    } else {
-        translate_map.insert(TRANSLATE_OP_MAP.begin(), TRANSLATE_OP_MAP.end());
-    }
-
-    // fill ng_op_map with Constant outputs for frozen inputs
-    for (const auto& frozen_input : model_frozen_inputs) {
-        const auto& frozen_input_name = frozen_input.first;
-        const auto& frozen_input_value = frozen_input.second;
-        FRONT_END_GENERAL_CHECK(ng_op_map.count(frozen_input_name) == 0,
-                                "Input with frozen value has been already met: " + frozen_input_name);
-        ng_op_map[frozen_input_name] = {frozen_input_value};
-    }
-    // create parameter nodes for all tensor places corresponding to inputs
-    for (const auto& input_place : model_inputs) {
-        FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
-        auto input_name = input_place->get_names()[0];
-        if (ng_op_map.count(input_name)) {
-            // probably this input is frozen
-            continue;
-        }
-        const auto& input_tensor_place = std::dynamic_pointer_cast<TensorPlace>(input_place);
-        auto input_shape = input_tensor_place->get_partial_shape();
-        auto input_type = input_tensor_place->get_element_type();
-
-        // in case of cutting graph, types of custom inputs can be undefined,
-        // according to MO help, fp32 is used by default in such cases
-        if (input_type == element::undefined) {
-            input_type = element::f32;
-        }
-
-        auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
-        set_node_name(input_name, param);
-        params.push_back(param);
-        ng_op_map[input_name] = {param};
-    }
-
-    // create the OV ops from TensorFlow ops
-    for (const auto& operation_place : operation_places) {
-        auto operation_decoder = operation_place->get_decoder();
-        auto operation_name = operation_place->get_names()[0];
-        // output for parameter nodes has been already generated
-        if (ng_op_map.count(operation_name)) {
-            continue;
-        }
-
-        // prepare a list of OV node inputs for each node
-        ov::OutputVector ng_inputs;
-        for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
-            // TODO: Implement more general approach. Skipping Constants that have input edges
-            if (operation_decoder->get_op_type() == "Const") {
-                break;
-            }
-            std::string producer_name;
-            size_t producer_port_idx;
-            try {
-                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx);
-            } catch (const std::exception&) {
-                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
-                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
-                                producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
-                                '\n');
-            }
-
-            // skip conditional edges that must be resolved before operation translation
-            // now we can meet them because we still work with TensorFlow protobuf
-            if (is_conditional_edge(producer_name)) {
-                continue;
-            }
-
-            // TODO: re-implement the logic below once Place graph structure is implemented
-            // Using Place graph structure (OpPlace, In/OutPortPlace places and their connections) can give
-            // names of ports and operations that can be used for further check about existence in ng_op_map
-
-            // check if output vector for places have been already defined and the order of this check is important
-            // it moves from places corresponding to input port of the current operation node to output port of original
-            // producers
-            if (ng_op_map.count(std::to_string(input_port_idx) + ":" + operation_name)) {
-                const auto& input_outputs_vector = ng_op_map.at(std::to_string(input_port_idx) + ":" + operation_name);
-                FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
-                                        "Input created with pruning must have one output");
-                ng_inputs.push_back(input_outputs_vector.at(0));
-            } else if (ng_op_map.count(producer_name + ":" + std::to_string(producer_port_idx))) {
-                const auto& input_outputs_vector =
-                    ng_op_map.at(producer_name + ":" + std::to_string(producer_port_idx));
-                FRONT_END_GENERAL_CHECK(input_outputs_vector.size() == 1,
-                                        "Input created with pruning must have one output");
-                ng_inputs.push_back(input_outputs_vector.at(0));
-            } else if (ng_op_map.count(producer_name)) {
-                const auto& input_outputs_vector = ng_op_map.at(producer_name);
-                FRONT_END_GENERAL_CHECK(input_outputs_vector.size() > producer_port_idx,
-                                        "Input created with pruning must have one output");
-                ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
-            } else {
-                FRONT_END_GENERAL_CHECK(false,
-                                        "No input is found for node \"" + operation_name + "\" by port " +
-                                            std::to_string(producer_port_idx));
-            }
-        }
-
-        // generate OV node output vector for the current operation node
-        ov::OutputVector ng_outputs;
-        try {
-            FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
-                                          "No translator found for " + operation_decoder->get_op_type() + " node.");
-            auto op_fun = &(translate_map[operation_decoder->get_op_type()]);
-            // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
-            // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
-            NodeContext node_context(operation_decoder, ng_inputs);
-            // generate OV node output vector using translator for given operation type
-            ng_outputs = (*op_fun)(node_context);
-        } catch (...) {
-            if (fail_fast) {
-                // re-throw any exception
-                throw;
-            } else {
-                auto ng_node = std::make_shared<FrameworkNode>(operation_decoder,
-                                                               ng_inputs,
-                                                               operation_place->get_output_ports().size());
-                set_node_name(operation_name, ng_node);
-                ng_outputs = ng_node->outputs();
-            }
-        }
-
-        // register OV node outputs in the map for new operation node
-        for (const auto& output : ng_outputs) {
-            if (auto result = std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
-                // do not add RetVal type operation to ng_op_map
-                results.push_back(result);
-            } else {
-                auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
-                // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && operation_decoder->get_op_type() != "Identity" &&
-                    std::find(params.begin(), params.end(), param) == params.end()) {
-                    params.push_back(param);
-                }
-                ng_op_map[operation_name].push_back(output);
-            }
-        }
-    }
-
-    // create Result nodes for all model outputs
-    for (const auto& model_output : model_outputs) {
-        auto model_output_tensor_place = std::dynamic_pointer_cast<TensorPlace>(model_output);
-        auto model_output_name = model_output_tensor_place->get_names()[0];
-        std::string operation_name;
-        std::string port_type;
-        size_t port_index;
-        ov::frontend::tensorflow::extract_operation_name_and_port(model_output_name,
-                                                                  operation_name,
-                                                                  port_index,
-                                                                  port_type);
-
-        if (port_type == "none") {
-            for (const auto& node_output : ng_op_map[operation_name]) {
-                auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                result_node->set_friendly_name(model_output_name);
-                results.push_back(result_node);
-            }
-        } else if (port_type == "out") {
-            const auto& node_outputs = ng_op_map[operation_name];
-            FRONT_END_GENERAL_CHECK(node_outputs.size() > port_index,
-                                    "Output port with index " + std::to_string(port_index) + " of " + operation_name +
-                                        "node specified as custom output does not exist");
-            auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[port_index]);
-            result_node->set_friendly_name(model_output_name);
-            results.push_back(result_node);
-        } else if (port_type == "in") {
-            // TODO: avoid this traversing by having a map for OpPlace objects, for example
-            std::shared_ptr<OpPlace> operation_place = nullptr;
-            for (const auto& op_place : operation_places) {
-                FRONT_END_GENERAL_CHECK(!op_place->get_names().empty(), "No names for OpPlace found.");
-                if (op_place->get_names()[0] == operation_name) {
-                    operation_place = op_place;
-                }
-            }
-            FRONT_END_GENERAL_CHECK(operation_place, "There is no operation place with a name: " + operation_name);
-            auto operation_decoder = operation_place->get_decoder();
-
-            // get to know a producer node and by which its output port data is generated
-            std::string producer_name;
-            size_t producer_port_idx;
-            try {
-                operation_decoder->get_input_node(port_index, producer_name, producer_port_idx);
-            } catch (const std::exception&) {
-                FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
-                                " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
-                                producer_name + "', expected input port index: " + std::to_string(producer_port_idx) +
-                                '\n');
-            }
-
-            // add Result node for this producer output port
-            const auto& node_outputs = ng_op_map[producer_name];
-            FRONT_END_GENERAL_CHECK(node_outputs.size() > producer_port_idx,
-                                    "Output port with index " + std::to_string(producer_port_idx) + " of " +
-                                        producer_name + "node specified as custom output does not exist");
-            auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
-            result_node->set_friendly_name(model_output_name);
-            results.push_back(result_node);
-        }
-    }
-    // find all terminal nodes in OV graph to complete list of results
-    if (results.empty()) {
-        for (const auto& node_output_vector : ng_op_map) {
-            for (size_t output_ind = 0; output_ind < node_output_vector.second.size(); ++output_ind) {
-                auto output = node_output_vector.second[output_ind];
-                if (output.get_target_inputs().empty() &&
-                    !std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
-                    auto model_output_name =
-                        output.get_node_shared_ptr()->get_friendly_name() + ":" + std::to_string(output_ind);
-                    auto result_node = std::make_shared<ov::opset8::Result>(output);
-                    result_node->set_friendly_name(model_output_name);
-                    results.push_back(result_node);
-                }
-            }
-        }
-    }
-
-    // TODO: reorder results and params according to indices given in RT info (if any)
-
-    // create the OV Model
-    ng_function = std::make_shared<ov::Model>(results, params, model_name);
-}
-
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
-    if (variants.size() != 1)
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+
+    // For TF1 models it can be a case of two input variants: input model and v1 checkpoints
+    if (variants.size() != 1 + extra_variants_num)
         return false;
 
-    // Validating first path, it must contain a model
+    // to figure out if the model with v1 checkpoints is supported,
+    // it is sufficient to check only the input model format
+    // avoid parsing of checkpoints here
     if (variants[0].is<std::string>()) {
-        std::string suffix = ".pb";
         std::string model_path = variants[0].as<std::string>();
-        if (ov::util::ends_with(model_path, suffix.c_str())) {
+        if (ov::util::ends_with(model_path, ".pb") && GraphIteratorProto::is_supported(model_path)) {
+            // handle binary protobuf format
+            // for automatic deduction of the frontend to convert the model
+            // we have more strict rule that is to have `.pb` extension in the path
+            return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            return true;
+        } else if (ov::util::ends_with(model_path, ".meta") && GraphIteratorMeta::is_supported(model_path)) {
+            return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return true;
+        }
+    } else if (variants[0].is<std::vector<std::string>>() && variants[0].as<std::vector<std::string>>().size() == 2) {
+        // here, we assume to get the input model path and checkpoints directory
+        auto paths = variants[0].as<std::vector<std::string>>();
+        auto model_path = paths[0];
+        auto checkpoints_dir = paths[1];
+        if (GraphIteratorProto::is_supported(model_path)) {
+            // binary protobuf format with checkpoints
+            return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // text protobuf format with checkpoints
+            return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            // saved model format with tagged metagraphs
             return true;
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
-        std::wstring suffix = L".pb";
         std::wstring model_path = variants[0].as<std::wstring>();
-        if (ov::util::ends_with(model_path, suffix)) {
+        if (ov::util::ends_with(model_path, std::wstring(L".pb")) && GraphIteratorProto::is_supported(model_path)) {
+            // handle binary protobuf format with a path in Unicode
+            // for automatic deduction of the frontend to convert the model
+            // we have more strict rule that is to have `.pb` extension in the path
+            return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            return true;
+        } else if (ov::util::ends_with(model_path, std::wstring(L".meta")) &&
+                   GraphIteratorMeta::is_supported(model_path)) {
+            return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return true;
+        }
+    } else if (variants[0].is<std::vector<std::wstring>>() && variants[0].as<std::vector<std::wstring>>().size() == 2) {
+        // here, we assume to get the input model path and checkpoints directory
+        auto paths = variants[0].as<std::vector<std::wstring>>();
+        auto model_path = ov::util::wstring_to_string(paths[0]);
+        auto checkpoints_dir = ov::util::wstring_to_string(paths[1]);
+        if (GraphIteratorProto::is_supported(model_path)) {
+            // binary protobuf format with checkpoints
+            return true;
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // text protobuf format with checkpoints
+            return true;
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            // saved model format with tagged metagraphs
             return true;
         }
     }
 #endif
     else if (variants[0].is<GraphIterator::Ptr>()) {
+        // this is used for OpenVINO with TensorFlow Integration
         return true;
     }
     return false;
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
-    if (variants.size() == 1) {
-        // a case when binary protobuf format is provided
-        if (variants[0].is<std::string>()) {
-            std::string suffix = ".pb";
-            std::string model_path = variants[0].as<std::string>();
-            if (ov::util::ends_with(model_path, suffix.c_str())) {
-                return std::make_shared<InputModel>(
-                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
-                    m_telemetry);
-            }
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
+
+    // For TF1 models it can be a case of two input variants: input model and v1 checkpoints
+    FRONT_END_GENERAL_CHECK(
+        variants.size() == 1 + extra_variants_num,
+        "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+        "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
+
+    if (variants[0].is<std::string>()) {
+        auto model_path = variants[0].as<std::string>();
+        if (GraphIteratorProto::is_supported(model_path)) {
+            // handle binary protobuf format
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_metagraph_input_names(),
+                                                graph_iterator->get_metagraph_output_names(),
+                                                nullptr,
+                                                true);
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        else if (variants[0].is<std::wstring>()) {
-            std::wstring suffix = L".pb";
-            std::wstring model_path = variants[0].as<std::wstring>();
-            if (ov::util::ends_with(model_path, suffix)) {
-                return std::make_shared<InputModel>(
-                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
-                    m_telemetry);
-            }
+    } else if (variants[0].is<std::vector<std::string>>()) {
+        // here, we assume to get the input model path and checkpoints directory
+        auto paths = variants[0].as<std::vector<std::string>>();
+        FRONT_END_GENERAL_CHECK(
+            paths.size() == 2,
+            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
+        auto model_path = paths[0];
+        auto checkpoints_dir = paths[1];
+        if (GraphIteratorProto::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
+            // handle binary protobuf format with checkpoints
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                nullptr,
+                                                nullptr,
+                                                nullptr,
+                                                graph_iterator->get_checkpoint_v1_reader(),
+                                                false);
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorProtoTxt>(model_path, checkpoints_dir);
+            // handle text protobuf format with checkpoints
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                nullptr,
+                                                nullptr,
+                                                nullptr,
+                                                graph_iterator->get_checkpoint_v1_reader(),
+                                                false);
         }
-#endif
-        else if (variants[0].is<GraphIterator::Ptr>()) {
-            auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-            return std::make_shared<InputModel>(graph_iterator, m_telemetry);
+        auto saved_model_tags = paths[1];
+        if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
         }
     }
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    else if (variants[0].is<std::wstring>()) {
+        std::wstring model_path = variants[0].as<std::wstring>();
+        if (GraphIteratorProto::is_supported(model_path)) {
+            // handle binary protobuf format with a path in Unicode
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string(META_GRAPH_DEFAULT_TAG));
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
+        } else if (GraphIteratorMeta::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorMeta>(model_path);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_metagraph_input_names(),
+                                                graph_iterator->get_metagraph_output_names(),
+                                                nullptr,
+                                                true);
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            // handle text protobuf format with a path in Unicode
+            return std::make_shared<InputModel>(std::make_shared<GraphIteratorProtoTxt>(model_path), m_telemetry);
+        }
+    } else if (variants[0].is<std::vector<std::wstring>>()) {
+        // here, we assume to get the input model path and checkpoints directory
+        auto paths = variants[0].as<std::vector<std::wstring>>();
+        FRONT_END_GENERAL_CHECK(
+            paths.size() == 2,
+            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta) formats, and v1 checkpoints.");
+        auto model_path = ov::util::wstring_to_string(paths[0]);
+        auto checkpoints_dir = ov::util::wstring_to_string(paths[1]);
+        if (GraphIteratorProto::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorProto>(model_path, checkpoints_dir);
+            // handle binary protobuf format with checkpoints
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                nullptr,
+                                                nullptr,
+                                                nullptr,
+                                                graph_iterator->get_checkpoint_v1_reader(),
+                                                false);
+        } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
+            auto graph_iterator = std::make_shared<GraphIteratorProtoTxt>(model_path, checkpoints_dir);
+            // handle text protobuf format with checkpoints
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                nullptr,
+                                                nullptr,
+                                                nullptr,
+                                                graph_iterator->get_checkpoint_v1_reader(),
+                                                false);
+        }
+        auto saved_model_tags = ov::util::wstring_to_string(paths[1]);
+        if (GraphIteratorSavedModel::is_supported(model_path)) {
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags);
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names(),
+                                                nullptr,
+                                                true);
+        }
+    }
+#endif
+    else if (variants[0].is<GraphIterator::Ptr>()) {
+        // this is used for OpenVINO with TensorFlow Integration
+        auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+        return std::make_shared<InputModel>(graph_iterator, m_telemetry);
+    }
+
+    FRONT_END_GENERAL_CHECK(false,
+                            "[TensorFlow Frontend] Internal error or inconsistent input model: the frontend supports "
+                            "frozen formats (.pb and .pbtxt), SavedModel and MetaGraph (.meta), and v1 checkpoints.");
+
     return nullptr;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
-    FRONT_END_GENERAL_CHECK(model_tf != nullptr, "Invalid input model");
+    auto f = convert_partially(model);
 
-    if (!m_transformation_extensions.empty()) {
-        auto function = decode(model);
+    std::unordered_map<std::string, std::string> failures;
+    std::set<std::string> unsupported_operations;
+    get_unsupported_operations_and_failures(f, unsupported_operations, failures);
 
-        ov::pass::Manager manager;
-        for (const auto& transformation : m_transformation_extensions) {
-            transformation->register_pass(manager);
+    std::stringstream exception_message;
+    for (const auto& failure : failures) {
+        if (m_telemetry) {
+            // TODO: 105173 support anonymization of exception message in order to send to telemetry
         }
-        manager.run_passes(function);
-        convert(function);
-        return function;
+        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                                 " operation with a message:\n" + failure.second + "\n";
     }
 
-    std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
-    normalize(f);
-
-    for (const auto& node : f->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node)) {
-            auto op_type = fw_node->get_decoder()->get_op_type();
-            auto op_name = fw_node->get_decoder()->get_op_name();
-            FRONT_END_OP_CONVERSION_CHECK(
-                false,
-                "The translation is incomplete due to operation " + op_name + " of type " + op_type);
+    if (m_telemetry) {
+        for (const auto& unsupported_operation : unsupported_operations) {
+            m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
+    if (unsupported_operations.size() > 0) {
+        exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
+        size_t counter = 0;
+        for (const auto& unsupported_operation : unsupported_operations) {
+            if (counter > 0) {
+                exception_message << ", ";
+            }
+            exception_message << unsupported_operation;
+            ++counter;
+        }
+        exception_message
+            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
+               "documentation: "
+               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+    }
+
+    bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message.str());
 
     return f;
 }
@@ -405,16 +412,43 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
         return function;
     }
 
+    // create a shared pointer to the cloned dictionary of translators
+    auto translator_map = std::make_shared<TranslatorDictionaryType>(m_op_translators);
+
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, false, f);
+    TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
+    try {
+        f = translate_session.get_converted_model();
+    } catch (const std::exception&) {
+        if (m_telemetry) {
+            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+        }
+        throw;
+    }
     normalize(f);
+
     return f;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
+    auto translator_map = std::make_shared<TranslatorDictionaryType>();
+
+    const std::set<std::string> required_types{"Placeholder", "NoOp"};
+    for (const auto& name : required_types) {
+        translator_map->emplace(name, m_op_translators.at(name));
+    }
+
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, true, f);
+    TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
+    try {
+        f = translate_session.get_converted_model();
+    } catch (const std::exception&) {
+        if (m_telemetry) {
+            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+        }
+        throw;
+    }
+
     return f;
 }
 
@@ -431,18 +465,20 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     normalize(partiallyConverted);
 }
 
-void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
-
-    // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
-    // into sub-graphs with only OpenVINO operations
+    manager.register_pass<pass::SavedModelUnusedRemover>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
     manager.register_pass<pass::GRUBlockCellReplacer>();
-
-    // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
-    manager.run_passes(function);
+    manager.register_pass<pass::ConstToResultRemover>();
+    manager.register_pass<pass::SwitchMergeResolver>();
+    manager.register_pass<ov::pass::UnrollIf>();
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
@@ -455,13 +491,22 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(common_conv_ext);
-        m_op_translators[common_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return common_conv_ext->get_converter()(context);
-        };
-    } else if (const auto& tensorflow_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        if (common_conv_ext->get_converter()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter()(context);
+                });
+        } else if (common_conv_ext->get_converter_named_and_indexed()) {
+            m_op_translators[common_conv_ext->get_op_type()] =
+                ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed([=](const tensorflow::NodeContext& context) {
+                    return common_conv_ext->get_converter_named_and_indexed()(context);
+                });
+        }
+        // Ignore other types of extensions in particular CreatorFunctionNamed which cannot be used with tensorflow
+        // frontend
+    } else if (const auto& tensorflow_conv_ext =
+                   std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
-        m_op_translators[tensorflow_conv_ext->get_op_type()] = [=](const NodeContext& context) {
-            return tensorflow_conv_ext->get_converter()(context);
-        };
+        m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
     }
 }

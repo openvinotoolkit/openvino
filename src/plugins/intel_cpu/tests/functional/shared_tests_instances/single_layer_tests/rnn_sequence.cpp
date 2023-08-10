@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,8 +41,9 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_RNNSequenceCommonClip, RNNSequenceTest,
@@ -55,8 +56,9 @@ namespace {
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip_non_zeros),
                                     ::testing::ValuesIn(direction),
+                                    ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             RNNSequenceTest::getTestCaseName);
 
 }  // namespace

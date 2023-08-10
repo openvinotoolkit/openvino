@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
                                                                                dilations);
 
         function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 
     {
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
             std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, mask, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 }
 
@@ -131,6 +131,6 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_bilinear_interpolation_pa
         function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertDeformableConv8To1>();
+        manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 }

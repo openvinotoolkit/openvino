@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
-
 
 /**
  * @brief Inserts Transpose before MatMul or removes it (if it exists)
@@ -32,8 +31,8 @@ namespace pass {
  */
 class HandleTransposeBeforeMatMul : public ngraph::pass::MatcherPass {
 public:
-  OPENVINO_RTTI("HandleTransposeBeforeMatMul", "0");
-  HandleTransposeBeforeMatMul();
+    OPENVINO_RTTI("HandleTransposeBeforeMatMul", "0");
+    HandleTransposeBeforeMatMul();
 };
 
 /**
@@ -59,7 +58,7 @@ public:
  *       |                       |
  *    [1, A*B]                [1, A*B]
  */
-class HandleTransposeAfterMatMul: public ngraph::pass::MatcherPass {
+class HandleTransposeAfterMatMul : public ngraph::pass::MatcherPass {
 public:
     OPENVINO_RTTI("HandleTransposeAfterMatMul", "0");
     HandleTransposeAfterMatMul();
@@ -67,11 +66,10 @@ public:
 
 class HandleTransposesAroundMatMul : public ngraph::pass::GraphRewrite {
 public:
-  OPENVINO_RTTI("HandleTransposesAroundMatMul", "0");
-  HandleTransposesAroundMatMul();
+    OPENVINO_RTTI("HandleTransposesAroundMatMul", "0");
+    HandleTransposesAroundMatMul();
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
-
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

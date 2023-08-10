@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,14 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
     return make_shared<op::v1::ReduceMean>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace mean {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     runtime::reference::mean(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
@@ -57,11 +60,13 @@ bool evaluate_mean(const HostTensorPtr& arg, const HostTensorPtr& out, const Axi
 
 bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMean_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return mean::evaluate_mean(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }

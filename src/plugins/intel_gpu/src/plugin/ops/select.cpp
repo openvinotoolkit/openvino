@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
     if (broadcast_type.m_type != ngraph::op::AutoBroadcastType::NONE &&
         broadcast_type.m_type != ngraph::op::AutoBroadcastType::NUMPY) {
-        IE_THROW() << "Unsupported broadcast type (" << broadcast_type.m_type << ") in layer " + op->get_friendly_name();
+        OPENVINO_THROW("[GPU] Unsupported broadcast type (", broadcast_type.m_type, ") in layer " + op->get_friendly_name());
     }
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
@@ -47,9 +47,7 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
                     auto reorderPrim = cldnn::reorder(reorderName,
                                                       inputs[i],
                                                       targetFormat,
-                                                      targetDatatype,
-                                                      std::vector<float>(),
-                                                      cldnn::reorder_mean_mode::subtract);
+                                                      targetDatatype);
 
                     p.add_primitive(*op, reorderPrim);
 

@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "lstm_dynamic_input_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "primitive_type_base.h"

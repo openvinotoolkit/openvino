@@ -1,17 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "embedding_bag_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "embedding_bag_inst.h"
 #include "embedding_bag/embedding_bag_kernel_selector.h"
 #include "embedding_bag/embedding_bag_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -70,3 +65,4 @@ attach_embedding_bag_impl::attach_embedding_bag_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::embedding_bag_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::embedding_bag)

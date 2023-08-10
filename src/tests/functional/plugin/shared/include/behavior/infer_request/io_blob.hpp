@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 
 namespace BehaviorTestsDefinitions {
-using namespace CommonTestUtils;
 using InferRequestIOBBlobTest = BehaviorTestsUtils::InferRequestTests;
 
 TEST_P(InferRequestIOBBlobTest, CanCreateInferRequest) {
@@ -122,10 +121,14 @@ TEST_P(InferRequestIOBBlobTest, failToSetInputWithIncorrectSizes) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    auto td = cnnNet.getInputsInfo().begin()->second->getTensorDesc();
+    auto dims = td.getDims();
+    dims[0] *= 2;
+    td.reshape(dims);
+
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+            FuncTestUtils::createAndFillBlob(td);
     blob->allocate();
-    blob->getTensorDesc().getDims()[0] *= 2;
     ASSERT_THROW(req.SetBlob(cnnNet.getInputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
 
@@ -133,10 +136,14 @@ TEST_P(InferRequestIOBBlobTest, failToSetOutputWithIncorrectSizes) {
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    auto td = cnnNet.getOutputsInfo().begin()->second->getTensorDesc();
+    auto dims = td.getDims();
+    dims[0] *= 2;
+    td.reshape(dims);
+
     InferenceEngine::Blob::Ptr blob =
-            FuncTestUtils::createAndFillBlob(cnnNet.getOutputsInfo().begin()->second->getTensorDesc());
+            FuncTestUtils::createAndFillBlob(td);
     blob->allocate();
-    blob->getTensorDesc().getDims()[0] *= 2;
     ASSERT_THROW(req.SetBlob(cnnNet.getOutputsInfo().begin()->first, blob), InferenceEngine::Exception);
 }
 
@@ -331,6 +338,39 @@ TEST_P(InferRequestIOBBlobTest, canInferWithGetOut) {
     ASSERT_NO_THROW(InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first));
 }
 
+TEST_P(InferRequestIOBBlobTest, canReallocateExternalBlobViaGet) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngraph::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+    auto inBlob = req.GetBlob("param");
+    auto outBlob = req.GetBlob("relu");
+    inBlob->allocate();
+    outBlob->allocate();
+
+    ASSERT_NO_THROW(req.Infer());
+}
+
 class InferRequestIOBBlobSetPrecisionTest : public BehaviorTestsUtils::BehaviorTestsBasicBase,
                                             public BehaviorTestsUtils::IEInferRequestTestBase {
 protected:
@@ -338,14 +378,14 @@ protected:
         std::tie(netPrecision, target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
     }
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -398,6 +438,7 @@ class InferRequestIOBBlobSetLayoutTest : public testing::WithParamInterface<Infe
                                          public ov::test::behavior::APIBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestIOBBlobSetLayoutParams> obj) {
+        using namespace ov::test::utils;
         InferenceEngine::Layout  layout;
         std::string target_device;
         std::map<std::string, std::string> configuration;

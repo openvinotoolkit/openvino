@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/max.hpp"
@@ -15,11 +16,14 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maxop {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     runtime::reference::max(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
@@ -33,6 +37,8 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_max, u64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f16, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_max, f32, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, u8, arg, out, axes, keep_dims);
+        NGRAPH_TYPE_CASE(evaluate_max, i8, arg, out, axes, keep_dims);
     default:
         rc = false;
         break;
@@ -55,11 +61,13 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceMax_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
 
     const auto reduction_axes =
         get_normalized_axes_from_tensor(inputs[1], inputs[0]->get_partial_shape().rank(), get_friendly_name());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return maxop::evaluate_max(inputs[0], outputs[0], reduction_axes, get_keep_dims());
 }
@@ -73,9 +81,19 @@ bool op::v1::ReduceMax::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
+    case ngraph::element::i8:
+    case ngraph::element::u8:
         return true;
     default:
         break;
     }
     return false;
+}
+
+bool op::v1::ReduceMax::evaluate_lower(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceMax::evaluate_upper(ov::TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,9 +41,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirst) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {
@@ -80,9 +80,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirstDynamicBatch) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {
@@ -119,9 +119,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirst) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {
@@ -158,9 +158,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirstDynamicBatch) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {
@@ -196,9 +196,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDynamicShape) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {
@@ -243,9 +243,9 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionSeveralConsumers) {
         };
 
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ngraph::pass::DepthToSpaceFusion>(callback);
+        pass_config->set_callback<ov::pass::DepthToSpaceFusion>(callback);
 
-        manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+        manager.register_pass<ov::pass::DepthToSpaceFusion>();
     }
 
     {

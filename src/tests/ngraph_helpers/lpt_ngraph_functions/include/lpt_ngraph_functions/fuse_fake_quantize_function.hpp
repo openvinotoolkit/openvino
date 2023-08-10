@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <algorithm>
 #include <memory>
+
 #include <ngraph/ngraph.hpp>
-#include "low_precision/layer_transformation.hpp"
+
 #include "common/add.hpp"
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
@@ -36,14 +36,21 @@ public:
         const FakeQuantizeOnDataWithConstant& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-            const ngraph::PartialShape& inputShape,
-            const ngraph::element::Type precisionBeforeAdd,
-            const Add& add,
-            const ngraph::element::Type precisionBeforeDequantization,
-            const DequantizationOperations& dequantization,
-            const ngraph::element::Type precisionAfterDequantization,
-            const ngraph::element::Type precisionFqOnData,
-            const FakeQuantizeOnDataWithConstant& fqOnData);
+        const ngraph::PartialShape& inputShape,
+        const ngraph::element::Type precisionBeforeAdd,
+        const Add& add,
+        const ngraph::element::Type precisionBeforeDequantization,
+        const DequantizationOperations& dequantization,
+        const ngraph::element::Type precisionAfterDequantization,
+        const ngraph::element::Type precisionFqOnData,
+        const FakeQuantizeOnDataWithConstant& fqOnData);
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::PartialShape& inputShape,
+        const ngraph::element::Type precisionBefore,
+        const FakeQuantizeOnData& fqOnData1,
+        const FakeQuantizeOnData& fqOnData2,
+        const DequantizationOperations& dequantizationOperations2);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::PartialShape& inputShape,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,22 +72,21 @@ public:
             testValues.actual.dequantization);
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>(
                 {{{0}, {ngraph::element::u8}}, {{1}, {ngraph::element::i8}}})});
 
         auto perTensorQuantization = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>({0}),
+            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0}),
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, perTensorQuantization);
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
-        transform
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
-                testValues.params);
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            testValues.params);
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ov::op::v1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AlignConcatQuantizationParametersFunction::getReference(
@@ -123,7 +122,7 @@ public:
 };
 
 TEST_P(AlignConcatQuantizationParametersTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(actualFunction, referenceFunction, true, true);

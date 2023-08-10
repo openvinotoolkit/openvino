@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,8 +97,8 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -107,8 +107,8 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -183,8 +183,8 @@ TEST(TransformationTests, LowLatency2_GRU) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -264,8 +264,8 @@ TEST(TransformationTests, LowLatency2_RNN) {
         f = std::make_shared<Function>(NodeVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
 
@@ -342,8 +342,8 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -353,8 +353,8 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -427,8 +427,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -438,8 +438,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -506,8 +506,8 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -519,8 +519,8 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMTensorIterator/H_t/variable");
-        const std::string variable_name_C("LSTMTensorIterator/C_t/variable");
+        const std::string variable_name_H("LSTMTensorIterator/H_t/variable_2");
+        const std::string variable_name_C("LSTMTensorIterator/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -594,7 +594,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto results = body->get_results();
 
         auto shape_of = std::make_shared<ShapeOf>(X);
-        const auto trip_count = std::make_shared<ov::opset8::Gather>(shape_of,
+        const auto trip_count = std::make_shared<ov::op::v8::Gather>(shape_of,
                                                                      Constant::create(ngraph::element::i64, {1}, {0}),
                                                                      Constant::create(ngraph::element::i64, {1}, {0}));
         auto exec_condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
@@ -621,8 +621,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         f->validate_nodes_and_infer_types();
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -632,8 +632,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -702,8 +702,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::LowLatency2>(true);
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::LowLatency2>(true);
 
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -713,8 +713,8 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         auto H = std::make_shared<Parameter>(element::f32, Shape{1, 128});
         auto C = std::make_shared<Parameter>(element::f32, Shape{1, 128});
 
-        const std::string variable_name_H("LSTMLoop/H_t/variable");
-        const std::string variable_name_C("LSTMLoop/C_t/variable");
+        const std::string variable_name_H("LSTMLoop/H_t/variable_2");
+        const std::string variable_name_C("LSTMLoop/C_t/variable_0");
         auto variable_H =
             std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto variable_C =
@@ -773,71 +773,6 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
-}
-
-TEST(TransformationTests, LowLatencyLSTM_LLTv1_LLTv2) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    {
-        auto X = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-        auto C_init = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-
-        auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
-        auto H_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-        auto C_t = std::make_shared<Parameter>(element::f32, Shape{1, 128});
-
-        // Body
-        auto axis = Constant::create(element::i64, Shape{}, {0});
-        auto squeeze = std::make_shared<Squeeze>(Xi, axis);
-
-        auto w_val = std::vector<float>(512 * 16, 0);
-        auto r_val = std::vector<float>(512 * 128, 0);
-        auto b_val = std::vector<float>(512, 0);
-        auto W = Constant::create(element::f32, Shape{512, 16}, w_val);
-        auto R = Constant::create(element::f32, Shape{512, 128}, r_val);
-        auto B = Constant::create(element::f32, Shape{512}, b_val);
-
-        auto lstm_cell = std::make_shared<LSTMCell>(squeeze, H_t, C_t, W, R, B, 128);
-        auto res_1 = std::make_shared<Result>(lstm_cell->output(0));
-        auto unsqueeze = std::make_shared<Unsqueeze>(lstm_cell->output(0), axis);
-        auto res_2 = std::make_shared<Result>(unsqueeze);
-        auto res_3 = std::make_shared<Result>(lstm_cell->output(1));
-        auto body = std::make_shared<Function>(OutputVector{res_1, res_2, res_3}, ParameterVector{Xi, H_t, C_t});
-
-        auto tensor_iterator = std::make_shared<TensorIterator>();
-        tensor_iterator->set_body(body);
-        tensor_iterator->set_friendly_name("LSTMTensorIterator");
-
-        tensor_iterator->set_merged_input(C_t, C_init, res_3);
-        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
-        tensor_iterator->set_merged_input(H_t, H_init, res_1);
-
-        auto out0 = tensor_iterator->get_iter_value(res_1, -1);
-        auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
-
-        auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Function>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
-
-        auto f_2 = ngraph::clone_function(*f);
-        pass::Manager manager_2;
-        manager_2.register_pass<pass::InitNodeInfo>();
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        manager_2.register_pass<ngraph::pass::LowLatency>();
-        NGRAPH_SUPPRESS_DEPRECATED_END
-        EXPECT_NO_THROW(manager_2.run_passes(f_2));
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        manager.register_pass<ngraph::pass::LowLatency>();
-        NGRAPH_SUPPRESS_DEPRECATED_END
-        // LLT v2 doesn't insert Assign/ReadValue ops, they are already inserted
-        // but unrolls TI/Loop
-        manager.register_pass<pass::LowLatency2>();
-
-        EXPECT_NO_THROW(manager.run_passes(f));
-    }
 }
 
 namespace {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +8,7 @@ include(target_flags)
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
 ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
-    "LINUX OR (APPLE AND AARCH64);NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+    "LINUX;EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
@@ -19,16 +19,14 @@ else()
 endif()
 
 if(CI_BUILD_NUMBER)
-    set(TREAT_WARNING_AS_ERROR_DEFAULT ON)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
-    set(TREAT_WARNING_AS_ERROR_DEFAULT OFF)
+    set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)
 endif()
 
-ie_dependent_option (TREAT_WARNING_AS_ERROR "WILL BE REMOVED SOON, NEED TO FIX PRIVATE COMPONENTS" ON "X86_64 OR X86" OFF)
+ie_option (CMAKE_COMPILE_WARNING_AS_ERROR "Enable warnings as errors" ${CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT})
 
-if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ${TREAT_WARNING_AS_ERROR_DEFAULT})
-endif()
+ie_dependent_option (ENABLE_QSPECTRE "Enable Qspectre mitigation" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
 ie_dependent_option (ENABLE_INTEGRITYCHECK "build DLLs with /INTEGRITYCHECK flag" OFF "CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
@@ -38,28 +36,30 @@ ie_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU OR OV_COMPILER_IS_CLANG" OFF)
+ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
 
 # Defines CPU capabilities
 
-ie_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR X86" OFF)
+ie_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
-ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" OFF)
+ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
-ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
+ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
 
-ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
+# Type of build, we add this as an explicit option to default it to ON
+get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
+ie_option (BUILD_SHARED_LIBS "Build as a shared library" ${BUILD_SHARED_LIBS_DEFAULT})
 
 # Android does not support SOVERSION
 # see https://www.opengis.ch/2011/11/23/creating-non-versioned-shared-libraries-for-android/
-ie_dependent_option (ENABLE_LIBRARY_VERSIONING "Enable libraries versioning" ON "NOT WIN32;NOT ANDROID" OFF)
+ie_dependent_option (ENABLE_LIBRARY_VERSIONING "Enable libraries versioning" ON "NOT WIN32;NOT ANDROID;BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-if(UNIX AND NOT ANDROID)
-    set(STYLE_CHECKS_DEFAULT ON)
-else()
+if(CMAKE_CROSSCOMPILING OR WIN32)
     set(STYLE_CHECKS_DEFAULT OFF)
+else()
+    set(STYLE_CHECKS_DEFAULT ON)
 endif()
 
 ie_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECKS_DEFAULT})
@@ -74,7 +74,12 @@ ie_option (VERBOSE_BUILD "shows extra information about build" OFF)
 
 ie_option (ENABLE_UNSAFE_LOCATIONS "skip check for MD5 for dependency" OFF)
 
-ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG;NOT WIN32" OFF)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND MSVC_VERSION GREATER_EQUAL 1930)
+    # Visual Studio 2022: 1930-1939 = VS 17.0 (v143 toolset)
+    set(_msvc_version_2022 ON)
+endif()
+
+ie_dependent_option (ENABLE_FUZZING "instrument build for fuzzing" OFF "OV_COMPILER_IS_CLANG OR _msvc_version_2022" OFF)
 
 #
 # Check features

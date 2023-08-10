@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,14 @@ using namespace InferenceEngine;
 
 using ExtensionTests = ::testing::Test;
 
-std::string getExtensionPath() {
-    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+#ifndef OPENVINO_STATIC_LIBRARY
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+
+static std::string getExtensionPath() {
+    return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
                                                   std::string("template_extension") + IE_BUILD_POSTFIX);
 }
-
-#ifndef OPENVINO_STATIC_LIBRARY
 
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
@@ -54,5 +56,7 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node>(), ""), InferenceEngine::Exception);
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 #endif  // OPENVINO_STATIC_LIBRARY

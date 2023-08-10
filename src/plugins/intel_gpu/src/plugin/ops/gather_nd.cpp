@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,18 +18,16 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto input_rank = op->get_input_partial_shape(0).size();
-    auto indices_rank = op->get_input_partial_shape(1).size();
-
-    auto batch_dims = op->get_batch_dims();
+    auto input_rank = static_cast<const uint8_t>(op->get_input_partial_shape(0).size());
+    auto indices_rank = static_cast<const uint8_t>(op->get_input_partial_shape(1).size());
+    auto batch_dims = static_cast<const uint8_t>(op->get_batch_dims());
 
     auto primitive = cldnn::gather_nd(layerName,
                                       inputs[0],
                                       inputs[1],
                                       input_rank,
                                       indices_rank,
-                                      batch_dims,
-                                      true);
+                                      batch_dims);
 
     p.add_primitive(*op, primitive);
 }
@@ -41,10 +39,9 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto input_rank = op->get_input_partial_shape(0).size();
-    auto indices_rank = op->get_input_partial_shape(1).size();
-
-    auto batch_dims = op->get_batch_dims();
+    auto input_rank = static_cast<const uint8_t>(op->get_input_partial_shape(0).size());
+    auto indices_rank = static_cast<const uint8_t>(op->get_input_partial_shape(1).size());
+    auto batch_dims = static_cast<const uint8_t>(op->get_batch_dims());
 
     auto primitive = cldnn::gather_nd(layerName,
                                       inputs[0],

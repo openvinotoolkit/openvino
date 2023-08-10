@@ -1,16 +1,25 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_minimum_required (VERSION 3.10)
 
 # Enable CMAKE_<LANG>_COMPILER_ID AppleClang
-cmake_policy(SET CMP0025 NEW)
+if(POLICY CMP0025)
+    cmake_policy(SET CMP0025 NEW)
+endif()
 
 project(Samples)
 
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
+get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    # Ninja-Multi specific, see:
+    # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
+    set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+elseif(NOT OV_GENERATOR_MULTI_CONFIG)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
+endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -45,27 +54,18 @@ set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
-if(TREAT_WARNING_AS_ERROR AND NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-endif()
-
-if (WIN32)
-    set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
-    endif()
-
     # disable some noisy warnings
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
-    endif()
-else()
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(WIN32)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
 endif()
 
@@ -73,20 +73,15 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
-  set(AARCH64 ON)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*|ARM64.*)")
+    set(AARCH64 ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
-  set(ARM ON)
-endif()
-if(ARM AND NOT CMAKE_CROSSCOMPILING)
-    add_compile_options(-march=armv7-a)
+    set(ARM ON)
 endif()
 
-set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
+    add_compile_options(-march=armv7-a+fp)
+endif()
 
 ####################################
 ## to use C++11; can overwritten via cmake command line
@@ -120,6 +115,9 @@ elseif(gflags_required)
         elseif(TARGET gflags-shared)
             # gflags shared case for CentOS / RHEL / Fedora
             set(GFLAGS_TARGET gflags-shared)
+        elseif(TARGET gflags::gflags)
+            # gflags case for Conan
+            set(GFLAGS_TARGET gflags::gflags)
         else()
             message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
         endif()
@@ -128,28 +126,23 @@ elseif(gflags_required)
     endif()
 
     if(NOT gflags_FOUND)
+        set(GFLAGS_TARGET gflags_nothreads_static)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
             add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-            set(GFLAGS_TARGET gflags_nothreads_static)
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags")
+            # Allow running samples CMakeLists.txt as stand alone from openvino sources
+            add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/gflags"
+                             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/gflags" EXCLUDE_FROM_ALL)
         else()
             message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
         endif()
     endif()
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
-    add_subdirectory(common/utils)
-endif()
+# include common utils
+add_subdirectory(common)
 
-# format reader must be added after find_package(OpenVINO) to get
-# exactly the same OpenCV_DIR path which was used for the OpenVINO build
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
-    add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
-    add_subdirectory(common/opencv_c_wrapper)
-endif()
-
-# samples build can be switched off during whole IE build
+# samples build can be switched off during whole OpenVINO build
 if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
@@ -245,14 +238,17 @@ macro(ie_add_sample)
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
-                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+                            SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
+
 # skip building of unnecessary subdirectories
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-    list(REMOVE_ITEM samples_dirs common thirdparty)
+    list(REMOVE_ITEM samples_dirs thirdparty)
 endif()
+list(REMOVE_ITEM samples_dirs common)
+
 add_samples_to_build(${samples_dirs})

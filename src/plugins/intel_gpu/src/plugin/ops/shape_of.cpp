@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ static void CreateShapeOfOpCommon(Program& p, const std::shared_ptr<ngraph::Node
 
     auto primitive = cldnn::shape_of(layerName,
                                      inputs[0],
-                                     op->get_output_partial_shape(0).rank().get_length(),
+                                     op->get_input_partial_shape(0).rank().get_length(),
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
     p.add_primitive(*op, primitive);

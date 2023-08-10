@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <node.h>
 #include <string>
 #include <vector>
+#include "executors/convert_list.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,12 +16,13 @@ namespace node {
 
 class Convert : public Node {
 public:
-    Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                      const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+                      const std::string &nodeName, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void prepareParams() override;
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
@@ -40,7 +42,7 @@ public:
     const MemoryDesc& getInput() const { return *input; }
     const MemoryDesc& getOutput() const { return *output; }
 
-    bool needPrepareParams() const override { return false; }
+    bool needPrepareParams() const override { return inputShapesModified(); }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -49,7 +51,9 @@ public:
 private:
     MemoryDescPtr input;
     MemoryDescPtr output;
-    InferenceEngine::Precision origPrc;
+    ConvertParams convertParams;
+    std::shared_ptr<ConvertExecutor> execPtr = nullptr;
+    NodeConfig config;
 
     std::string errorPrefix;
 };

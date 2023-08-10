@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
     if (inputShapes.front().first.size() != 0) {
         result << "IS=(";
         for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result.seekp(-1, result.cur);
         result << ")_";
@@ -33,12 +33,12 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
     result << "TS=";
     for (const auto& shape : inputShapes) {
         for (const auto& item : shape.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
     }
     result << "outputSize=" << outputSize << "_";
     result << "samplingRatio=" << samplingRatio << "_";
-    result << "pyramidScales=" << CommonTestUtils::vec2str(pyramidScales) << "_";
+    result << "pyramidScales=" << ov::test::utils::vec2str(pyramidScales) << "_";
     std::string alig = aligned ? "true" : "false";
     result << "aligned=" << alig << "_";
     result << "netPRC=" << netPrecision << "_";
@@ -47,10 +47,6 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
-    // TODO: Remove it after fixing issue 69529
-    // w/a for myriad (cann't store 2 caches simultaneously)
-    PluginCache::get().reset();
-
     std::vector<InputShape> inputShapes;
     int64_t outputSize, samplingRatio;
     std::vector<int64_t> pyramidScales;

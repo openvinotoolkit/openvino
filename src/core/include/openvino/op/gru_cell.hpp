@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUCell : public util::RNNCellBase {
 public:
-    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase, 3);
+    OPENVINO_OP("GRUCell", "opset3", op::util::RNNCellBase);
     GRUCell();
     ///
     /// \brief      Constructs GRUCell node.
@@ -132,6 +132,10 @@ public:
 
     bool get_linear_before_reset() const {
         return m_linear_before_reset;
+    }
+
+    void set_linear_before_reset(bool linear_before_reset) {
+        m_linear_before_reset = linear_before_reset;
     }
 
 private:

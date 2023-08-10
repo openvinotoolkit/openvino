@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/detection_output.hpp"
 
-#include <detection_output_shape_inference.hpp>
-
+#include "detection_output_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 
@@ -35,14 +35,11 @@ void ov::op::v0::DetectionOutput::validate_and_infer_types() {
     OV_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, m_attrs.num_classes > 0, "Number of classes must be greater than zero");
     validate_base(m_attrs);
-    std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
@@ -97,14 +94,11 @@ ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 void ov::op::v8::DetectionOutput::validate_and_infer_types() {
     OV_OP_SCOPE(v8_DetectionOutput_validate_and_infer_types);
     validate_base(m_attrs);
-    std::vector<ov::PartialShape> input_shapes;
-    for (auto input_idx = 0; input_idx < get_input_size(); input_idx++)
-        input_shapes.push_back(get_input_partial_shape(input_idx));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
 
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 

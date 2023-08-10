@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "batch_to_space_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+#include "batch_to_space_inst.h"
 #include "batch_to_space/batch_to_space_kernel_selector.h"
 #include "batch_to_space/batch_to_space_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -33,9 +26,34 @@ struct batch_to_space_impl : typed_primitive_impl_ocl<batch_to_space> {
         auto params = get_default_params<kernel_selector::batch_to_space_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::batch_to_space_optional_params>(impl_param.get_program());
 
-        params.block_shape = convert_dim_vector(primitive->block_shape);
-        params.crops_begin = convert_dim_vector(primitive->crops_begin);
-        params.crops_end = convert_dim_vector(primitive->crops_end);
+        if (primitive->shape_constant) {
+            params.block_type = kernel_selector::base_params::ArgType::Constant;
+            params.block_shape = convert_dim_vector(primitive->block_shape);
+
+            params.begin_type = kernel_selector::base_params::ArgType::Constant;
+            params.crops_begin = convert_dim_vector(primitive->crops_begin);
+
+            params.end_type = kernel_selector::base_params::ArgType::Constant;
+            params.crops_end = convert_dim_vector(primitive->crops_end);
+        } else {
+            params.block_input_index = 1;
+            params.block_type = kernel_selector::base_params::ArgType::Input;
+            auto block_layout = impl_param.get_input_layout(params.block_input_index);
+            params.inputs.push_back(convert_data_tensor(block_layout));
+            params.block_dims = block_layout.count();
+
+            params.begin_input_index = 2;
+            params.begin_type = kernel_selector::base_params::ArgType::Input;
+            auto begin_layout = impl_param.get_input_layout(params.begin_input_index);
+            params.inputs.push_back(convert_data_tensor(begin_layout));
+            params.begin_dims = begin_layout.count();
+
+            params.end_input_index = 3;
+            params.end_type = kernel_selector::base_params::ArgType::Input;
+            auto end_layout = impl_param.get_input_layout(params.end_input_index);
+            params.inputs.push_back(convert_data_tensor(end_layout));
+            params.end_dims = end_layout.count();
+        }
 
         return {params, optional_params};
     }
@@ -69,3 +87,4 @@ attach_batch_to_space_impl::attach_batch_to_space_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::batch_to_space_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::batch_to_space)

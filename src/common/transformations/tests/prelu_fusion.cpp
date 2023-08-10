@@ -11,6 +11,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -31,7 +32,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeAdd) {
 
         function = std::make_shared<Function>(NodeVector{add}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -54,7 +55,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeSub) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -78,7 +79,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplyAdd) {
 
         function = std::make_shared<Function>(NodeVector{add}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -102,7 +103,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplySub) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -126,8 +127,58 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
-    function_ref = ngraph::clone_function(*function);
+    function_ref = function->clone();
+}
+
+TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
+    using namespace std;
+    using namespace ov::opset10;
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{1, 128});
+        const auto relu = make_shared<Relu>(data);
+        const auto abs = make_shared<Abs>(data);
+        const auto sub = make_shared<Subtract>(data, abs);
+        const auto mul_1_const = Constant::create(element::f32, Shape{1}, {0.022});
+        const auto mul_1 = make_shared<Multiply>(sub, mul_1_const);
+        const auto mul_2_const = Constant::create(element::f32, Shape{1}, {0.5});
+        const auto mul_2 = make_shared<Multiply>(mul_1, mul_2_const);
+        const auto add = make_shared<Add>(relu, mul_2);
+        function = make_shared<Function>(NodeVector{add}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::PReluFusion>();
+    }
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{1, 128});
+        const auto prelu_const = Constant::create(element::f32, Shape{1}, {0.022});
+        const auto prelu = make_shared<PRelu>(data, prelu_const);
+        function_ref = make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, PReluFusionNegReluMulAdd) {
+    using namespace std;
+    using namespace ov::opset10;
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{2, 12});
+        const auto relu_pos = make_shared<Relu>(data);
+        const auto neg = make_shared<Negative>(data);
+        const auto relu_neg = make_shared<Relu>(neg);
+        const auto mul_const = Constant::create(element::f32, Shape{1}, {0.235});
+        const auto mul = make_shared<Multiply>(relu_neg, mul_const);
+        const auto add = make_shared<Add>(relu_pos, mul);
+        function = make_shared<Function>(NodeVector{add}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::PReluFusion>();
+    }
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{2, 12});
+        const auto prelu_const = Constant::create(element::f32, Shape{1}, {-0.235});
+        const auto prelu = make_shared<PRelu>(data, prelu_const);
+        function_ref = make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

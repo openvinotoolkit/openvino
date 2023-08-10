@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,9 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+      EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -74,11 +75,11 @@ void EmbeddingBagPackedSum::prepareParams() {
 }
 
 void EmbeddingBagPackedSum::initFromInputs() {
-    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
+    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
 }
 
-void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _batch * _indicesPerBag)
+void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
         IE_THROW() << "Invalid embedding bag index.";
 
     withWeight = true;
@@ -98,10 +99,10 @@ bool EmbeddingBagPackedSum::isExecutable() const {
 }
 
 void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
+        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),

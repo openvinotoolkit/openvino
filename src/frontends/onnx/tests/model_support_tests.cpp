@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ std::string model_path(const char* model) {
     std::string path = ONNX_TEST_MODELS;
     path += "support_test/";
     path += model;
-    return CommonTestUtils::getModelFromTestModelZoo(path);
+    return ov::test::utils::getModelFromTestModelZoo(path);
 }
 }  // namespace
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
-#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
@@ -40,7 +39,7 @@
 #include "transformations/common_optimizations/interpolate_sequence_fusion.hpp"
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_divides.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -64,7 +63,8 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
-#include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
@@ -76,22 +76,25 @@
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
+#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
-#include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
@@ -99,6 +102,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
@@ -124,7 +128,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
-    REGISTER_PASS(manager, MarkPrecisionSensitiveDivides)
+
+    REGISTER_PASS(manager, MarkDividesInShapeSubgraphs)
     REGISTER_PASS(manager, WeightsDequantizeToFakeQuantize)
 
     auto common_fusions = manager.register_pass<GraphRewrite>();
@@ -135,7 +140,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, ReduceMerge)
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
-    manager.register_pass<ngraph::pass::ConcatReduceFusion>();
+    manager.register_pass<ConcatReduceFusion>();
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
     REGISTER_DISABLED_PASS(manager, ConvertInterpolate1ToInterpolate4)
 
@@ -158,11 +163,12 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
+    ADD_MATCHER(decomp, GroupNormalizationDecomposition)
     ADD_MATCHER(decomp, MVN6Decomposition)
-    decomp->add_matcher<ngraph::pass::NormalizeL2Decomposition, false>();
+    decomp->add_matcher<NormalizeL2Decomposition, false>();
     ADD_MATCHER(decomp, SimplifyCTCGreedyDecoderSeqLen)
     ADD_MATCHER(decomp, EinsumDecomposition)
-    decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
+    decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
     ADD_MATCHER(decomp, GatherNegativeConstIndicesNormalize)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
@@ -175,7 +181,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConstantFolding)
 
     // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    manager.register_pass<LinOpSequenceFusion>();
     REGISTER_PASS(manager, UnrollIf)
 
     auto multiply_fusions = manager.register_pass<GraphRewrite>();
@@ -208,6 +214,10 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertROIAlign9To3)
     REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
     REGISTER_PASS(manager, ConvertXorToLogicalXor)
+    REGISTER_PASS(manager, ConvertTopK11ToTopK3)
+    REGISTER_PASS(manager, ConvertInterpolate11ToInterpolate4)
+    REGISTER_PASS(manager, ConvertPad12ToPad1)
+    REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -221,7 +231,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
-    manager.register_pass<ngraph::pass::StridesOptimization>();
+    manager.register_pass<StridesOptimization>();
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

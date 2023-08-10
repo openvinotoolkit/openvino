@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "quantize_linear.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -66,3 +67,4 @@ OutputVector qlinear_conv(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include <dnnl_extension_utils.h>
-#include "emitters/jit_bf16_emitters.hpp"
+#include "emitters/x64/jit_bf16_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
@@ -23,7 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -32,8 +32,9 @@ using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
-
+#endif
 #define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
 
 namespace ov {
@@ -77,6 +78,8 @@ bool NormalizeKey::operator==(const NormalizeKey& rhs) const {
 }
 
 }  // namespace
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
@@ -641,9 +644,9 @@ private:
     // is_broadcast for broadcasting param for depth_wise and quantize, for fusion with plain layout.
     void apply_post_ops(memory::data_type dst_dt, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
-        int eltwise_inj_idx = 0;
-        int depthwise_inj_idx = 0;
-        int quantization_inj_idx = 0;
+        size_t eltwise_inj_idx = 0;
+        size_t depthwise_inj_idx = 0;
+        size_t quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
@@ -693,7 +696,7 @@ private:
         }
     }
 };
-
+#endif
 bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
@@ -752,8 +755,8 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, PassThroughShapeInferFactory()) {
+NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -810,7 +813,6 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                         getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
     NodeConfig config;
-    config.dynBatchSupport = false;
     config.inConfs.resize(2);
     config.outConfs.resize(1);
     config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
@@ -872,8 +874,8 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 }
 
 void NormalizeL2::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         THROW_ERROR << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -913,12 +915,11 @@ void NormalizeL2::prepareParams() {
 
     NormalizeKey key = {attrs, kernel_attrs, dims};
 
-    auto engine = getEngine();
-    auto builder = [&engine](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
+    auto builder = [](const NormalizeKey& key) -> std::shared_ptr<NormalizeL2::NormalizeL2Executor> {
         return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -936,8 +937,8 @@ void NormalizeL2::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have a compiled executor.";
 
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->getData());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->getData());
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
@@ -966,7 +967,7 @@ private:
 // *=================* *======* *=================*
 
 // *=================* JIT case *=================*
-
+#if defined(OPENVINO_ARCH_X86_64)
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2JitExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
@@ -1296,7 +1297,7 @@ private:
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
 };
-
+#endif
 // *=================* *======* *=================*
 
 // *=============* Reference case *===============*
@@ -1305,7 +1306,7 @@ template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) :
-        attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
+        dims(dims), kernel_attrs(kernel_attrs), attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
@@ -1492,8 +1493,10 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
         const NormalizeL2Attrs& attrs, const dnnl::primitive_attr& kernel_attrs, const VectorDims& dims) {
     if (attrs.cornerCase)
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
+#if defined(OPENVINO_ARCH_X86_64)
     else if (mayiuse(cpu::x64::sse41))
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+#endif
     else if (attrs.layout == LayoutType::ncsp)
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else

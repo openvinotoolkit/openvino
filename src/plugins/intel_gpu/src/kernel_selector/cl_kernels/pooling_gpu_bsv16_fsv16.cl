@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
@@ -28,8 +27,6 @@
 #define OUTPUT_VEC8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
 #define TO_OUTPUT_VEC8 CAT(convert_, OUTPUT_VEC8)
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-
 #if MAX_POOLING
     #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
@@ -47,7 +44,7 @@ inline ACCUMULATOR_VEC8 FUNC(apply_pooling)(ACCUMULATOR_VEC8 tmp, ACCUMULATOR_VE
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 #if SUB_GROUP_SIZE != 1
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 #endif
 KERNEL(pooling_gpu_bsv16_fsv16)(
     const __global INPUT0_TYPE* input,
@@ -191,7 +188,6 @@ KERNEL(pooling_gpu_bsv16_fsv16)(
 #undef HAS_PAD_Y
 #undef HAS_PAD_X
 
-#undef unroll_for
 #undef INPUT_VEC8
 
 #undef ACCUMULATOR_VEC8

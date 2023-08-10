@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <node.h>
 #include <string>
 
-#include "kernels/dft_uni_kernel.hpp"
+#include "kernels/x64/dft_uni_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +16,7 @@ namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
@@ -31,7 +31,6 @@ public:
 private:
     std::vector<int32_t> getAxes() const;
     void createJITKernels(bool hasDFT, bool hasFFT);
-
     void dftNd(float* output,
                const VectorDims& outputShape,
                const VectorDims& outputStrides,

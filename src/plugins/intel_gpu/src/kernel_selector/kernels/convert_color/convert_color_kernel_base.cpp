@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("CONVERT_FROM_I420", ""));
             break;
         default:
-            IE_THROW() << "Not supported input color format";
+            OPENVINO_THROW("Not supported input color format");
     }
 
     switch (params.output_color_format) {
@@ -58,7 +58,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("CONVERT_TO_BGR", ""));
             break;
         default:
-            IE_THROW() << "Not supported output color format";
+            OPENVINO_THROW("Not supported output color format");
     }
 
     switch (params.mem_type) {
@@ -69,7 +69,7 @@ JitConstants ConvertColorKernelBase::GetJitConstants(const convert_color_params&
             jit.AddConstant(MakeJitConstant("SURFACE_MEM", ""));
             break;
         default:
-            IE_THROW() << "Not supported memory type";
+            OPENVINO_THROW("Not supported memory type");
     }
     return jit;
 }
@@ -88,7 +88,7 @@ KernelsData ConvertColorKernelBase::GetCommonKernelsData(const Params& params, c
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    size_t number_of_inputs = prim_params.inputs.size();
+    uint32_t number_of_inputs = static_cast<uint32_t>(prim_params.inputs.size());
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, number_of_inputs);
 

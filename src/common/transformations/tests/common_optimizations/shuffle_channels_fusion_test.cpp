@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,13 +64,13 @@ public:
             f_ref = f;
         }
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager manager;
         auto pass_config = manager.get_pass_config();
-        manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::ShuffleChannelsFusion>(values.check_values);
-        manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        manager.register_pass<ov::pass::InitUniqueNames>(unh);
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ShuffleChannelsFusion>(values.check_values);
+        manager.register_pass<ov::pass::CheckUniqueNames>(unh);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -80,9 +80,9 @@ public:
 
         std::ostringstream result;
         result << "_input_shape_" << testValues.inputPartialShape << "_before_"
-               << CommonTestUtils::vec2str(testValues.reshape_before_val) << "_transpose_"
-               << CommonTestUtils::vec2str(testValues.transpose_val) << "_after_"
-               << CommonTestUtils::vec2str(testValues.reshape_after_val)
+               << ov::test::utils::vec2str(testValues.reshape_before_val) << "_transpose_"
+               << ov::test::utils::vec2str(testValues.transpose_val) << "_after_"
+               << ov::test::utils::vec2str(testValues.reshape_after_val)
                << (testValues.check_values ? "check_reshape_values" : "");
 
         return result.str();

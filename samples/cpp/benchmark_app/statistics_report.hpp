@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,6 +97,8 @@ public:
     };
 
     enum class Category { COMMAND_LINE_PARAMETERS, RUNTIME_CONFIG, EXECUTION_RESULTS, EXECUTION_RESULTS_GROUPPED };
+
+    virtual ~StatisticsReport() = default;
 
     explicit StatisticsReport(Config config) : _config(std::move(config)) {
         _separator =

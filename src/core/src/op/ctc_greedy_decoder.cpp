@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,9 +25,8 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
     const auto& seq_mask_pshape = get_input_partial_shape(1);
     const auto& input_et = get_input_element_type(0);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_mask_pshape};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, input_et, output_shapes[0]);
 }
 

@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Provides input layout for a data to be passed later to network.
 /// @details This primitive allows to define the layout for input data
@@ -24,6 +17,10 @@ namespace cldnn {
 /// @sa network::set_input_data(), cldnn::data
 struct input_layout : public primitive_base<input_layout> {
     CLDNN_DECLARE_PRIMITIVE(input_layout)
+
+    input_layout() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs input layout primitive.
     /// @param id This primitive id.
@@ -37,8 +34,21 @@ struct input_layout : public primitive_base<input_layout> {
     void change_layout(const cldnn::layout& new_layout) {
         layout = new_layout;
     }
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<input_layout>::save(ob);
+        ob << layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<input_layout>::load(ib);
+        ib >> layout;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

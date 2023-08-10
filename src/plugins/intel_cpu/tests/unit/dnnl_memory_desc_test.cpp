@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -337,9 +337,11 @@ TEST(MakeUndefinedDnnlDesc, checkDims) {
         partialShape[i] = {3}; // just a number which is not equal to any origin dims
         ASSERT_THROW(DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(partialShape)), InferenceEngine::ParameterMismatch);
     }
-    for (size_t i = 0; i < origin.dims().size(); ++i) {
+
+    const auto dims = origin.get_dims();
+    for (size_t i = 0; i < dims.size(); ++i) {
         auto partialShape = fullyUndef;
-        partialShape[i] = {origin.dims()[i]};
+        partialShape[i] = {dims[i]};
         MemoryDescPtr memDesc;
         ASSERT_NO_THROW(memDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef)));
         ASSERT_FALSE(memDesc->isDefined());
@@ -402,9 +404,9 @@ TEST(MakeUndefinedDnnlDesc, extraData) {
         std::tie(fmt, dims) = item;
         memory::desc origin(dims, dataType, fmt);
 
-        origin.data.extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
-        origin.data.extra.compensation_mask = 1;
-        origin.data.extra.scale_adjust = 2.0f;
+        origin.get()->extra.flags = dnnl_memory_extra_flag_compensation_conv_s8s8;
+        origin.get()->extra.compensation_mask = 1;
+        origin.get()->extra.scale_adjust = 2.0f;
 
         auto undefDesc = DnnlExtensionUtils::makeUndefinedDesc(origin, ov::intel_cpu::Shape(fullyUndef));
         ASSERT_FALSE(undefDesc->isDefined());

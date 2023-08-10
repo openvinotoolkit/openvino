@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,9 @@ public:
     }
     op::RecurrentSequenceDirection get_direction() const {
         return m_direction;
+    }
+    void set_direction(const RecurrentSequenceDirection& direction) {
+        m_direction = direction;
     }
 
 protected:

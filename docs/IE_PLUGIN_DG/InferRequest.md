@@ -1,83 +1,149 @@
-# Synchronous Inference Request {#openvino_docs_ie_plugin_dg_infer_request}
+# Synchronous Inference Request {#openvino_docs_ov_plugin_dg_infer_request}
 
-`InferRequest` class functionality:
-- Allocate input and output blobs needed for a backend-dependent network inference.
-- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
-- Call inference stages one by one synchronously.
+@sphinxdirective
 
-`InferRequest` Class
-------------------------
+.. meta::
+   :description: Use the ov::ISyncInferRequest interface as the base class to implement a synchronous inference request in OpenVINO.
 
-Inference Engine Plugin API provides the helper InferenceEngine::IInferRequestInternal class recommended 
-to use as a base class for a synchronous inference request implementation. Based of that, a declaration 
+
+``InferRequest`` class functionality:
+
+* Allocate input and output tensors needed for a backend-dependent network inference.
+* Define functions for inference process stages (for example, ``preprocess``, ``upload``, ``infer``, ``download``, ``postprocess``). These functions can later be used to define an execution pipeline during :doc:`Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>` implementation.
+* Call inference stages one by one synchronously.
+
+InferRequest Class
+##################
+
+OpenVINO Plugin API provides the interface ov::ISyncInferRequest which should be 
+used as a base class for a synchronous inference request implementation. Based of that, a declaration 
 of a synchronous request class can look as follows: 
 
-@snippet src/template_infer_request.hpp infer_request:header
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.hpp
+   :language: cpp
+   :fragment: [infer_request:header]
 
-#### Class Fields
+Class Fields
+++++++++++++
 
 The example class has several fields:
 
-- `_executableNetwork` - reference to an executable network instance. From this reference, an inference request instance can take a task executor, use counter for a number of created inference requests, and so on.
-- `_profilingTask` - array of the `std::array<InferenceEngine::ProfilingTask, numOfStages>` type. Defines names for pipeline stages. Used to profile an inference pipeline execution with the Intel® instrumentation and tracing technology (ITT).
-- `_durations` - array of durations of each pipeline stage.
-- `_networkInputBlobs` - input blob map.
-- `_networkOutputBlobs` - output blob map.
-- `_parameters` - `ngraph::Function` parameter operations.
-- `_results` - `ngraph::Function` result operations.
-- backend specific fields:
-	- `_inputTensors` - inputs tensors which wrap `_networkInputBlobs` blobs. They are used as inputs to backend `_executable` computational graph.
-	- `_outputTensors` - output tensors which wrap `_networkOutputBlobs` blobs. They are used as outputs from backend `_executable` computational graph.
-	- `_executable` - an executable object / backend computational graph.
+* ``m_profiling_task`` - array of the ``std::array<openvino::itt::handle_t, numOfStages>`` type. Defines names for pipeline stages. Used to profile an inference pipeline execution with the Intel® instrumentation and tracing technology (ITT).
 
-### `InferRequest` Constructor
+* ``m_durations`` - array of durations of each pipeline stage.
 
-The constructor initializes helper fields and calls methods which allocate blobs:
+* backend-specific fields:
 
-@snippet src/template_infer_request.cpp infer_request:ctor
+  * ``m_backend_input_tensors`` - input backend tensors.
+  * ``m_backend_output_tensors`` - output backend tensors.
+  * ``m_executable`` - an executable object / backend computational graph.
+  * ``m_eval_context`` - an evaluation context to save backend states after the inference.
+  * ``m_variable_states`` - a vector of variable states.
 
-> **NOTE**: Call InferenceEngine::CNNNetwork::getInputsInfo and InferenceEngine::CNNNetwork::getOutputsInfo to specify both layout and precision of blobs, which you can set with InferenceEngine::InferRequest::SetBlob and get with InferenceEngine::InferRequest::GetBlob. A plugin uses these hints to determine its internal layouts and precisions for input and output blobs if needed. 
+InferRequest Constructor
+++++++++++++++++++++++++
 
-### `~InferRequest` Destructor
+The constructor initializes helper fields and calls methods which allocate tensors:
 
-Decrements a number of created inference requests: 
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:ctor]
 
-@snippet src/template_infer_request.cpp infer_request:dtor
+.. note:: 
 
-### `InferImpl()`
+   Use inputs/outputs information from the compiled model to understand shape and element type of tensors, which you can set with ov::InferRequest::set_tensor and get with ov::InferRequest::get_tensor. A plugin uses these hints to determine its internal layouts and element types for input and output tensors if needed. 
 
-**Implementation details:** Base IInferRequestInternal class implements the public InferenceEngine::IInferRequestInternal::Infer method as following:
-- Checks blobs set by users
-- Calls the `InferImpl` method defined in a derived class to call actual pipeline stages synchronously
+~InferRequest Destructor
+++++++++++++++++++++++++
 
-@snippet src/template_infer_request.cpp infer_request:infer_impl
+Destructor can contain plugin specific logic to finish and destroy infer request.
 
-#### 1. `inferPreprocess`
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:dtor]
 
-Below is the code of the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
+set_tensors_impl()
++++++++++++++++++++
 
-@snippet src/template_infer_request.cpp infer_request:infer_preprocess
+The method allows to set batched tensors in case if the plugin supports it.
 
-**Details:**
-* `InferImpl` must call the InferenceEngine::IInferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
-* If `inputBlob` passed by user differs in terms of precisions from precision expected by plugin, `blobCopy` is performed which does actual precision conversion.
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:set_tensors_impl]
 
-#### 2. `startPipeline`
+query_state()
++++++++++++++
 
-Executes a pipeline synchronously using `_executable` object:
+The method returns variable states from the model.
 
-@snippet src/template_infer_request.cpp infer_request:start_pipeline
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:query_state]
 
-#### 3. `inferPostprocess`
+infer()
++++++++
 
-Converts output blobs if precisions of backend output blobs and blobs passed by user are different:
+The method calls actual pipeline stages synchronously. Inside the method plugin should check input/output tensors, move external tensors to backend and run the inference.
 
-@snippet src/template_infer_request.cpp infer_request:infer_postprocess
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer]
 
-### `GetPerformanceCounts()`
+1. infer_preprocess()
+----------------------
 
-The method sets performance counters which were measured during pipeline stages execution:
+Below is the code of the ``infer_preprocess()`` method. The method checks user input/output tensors and demonstrates conversion from user tensor to backend specific representation:
 
-@snippet src/template_infer_request.cpp infer_request:get_performance_counts
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer_preprocess]
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.
+2. start_pipeline()
+--------------------
+
+Executes a pipeline synchronously using ``m_executable`` object:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:start_pipeline]
+
+3. wait_pipeline()
+--------------------
+
+Waits a pipeline in case of plugin asynchronous execution:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:wait_pipeline]
+
+4. infer_postprocess()
+----------------------
+
+Converts backend specific tensors to tensors passed by user:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer_postprocess]
+
+get_profiling_info()
++++++++++++++++++++++
+
+The method returns the profiling info which was measured during pipeline stages execution:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:get_profiling_info]
+
+cancel()
++++++++++
+
+The plugin specific method allows to interrupt the synchronous execution from the AsyncInferRequest:
+
+.. doxygensnippet:: src/plugins/template/src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:cancel]
+
+
+The next step in the plugin library implementation is the :doc:`Asynchronous Inference Request <openvino_docs_ov_plugin_dg_async_infer_request>` class.
+
+@endsphinxdirective

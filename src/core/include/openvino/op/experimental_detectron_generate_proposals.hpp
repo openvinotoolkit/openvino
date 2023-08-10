@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronGenerateProposalsSingleImage : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -56,6 +56,8 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+
+    void set_attrs(Attributes attrs);
 
 private:
     Attributes m_attrs;

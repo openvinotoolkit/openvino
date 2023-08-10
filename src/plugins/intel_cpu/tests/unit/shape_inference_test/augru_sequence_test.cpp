@@ -1,15 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/augru_sequence.hpp"
-
 #include <gtest/gtest.h>
 
-#include <openvino/op/ops.hpp>
-#include <openvino/op/parameter.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "ov_ops/augru_sequence.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ protected:
         psroi->get_rt_info() = getCPUInfo();
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
-        threshold = 1e-2;
+        threshold = 1e-2f;
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(psroi)};
         function = std::make_shared<ngraph::Function>(results, params, "PSROIPooling");
     }
@@ -129,15 +129,15 @@ const std::vector<std::vector<size_t>> inputShapeVector = {
 };
 
 const std::vector<std::vector<float>> averagePropVector = {
-        { 0, 0.9, 0.9, 18.9, 18.9,
-          1, 0.9, 0.9, 18.9, 18.9 },
+        { 0, 0.9f, 0.9f, 18.9f, 18.9f,
+          1, 0.9f, 0.9f, 18.9f, 18.9f },
         { 1, 1, 1, 15, 15 }
 };
 
 const std::vector<std::vector<float>> bilinearPropVector = {
-        { 0, 0.1, 0.1, 0.9, 0.9,
-          1, 0.1, 0.1, 0.9, 0.9 },
-        { 1, 0.1, 0.1, 0.9, 0.9 }
+        { 0, 0.1f, 0.1f, 0.9f, 0.9f,
+          1, 0.1f, 0.1f, 0.9f, 0.9f },
+        { 1, 0.1f, 0.1f, 0.9f, 0.9f }
 };
 
 const auto psroiPoolingAverageParams = ::testing::Combine(
@@ -167,7 +167,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerC
                                 ::testing::Combine(
                                         psroiPoolingAverageParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayer
                                 ::testing::Combine(
                                         psroiPoolingBilinearParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 } // namespace

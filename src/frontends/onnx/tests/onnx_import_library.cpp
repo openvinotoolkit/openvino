@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <onnx/onnx_pb.h>
 
+#include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "util/test_control.hpp"
-
-using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(onnx, check_ir_version_support) {
+OPENVINO_TEST(onnx, check_ir_version_support) {
     // It appears you've changed the ONNX library version used by nGraph. Please update the value
     // tested below to make sure it equals the current IR_VERSION enum value defined in ONNX headers
     //

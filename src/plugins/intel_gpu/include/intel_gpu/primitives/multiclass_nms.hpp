@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <vector>
@@ -12,16 +11,14 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief multiclass NMS
 struct multiclass_nms : public primitive_base<multiclass_nms> {
     CLDNN_DECLARE_PRIMITIVE(multiclass_nms)
+
+    multiclass_nms() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     enum class sort_result_type : int32_t {
         classid,  // sort selected boxes by class id (ascending) in each batch element
@@ -86,6 +83,32 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
                          attrs.normalized,
                          attrs.nms_eta) {}
 
+        void save(BinaryOutputBuffer& ob) const {
+            ob << make_data(&sort_result, sizeof(sort_result_type));
+            ob << sort_result_across_batch;
+            ob << make_data(&indices_output_type, sizeof(data_types));
+            ob << iou_threshold;
+            ob << score_threshold;
+            ob << nms_top_k;
+            ob << keep_top_k;
+            ob << background_class;
+            ob << normalized;
+            ob << nms_eta;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> make_data(&sort_result, sizeof(sort_result_type));
+            ib >> sort_result_across_batch;
+            ib >> make_data(&indices_output_type, sizeof(data_types));
+            ib >> iou_threshold;
+            ib >> score_threshold;
+            ib >> nms_top_k;
+            ib >> keep_top_k;
+            ib >> background_class;
+            ib >> normalized;
+            ib >> nms_eta;
+        }
+
     private:
         static sort_result_type from(const ngraph::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
             switch (sort_result_type) {
@@ -132,6 +155,59 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     attributes attrs;
     bool has_roisnum{false};
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, has_roisnum);
+        seed = hash_combine(seed, attrs.background_class);
+        seed = hash_combine(seed, attrs.indices_output_type);
+        seed = hash_combine(seed, attrs.iou_threshold);
+        seed = hash_combine(seed, attrs.keep_top_k);
+        seed = hash_combine(seed, attrs.nms_eta);
+        seed = hash_combine(seed, attrs.nms_top_k);
+        seed = hash_combine(seed, attrs.normalized);
+        seed = hash_combine(seed, attrs.score_threshold);
+        seed = hash_combine(seed, attrs.sort_result);
+        seed = hash_combine(seed, attrs.sort_result_across_batch);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const multiclass_nms>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(has_roisnum) &&
+               cmp_fields(attrs.background_class) &&
+               cmp_fields(attrs.indices_output_type) &&
+               cmp_fields(attrs.iou_threshold) &&
+               cmp_fields(attrs.keep_top_k) &&
+               cmp_fields(attrs.nms_eta) &&
+               cmp_fields(attrs.nms_top_k) &&
+               cmp_fields(attrs.normalized) &&
+               cmp_fields(attrs.score_threshold) &&
+               cmp_fields(attrs.sort_result) &&
+               cmp_fields(attrs.sort_result_across_batch);
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<multiclass_nms>::save(ob);
+        ob << output_selected_indices;
+        ob << output_selected_num;
+        ob << attrs;
+        ob << has_roisnum;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<multiclass_nms>::load(ib);
+        ib >> output_selected_indices;
+        ib >> output_selected_num;
+        ib >> attrs;
+        ib >> has_roisnum;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -150,7 +226,4 @@ private:
     };
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

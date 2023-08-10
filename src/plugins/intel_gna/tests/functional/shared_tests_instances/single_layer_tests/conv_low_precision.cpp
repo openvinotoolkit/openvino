@@ -2,40 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <ie_core.hpp>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
+
+#include "../../shared_tests_instances/skip_tests_check.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "../../shared_tests_instances/skip_tests_check.hpp"
-#include <gtest/gtest.h>
 
 namespace ConvLowPrecicionTestNs {
 
-    using namespace ngraph;
-    using namespace ngraph::builder;
-    using namespace ngraph::element;
-    using namespace ngraph::op;
-    using namespace ngraph::opset1;
-    using namespace std;
+using namespace ov;
+using namespace ngraph::builder;
+using namespace ov::element;
+using namespace ov::op;
+using namespace ov::opset12;
+using namespace std;
 
-    using ConvLowPrecisionTestParams = tuple<InferenceEngine::Precision, // Network Precision
-                                             string,                     // Target Device
-                                             map<string, string>,        // Configuration
-                                             Shape,                      // Input Shape
-                                             pair<float, float>,         // FQ Min and Max (before conv)
-                                             std::size_t                 // Levels
-                                             >;
+using ConvLowPrecisionTestParams = tuple<InferenceEngine::Precision,  // Network Precision
+                                         string,                      // Target Device
+                                         map<string, string>,         // Configuration
+                                         Shape,                       // Input Shape
+                                         pair<float, float>,          // FQ Min and Max (before conv)
+                                         std::size_t                  // Levels
+                                         >;
 
 class ConvLowPrecisionTest : public testing::WithParamInterface<ConvLowPrecisionTestParams>,
-                            public LayerTestsUtils::LayerTestsCommon {
+                             public LayerTestsUtils::LayerTestsCommon {
     float fqMin = 0.0f;
     float fqMax = 0.0f;
     float inputDataResolution = 1.0f;
@@ -49,8 +52,7 @@ public:
         pair<float, float> fqMinMax;
         std::size_t levels = 0;
 
-        tie(netPrecision, targetDevice, configuration, inputShape, fqMinMax, levels) =
-            obj.param;
+        tie(netPrecision, targetDevice, configuration, inputShape, fqMinMax, levels) = obj.param;
 
         ostringstream result;
         result << "_netPRC=" << netPrecision.name();
@@ -58,7 +60,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << ":" << configItem.second;
         }
-        result << "_inputShape=" << CommonTestUtils::vec2str(inputShape);
+        result << "_inputShape=" << ov::test::utils::vec2str(inputShape);
         result << "_fqMinMax=(" << fqMinMax.first << ".." << fqMinMax.second << ")";
         result << "_levels=" << levels;
 
@@ -66,8 +68,7 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlobFloatNormalDistribution(
-            info.getTensorDesc(), 0.0f, 0.2f, 7235346);
+        return FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     ParameterVector createInputVector(const Type& type, const vector<std::size_t>& shapes) {
@@ -76,18 +77,14 @@ public:
 
     shared_ptr<FakeQuantize> createFQNode(const Type& type,
                                           const shared_ptr<ov::Node>& node,
-                                          float fqMin, float fqMax,
+                                          float fqMin,
+                                          float fqMax,
                                           std::size_t levels) {
         auto fqInpMin = makeConstant<float>(type, {1}, {fqMin});
         auto fqInpMax = makeConstant<float>(type, {1}, {fqMax});
         auto fqOutMin = makeConstant<float>(type, {1}, {fqMin});
         auto fqOutMax = makeConstant<float>(type, {1}, {fqMax});
-        return make_shared<FakeQuantize>(node,
-                                        fqInpMin,
-                                        fqInpMax,
-                                        fqOutMin,
-                                        fqOutMax,
-                                        levels);
+        return make_shared<FakeQuantize>(node, fqInpMin, fqInpMax, fqOutMin, fqOutMax, levels);
     }
 
 protected:
@@ -102,8 +99,7 @@ protected:
         vector<std::size_t> inputShape;
         pair<float, float> fqMinMax;
         std::size_t levels = 0;
-        tie(netPrecision, targetDevice, configuration,
-            inputShape, fqMinMax, levels) = this->GetParam();
+        tie(netPrecision, targetDevice, configuration, inputShape, fqMinMax, levels) = this->GetParam();
         tie(fqMin, fqMax) = fqMinMax;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         size_t kernelHeight = inputShape[2] == 1 ? 1 : 2;
@@ -126,84 +122,67 @@ protected:
     }
 };
 
-using ConvLowPrecisionTestLib35 = ConvLowPrecisionTest;
-
 TEST_P(ConvLowPrecisionTest, CompareWithRefs) {
     Run();
 };
 
-TEST_P(ConvLowPrecisionTestLib35, CompareWithRefs) {
-    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
-        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
-        return;
-    }
-    Run();
+const vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16,
+                                                          InferenceEngine::Precision::FP32};
+
+const vector<map<string, string>> configs_1 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
 };
 
-const vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::FP32
+const vector<map<string, string>> configs_2 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
 };
 
-const vector<map<string, string>> configs_3_0 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-};
-
-const vector<map<string, string>> configs_3_5 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
-};
-
-const vector<map<string, string>> configs_2_0 = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
+const vector<map<string, string>> configs_3 = {
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I8"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
+    {{"GNA_DEVICE_MODE", "GNA_AUTO"}, {"GNA_PRECISION", "I16"}, {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
 };
 
 const Shape conv1D = {1, 8, 1, 16};
 const Shape conv2D = {1, 8, 16, 16};
 
-const vector<Shape> inputShapes = {
-    conv1D,
-    conv2D
-};
+const vector<Shape> inputShapes = {conv1D, conv2D};
 
-const vector<pair<float, float>> fqMinMax = {
-    {-1.0f, 1.0f}
-};
+const vector<pair<float, float>> fqMinMax = {{-1.0f, 1.0f}};
 
-const vector<std::size_t> levels = {
-    numeric_limits<uint8_t>::max(),
-    numeric_limits<uint16_t>::max()
-};
+const vector<std::size_t> levels = {numeric_limits<uint8_t>::max(), numeric_limits<uint16_t>::max()};
 
-INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision10,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_2_0),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_1),
                                             ::testing::Values(conv1D),
                                             ::testing::ValuesIn(fqMinMax),
                                             ::testing::ValuesIn(levels)),
                          ConvLowPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision30,
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision20,
                          ConvLowPrecisionTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_3_0),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_2),
+                                            ::testing::Values(conv1D),
+                                            ::testing::ValuesIn(fqMinMax),
+                                            ::testing::ValuesIn(levels)),
+                         ConvLowPrecisionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision3X,
+                         ConvLowPrecisionTest,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs_3),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(fqMinMax),
                                             ::testing::ValuesIn(levels)),
                          ConvLowPrecisionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision35,
-                         ConvLowPrecisionTestLib35,
-                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs_3_5),
-                                            ::testing::ValuesIn(inputShapes),
-                                            ::testing::ValuesIn(fqMinMax),
-                                            ::testing::ValuesIn(levels)),
-                         ConvLowPrecisionTest::getTestCaseName);
 }  // namespace ConvLowPrecicionTestNs

@@ -1,5 +1,12 @@
 # Intel® Deep Learning Streamer (Intel® DL Streamer) {#openvino_docs_dlstreamer}
 
+@sphinxdirective
+
+.. meta::
+  :description: Explore Intel® DL Streamer - a framework used to analyze audio 
+                and video streams to detect, classify, track, identify and count 
+                objects, events and people.
+
 Intel® DL Streamer is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines.  
 
 Intel® DL Streamer makes Media analytics easy: 
@@ -9,10 +16,13 @@ Intel® DL Streamer makes Media analytics easy:
 * Analyze video and audio streams, create actionable results, capture results, and send them to the cloud 
 * Leverage the efficiency and computational power of Intel hardware platforms 
 
-Go to [Intel® DL Streamer documentation website](https://dlstreamer.github.io) for information on how to download, install, and use.  
+Go to `Intel® DL Streamer documentation website <https://dlstreamer.github.io>`__ for information on how to download, install, and use.  
 
 **Media analytics** is the analysis of audio & video streams to detect, classify, track, identify and count objects, events and people. The analyzed results can be used to take actions, coordinate events, identify patterns and gain insights across multiple domains. 
 
 **Media analytics pipelines** transform media streams into insights through audio / video processing, inference, and analytics operations across multiple IP blocks. 
  
-\* Other names and brands may be claimed as the property of others. 
+\* Other names and brands may be claimed as the property of others.
+
+@endsphinxdirective
+

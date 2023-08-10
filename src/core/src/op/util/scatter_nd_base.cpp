@@ -1,16 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/scatter_nd_base.hpp"
-
-#include <scatter_nd_base_shape_inference.hpp>
+#include "openvino/op/util/scatter_nd_base.hpp"
 
 #include "itt.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/shape.hpp"
-
-using namespace std;
+#include "scatter_nd_base_shape_inference.hpp"
 
 constexpr int ov::op::util::ScatterNDBase::INPUTS;
 constexpr int ov::op::util::ScatterNDBase::INDICES;
@@ -35,18 +30,19 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     element::Type updates_et = get_input_element_type(UPDATES);
 
     NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64,
+                          indices_et.compatible(element::i32) || indices_et.compatible(element::i64),
                           "Indices element type must be i64 or i32");
 
-    NODE_VALIDATION_CHECK(this, updates_et == inputs_et, "Updates element type must be the same as inputs");
+    element::Type outputs_et = element::dynamic;
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(outputs_et, inputs_et, updates_et),
+                          "Updates element type must be the same as inputs");
 
     const auto& inputs = get_input_partial_shape(0);
     const auto& indices = get_input_partial_shape(1);
     const auto& updates = get_input_partial_shape(2);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
     std::vector<ov::PartialShape> input_shapes = {inputs, indices, updates};
-
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, inputs_et, output_shapes[0]);
+    const auto output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, outputs_et, output_shapes[0]);
 }

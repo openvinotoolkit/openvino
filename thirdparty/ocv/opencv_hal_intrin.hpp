@@ -150,7 +150,7 @@ typedef union Cv32suf
 }
 Cv32suf;
 
-#ifdef _WIN32
+#if defined(_WIN32) && (defined(_M_IX86) || defined(_M_X64))
 // This is needed for _tzcnt_u32().
 #include <immintrin.h>
 #endif

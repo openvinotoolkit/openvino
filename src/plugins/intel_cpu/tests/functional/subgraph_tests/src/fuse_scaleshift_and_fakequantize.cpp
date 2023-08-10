@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ public:
                 << "_Scale=" << vector_to_string(scaleShift.first)
                 << "_Shift=" << vector_to_string(scaleShift.second)
                 << "_Intervals=";
-        for (const auto vecInt : quantizeIntervals) {
+        for (const auto& vecInt : quantizeIntervals) {
             results << vector_to_string(vecInt) << ",";
         }
 
@@ -94,7 +94,7 @@ std::vector<std::pair<std::vector<float>, std::vector<float>>> scaleShifts {
     { {30.f}, {17.f} },      // actually fused in LPT
     { {-30.f}, {0.f} },      // fused with crop bound invert
     { {-17.f}, {12.f} },     // fused with crop bound invert
-    { {-1.23e-44}, {0.f} },  // fused with denormal handling
+    { {-1.23e-44f}, {0.f} },  // fused with denormal handling
     { {0.f}, {0.f} },        // not fused
     { {0.f}, {18.f} },       // not fused
 };
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FuseScaleShiftAndFakeQuantize, FuseScaleShiftAndF
         ::testing::Values(element::f32),
         ::testing::ValuesIn(scaleShifts),
         ::testing::ValuesIn(quantizes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     FuseScaleShiftAndFakeQuantizeTest::getTestCaseName);
 } // namespace
 } // namespace CPUSubgraphTestsDefinitions

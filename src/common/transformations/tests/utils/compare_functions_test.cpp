@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,7 +201,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     auto res = fc(f, f_ref);
     EXPECT_FALSE(res.valid);
-    EXPECT_THAT(res.message, HasSubstr("LSTMCell/4 != Relu/0"));
+    EXPECT_THAT(res.message, HasSubstr("LSTMCell/opset4 != Relu/opset1"));
 }
 
 TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenSubGraphsInputs) {
@@ -483,7 +483,7 @@ TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
         auto param = std::make_shared<Parameter>(ngraph::element::f32, ngraph::Shape{10, 10, 10, 10});
         auto reorg_yolo = std::make_shared<ReorgYolo>(param, stride);
 
-        return std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(reorg_yolo),
+        return std::make_shared<ngraph::Function>(std::make_shared<ov::op::v0::Result>(reorg_yolo),
                                                   ngraph::ParameterVector{param});
     };
 
@@ -514,7 +514,7 @@ public:
     DummyConstant& operator=(const DummyConstant&) = delete;
 
     const NodeTypeInfo& get_type_info() const override {
-        static const NodeTypeInfo type_info{typeid(this).name(), static_cast<uint64_t>(0)};
+        static const NodeTypeInfo type_info{typeid(this).name(), "0"};
         return type_info;
     }
 

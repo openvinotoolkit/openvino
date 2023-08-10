@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@
  * @brief Reprents a static shape.
  */
 typedef struct {
-    int64_t rank;           //!< the rank of shape
-    int64_t* dims;          //!< the dims of shape
+    int64_t rank;   //!< the rank of shape
+    int64_t* dims;  //!< the dims of shape
 } ov_shape_t;
 
 /**

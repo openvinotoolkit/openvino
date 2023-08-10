@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,14 +135,14 @@ public:
                                                                           oneInputWithSplit);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, testValues.params.precisionsOnActivations}})});
 
         auto quantizationRestrictions =
-            testValues.multiChannels ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
-                                     : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
-                                           {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<
-                                               ngraph::opset1::AvgPool>()});
+            testValues.multiChannels
+                ? std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>()
+                : std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>(
+                      {ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::AvgPool>()});
 
         const auto params = TestTransformationParams::toParams(testValues.params);
         ov::pass::Manager manager;
@@ -199,7 +199,7 @@ TEST_P(MoveFakeQuantizeTransformation, CompareFunctions) {
 
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 
-    const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
+    const auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes))
         << "PrecisionsAttribute are not the same";
 }
@@ -392,7 +392,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
       {}},
      {
          2,
-         {{256ul, {{}, {}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {-2.6}, {2.6f}, {-31.7f}, {277.8f}},
+         {{256ul, {{}, {}, {1, 1, 1, 1}, {1, 1, 1, 1}}, {-2.6f}, {2.6f}, {-31.7f}, {277.8f}},
           {256ul, {{}, {}, {1, 2, 1, 1}, {1, 2, 1, 1}}, {-2.6f}, {2.6f}, {-35.7f, -49.1f}, {267.f, 254.9f}}},
          {},
          {},
@@ -421,7 +421,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
       {}},
      {
          2,
-         {{256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {-31.7f}, {277.8f}, {-2.6}, {2.6f}},
+         {{256ul, {{1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}}, {-31.7f}, {277.8f}, {-2.6f}, {2.6f}},
           {256ul, {{1, 2, 1, 1}, {1, 2, 1, 1}, {}, {}}, {-35.7f, -49.1f}, {267.f, 254.9f}, {-2.6f}, {2.6f}}},
          {},
          {},
@@ -467,7 +467,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
       {}},
      {
          2,
-         {{256ul, {{1, 1}, {1, 1}, {}, {}}, {-31.7f}, {277.8f}, {-2.6}, {2.6f}},
+         {{256ul, {{1, 1}, {1, 1}, {}, {}}, {-31.7f}, {277.8f}, {-2.6f}, {2.6f}},
           {256ul, {{1, 2}, {1, 2}, {}, {}}, {-35.7f, -49.1f}, {267.f, 254.9f}, {-2.6f}, {2.6f}}},
          {},
          {},

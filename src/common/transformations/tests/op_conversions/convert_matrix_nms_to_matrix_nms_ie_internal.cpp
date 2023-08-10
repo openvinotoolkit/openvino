@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,30 +21,53 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-using namespace testing;
 using namespace ngraph;
 
-TEST_F(TransformationTestsF, ConvertMatrixNmsToMatrixNmsIE) {
-    {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-
-        auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
-
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-
-        manager.register_pass<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>();
-        manager.register_pass<ngraph::pass::ConstantFolding>();
+namespace testing {
+class ConvertMatrixNmsToMatrixNmsIEFixture : public ::testing::WithParamInterface<element::Type>,
+                                             public TransformationTestsF {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<element::Type> obj) {
+        std::ostringstream result;
+        result << "ConvertMatrixNmsToMatrixNmsIE_" << obj.param.get_type_name();
+        return result.str();
     }
+    void Execute() {
+        element::Type element_type = this->GetParam();
+        {
+            auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
+            auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
 
-    {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
-            boxes,
-            scores,
-            opset8::MatrixNms::Attributes());
+            auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+            function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+
+            manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
+            manager.register_pass<ngraph::pass::ConstantFolding>();
+        }
+
+        {
+            auto boxes = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1000, 4});
+            auto scores = std::make_shared<opset1::Parameter>(element_type, Shape{1, 1, 1000});
+            auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(
+                boxes,
+                scores,
+                opset8::MatrixNms::Attributes());
+
+            function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        }
+        ASSERT_EQ(function->get_output_element_type(0), function_ref->get_output_element_type(0))
+            << "Output element type mismatch " << function->get_output_element_type(0).get_type_name() << " vs "
+            << function_ref->get_output_element_type(0).get_type_name();
     }
+};
+
+TEST_P(ConvertMatrixNmsToMatrixNmsIEFixture, CompareFunctions) {
+    Execute();
 }
+
+INSTANTIATE_TEST_SUITE_P(ConvertMatrixNmsToMatrixNmsIE,
+                         ConvertMatrixNmsToMatrixNmsIEFixture,
+                         ::testing::ValuesIn(std::vector<element::Type>{element::f32, element::f16}),
+                         ConvertMatrixNmsToMatrixNmsIEFixture::getTestCaseName);
+}  // namespace testing

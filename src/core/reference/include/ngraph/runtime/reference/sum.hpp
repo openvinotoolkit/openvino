@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ void kahan_summation(const T& elem, T& compensation, T& sum) {
 template <typename T>
 void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     constexpr bool dont_keep_dims_in_output = false;
+    NGRAPH_SUPPRESS_DEPRECATED_START
     const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
 
     std::vector<T> cs(shape_size(out_shape), 0);
@@ -78,6 +79,7 @@ void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
 
         details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime

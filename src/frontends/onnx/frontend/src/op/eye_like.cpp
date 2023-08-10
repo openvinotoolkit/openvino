@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "openvino/op/eye.hpp"
 #include "utils/common.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -70,3 +71,4 @@ OutputVector eye_like(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

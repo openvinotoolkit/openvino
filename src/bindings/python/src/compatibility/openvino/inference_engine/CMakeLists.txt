@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,6 +16,22 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
 
 file(GLOB PYX_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
 set_source_files_properties(${PYX_SOURCES} PROPERTIES CYTHON_IS_CXX ON)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    ie_add_compiler_flags(/wd4551)
+endif()
+if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-undef)
+    if(OV_COMPILER_IS_CLANG)
+        ie_add_compiler_flags(-Wno-parentheses-equality)
+    endif()
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
+endif()
 
 # create target
 
@@ -38,20 +54,20 @@ foreach(PYX_FILE IN LISTS PYX_SOURCES)
     set_target_properties(${PYX_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endforeach()
 
-if(COMMAND ie_add_vs_version_file)
+if(COMMAND ov_add_vs_version_file)
     foreach(target IN LISTS INSTALLED_TARGETS)
-        ie_add_vs_version_file(NAME ${target}
+        ov_add_vs_version_file(NAME ${target}
                                FILEDESCRIPTION "Inference Engine Python library")
     endforeach()
 endif()
 
-function(python_disable_deprecated_warnings)
-    disable_deprecated_warnings()
+function(python_ov_disable_deprecated_warnings)
+    ov_disable_deprecated_warnings()
     set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_OPTIONS ${ie_c_cxx_deprecated})
 endfunction()
 
-python_disable_deprecated_warnings()
+python_ov_disable_deprecated_warnings()
 ie_python_minimal_api(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -66,20 +82,20 @@ endif()
 add_custom_command(TARGET ${TARGET_NAME}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../__init__.py
 )
 
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT}
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT} ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
 install(PROGRAMS __init__.py
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/inference_engine
-        COMPONENT ${PYTHON_COMPONENT})
+        COMPONENT ${PYTHON_COMPONENT}
+        ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ".*\\.cxx;.*\\.pxd;.*\\.pyx")

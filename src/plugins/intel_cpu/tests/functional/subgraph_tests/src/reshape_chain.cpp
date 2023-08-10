@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace SubgraphTestsDefinitions {
 
 class ReshapeChain : public SubgraphBaseTest {
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         InputShape inputShapes{{-1, -1, -1, -1}, {{10, 20, 30, 40}, {16, 24, 16, 24}, {4, 8, 12, 16}}};
 

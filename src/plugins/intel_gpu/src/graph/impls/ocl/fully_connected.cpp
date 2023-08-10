@@ -1,23 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "primitive_base.hpp"
 
 #include "fully_connected_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_runner.h"
-
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
-#include <memory>
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -35,8 +24,8 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
@@ -45,15 +34,15 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
-        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
-            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
+        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
+            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature, size_t rank) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
-                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
-                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
+                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
                 } else {
                     return ov::PartialShape{ ov::Dimension::dynamic(), feature };
@@ -67,15 +56,22 @@ public:
             auto input1_pshape = input1_layout.get_partial_shape();
 
             ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+            if (allow_new_shape_infer) {
+                feature = input0_pshape[primitive->input_size - 1ul];
+            }
 
+            // TO DO, to remove WA
             if (primitive->input_size > 3) {
-                input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature));
+                input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature, primitive->input_size));
+                input0_layout.format = format::bfyx;
             }
             if (input1_pshape.size() != 2) {
-                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature));
+                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
+                // input1_layout.format = format::bfyx;
             }
 
             std::vector<layout> layouts{input0_layout, input1_layout};
+
             return layouts;
         };
 
@@ -94,9 +90,10 @@ public:
             return updated_out_layout;
         };
 
+        bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         auto updated_impl_param = impl_param;
 
-        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
+        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
         updated_impl_param.input_layouts[0] = input_layouts[0];
         updated_impl_param.input_layouts[1] = input_layouts[1];
         updated_impl_param.weights_layout = input_layouts[1];
@@ -104,7 +101,7 @@ public:
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
         const auto& progam = impl_param.get_program();
-        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
         optional_params.allowInputReordering = true;
 
@@ -121,12 +118,11 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -149,6 +145,10 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::i8, format::bfyx),
@@ -163,6 +163,9 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
+        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
+        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
     });
 }
 
@@ -171,3 +174,4 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::fully_connected_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::fully_connected)

@@ -8,16 +8,14 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Roll-7 primitive.
 struct roll : primitive_base<roll> {
     CLDNN_DECLARE_PRIMITIVE(roll)
+
+    roll() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs roll primitive.
     /// @param id This primitive id.
@@ -32,9 +30,31 @@ struct roll : primitive_base<roll> {
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift.hash());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roll>(rhs);
+
+        return shift == rhs_casted.shift;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<roll>::save(ob);
+        ob << shift;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<roll>::load(ib);
+        ib >> shift;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

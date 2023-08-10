@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@
 #include <functional>
 
 #include <fstream>
+
+#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
 
 namespace cldnn {
 class base_pass {
@@ -55,20 +57,12 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
 public:
     add_reshape_to_primitives() : base_pass("add_reshape_to_primitives_pass") {}
-
-private:
-    void run(program& p) override;
-};
-
-class calculate_prior_boxes : public base_pass {
-public:
-    calculate_prior_boxes() : base_pass("calculated_prior_boxes") {}
 
 private:
     void run(program& p) override;
@@ -80,23 +74,6 @@ public:
 
 private:
     void run(program& p) override;
-};
-
-class eltwise_shrinking : public base_pass {
-public:
-    eltwise_shrinking() : base_pass("eltwise_shrinking") {}
-
-private:
-    void run(program& p) override;
-};
-
-class eltwise_remove_stride : public base_pass {
-public:
-    eltwise_remove_stride() : base_pass("eltwise_remove_stride") {}
-
-private:
-    void run(program& p) override;
-    void conv_stride_extend(program& p, program_node& node, cldnn::tensor& tensor);
 };
 
 class graph_initializations : public base_pass {
@@ -119,20 +96,34 @@ private:
     void run(program& p) override;
 };
 
-class handle_input_padding : public base_pass {
-public:
-    handle_input_padding() : base_pass("handle_input_padding") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
 
 private:
     void run(program& p) override;
+};
+
+class mark_shape_of_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
+    // There are few key requirements to decide if node belongs to shape_of subgraph or not:
+    // - Node type is shape_of OR
+    // - All node's dependencies are marked as members of shape_of subgraphs OR
+    // - Node is a shape infer dependency of any user
+    // Also, there is some additional requirement:
+    // - Primitive must have CPU implementation (this requirement is ignored for reshape
+    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
+public:
+    mark_shape_of_subgraphs(bool update_impls = false) :
+        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+
+private:
+    void run(program& p) override;
+    void look_for_shape_of_subgraph(program_node& node);
+    bool can_mark_node(const program_node& node);
+    void mark_node(program_node& node);
+
+    bool _update_impls;
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -196,7 +187,6 @@ private:
     void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
-    void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
@@ -211,18 +201,6 @@ public:
 private:
     void run(program& p) override;
     layout_optimizer& _lo;
-};
-
-class pre_optimize_bias : public base_pass {
-public:
-    explicit pre_optimize_bias(reorder_factory& rf_ref);
-
-private:
-    void run(program& p) override;
-    virtual void run(program& p, reorder_factory& rf);
-    template <typename T>
-    bool optimize_bias(T& node, reorder_factory& rf, program& p);
-    reorder_factory& _rf;
 };
 
 class prepare_padding : public base_pass {
@@ -274,7 +252,9 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
+                                                              const ExecutionConfig& config,
+                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -372,7 +352,7 @@ public:
             if (node->id() == dep->id()) {
                 return;
             }
-            for (auto subdep : dep->get_dependencies()) {
+            for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }
@@ -398,9 +378,9 @@ public:
     void run(program& p) override;
 };
 
-class update_loop_primitive_map : public base_pass {
+class update_inner_program_io_map : public base_pass {
 public:
-    update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
+    update_inner_program_io_map() : base_pass("update_inner_program_io_map") {}
 
 private:
     void run(program& p) override;
@@ -409,6 +389,12 @@ private:
 class add_onednn_optimization_attributes : public base_pass {
 public:
     add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
+    void run(program& p) override;
+};
+
+class build_implementations : public base_pass {
+public:
+    build_implementations() : base_pass("build_implementations") {}
     void run(program& p) override;
 };
 

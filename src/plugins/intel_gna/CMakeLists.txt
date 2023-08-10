@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,33 +6,13 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+add_subdirectory(legacy)
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if (ENABLE_INTEL_GNA_DEBUG)
     add_compile_definitions(GNA_DEBUG)
 endif()
-
-if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-all)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
-    # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4099)
-    ie_add_compiler_flags(/wd4200)
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4661: no suitable definition provided for explicit template instantiation request
-    ie_add_compiler_flags(/wd4661)
-    # C4297: function assumed not to throw an exception but does
-    ie_add_compiler_flags(/wd4297)
-endif()
-
 
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -41,19 +21,29 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
+# build avx2.cpp with AVX2 support, only for Windows
+if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_avx2_optimization_flags(avx2_flags)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/pre_post_process/hw_accelerated_converter_avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
+    add_compile_definitions(HAVE_AVX2=1)
+endif()
+
 
 find_package(libGNA REQUIRED
+             CONFIG
              PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
-             NO_DEFAULT_PATH)
+             NO_DEFAULT_PATH
+             NO_CMAKE_FIND_ROOT_PATH)
 
 #
 # Shared plugin library
 #
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GNA"
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR src/gna_plugin_entry_points.cpp
+              ADD_CLANG_FORMAT)
 
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
@@ -67,6 +57,7 @@ target_compile_definitions(${TARGET_NAME}
         _NO_MKL_
     )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
@@ -74,6 +65,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #
 
 add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
+
+ov_add_version_defines(src/gna_plugin_entry_points.cpp ${TARGET_NAME}_test_static)
 
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE
@@ -90,12 +83,18 @@ target_include_directories(${TARGET_NAME}_test_static
         $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     PRIVATE
         $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
-set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
+
+if(BUILD_SHARED_LIBS)
+    set(gna_component gna)
+else()
+    # during static build all plugins are part of the core, thus the dependencies as well
+    set(gna_component core)
+endif()
 
 file(GLOB_RECURSE gna_libraries "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
 set(gna_library_installed OFF)
@@ -105,11 +104,10 @@ foreach(gna_lib IN LISTS gna_libraries)
     # and don't install global symlink libgna.so. Exceptions:
     # 1. On Windows we don't have libraries versioning and need to install all .dlls
     # 2. For case of static libraries we also need to install .so since it's required for linkage with final application
-    if(gna_lib MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR
-       WIN32 OR NOT BUILD_SHARED_LIBS)
+    if(gna_lib MATCHES "^.*\.${CMAKE_SHARED_LIBRARY_SUFFIX}(\.[0-9]+)+$" OR WIN32 OR NOT BUILD_SHARED_LIBS)
         install(FILES ${gna_lib}
                 DESTINATION ${OV_CPACK_RUNTIMEDIR}
-                COMPONENT gna)
+                COMPONENT ${gna_component})
         set(gna_library_installed ON)
     endif()
 endforeach()
@@ -124,17 +122,15 @@ if(NOT BUILD_SHARED_LIBS)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libGNAConfig.cmake ${CMAKE_BINARY_DIR} COPYONLY)
     install(FILES "${CMAKE_BINARY_DIR}/libGNAConfig.cmake"
             DESTINATION ${OV_CPACK_IE_CMAKEDIR}
-            COMPONENT gna)
+            COMPONENT ${gna_component})
 
     # install .lib file on Windows
     if(WIN32)
         file(GLOB_RECURSE gna_libraries  "${libGNA_LIBRARIES_BASE_PATH}/*${CMAKE_STATIC_LIBRARY_SUFFIX}")
         install(FILES ${gna_libraries}
                 DESTINATION ${OV_CPACK_LIBRARYDIR}
-                COMPONENT gna)
+                COMPONENT ${gna_component})
     endif()
 endif()
 
 add_subdirectory(tests)
-
-

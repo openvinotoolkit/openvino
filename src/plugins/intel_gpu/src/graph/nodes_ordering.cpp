@@ -1,12 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "intel_gpu/graph/program.hpp"
 #include "program_node.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -46,6 +43,7 @@ void program::nodes_ordering::calc_processing_order(program& p) {
     output: BFS topological order.
     */
 void program::nodes_ordering::calculate_BFS_processing_order() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("calculate_BFS_processing_order");
     std::map<program_node*, int> distances;
     for (auto itr : _processing_order) {
         distances[itr] = -1;

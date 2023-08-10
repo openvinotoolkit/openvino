@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ std::shared_ptr<ngraph::Function> PReluFunction::getReference(
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
     const auto slope = std::make_shared<ngraph::opset1::Constant>(precisionBeforeDequantization, Shape{}, std::vector<float> { 0.1f });
-    const auto prelu = std::make_shared< op::TypeRelaxed<ngraph::opset1::PRelu>>(
+    const auto prelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
         ngraph::opset1::PRelu(quantizationOpBefore, slope),
         precisionAfterOperation);
     const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(prelu, dequantizationAfter);

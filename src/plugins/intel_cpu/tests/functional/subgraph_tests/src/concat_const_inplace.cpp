@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ public:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else
@@ -71,9 +71,9 @@ namespace {
     TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
         Run();
         if (this->GetParam() == Precision::BF16)
-            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 4);
-        else
             CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
+        else
+            CheckNumberOfNodesWithType(executableNetwork, "Reorder", 2);
     }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,

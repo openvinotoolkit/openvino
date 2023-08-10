@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select original ngraph op mode for the @ref crop layer.
 enum class crop_ngraph_op_mode : int32_t {
@@ -50,6 +43,10 @@ constexpr auto crop_borders = crop_borders_t{};
 /// @n Breaking any of this conditions will cause exception throw.
 struct crop : public primitive_base<crop> {
     CLDNN_DECLARE_PRIMITIVE(crop)
+
+    crop() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.
@@ -131,8 +128,46 @@ struct crop : public primitive_base<crop> {
     size_t num_splits = 1;
     /// @brief original ngraph operation type
     crop_ngraph_op_mode op_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, reference_input.hash());
+        seed = hash_combine(seed, offsets.hash());
+        seed = hash_combine(seed, output_idx);
+        seed = hash_combine(seed, num_splits);
+        seed = hash_combine(seed, op_mode);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const crop>(rhs);
+
+        return reference_input == rhs_casted.reference_input &&
+               offsets == rhs_casted.offsets &&
+               output_idx == rhs_casted.output_idx &&
+               num_splits == rhs_casted.num_splits &&
+               op_mode == rhs_casted.op_mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<crop>::save(ob);
+        ob << reference_input;
+        ob << offsets;
+        ob << output_idx;
+        ob << num_splits;
+        ob << make_data(&op_mode, sizeof(crop_ngraph_op_mode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<crop>::load(ib);
+        ib >> reference_input;
+        ib >> offsets;
+        ib >> output_idx;
+        ib >> num_splits;
+        ib >> make_data(&op_mode, sizeof(crop_ngraph_op_mode));
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

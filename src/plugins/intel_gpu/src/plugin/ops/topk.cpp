@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +14,16 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
+static void TopKImpl(Program& p,
+                     const std::shared_ptr<ngraph::Node>& op,
+                     ov::op::TopKMode mode,
+                     ov::op::TopKSortType stype,
+                     uint32_t top_k,
+                     uint64_t chosen_axis,
+                     bool stable = false) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-
-    ov::op::TopKMode mode = op->get_mode();
-    ov::op::TopKSortType stype = op->get_sort_type();
-
-    uint32_t top_k = op->get_k();
-    uint64_t chosen_axis = op->get_axis();
 
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
@@ -41,16 +41,20 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
             }
             return output_data_types;
         };
+
+        auto topk_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         auto argmaxPrim = cldnn::arg_max_min(layerName,
-                                             inputs,
-                                             mode,
-                                             top_k,
-                                             chosen_axis,
-                                             stype,
-                                             true,
-                                             cldnn::padding({0, 0, 0, 0}, 0),
-                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                             num_outputs);
+                                            inputs[0],
+                                            inputs[1],
+                                            mode,
+                                            (topk_constant ? top_k : 0),
+                                            chosen_axis,
+                                            stype,
+                                            true,
+                                            stable,
+                                            cldnn::padding({0, 0, 0, 0}, 0),
+                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                            num_outputs);
         argmaxPrim.output_paddings = get_output_paddings();
         argmaxPrim.output_data_types = get_output_data_types();
         p.add_primitive(*op, argmaxPrim);
@@ -65,11 +69,8 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                                         cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                         tensor_from_dims(op->get_output_shape(1)));
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-            }
-            auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+            GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
             cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
             auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
@@ -85,6 +86,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                                  chosen_axis,
                                                  stype,
                                                  true,
+                                                 stable,
                                                  cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
@@ -103,17 +105,27 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                                  chosen_axis,
                                                  stype,
                                                  true,
+                                                 stable,
                                                  cldnn::padding({0, 0, 0, 0}, 0),
                                                  cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
             p.add_primitive(*op, argmaxPrim);
         } else {
-            IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
+            OPENVINO_THROW(op->get_friendly_name(), " Incorrect TopK outputs number");
         }
     }
 }
 
+static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
+    TopKImpl(p, op, op->get_mode(), op->get_sort_type(), static_cast<uint32_t>(op->get_k()), op->get_axis());
+}
+
+static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v11::TopK>& op) {
+    TopKImpl(p, op, op->get_mode(), op->get_sort_type(), static_cast<uint32_t>(op->get_k()), op->get_axis(), op->get_stable());
+}
+
 REGISTER_FACTORY_IMPL(v1, TopK);
+REGISTER_FACTORY_IMPL(v11, TopK);
 
 }  // namespace intel_gpu
 }  // namespace ov

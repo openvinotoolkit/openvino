@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,14 @@
 
 namespace SubgraphTestsDefinitions {
 
+using PermuteConcatConcatPermuteNeg = PermuteConcatConcatPermute;
+
 TEST_P(PermuteConcatConcatPermute, CompareWithRefs) {
     Run();
+}
+
+TEST_P(PermuteConcatConcatPermuteNeg, CompareWithRefs) {
+    ExpectLoadNetworkToThrow("type: Concat, and concatenation axis(");
 }
 
 }  // namespace SubgraphTestsDefinitions

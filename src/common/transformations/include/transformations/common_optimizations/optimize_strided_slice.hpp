@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ class TRANSFORMATIONS_API StridedSliceOptimization;
 class TRANSFORMATIONS_API UselessStridedSliceEraser;
 class TRANSFORMATIONS_API SharedStridedSliceEraser;
 class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
+class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 
 }  // namespace pass
 }  // namespace ov
@@ -57,6 +58,18 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
+ * @brief GroupedSliceToVSplitOptimization transformation replaces group of Slice
+ * operations with VariadicSplit. All Slice operations must slice data
+ * with the same axis and step = 1.
+ */
+class ov::pass::GroupedSliceToVSplitOptimization : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("GroupedSliceToVSplitOptimization", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief StridedSliceOptimization transformation executes all transformations
  * related to StridedSlice optimizations.
  */
@@ -70,12 +83,3 @@ public:
 private:
     bool m_use_shapes = true;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GroupedStridedSliceOptimizer;
-using ov::pass::SharedStridedSliceEraser;
-using ov::pass::StridedSliceOptimization;
-using ov::pass::UselessStridedSliceEraser;
-}  // namespace pass
-}  // namespace ngraph

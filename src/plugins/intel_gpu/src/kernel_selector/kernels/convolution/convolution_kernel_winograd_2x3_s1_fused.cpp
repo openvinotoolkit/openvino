@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,14 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1_fused::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1_fused::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const convolution_params& params,
                                                                       const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
@@ -43,8 +51,8 @@ JitConstants ConvolutionKernel_Winograd_2x3_s1_fused::GetJitConstants(const conv
     auto C4_up16 = ((uint32_t)((idepth + 15) / 16) * 16) / 4;
 
     // if there's input padding then input offset should be ignored
-    const auto inoffset_x = (input_pad_x) ? 0 : params.padding.x;
-    const auto inoffset_y = (input_pad_y) ? 0 : params.padding.y;
+    const auto inoffset_x = (input_pad_x) ? 0 : params.padding_begin.x;
+    const auto inoffset_y = (input_pad_y) ? 0 : params.padding_begin.y;
 
     jit.AddConstants({
         MakeJitConstant("H", rows),
@@ -81,8 +89,8 @@ ConvolutionKernel_Winograd_2x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     const auto cols = arg.inputs[0].X().v + input_pad_x;
 
     // if there's input padding then input offset should be ignored
-    const auto inoffset_x = (input_pad_x) ? 0 : arg.padding.x;
-    const auto inoffset_y = (input_pad_y) ? 0 : arg.padding.y;
+    const auto inoffset_x = (input_pad_x) ? 0 : arg.padding_begin.x;
+    const auto inoffset_y = (input_pad_y) ? 0 : arg.padding_begin.y;
 
     auto P = rows - 2 + 2 * inoffset_y;
     auto Q = cols - 2 + 2 * inoffset_x;

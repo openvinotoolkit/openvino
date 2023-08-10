@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,15 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
 
 ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
 
+DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(const softmax_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
@@ -54,7 +63,9 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
 
     dispatchData.lws = { 1, static_cast<size_t>(workitems_per_classes), 1 };
 
-    dispatchData.leftovers = GetItemClassCount(input, params.dim) % workitems_per_classes;
+    dispatchData.dataSetsCount = dispatchData.gws[2];
+    dispatchData.dataSetSize = GetItemClassCount(input, params.dim);
+    dispatchData.leftovers = dispatchData.dataSetSize % workitems_per_classes;
 
     return dispatchData;
 }
@@ -68,8 +79,17 @@ KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
-    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.bIMADSupport));
+    // sub_group_block_write requires aligned memory,
+    // therefore it can be utilized if either memory is aligned by 16 bytes
+    bool isSubGroupBlockIOEnabled = params.dim != SoftmaxDim::BATCH &&
+        (dispatchData.dataSetSize * params.outputs[0].ElementSize()) % 16 == 0;
+
+    jit.AddConstants({
+        MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+        MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes),
+        MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.supports_imad),
+        MakeJitConstant("IS_SUBGROUP_BLOCK_IO_ENABLED", isSubGroupBlockIOEnabled),
+    });
 
     return jit;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     std::vector<InputShape> shapes;
     ElementType netType, inType, outType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     ov::AnyMap additional_config;
@@ -25,12 +25,12 @@ std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<Eltwi
 
     results << "IS=(";
     for (const auto& shape : shapes) {
-        results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        results << ov::test::utils::partialShape2str({shape.first}) << "_";
     }
     results << ")_TS=(";
     for (const auto& shape : shapes) {
         for (const auto& item : shape.second) {
-            results << CommonTestUtils::vec2str(item) << "_";
+            results << ov::test::utils::vec2str(item) << "_";
         }
     }
     results << ")_eltwiseOpType=" << eltwiseOpType << "_";
@@ -68,14 +68,10 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
-    // TODO: Remove it after fixing issue 69529
-    // w/a for myriad (cann't store 2 caches simultaneously)
-    PluginCache::get().reset();
-
     std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
-    CommonTestUtils::OpType opType;
+    ov::test::utils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
@@ -87,11 +83,11 @@ void EltwiseLayerTest::SetUp() {
 
     ov::PartialShape shape_input_secondary;
     switch (opType) {
-        case CommonTestUtils::OpType::SCALAR: {
+        case ov::test::utils::OpType::SCALAR: {
             shape_input_secondary = {1};
             break;
         }
-        case CommonTestUtils::OpType::VECTOR:
+        case ov::test::utils::OpType::VECTOR:
             shape_input_secondary = inputDynamicShapes.back();
             break;
         default:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,20 +16,22 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace InferenceEngine {
-class IVariableStateInternal;
+class IAsyncInferRequestWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
 
 class InferRequest;
+class IVariableState;
+class IInferRequestInternalWrapper;
 
 /**
  * @brief VariableState class
  * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API VariableState {
-    std::shared_ptr<InferenceEngine::IVariableStateInternal> _impl;
-    std::vector<std::shared_ptr<void>> _so;
+    std::shared_ptr<ov::IVariableState> _impl;
+    std::shared_ptr<void> _so;
 
     /**
      * @brief Constructs VariableState from the initialized std::shared_ptr.
@@ -37,10 +39,11 @@ class OPENVINO_RUNTIME_API VariableState {
      * @param so Optional: plugin to use. This is required to ensure that VariableState can work properly even if a
      * plugin object is destroyed.
      */
-    VariableState(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& impl,
-                  const std::vector<std::shared_ptr<void>>& so);
+    VariableState(const std::shared_ptr<ov::IVariableState>& impl, const std::shared_ptr<void>& so);
 
     friend class ov::InferRequest;
+    friend class ov::IInferRequestInternalWrapper;
+    friend class InferenceEngine::IAsyncInferRequestWrapper;
 
 public:
     /**

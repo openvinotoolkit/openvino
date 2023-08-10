@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,14 +16,15 @@ namespace frontend {
 namespace ir {
 
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
     class InputModelIRImpl;
     std::shared_ptr<InputModelIRImpl> _impl;
 
 public:
+    OPENVINO_SUPPRESS_DEPRECATED_START
     InputModel(std::istream& stream,
                const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Model> convert();
 };

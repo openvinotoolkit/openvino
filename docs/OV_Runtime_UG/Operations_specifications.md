@@ -1,10 +1,13 @@
-# Operations Specifications {#openvino_docs_operations_specifications}
+# Operation Specifications {#openvino_docs_operations_specifications}
 
 @sphinxdirective
 
+.. meta::
+  :description: Explore the examples of operations supported in OpenVINO™ toolkit.
+
 .. toctree::
    :maxdepth: 1
-   
+
    Abs-1 <openvino_docs_ops_arithmetic_Abs_1>
    Acos-1 <openvino_docs_ops_arithmetic_Acos_1>
    Acosh-3 <openvino_docs_ops_arithmetic_Acosh_3>
@@ -43,7 +46,7 @@
    DeformablePSROIPooling-1 <openvino_docs_ops_detection_DeformablePSROIPooling_1>
    DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>
    DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_1>
-   DetectionOutput-1 <openvino_docs_ops_detection_DetectionOutput_8>
+   DetectionOutput-8 <openvino_docs_ops_detection_DetectionOutput_8>
    DFT-7 <openvino_docs_ops_signals_DFT_7>
    Divide-1 <openvino_docs_ops_arithmetic_Divide_1>
    Einsum-7 <openvino_docs_ops_matrix_Einsum_7>
@@ -82,6 +85,7 @@
    Greater-1 <openvino_docs_ops_comparison_Greater_1>
    GroupConvolutionBackpropData-1 <openvino_docs_ops_convolution_GroupConvolutionBackpropData_1>
    GroupConvolution-1 <openvino_docs_ops_convolution_GroupConvolution_1>
+   GroupNormalization-12 <openvino_docs_ops_normalization_GroupNormalization_12>
    HardSigmoid-1 <openvino_docs_ops_activation_HardSigmoid_1>
    HSigmoid-5 <openvino_docs_ops_activation_HSigmoid_5>
    HSwish-4 <openvino_docs_ops_activation_HSwish_4>
@@ -92,6 +96,7 @@
    If-8 <openvino_docs_ops_infrastructure_If_8>
    Interpolate-1 <openvino_docs_ops_image_Interpolate_1>
    Interpolate-4 <openvino_docs_ops_image_Interpolate_4>
+   Interpolate-11 <openvino_docs_ops_image_Interpolate_11>
    IsFinite-10 <openvino_docs_ops_comparison_IsFinite_10>
    IsInf-10 <openvino_docs_ops_comparison_IsInf_10>
    IsNaN-10 <openvino_docs_ops_comparison_IsNaN_10>
@@ -135,6 +140,7 @@
    PReLU-1 <openvino_docs_ops_activation_PReLU_1>
    PSROIPooling-1 <openvino_docs_ops_detection_PSROIPooling_1>
    Pad-1 <openvino_docs_ops_movement_Pad_1>
+   Pad-12 <openvino_docs_ops_movement_Pad_12>
    Parameter-1 <openvino_docs_ops_infrastructure_Parameter_1>
    Power-1 <openvino_docs_ops_arithmetic_Power_1>
    PriorBoxClustered-1 <openvino_docs_ops_detection_PriorBoxClustered_1>
@@ -171,6 +177,7 @@
    Roll-7 <openvino_docs_ops_movement_Roll_7>
    Round-5 <openvino_docs_ops_arithmetic_Round_5>
    ScatterElementsUpdate-3 <openvino_docs_ops_movement_ScatterElementsUpdate_3>
+   ScatterElementsUpdate-12 <openvino_docs_ops_movement_ScatterElementsUpdate_12>
    ScatterNDUpdate-3 <openvino_docs_ops_movement_ScatterNDUpdate_3>
    ScatterUpdate-3 <openvino_docs_ops_movement_ScatterUpdate_3>
    Select-1 <openvino_docs_ops_condition_Select_1>
@@ -202,6 +209,7 @@
    Tile-1 <openvino_docs_ops_movement_Tile_1>
    TopK-1 <openvino_docs_ops_sort_TopK_1>
    TopK-3 <openvino_docs_ops_sort_TopK_3>
+   TopK-11 <openvino_docs_ops_sort_TopK_11>
    Transpose-1 <openvino_docs_ops_movement_Transpose_1>
    Unique-10 <openvino_docs_ops_movement_Unique_10>
    Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>

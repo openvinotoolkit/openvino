@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@ std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestPa
     std::tie(embTableShape, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = params;
 
     std::ostringstream result;
-    result << "ETS=" << CommonTestUtils::vec2str(embTableShape) << "_";
-    result << "I"  << CommonTestUtils::vec2str(indices) << "_";
-    result << "SI" << CommonTestUtils::vec2str(segmentIds) << "_";
+    result << "ETS=" << ov::test::utils::vec2str(embTableShape) << "_";
+    result << "I"  << ov::test::utils::vec2str(indices) << "_";
+    result << "SI" << ov::test::utils::vec2str(segmentIds) << "_";
     result << "NS" << numSegments << "_";
     result << "DI" << defaultIndex << "_";
     result << "WW" << withWeights << "_";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
     CustomLayerAttributeVisitor() : m_values({}) { }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        IE_THROW() << "Attribute " << name << " can't be processed\n";
+        OPENVINO_THROW("Attribute ", name, " can't be processed\n");
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
@@ -146,9 +146,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
                         reorderPrimName,
                         inputs[param.portIndex],
                         param.format,
-                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)),
-                        std::vector<float>(),
-                        cldnn::reorder_mean_mode::subtract);
+                        cldnn::element_type_to_data_type(op->get_input_element_type(param.portIndex)));
 
                     p.add_primitive(*op, preprocessPrim);
                     reordered_inputs[param.portIndex] = cldnn::input_info(reorderPrimName);
@@ -167,7 +165,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
             break;
         }
         default:
-            IE_THROW() << "Invalid custom layer param type: " << param.type << " in operation: " << op->get_friendly_name();
+            OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }
     }
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
@@ -190,19 +188,19 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
     int featureDim = outputTensor.feature[0];
     int yDim = outputTensor.spatial[1];
     int xDim = outputTensor.spatial[0];
-    size_t iidx = customLayer->InputDimSourceIndex();
+    int iidx = customLayer->InputDimSourceIndex();
 
     std::string genericLayerName = layer_type_name_ID(op);
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
-        if (iidx >= op->get_input_size())
-            IE_THROW() << "Invalid input tensor for index: " << iidx;
+        if (static_cast<size_t>(iidx) >= op->get_input_size())
+            OPENVINO_THROW("Invalid input tensor for index: ", iidx);
         auto inputDims = op->get_input_shape(iidx);
 
-        xDim = inputDims[inputDims.size() - 1];
-        yDim = dims.size() > 1 ? inputDims[inputDims.size() - 2] : 0;
-        featureDim = dims.size() > 2 ? inputDims[inputDims.size() - 3] : 0;
-        batchDim = dims.size() > 3 ? inputDims[inputDims.size() - 4]: 0;
+        xDim = static_cast<int>(inputDims[inputDims.size() - 1]);
+        yDim = dims.size() > 1 ? static_cast<int>(inputDims[inputDims.size() - 2]) : 0;
+        featureDim = dims.size() > 2 ? static_cast<int>(inputDims[inputDims.size() - 3]) : 0;
+        batchDim = dims.size() > 3 ? static_cast<int>(inputDims[inputDims.size() - 4]) : 0;
     }
     const std::map<char, int> vars = {
         { 'b', batchDim }  , { 'B', batchDim },
@@ -210,13 +208,13 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         { 'y', yDim },       { 'Y', yDim },
         { 'x', xDim },       { 'X', xDim },
     };
-    for (auto rule : customLayer->GlobalSizeRules()) {
+    for (const auto& rule : customLayer->GlobalSizeRules()) {
         SimpleMathExpression expr;
         expr.SetVariables(vars);
         expr.SetExpression(rule);
         gws.push_back(expr.Evaluate());
     }
-    for (auto rule : customLayer->LocalSizeRules()) {
+    for (const auto& rule : customLayer->LocalSizeRules()) {
         SimpleMathExpression expr;
         expr.SetVariables(vars);
         expr.SetExpression(rule);
@@ -240,9 +238,7 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         p.add_primitive(*op, cldnn::reorder(reorderPrimName,
                                             cldnn::input_info(genericLayerName),
                                             cldnn::format::get_default_format(op->get_output_shape(0).size()),
-                                            customPrim.output_layout.data_type,
-                                            std::vector<float>(),
-                                            cldnn::reorder_mean_mode::subtract));
+                                            customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }
     p.add_primitive(*op, customPrim);

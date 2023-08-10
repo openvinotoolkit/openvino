@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,18 +17,24 @@ static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0:
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    uint32_t coords = op->get_num_coords();
-    uint32_t classes = op->get_num_classes();
-    uint32_t num = op->get_num_regions();
+    uint32_t coords = static_cast<uint32_t>(op->get_num_coords());
+    uint32_t classes = static_cast<uint32_t>(op->get_num_classes());
+    uint32_t num = static_cast<uint32_t>(op->get_num_regions());
     bool do_softmax = op->get_do_softmax();
-    uint32_t mask_size = op->get_mask().size();
+    std::vector<int64_t> mask = op->get_mask();
+    uint32_t mask_size = static_cast<uint32_t>(mask.size());
+    int32_t axis = op->get_axis();
+    int32_t end_axis = op->get_end_axis();
 
     auto regionPrim = cldnn::region_yolo(layerName,
                                          inputs[0],
                                          coords,
                                          classes,
                                          num,
+                                         mask,
                                          mask_size,
+                                         axis,
+                                         end_axis,
                                          do_softmax);
 
     p.add_primitive(*op, regionPrim);

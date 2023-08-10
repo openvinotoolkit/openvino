@@ -19,7 +19,7 @@ from openvino.tools.pot.statistics.collector import StatisticsCollector
 from .utils.data_helper import dump_intermediate_data, load_json
 
 
-EPS = 1e-6
+EPS = 2e-5
 
 
 def get_fq_nodes_stats_algo(model, preset, bits, is_weights, clipping_value=None):

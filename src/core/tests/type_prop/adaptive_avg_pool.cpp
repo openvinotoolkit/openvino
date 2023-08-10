@@ -1,95 +1,144 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace ov::opset10;
+using namespace testing;
 
-TEST(type_prop, adaptive_avg_pool) {
-    const PartialShape arg_shape{1, 6, 8, 9};
-    const vector<int64_t> output_shape{5, 7};
+class AdaptiveAvgPoolV8Test : public TypePropOpTest<op::v8::AdaptiveAvgPool> {};
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
+TEST_F(AdaptiveAvgPoolV8Test, default_ctor) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{2, 6, 3, 2});
+    const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
 
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, 5, 7}));
+    const auto op = make_op();
+    op->set_arguments(OutputVector{data, out_shape});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 2);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, 6, 5, 7}));
 }
 
-TEST(type_prop, adaptive_avg_pool_dyn_batch) {
-    const PartialShape arg_shape{Dimension::dynamic(), 6, 8, 9};
-    const vector<int64_t> output_shape{5, 7};
+TEST_F(AdaptiveAvgPoolV8Test, static_dim_shape_prop) {
+    auto data_shape = PartialShape{1, 6, 8, 9};
+    set_shape_labels(data_shape, 10);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
+    const auto op = make_op(data, out_shape);
 
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 6, 5, 7}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, 5, 7}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
 }
 
-TEST(type_prop, adaptive_avg_pool_dyn_channels) {
-    const PartialShape arg_shape{1, Dimension::dynamic(), 8, 9};
-    const vector<int64_t> output_shape{5, 7};
+TEST_F(AdaptiveAvgPoolV8Test, dynamic_batch) {
+    PartialShape data_shape{Dimension::dynamic(), 6, 8, 9};
+    set_shape_labels(data_shape, 10);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
+    const auto op = make_op(data, out_shape);
 
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({1, Dimension::dynamic(), 5, 7}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 6, 5, 7}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
 }
 
-TEST(type_prop, adaptive_avg_pool_dyn_spatial) {
-    const PartialShape arg_shape{1, 6, Dimension::dynamic(), Dimension::dynamic()};
-    const vector<int64_t> output_shape{5, 7};
+TEST_F(AdaptiveAvgPoolV8Test, dynamic_channel) {
+    PartialShape data_shape{1, Dimension::dynamic(), {10, 20}, 9};
+    set_shape_labels(data_shape, 20);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, output_shape);
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
+    const auto op = make_op(data, out_shape);
 
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, 5, 7}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, -1, 5, 7}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 21, ov::no_label, ov::no_label));
 }
 
-TEST(type_prop, adaptive_avg_pool_dyn_output_shape) {
-    const PartialShape arg_shape{1, 6, 8, 9};
+TEST_F(AdaptiveAvgPoolV8Test, dynamic_spatial) {
+    PartialShape data_shape{1, 6, -1, -1};
+    set_shape_labels(data_shape, 20);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto out_shape = Constant::create<int64_t>(element::i64, Shape{2}, {5, 7});
+    const auto op = make_op(data, out_shape);
 
-    ASSERT_TRUE(
-        adaptive_pool->get_output_partial_shape(0).same_scheme({1, 6, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, 5, 7}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 21, ov::no_label, ov::no_label));
 }
 
-TEST(type_prop, adaptive_avg_pool_dyn_rank) {
-    const PartialShape arg_shape = PartialShape::dynamic();
+TEST_F(AdaptiveAvgPoolV8Test, dynamic_output_shape) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{1, 6, 8, 9, 2});
+    auto out_shape = make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto op = make_op(data, out_shape);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    auto adaptive_pool = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape);
-
-    ASSERT_TRUE(adaptive_pool->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, -1, -1, -1}));
 }
 
-TEST(type_prop, adaptive_avg_pool_unsupported_input_shape) {
-    const PartialShape arg_shape{1, 6};
-    const vector<int64_t> output_shape{1};
+TEST_F(AdaptiveAvgPoolV8Test, output_shape_as_parameter) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{1, 6, 8, 9, 2});
+    auto out_shape = make_shared<Parameter>(element::i64, PartialShape{3});
+    const auto op = make_op(data, out_shape);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{}, output_shape);
-
-    EXPECT_THROW(const auto unused = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 6, -1, -1, -1}));
 }
 
-TEST(type_prop, adaptive_avg_pool_wrong_out_shape) {
-    const PartialShape arg_shape{1, 6, 8, 9};
-    const vector<int64_t> output_shape{5, 7, 8};
+TEST_F(AdaptiveAvgPoolV8Test, data_dynamic_rank) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto out_shape = make_shared<Parameter>(element::i32, Shape{3});
+    const auto op = make_op(data, out_shape);
 
-    auto data = make_shared<op::Parameter>(element::f32, arg_shape);
-    auto out_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, output_shape);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
+}
 
-    EXPECT_THROW(const auto unused = make_shared<op::v8::AdaptiveAvgPool>(data, out_shape), NodeValidationFailure);
+TEST_F(AdaptiveAvgPoolV8Test, preserve_partial_values_and_labels_on_output_shape_input) {
+    auto data_shape = PartialShape{{1, 2}, {2, 4}, 5, {10, 20}, -1};
+    set_shape_labels(data_shape, 10);
+    auto out_shape = PartialShape{{2, 6}, 3, {12, 13}};
+    set_shape_labels(out_shape, 20);
+
+    const auto data = make_shared<Parameter>(element::f32, data_shape);
+    const auto spatial_dim_shape = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, out_shape));
+    const auto op = make_op(data, spatial_dim_shape);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 2}, {2, 4}, {2, 6}, 3, {12, 13}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 20, 21, 22));
+}
+
+TEST_F(AdaptiveAvgPoolV8Test, out_spatial_shape_size_not_match_data_spatial_dimensions) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 6});
+    auto out_shape = make_shared<Parameter>(element::i32, Shape{3});
+
+    OV_EXPECT_THROW(const auto op = make_op(data, out_shape),
+                    NodeValidationFailure,
+                    HasSubstr("Output shape for spatial dimension not compatible with data shape."));
+}
+
+TEST_F(AdaptiveAvgPoolV8Test, unsupported_input_shape) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{1, 6});
+    auto out_shape = Constant::create<int64_t>(element::i64, Shape{}, {1});
+
+    OV_EXPECT_THROW(const auto op = make_op(data, out_shape),
+                    NodeValidationFailure,
+                    HasSubstr("Expected a 3D, 4D or 5D tensor for the input. Got:"));
+}
+
+TEST_F(AdaptiveAvgPoolV8Test, wrong_out_shape) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{1, 6, 8, 9});
+    auto out_shape = Constant::create<int64_t>(element::i64, Shape{3}, {5, 7, 8});
+
+    OV_EXPECT_THROW(const auto op = make_op(data, out_shape),
+                    NodeValidationFailure,
+                    HasSubstr("Output shape for spatial dimension not compatible with data shape."));
 }

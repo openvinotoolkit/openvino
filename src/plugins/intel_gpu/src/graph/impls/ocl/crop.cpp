@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "crop_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "crop_inst.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -25,54 +23,59 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
         return make_unique<crop_impl>(*this);
     }
 
-    crop_impl() : parent() {}
-
-    explicit crop_impl(const crop_impl& other) : parent(other),
-        _can_be_optimized(other._can_be_optimized) {}
-
-    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<crop>());
-        const auto& node = arg.as<crop>();
-        _can_be_optimized = node.can_be_optimized();
-    }
-
-protected:
-    bool optimized_out(crop_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _can_be_optimized;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _can_be_optimized;
-    }
-
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<crop>();
-        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-        params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
+        if (impl_param.is_dynamic() || is_shape_agnostic) {
+            // WA to always match compiled dynamic kernel with dispatch data
+            // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
+            // but in runtime dispatch data will be generated for non-broadcast case as shapes are actually same.
+            params.broadcast = true;
+        } else {
+            params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
+        }
         return {params, optional_params};
     }
-
-private:
-    bool _can_be_optimized;
+        void update_dispatch_data(const kernel_impl_params& impl_param) override {
+            auto kernel_params = get_kernel_params(impl_param, true);
+            auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
+            kernel_selector::ScalarDescriptor s;
+            s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+            s.v.u32 = static_cast<uint32_t>(runtime_offset);
+            OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
+                    "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
+            _kernel_data.kernels[0].params.scalars[0] = s;
+            (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_crop_impl::attach_crop_impl() {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<crop>::add(impl_types::ocl,
+                                     shape_types::dynamic_shape,
+                                     typed_primitive_impl_ocl<crop>::create<crop_impl>,
+                                     dyn_types,
+                                     dyn_formats);
+
     implementation_map<crop>::add(impl_types::ocl, typed_primitive_impl_ocl<crop>::create<crop_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
@@ -158,3 +161,4 @@ attach_crop_impl::attach_crop_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::crop_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::crop)

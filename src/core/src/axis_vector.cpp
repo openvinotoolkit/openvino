@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/axis_vector.hpp"
+#include "openvino/core/axis_vector.hpp"
 
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const AxisVector& axis_vector) {
     s << "AxisVector{";
-    s << ngraph::join(axis_vector);
+    s << ov::util::join(axis_vector);
     s << "}";
     return s;
 }

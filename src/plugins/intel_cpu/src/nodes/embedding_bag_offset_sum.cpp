@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,9 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
+EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+      EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -80,19 +81,19 @@ void EmbeddingBagOffsetSum::prepareParams() {
 }
 
 void EmbeddingBagOffsetSum::initFromInputs() {
-    indicesData_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->GetPtr());
-    offsetsData_ = reinterpret_cast<const int *>(getParentEdgeAt(OFFSETS_IDX)->getMemoryPtr()->GetPtr());
+    indicesData_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
+    offsetsData_ = reinterpret_cast<const int *>(getParentEdgeAt(OFFSETS_IDX)->getMemoryPtr()->getData());
 
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
-        defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->GetPtr());
+        defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->getData());
     }
 }
 
-void EmbeddingBagOffsetSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _offsetsLen) {
+void EmbeddingBagOffsetSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+    if (static_cast<size_t>(embIndex) >= _offsetsLen) {
         IE_THROW() << "Invalid embedding bag index.";
     }
-    if (offsetsData_[embIndex] >= _indicesLen) {
+    if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
         IE_THROW() << "Offset value exceeds indices size.";
     }
 
@@ -130,10 +131,10 @@ bool EmbeddingBagOffsetSum::isExecutable() const {
 }
 
 void EmbeddingBagOffsetSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->GetPtr());
+        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,15 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
     k.EnableGroupedConvolution();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_depthwise_weights_lwg::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -64,7 +67,7 @@ JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const
                                                                            const DispatchData& dispatchData) const {
     auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    if (params.padding.x != 0 || params.padding.y != 0)
+    if (params.padding_begin.x != 0 || params.padding_begin.y != 0)
         mem_consts.AddConstant(MakeJitConstant("BOUNDARY_CHECK", 1));
 
     return mem_consts;

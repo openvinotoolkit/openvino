@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Static, Slice8LayerTest,
             ::testing::Values(ElementType::undefined),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(std::map<std::string, std::string>())),
         Slice8LayerTest::getTestCaseName);
 
@@ -86,7 +86,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PrecisionTransformation, Slice8LayerTest,
             ::testing::Values(ElementType::undefined),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(std::map<std::string, std::string>())),
         Slice8LayerTest::getTestCaseName);
 
@@ -121,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Dynamic, Slice8LayerTest,
             ::testing::Values(ElementType::undefined),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(ov::test::utils::DEVICE_CPU),
             ::testing::Values(std::map<std::string, std::string>())),
         Slice8LayerTest::getTestCaseName);
 }  // namespace

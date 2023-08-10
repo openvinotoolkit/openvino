@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,8 @@
 
 using namespace testing;
 using namespace InferenceEngine;
-using namespace CommonTestUtils;
 
-using NGraphReshapeTests = TestsCommon;
+using NGraphReshapeTests = ov::test::TestsCommon;
 
 TEST_F(NGraphReshapeTests, getBatchSize) {
     std::shared_ptr<ngraph::Function> ngraph;
@@ -72,7 +71,7 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
-    ASSERT_EQ(cnnNetwork.getInputsInfo()["A"]->getInputData()->getDims(), (SizeVector{0, 0, 0, 0}));
+    ASSERT_EQ(cnnNetwork.getInputsInfo()["A"]->getInputData()->getDims(), (SizeVector{0, 3, 22, 22}));
 
     ICNNNetwork::InputShapes new_shape;
     new_shape["A"] = {1, 3, 22, 22};
@@ -171,7 +170,7 @@ public:
         if (input_pshape.is_static()) {
             auto input_shape = input_pshape.to_shape();
             ngraph::Shape output_shape(input_shape);
-            for (int i = 0; i < input_shape.size(); ++i) {
+            for (size_t i = 0; i < input_shape.size(); ++i) {
                 output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
             }
             set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
@@ -182,7 +181,7 @@ public:
 
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
-            throw ngraph::ngraph_error("Incorrect number of new arguments");
+            OPENVINO_THROW("Incorrect number of new arguments");
         }
 
         return std::make_shared<CustomTestOp>(new_args.at(0), test1, test2);

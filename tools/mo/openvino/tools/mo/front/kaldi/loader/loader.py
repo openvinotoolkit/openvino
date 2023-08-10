@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -324,7 +324,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
     if tokens[0] == b'input-node':
         in_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         in_name = str(in_name).strip('b').replace('\'', "")
-        in_shape = mo_array([1, s[s.find(b'dim=') + len(b'dim='):].split(b' ')[0]], dtype=np.int)
+        in_shape = mo_array([1, s[s.find(b'dim=') + len(b'dim='):].split(b' ')[0]], dtype=int)
 
         if in_name not in layer_node_map:
             graph.add_node(in_name, name=in_name, kind='op', op='Parameter', parameters=None, shape=in_shape)

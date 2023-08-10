@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MVN : public Op {
 public:
-    OPENVINO_OP("MVN", "opset6", op::Op, 6);
+    OPENVINO_OP("MVN", "opset6", op::Op);
 
     MVN() = default;
     /// \brief Constructs an MVN operation.

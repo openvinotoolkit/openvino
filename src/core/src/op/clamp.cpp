@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
@@ -13,6 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace clamp {
 namespace {
 template <element::Type_t ET, typename T>
@@ -31,6 +33,7 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
     };
 
     bool rc = true;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     switch (arg->get_element_type()) {
         TYPE_CASE(i8)
         (arg, out, double_to_int<int8_t>(min, ceil_func), double_to_int<int8_t>(max, floor_func), count);
@@ -68,13 +71,16 @@ bool evaluate_clamp(const HostTensorPtr& arg, const HostTensorPtr& out, double m
         break;
     }
     return rc;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace
 }  // namespace clamp
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Clamp_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return clamp::evaluate_clamp(inputs[0], outputs[0], get_min(), get_max());
 }
 
@@ -139,10 +145,10 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::Clamp::evaluate_lower(const HostTensorVector& output_values) const {
-    return default_lower_bound_evaluator(this, output_values);
+bool op::Clamp::evaluate_lower(ov::TensorVector& output_values) const {
+    return ov::default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Clamp::evaluate_upper(const HostTensorVector& output_values) const {
-    return default_upper_bound_evaluator(this, output_values);
+bool op::Clamp::evaluate_upper(ov::TensorVector& output_values) const {
+    return ov::default_upper_bound_evaluator(this, output_values);
 }

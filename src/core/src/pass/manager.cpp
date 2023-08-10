@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/manager.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -12,18 +12,17 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
 using namespace std;
+
+#ifdef ENABLE_PROFILING_ITT
 
 namespace ov {
 namespace pass {
@@ -36,21 +35,29 @@ PerfCounters& perf_counters() {
 }  // namespace pass
 }  // namespace ov
 
-ov::pass::Manager::Manager()
-    : m_pass_config(std::make_shared<PassConfig>()),
-      m_visualize(ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
-                  ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING")) {}
+#endif  // ENABLE_PROFILING_ITT
+
+namespace {
+bool getenv_visualize_tracing() {
+    return ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
+           ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
+}
+}  // namespace
+
+ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()), m_visualize(getenv_visualize_tracing()) {}
 
 ov::pass::Manager::~Manager() = default;
 
-ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
+ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config)
+    : m_pass_config(std::move(pass_config)),
+      m_visualize(getenv_visualize_tracing()) {}
 
 void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
     static bool profile_enabled =
@@ -60,14 +67,16 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     ngraph::stopwatch pass_timer;
     ngraph::stopwatch overall_timer;
     overall_timer.start();
+    bool pass_applied = false;
     bool function_changed = false;
+    bool needs_validate = false;
     for (auto& pass : m_pass_list) {
         if (m_pass_config->is_disabled(pass->get_type_info())) {
-            NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
+            OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
 
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, pass::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 
@@ -75,38 +84,38 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+            // on on entire ov::Model
+            pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
 
             if (dynamic_pointer_cast<Validate>(pass)) {
-                if (function_changed) {
+                if (needs_validate) {
                     function_pass->run_on_model(func);
-                    function_changed = false;
+                    needs_validate = false;
                 }
             } else {
-                function_changed = function_pass->run_on_model(func);
+                pass_applied = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                             << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                               << "model is dynamic. Skipping this transformation";
                 continue;
             }
             for (const shared_ptr<Node>& n : func->get_ops()) {
-                function_changed |= node_pass->run_on_node(n);
+                pass_applied |= node_pass->run_on_node(n);
             }
         }
 
@@ -128,9 +137,13 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         if (profile_enabled) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
+        function_changed = function_changed || pass_applied;
+        needs_validate = pass_applied;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    return function_changed;
 }

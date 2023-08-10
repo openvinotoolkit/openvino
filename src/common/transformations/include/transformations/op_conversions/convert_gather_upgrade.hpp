@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,3 @@ public:
     OPENVINO_RTTI("ConvertGather7ToGather8", "0");
     ConvertGather7ToGather8();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertGather1ToGather7;
-using ov::pass::ConvertGather7ToGather8;
-}  // namespace pass
-}  // namespace ngraph

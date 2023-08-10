@@ -44,7 +44,7 @@ KernelsData CTCLossKernelRef::GetKernelsData(const Params& params, const optiona
                      {},
                      false,
                      false,
-                     kernel_params.inputs.size());
+                     static_cast<int>(kernel_params.inputs.size()));
 
     return {kernel_data};
 }

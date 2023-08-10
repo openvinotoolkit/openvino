@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 namespace ov {
 
-bool Any::equal(std::type_index lhs, std::type_index rhs) {
+bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
 #if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
     if (!result) {
@@ -20,7 +20,7 @@ bool Any::equal(std::type_index lhs, std::type_index rhs) {
 }
 
 bool Any::Base::is(const std::type_info& other) const {
-    return Any::equal(type_info(), other);
+    return util::equal(type_info(), other);
 }
 
 void Any::Base::type_check(const std::type_info& type_info_) const {
@@ -73,16 +73,27 @@ Any::~Any() {
     _impl = {};
 }
 
-Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _impl{other._impl}, _so{so} {}
+Any::Any(const Any& other) {
+    *this = other;
+};
+
+Any& Any::operator=(const Any& other) {
+    if (other._temp)
+        _temp = other._temp->copy();
+    if (other._impl)
+        _impl = other._impl->copy();
+    _so = other._so;
+    return *this;
+};
+
+Any::Any(const Any& other, const std::shared_ptr<void>& so) : _so{so}, _impl{other._impl} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 
 Any::Any(const std::nullptr_t) : Any() {}
 
 void Any::impl_check() const {
-    if (_impl == nullptr) {
-        OPENVINO_UNREACHABLE("Any was not initialized.");
-    }
+    OPENVINO_ASSERT(_impl != nullptr, "Any was not initialized.");
 }
 
 const std::type_info& Any::type_info() const {
@@ -124,14 +135,6 @@ bool Any::operator!=(const Any& other) const {
     return !operator==(other);
 }
 
-Any::Base* Any::operator->() {
-    return _impl.get();
-}
-
-const Any::Base* Any::operator->() const {
-    return _impl.get();
-}
-
 void* Any::addressof() {
     return _impl != nullptr ? _impl->addressof() : nullptr;
 }
@@ -149,7 +152,7 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
     } else if (str == "NO") {
         value = false;
     } else {
-        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+        OPENVINO_THROW("Could not convert to bool from string " + str);
     }
 }
 
@@ -160,9 +163,9 @@ static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const 
     try {
         return f(str);
     } catch (std::exception& e) {
-        OPENVINO_UNREACHABLE(std::string{"Could not convert to: "} +
-                             typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
-                             "\": " + e.what());
+        OPENVINO_THROW(std::string{"Could not convert to: "} +
+                       typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
+                       "\": " + e.what());
     }
 }
 
@@ -224,6 +227,39 @@ void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
     Read<unsigned int>{}(is, std::get<0>(tuple));
     Read<unsigned int>{}(is, std::get<1>(tuple));
     Read<unsigned int>{}(is, std::get<2>(tuple));
+}
+
+void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
+    char c;
+
+    is >> c;
+    OPENVINO_ASSERT(c == '{', "Failed to parse ov::AnyMap. Starting symbols is not '{', it's ", c);
+
+    while (c != '}') {
+        std::string key, value;
+        std::getline(is, key, ':');
+        size_t enclosed_container_level = 0;
+
+        while (is.good()) {
+            is >> c;
+            if (c == ',') {                         // delimiter between map's pairs
+                if (enclosed_container_level == 0)  // we should interrupt after delimiter
+                    break;
+            }
+            if (c == '{' || c == '[')  // case of enclosed maps / arrays
+                ++enclosed_container_level;
+            if (c == '}' || c == ']') {
+                if (enclosed_container_level == 0)
+                    break;  // end of map
+                --enclosed_container_level;
+            }
+
+            value += c;  // accumulate current value
+        }
+        map.emplace(std::move(key), std::move(value));
+    }
+
+    OPENVINO_ASSERT(c == '}', "Failed to parse ov::AnyMap. Ending symbols is not '}', it's ", c);
 }
 
 void Read<std::tuple<unsigned int, unsigned int>>::operator()(std::istream& is,

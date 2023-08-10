@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,12 +42,12 @@ void color_convert_nv12(const T* arg_y,
                         size_t stride_y,
                         size_t stride_uv,
                         ov::op::util::ConvertColorNV12Base::ColorConversion color_format) {
-    for (int batch = 0; batch < batch_size; batch++) {
+    for (size_t batch = 0; batch < batch_size; batch++) {
         T* out = out_ptr + batch * image_w * image_h * 3;
         auto y_ptr = arg_y + batch * stride_y;
         auto uv_ptr = arg_uv + batch * stride_uv;
-        for (int h = 0; h < image_h; h++) {
-            for (int w = 0; w < image_w; w++) {
+        for (size_t h = 0; h < image_h; h++) {
+            for (size_t w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
                 auto y_val = static_cast<float>(y_ptr[y_index]);
                 auto uv_index = (h / 2) * image_w + (w / 2) * 2;
@@ -80,13 +80,13 @@ void color_convert_i420(const T* arg_y,
                         size_t stride_y,
                         size_t stride_uv,
                         ov::op::util::ConvertColorI420Base::ColorConversion color_format) {
-    for (int batch = 0; batch < batch_size; batch++) {
+    for (size_t batch = 0; batch < batch_size; batch++) {
         T* out = out_ptr + batch * image_w * image_h * 3;
         auto y_ptr = arg_y + batch * stride_y;
         auto u_ptr = arg_u + batch * stride_uv;
         auto v_ptr = arg_v + batch * stride_uv;
-        for (int h = 0; h < image_h; h++) {
-            for (int w = 0; w < image_w; w++) {
+        for (size_t h = 0; h < image_h; h++) {
+            for (size_t w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
                 auto y_val = static_cast<float>(y_ptr[y_index]);
                 auto uv_index = (h / 2) * (image_w / 2) + (w / 2);
@@ -108,6 +108,7 @@ void color_convert_i420(const T* arg_y,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <ov::element::Type_t ET>
 inline bool color_convert_nv12(const std::shared_ptr<Node>& op,
                                const ov::HostTensorVector& outputs,
@@ -203,6 +204,7 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

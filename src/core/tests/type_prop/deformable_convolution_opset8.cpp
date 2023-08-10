@@ -1,20 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ngraph;
-using namespace ngraph::opset8;
+using namespace ov::opset8;
+using namespace testing;
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {
-    const PartialShape data_batch_pshape{1, 4, 5, 5};
-    const PartialShape offsets_pshape{1, 36, 5, 5};
-    const PartialShape filters_pshape{4, 1, 3, 3};
+    PartialShape data_batch_pshape{1, 4, 5, 5};
+    PartialShape offsets_pshape{1, 36, 5, 5};
+    PartialShape filters_pshape{4, 1, 3, 3};
+    set_shape_labels(data_batch_pshape, 10);
+    set_shape_labels(offsets_pshape, 20);
+    set_shape_labels(filters_pshape, 30);
     const element::Type_t et = element::f32;
 
     Strides strides{1, 1};
@@ -39,9 +43,11 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_THAT(get_shape_labels(deformable_conv->get_output_partial_shape(0)),
+                ElementsAre(10, 30, ov::no_label, ov::no_label));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, 5, 5}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_lower_data_batch_nc_dims_dynamic) {
@@ -72,9 +78,9 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_lower_da
                                                               group,
                                                               deformable_group);
 
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 4, 5, 5}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 4, 5, 5}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_upper_data_batch_nc_dims_dynamic) {
@@ -105,9 +111,9 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_upper_da
                                                               group,
                                                               deformable_group);
 
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, 5, 5}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_spatial_dims_dynamic) {
@@ -138,9 +144,9 @@ TEST(type_prop, deformable_convolution_opset8_partial_auto_padding_same_spatial_
                                                               group,
                                                               deformable_group);
 
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme({1, 4, Dimension::dynamic(), 5}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 1}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, Dimension::dynamic(), 5}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_data_batch_dynamic) {
@@ -167,13 +173,12 @@ TEST(type_prop, deformable_convolution_opset8_data_batch_dynamic) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(
-        PartialShape{2, 4, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{2, 4, {1, -1}, {1, -1}}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_offsets_dynamic) {
@@ -200,17 +205,17 @@ TEST(type_prop, deformable_convolution_opset8_offsets_dynamic) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, 5, 5}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_auto_pad_same_filters_dynamic) {
     const PartialShape data_batch_pshape{1, 4, 5, 5};
-    const PartialShape offsets_pshape{1, 36, 3, 3};
+    const PartialShape offsets_pshape{1, 36, 5, 5};
     const PartialShape filters_pshape{PartialShape::dynamic()};
     const element::Type_t et = element::f32;
 
@@ -232,13 +237,12 @@ TEST(type_prop, deformable_convolution_opset8_auto_pad_same_filters_dynamic) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_UPPER);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(
-        PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_UPPER);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, Dimension::dynamic(), 5, 5}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_deformable_data_batch_and_filters_dynamic) {
@@ -265,11 +269,11 @@ TEST(type_prop, deformable_convolution_opset8_deformable_data_batch_and_filters_
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 0}));
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
@@ -296,11 +300,11 @@ TEST(type_prop, deformable_convolution_opset8_deformable_all_inputs_dynamic) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::EXPLICIT);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{}));
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
@@ -418,10 +422,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks) {
         // data batch has invalid rank 5, should be 4
         FAIL() << "Incompatible data batch input rank not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Ranks of inputs do not match. Got: data batch "
-                             "shape [1,4,5,5,5], offsets shape [1,4,4,4], filters "
-                             "shape [4,4,3,3]");
+        EXPECT_HAS_SUBSTRING(error.what(), "Input must be of rank 4. Got: 5");
     } catch (...) {
         FAIL() << "Rank validation check of data batch input failed for unexpected reason";
     }
@@ -445,10 +446,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks) {
         // deformable values has invalid rank 5, should be 4
         FAIL() << "Incompatible offsets input rank not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Ranks of inputs do not match. Got: data batch shape "
-                             "[1,4,5,5], offsets shape [1,4,4,4,4], filters shape "
-                             "[4,4,3,3]");
+        EXPECT_HAS_SUBSTRING(error.what(), "Offsets must be of rank 4. Got: 5");
     } catch (...) {
         FAIL() << "Rank validation check of offsets input failed for unexpected reason";
     }
@@ -472,10 +470,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks) {
         // filters has invalid rank 5, should be 4
         FAIL() << "Incompatible filter input rank not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "Ranks of inputs do not match. Got: data batch shape "
-                             "[1,4,5,5], offsets shape [1,4,4,4], filters shape "
-                             "[4,4,3,3,3]");
+        EXPECT_HAS_SUBSTRING(error.what(), "Filters must be of rank 4. Got: 5");
     } catch (...) {
         FAIL() << "Rank validation check of filter input failed for unexpected reason";
     }
@@ -499,7 +494,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks) {
         // inputs have rank 5, should be 4
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Inputs must be of rank 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "Input must be of rank 4");
     } catch (...) {
         FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
@@ -523,7 +518,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_input_ranks) {
         // inputs have rank 3, should be 4
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Inputs must be of rank 4");
+        EXPECT_HAS_SUBSTRING(error.what(), "Input must be of rank 4");
     } catch (...) {
         FAIL() << "Rank validation check for 2 spatial dimension inputs failed for unexpected reason";
     }
@@ -681,9 +676,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_channels_dim) {
         FAIL() << "Invalid channels dimension of offsets input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "The channels dimension of offsets input must be "
-                             "evenly divisible by the 'deformable group' value along the "
-                             "channels axis.");
+                             "Offsets channels dimension (35) must be evenly divisible by the 'deformable group'");
     } catch (...) {
         FAIL() << "Channels dimension of offsets input validation check failed for "
                   "unexpected reason.";
@@ -761,9 +754,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_data_batch_channels_dim_wi
         // data batch channels is not evenly divisible by the attribute group value
         FAIL() << "Invalid channels dimension of data batch input not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The input data shape must be evenly divisible by the 'group' value "
-                             "along the channels axis.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Input channels dimension (5) must be evenly divisible by the 'group'");
     } catch (...) {
         FAIL() << "Data batch channel dimension validation check failed for unexpected "
                   "reason.";
@@ -802,9 +793,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_filters_channels_dim_with_
         // filters channels output is not evenly divisible by the attribute group value
         FAIL() << "Invalid channels output dimension of filters input not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             "The filters shape must be evenly divisible by the 'group' value along "
-                             "the channels axis");
+        EXPECT_HAS_SUBSTRING(error.what(), "Filters channels dimension (5) must be evenly divisible by the 'group'");
     } catch (...) {
         FAIL() << "Filters channels output dimension validation check failed for unexpected "
                   "reason.";
@@ -884,7 +873,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_offsets_spatial_dims) {
         // deformable values has incorrect spatial dimensions
         FAIL() << "Invalid spatial dimensions of offsets not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of offsets and output must be equal");
+        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of offsets and output must be compatible");
     } catch (...) {
         FAIL() << "Spatial dimension of offsets validation check failed for unexpected reason";
     }
@@ -910,7 +899,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -927,7 +916,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid strides spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Strides should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Strides spatial dimensions validation check failed for unexpected reason";
     }
@@ -946,7 +935,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -963,7 +952,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid dilations spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Dilations should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Dilations spatial dimensions validation check failed for unexpected reason";
     }
@@ -982,7 +971,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin and end should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -999,7 +988,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_conv_param_spatial_dims) {
             make_shared<DeformableConvolution>(data_batch, offsets, filters, strides, pads_begin, pads_end, dilations);
         FAIL() << "Invalid padding spatial dimensions not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Pads should be defined for all and only spatial features.");
+        EXPECT_HAS_SUBSTRING(error.what(), "Pads begin and end should be defined for all and only spatial dimensions.");
     } catch (...) {
         FAIL() << "Padding spatial dimensions validation check failed for unexpected reason";
     }
@@ -1040,7 +1029,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_mask_spatial_dims) {
         // deformable values has incorrect spatial dimensions
         FAIL() << "Invalid spatial dimensions of mask not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of mask and output must be equal");
+        EXPECT_HAS_SUBSTRING(error.what(), "Spatial dimensions of mask and output must be compatible");
     } catch (...) {
         FAIL() << "Spatial dimension of mask validation check failed for unexpected reason";
     }
@@ -1073,12 +1062,12 @@ TEST(type_prop, deformable_convolution_opset8_mask_dynamic) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_output_partial_shape(0), (PartialShape{1, 4, 5, 5}));
 }
 
 TEST(type_prop, deformable_convolution_opset8_invalid_mask_channels_dim) {
@@ -1161,9 +1150,7 @@ TEST(type_prop, deformable_convolution_opset8_invalid_mask_channels_dim) {
         FAIL() << "Invalid channels dimension of mask input not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "The channels dimension of mask input must be "
-                             "evenly divisible by the 'deformable group' value along the "
-                             "channels axis.");
+                             "Mask channels dimension (9) must be evenly divisible by the 'deformable group'");
     } catch (...) {
         FAIL() << "Channels dimension of mask input validation check failed for "
                   "unexpected reason.";
@@ -1239,10 +1226,66 @@ TEST(type_prop, deformable_convolution_opset8_mask) {
                                                               group,
                                                               deformable_group);
 
-    ASSERT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
-    ASSERT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_auto_pad(), op::PadType::SAME_LOWER);
+    EXPECT_EQ(deformable_conv->get_strides(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_dilations(), (Strides{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{1, 1}));
+    EXPECT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{1, 1}));
     ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 4, 5, 5}));
+}
+
+class TypePropDeformableConvolutionV8Test : public TypePropOpTest<op::v8::DeformableConvolution> {
+protected:
+    CoordinateDiff empty_pad{};
+};
+
+TEST_F(TypePropDeformableConvolutionV8Test, default_ctor) {
+    const auto data = make_shared<Parameter>(element::f32, PartialShape{1, 4, 5, 5});
+    const auto offsets = make_shared<Parameter>(element::f32, PartialShape{1, 36, 7, 2});
+    const auto filters = make_shared<Parameter>(element::f32, PartialShape{4, 1, 3, 3});
+    const auto masks = make_shared<Parameter>(element::f32, PartialShape{1, 18, 7, -1});
+
+    const auto op = make_op();
+    op->set_arguments(OutputVector{data, offsets, filters, masks});
+    op->set_strides({1, 3});
+    op->set_dilations({1, 2});
+    op->set_pads_begin({2, 2});
+    op->set_pads_end({2, 2});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+    op->set_group(4);
+    op->set_deformable_group(2);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_input_size(), 4);
+    EXPECT_EQ(op->get_output_size(), 1);
+    EXPECT_EQ(op->get_strides(), Strides({1, 3}));
+    EXPECT_EQ(op->get_dilations(), Strides({1, 2}));
+    EXPECT_EQ(op->get_pads_begin(), CoordinateDiff({2, 2}));
+    EXPECT_EQ(op->get_pads_end(), CoordinateDiff({2, 2}));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 4, 7, 2}));
+}
+
+TEST_F(TypePropDeformableConvolutionV8Test, interval_shapes) {
+    PartialShape data_batch_pshape{{1, 3}, {2, 6}, {1, 5}, {3, 10}};
+    PartialShape offsets_shape{1, 36, 4, 5};
+    PartialShape filters_pshape{{2, 5}, {1, 3}, {2, 3}, 3};
+    set_shape_labels(data_batch_pshape, 10);
+    set_shape_labels(offsets_shape, 20);
+    set_shape_labels(filters_pshape, 30);
+
+    const element::Type_t et = element::f32;
+    const auto auto_pad = op::PadType::EXPLICIT;
+
+    const auto data_batch = make_shared<Parameter>(et, data_batch_pshape);
+    const auto offsets = make_shared<Parameter>(et, offsets_shape);
+    const auto filters = make_shared<Parameter>(et, filters_pshape);
+    const auto masks = make_shared<Parameter>(element::f32, PartialShape{-1, 18, {1, 10}, 3});
+    const auto op =
+        make_op(data_batch, offsets, filters, masks, Strides{}, empty_pad, empty_pad, Strides{}, auto_pad, 4, 2);
+
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 30, ov::no_label, ov::no_label));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, {2, 5}, {1, 4}, {1, 8}}));
+    EXPECT_EQ(op->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(op->get_pads_end(), (CoordinateDiff{0, 0}));
 }

@@ -1,13 +1,61 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
+
+TEST(type_prop, ebps_default_ctor) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2, 6});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+
+    auto op = make_shared<op::v3::EmbeddingBagPackedSum>();
+    op->set_arguments(OutputVector{emb_table, indices, per_sample_weights});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 2, 6}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop, ebps_labeled_interval_dims_2in) {
+    auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
+    set_shape_labels(emb_shape, 10);
+    auto ind_shape = PartialShape{{6, 8}, 4};
+    set_shape_labels(ind_shape, 20);
+
+    auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<op::Parameter>(element::i64, ind_shape);
+
+    auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+}
+
+TEST(type_prop, ebps_labeled_interval_dims_3in) {
+    auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
+    set_shape_labels(emb_shape, 10);
+    auto ind_shape = PartialShape{{2, 6}, 4};
+    set_shape_labels(ind_shape, 20);
+    auto sample_shape = PartialShape{{4, 8}, 4};
+    set_shape_labels(sample_shape, 30);
+
+    auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<op::Parameter>(element::i64, ind_shape);
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, sample_shape);
+
+    auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {2, 4}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(30, 11, 12));
+}
 
 TEST(type_prop, ebps) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
@@ -113,6 +161,16 @@ TEST(type_prop, ebps_fail_indices_1d) {
     } catch (...) {
         FAIL() << "Shapes check failed for unexpected reason";
     }
+}
+
+TEST(type_prop, ebps_fail_emb_table_0d) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+
+    OV_EXPECT_THROW(auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights),
+                    NodeValidationFailure,
+                    HasSubstr("EMB_TABLE can't be a scalar"));
 }
 
 TEST(type_prop, ebps_fail_per_sample_weights_1d) {

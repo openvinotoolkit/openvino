@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "gemm_inst.h"
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
-#include "gemm_inst.h"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <algorithm>
-#include "kernel_selector_helper.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -27,19 +24,15 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<gemm>();
-        const auto input_layouts = gemm_inst::transform_input_layouts(primitive, impl_param.input_layouts, impl_param.output_layouts[0]);
-        const auto output_layout = gemm_inst::transform_output_layout(primitive, input_layouts, impl_param.output_layouts[0]);
 
-        auto params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::gemm_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
-        params.inputs.clear();
-        for (size_t i = 0; i < primitive->input_size(); ++i) {
-            params.inputs.push_back(convert_data_tensor(input_layouts[i]));
+        for (size_t i = 1; i < primitive->input_size(); ++i) {
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        params.outputs[0] = convert_data_tensor(output_layout);
 
         params.alpha = primitive->alpha;
         params.beta = primitive->beta;
@@ -58,8 +51,29 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        const auto& primitive = impl_params.typed_desc<gemm>();
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+        updated_impl_params.input_layouts = gemm_inst::transform_input_layouts(primitive, impl_params.input_layouts);
+        updated_impl_params.output_layouts[0] = gemm_inst::transform_output_layout(primitive, updated_impl_params.input_layouts, impl_params.output_layouts[0]);
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_begin(input_layout.get_partial_shape()));
+        }
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        output_layout.set_partial_shape(extend_shape_to_rank_from_begin(output_layout.get_partial_shape()));
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -108,3 +122,4 @@ attach_gemm_impl::attach_gemm_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gemm_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gemm)

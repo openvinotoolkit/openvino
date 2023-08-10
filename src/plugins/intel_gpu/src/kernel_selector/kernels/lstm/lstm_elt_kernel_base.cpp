@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,7 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
     kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
+    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});

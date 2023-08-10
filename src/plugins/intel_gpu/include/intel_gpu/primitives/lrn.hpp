@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
@@ -32,6 +26,10 @@ typedef enum { /*:int32_t*/
 ///   @li k, alpha, beta : hyper parameters (equal to 2, 10e-4, 0.75 in paper).
 struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
+
+    lrn() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.
@@ -66,8 +64,46 @@ struct lrn : public primitive_base<lrn> {
     float beta;
     /// @brief Normalize across or within channel
     lrn_norm_region norm_region;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, size);
+        seed = hash_combine(seed, k);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        seed = hash_combine(seed, norm_region);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lrn>(rhs);
+
+        return size == rhs_casted.size &&
+               k == rhs_casted.k &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               norm_region == rhs_casted.norm_region;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lrn>::save(ob);
+        ob << size;
+        ob << k;
+        ob << alpha;
+        ob << beta;
+        ob << make_data(&norm_region, sizeof(lrn_norm_region));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lrn>::load(ib);
+        ib >> size;
+        ib >> k;
+        ib >> alpha;
+        ib >> beta;
+        ib >> make_data(&norm_region, sizeof(lrn_norm_region));
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,11 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <algorithm>
@@ -40,7 +37,11 @@ bool is_batch_after_spatial(const std::string order) {
     return false;
 }
 
-format::type get_preferred_format(const kernel_impl_params& impl_param) {
+format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        return node.get_preferred_output_fmt();
+    }
+
     auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
@@ -49,8 +50,8 @@ format::type get_preferred_format(const kernel_impl_params& impl_param) {
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_x_bsv16 ||
-         input_layout.format == format::bs_xs_xsv8_bsv8))
+         input_layout.format == format::bs_f_bsv16 ||
+         input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
     bool no_spatial_padding = true;
@@ -106,7 +107,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
         return reshapeSize;
     };
@@ -127,19 +128,20 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     if (desc->input_size == 3) {
         output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
     }
-    format output_format = get_preferred_format(impl_param);
+    format output_format = get_preferred_format(node, impl_param);
 
     return layout(output_type, output_format, output_size);
 }
 
 template<typename ShapeType>
-std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_node const& node, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<fully_connected>();
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    auto output_type = input_layout.data_type;
+    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -147,25 +149,24 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul op;
     op.set_transpose_b(true);
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-
-    format::type output_format = is_static ? get_preferred_format(impl_param) :
-                                             input_layout.format.value;
+    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
+                                              input_layout.format.value;
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
 
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
-    // fc_tiled_opt kernel is optimized for row shape aligned by 16.
+    // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     auto orig_input_layout = orig_impl_param.get_input_layout();
     auto orig_output_layout = orig_impl_param.get_output_layout();
@@ -175,10 +176,16 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         auto updated_param = orig_impl_param;
         auto input_shape = orig_input_layout.get_partial_shape().to_shape();
         auto input_row_idx = input_shape.size() - 2;
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 16);
         auto output_shape = orig_output_layout.get_partial_shape().to_shape();
         auto output_row_idx = output_shape.size() - 2;
-        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 16);
+
+        // Vector by matrix multiplication sometimes works slower if we align it
+        if (input_shape[input_row_idx] == 1 && output_shape[output_row_idx] == 1 && input_shape[input_shape.size() - 1] >= 1024) {
+            return std::move(orig_impl_param);
+        }
+
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
+        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 8);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,

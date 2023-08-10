@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_executable_network/properties.hpp"
-#include "openvino/runtime/properties.hpp"
+
 #include <cstdint>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -18,7 +20,7 @@ void OVCompiledModelEmptyPropertiesTests::SetUp() {
     target_device = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
 }
 
 std::string OVCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
@@ -38,7 +40,7 @@ void OVCompiledModelPropertiesTests::SetUp() {
     std::tie(target_device, properties) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     APIBaseTest::SetUp();
-    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+    model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
 }
 
 void OVCompiledModelPropertiesTests::TearDown() {
@@ -60,8 +62,18 @@ TEST_P(OVCompiledModelPropertiesTests, CanUseCache) {
     core->set_property(ov::cache_dir("./test_cache"));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
     OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
-    CommonTestUtils::removeDir("./test_cache");
+    ov::test::utils::removeDir("./test_cache");
 }
+
+TEST_P(OVCompiledModelPropertiesTests, IgnoreEnableMMap) {
+    if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
+        target_device.find("BATCH:") == 0)
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // Load available plugins
+    core->get_available_devices();
+    OV_ASSERT_NO_THROW(core->set_property(ov::enable_mmap(false)));
+    OV_ASSERT_NO_THROW(core->set_property(target_device, ov::enable_mmap(false)));
+}  // namespace behavior
 
 TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetProperty) {
     auto compiled_model = core->compile_model(model, target_device, properties);
@@ -78,6 +90,11 @@ TEST_P(OVCompiledModelPropertiesTests, canCompileModelWithPropertiesAndCheckGetP
 
 TEST_P(OVCompiledModelPropertiesIncorrectTests, CanNotCompileModelWithIncorrectProperties) {
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
+}
+
+TEST_P(OVClassCompileModelTest, LoadNetworkWithBigDeviceIDThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.compile_model(actualNetwork, target_device + ".10"), ov::Exception);
 }
 
 TEST_P(OVCompiledModelPropertiesDefaultTests, CanCompileWithDefaultValueFromPlugin) {
@@ -110,7 +127,8 @@ TEST_P(OVCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
         ASSERT_TRUE(supported) << "default_property=" << default_property.first;
         Any property;
         OV_ASSERT_NO_THROW(property = compiled_model.get_property(default_property.first));
-        ASSERT_EQ(default_property.second, property) << "For property: " << default_property.first
+        ASSERT_EQ(default_property.second, property)
+            << "For property: " << default_property.first
             << " expected value is: " << default_property.second.as<std::string>();
     }
 }

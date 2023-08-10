@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,12 +20,17 @@ std::unique_ptr<ColorFormatInfo> ColorFormatInfo::get(ColorFormat format) {
         res.reset(new ColorFormatInfoI420_ThreePlanes(format));
         break;
     case ColorFormat::RGB:
+        res.reset(new ColorFormatRGB(format));
+        break;
     case ColorFormat::BGR:
-        res.reset(new ColorFormatNHWC(format));
+        res.reset(new ColorFormatBGR(format));
         break;
     case ColorFormat::RGBX:
     case ColorFormat::BGRX:
         res.reset(new ColorFormatInfo_RGBX_Base(format));
+        break;
+    case ColorFormat::GRAY:
+        res.reset(new ColorFormatNHWC(format));
         break;
     default:
         res.reset(new ColorFormatInfo(format));

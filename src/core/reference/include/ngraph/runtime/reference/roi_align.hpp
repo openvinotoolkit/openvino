@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ void roi_align(const T* feature_maps,
         break;
     }
     default: {
-        throw ngraph_error(std::string("Not supported aligned_mode"));
+        OPENVINO_THROW(std::string("Not supported aligned_mode"));
         break;
     }
     }
@@ -109,8 +109,8 @@ void roi_align(const T* feature_maps,
                         T sample_x = x1 + static_cast<T>(x_bin_ind) * bin_width +
                                      sample_distance_x * (static_cast<T>(x_sample_ind) + static_cast<T>(0.5f));
 
-                        if (sample_x < -1.0 || sample_x > feature_map_width || sample_y < -1.0 ||
-                            sample_y > feature_map_height) {
+                        if (sample_x < -1.0 || sample_x > static_cast<T>(feature_map_width) || sample_y < -1.0 ||
+                            sample_y > static_cast<T>(feature_map_height)) {
                             // For this sample we save 4x point (0,0) with weight 0
                             pooling_points.insert(pooling_points.end(), 4, {0, 0});
                             pooling_weights.insert(pooling_weights.end(), 4, T{0});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,9 @@ std::string MulConvFusion::getTestCaseName(const testing::TestParamInfo<MulConvF
     std::ostringstream results;
 
     results << conv_type.name << "_";
-    results << "input" << CommonTestUtils::vec2str(input_shape) << "_";
-    results << "weights" << CommonTestUtils::vec2str(weights_shape) << "_";
-    results << "const" << CommonTestUtils::vec2str(const_shape) << "_";
+    results << "input" << ov::test::utils::vec2str(input_shape) << "_";
+    results << "weights" << ov::test::utils::vec2str(weights_shape) << "_";
+    results << "const" << ov::test::utils::vec2str(const_shape) << "_";
     results << "precision=" << precision << "_";
     results << "device=" << device;
     return results.str();
@@ -50,17 +50,17 @@ void MulConvFusion::SetUp() {
     } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()) {
         conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(mul, weights, strides, pad_begin, pad_end, strides);
     } else {
-        throw ngraph::ngraph_error("Unsupported type");
+        OPENVINO_THROW("Unsupported type");
     }
 
     function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
     auto cloned_function = ngraph::clone_function(*function);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::MultiplyConvolutionFusion>();
-    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionFusion>();
-    manager.register_pass<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
-    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    manager.register_pass<ov::pass::MultiplyConvolutionFusion>();
+    manager.register_pass<ov::pass::MultiplyGroupConvolutionFusion>();
+    manager.register_pass<ov::pass::MultiplyConvolutionBackpropDataFusion>();
+    manager.register_pass<ov::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     manager.run_passes(cloned_function);
 
     bool functions_equal = false;
@@ -71,7 +71,9 @@ void MulConvFusion::SetUp() {
         std::shared_ptr<ngraph::Node> conv;
         if (conv_type == ngraph::opset8::Convolution::get_type_info_static()) {
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, mul_const);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             weights = ngraph::get_constant_from_source(weights);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::Convolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ngraph::opset8::GroupConvolution::get_type_info_static()) {
@@ -82,7 +84,9 @@ void MulConvFusion::SetUp() {
             auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             weights = ngraph::get_constant_from_source(weights);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolution>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ngraph::opset8::ConvolutionBackpropData::get_type_info_static()) {
@@ -92,7 +96,9 @@ void MulConvFusion::SetUp() {
             auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             weights = ngraph::get_constant_from_source(weights);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::ConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
         } else if (conv_type == ngraph::opset8::GroupConvolutionBackpropData::get_type_info_static()) {
@@ -104,11 +110,13 @@ void MulConvFusion::SetUp() {
             auto reshape = std::make_shared<ngraph::opset8::Reshape>(mul_const,
                     ngraph::op::Constant::create(ngraph::element::u64, ngraph::Shape{const_shape.size()}, const_shape), false);
             weights = std::make_shared<ngraph::opset8::Multiply>(weights, reshape);
+            OPENVINO_SUPPRESS_DEPRECATED_START
             weights = ngraph::get_constant_from_source(weights);
+            OPENVINO_SUPPRESS_DEPRECATED_END
             ASSERT_NE(nullptr, weights);
             conv = std::make_shared<ngraph::opset8::GroupConvolutionBackpropData>(param, weights, strides, pad_begin, pad_end, strides);
         } else {
-            throw ngraph::ngraph_error("Unsupported type");
+            OPENVINO_THROW("Unsupported type");
         }
         auto reference_function = std::make_shared<ngraph::Function>(ngraph::OutputVector{conv}, ngraph::ParameterVector{param});
         std::tie(functions_equal, std::ignore) = compare_functions(cloned_function, reference_function, true);

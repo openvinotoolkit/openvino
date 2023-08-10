@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertSubtract;
+class TRANSFORMATIONS_API ConvertSubtractWithConstant;
 
 }  // namespace pass
 }  // namespace ov
@@ -23,8 +24,8 @@ public:
     ConvertSubtract();
 };
 
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertSubtract;
-}  // namespace pass
-}  // namespace ngraph
+class ov::pass::ConvertSubtractWithConstant : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertSubtractWithConstant", "0");
+    ConvertSubtractWithConstant();
+};

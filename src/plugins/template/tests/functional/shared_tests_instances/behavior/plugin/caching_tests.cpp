@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,6 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
                                     ::testing::ValuesIn(precisionsTemplate),
                                     ::testing::ValuesIn(batchSizesTemplate),
-                                    ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE)),
+                                    ::testing::Values(ov::test::utils::DEVICE_TEMPLATE)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

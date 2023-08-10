@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-
+#include "openvino/pass/graph_rewrite.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
@@ -90,6 +88,25 @@ public:
                 element::i32, element::u32
         };
         return lowPrecision.find(precision) != lowPrecision.end();
+    }
+
+    static bool check(const element::Type precision, const size_t levels) {
+        switch (precision) {
+            case element::i4:
+            case element::u4:
+                return (levels == low_precision::levels::int4) || (levels == low_precision::levels::int4_narrow_range);
+            case element::i8:
+            case element::u8:
+                return (levels == low_precision::levels::int8) || (levels == low_precision::levels::int8_narrow_range);
+            case element::i16:
+            case element::u16:
+                return (levels == low_precision::levels::int16) || (levels == low_precision::levels::int16_narrow_range);
+            case element::i32:
+            case element::u32:
+                return (levels == low_precision::levels::int32) || (levels == low_precision::levels::int32_narrow_range);
+            default:
+                return false;
+        }
     }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
@@ -234,7 +251,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
  * @ingroup ie_transformation_common_api
  * @brief Base class for low precision transformation.
  */
-class LP_TRANSFORMATIONS_API LayerTransformation : public ngraph::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
 public:
     class Params {
     public:
@@ -285,7 +302,7 @@ public:
 
     LayerTransformation(const Params& params);
     virtual ~LayerTransformation() = default;
-    virtual bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) = 0;
+    virtual bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) = 0;
 
     void setContext(TransformationContext* context) noexcept;
 
@@ -369,19 +386,19 @@ protected:
         std::shared_ptr<ngraph::Node> lastNode,
         std::string originalName) const;
 
-    void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
+    void addPattern(ov::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot);
 
     //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
     bool canBeTransformedSpatialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     template <typename Operation>
-    void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {
+    void addSingleNodePattern(ov::pass::GraphRewrite& pass, TransformationContext& context) const {
         using namespace ngraph;
 
         auto is_op_type = [](std::shared_ptr<Node> n) {
             return !!as_type_ptr<Operation>(n);
         };
-        auto p_node = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_op_type);
+        auto p_node = std::make_shared<ov::pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
 
         addPattern(pass, context, p_node);
     }

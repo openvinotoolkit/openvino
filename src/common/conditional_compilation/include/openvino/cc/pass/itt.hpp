@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,16 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER(obj, region, ...)            obj->add_matcher<region>(__VA_ARGS__);
 #    define REGISTER_PASS(obj, region, ...)          obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
+
+#    define OV_PASS_CALLBACK(matcher)                                   \
+        openvino::itt::handle_t m_callback_handle;                      \
+        m_callback_handle = openvino::itt::handle(matcher->get_name()); \
+        OV_ITT_SCOPED_TASK(SIMPLE_ov_pass, m_callback_handle)
 #elif defined(SELECTIVE_BUILD)
 
 #    define MATCHER_SCOPE_(scope, region)                              \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(scope, _, region)) == 0) \
-        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(scope, _, region))) + " is disabled!")
+        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(scope, _, region))) + " is disabled!")
 
 #    define MATCHER_SCOPE(region)                                        \
         const std::string matcher_name(OV_PP_TOSTRING(region));          \
@@ -70,6 +75,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define REGISTER_DISABLED_PASS(obj, region, ...)                                                 \
         OV_PP_CAT(REGISTER_PASS_WITH_FALSE_, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_pass, _, region))) \
         (obj, region, __VA_ARGS__)
+#    define OV_PASS_CALLBACK(matcher)
 #else
 
 #    define MATCHER_SCOPE(region) const std::string matcher_name(OV_PP_TOSTRING(region))
@@ -79,6 +85,7 @@ OV_CC_DOMAINS(ov_pass);
 #    define ADD_MATCHER(obj, region, ...)            obj->add_matcher<region>(__VA_ARGS__);
 #    define REGISTER_PASS(obj, region, ...)          obj.register_pass<region>(__VA_ARGS__);
 #    define REGISTER_DISABLED_PASS(obj, region, ...) obj.register_pass<region, false>(__VA_ARGS__);
+#    define OV_PASS_CALLBACK(matcher)
 #endif
 
 #define ADD_MATCHER_FOR_THIS(region, ...) ADD_MATCHER(this, region, __VA_ARGS__)

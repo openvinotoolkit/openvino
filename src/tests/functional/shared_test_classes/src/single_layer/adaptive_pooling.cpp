@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,8 @@ std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapo
 
     std::ostringstream result;
 
-    result << "in_shape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "pooled_spatial_shape=" << CommonTestUtils::vec2str(pooledSpatialShape) << "_";
+    result << "in_shape=" << ov::test::utils::vec2str(inputShape) << "_";
+    result << "pooled_spatial_shape=" << ov::test::utils::vec2str(pooledSpatialShape) << "_";
     result << "mode=" << poolingMode << "_";
     result << "prec=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;

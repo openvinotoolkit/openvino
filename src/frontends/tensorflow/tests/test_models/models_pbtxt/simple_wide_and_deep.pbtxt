@@ -1,0 +1,2057 @@
+node {
+  name: "placeholder"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 1
+        }
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/age_bucketized/weights/part_0"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+          dim {
+            size: 11
+          }
+          dim {
+            size: 1
+          }
+        }
+        tensor_content: "\366\240\267\276\311\347\013\277\200M\353\276\264zW\276\026\350\233\274\363\247\234=\311\225Z>v\233\237>\003\021`>\n\237\372=\264\233\207\274"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims/dim"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims"
+  op: "ExpandDims"
+  input: "placeholder"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims/dim"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tdim"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Bucketize"
+  op: "Bucketize"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "boundaries"
+    value {
+      list {
+        f: 18.0
+        f: 25.0
+        f: 30.0
+        f: 35.0
+        f: 40.0
+        f: 45.0
+        f: 50.0
+        f: 55.0
+        f: 60.0
+        f: 65.0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Shape"
+  op: "Shape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Bucketize"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "out_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice"
+  op: "StridedSlice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Shape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 1
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range/start"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range/delta"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range"
+  op: "Range"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range/start"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range/delta"
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims_1/dim"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims_1"
+  op: "ExpandDims"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims_1/dim"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tdim"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile/multiples"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile"
+  op: "Tile"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/ExpandDims_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile/multiples"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tmultiples"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape/shape"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape"
+  op: "Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape/shape"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tshape"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/start"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/limit"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/delta"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1"
+  op: "Range"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/start"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/limit"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1/delta"
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile_1/multiples"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice"
+  attr {
+    key: "N"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile_1"
+  op: "Tile"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/range_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile_1/multiples"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tmultiples"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape_1/shape"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape_1"
+  op: "Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Bucketize"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape_1/shape"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tshape"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/mul/x"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 11
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/mul"
+  op: "Mul"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/mul/x"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile_1"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/add"
+  op: "Add"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/mul"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/stack"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Tile_1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/transpose/perm"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/transpose"
+  op: "Transpose"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/stack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/transpose/perm"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tperm"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_1"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/transpose"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/stack_1/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/stack_1"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/stack_1/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_2"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/stack_1"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Shape_1/Cast"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_2"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1"
+  op: "StridedSlice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Shape_1/Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 1
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3/x/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3/x"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/strided_slice_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3/x/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3/x"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape"
+  op: "SparseReshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/Cast_3"
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape/Identity"
+  op: "Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/add"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice/begin"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice/size"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice"
+  op: "Slice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape:1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice/begin"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice/size"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Prod"
+  op: "Prod"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Slice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Const"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "keep_dims"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2/indices"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2"
+  op: "GatherV2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape:1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2/indices"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2/axis"
+  attr {
+    key: "Taxis"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tindices"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tparams"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "batch_dims"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Cast/x"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Prod"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape"
+  op: "SparseReshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape:1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Cast/x"
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape/Identity"
+  op: "Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/SparseReshape/Identity"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GreaterEqual/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GreaterEqual"
+  op: "GreaterEqual"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape/Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GreaterEqual/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Where"
+  op: "Where"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GreaterEqual"
+  attr {
+    key: "T"
+    value {
+      type: DT_BOOL
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape/shape"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape"
+  op: "Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Where"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape/shape"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tshape"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_1/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_1"
+  op: "GatherV2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_1/axis"
+  attr {
+    key: "Taxis"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tindices"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tparams"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "batch_dims"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_2/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_2"
+  op: "GatherV2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape/Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_2/axis"
+  attr {
+    key: "Taxis"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tindices"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tparams"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "batch_dims"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Identity"
+  op: "Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseReshape:1"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/Const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/SparseFillEmptyRows"
+  op: "SparseFillEmptyRows"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/GatherV2_2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/Const"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\000\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\000\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice"
+  op: "StridedSlice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/SparseFillEmptyRows"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 2
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/Cast"
+  op: "Cast"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/strided_slice"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/Unique"
+  op: "Unique"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/SparseFillEmptyRows:1"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "out_idx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup"
+  op: "GatherV2"
+  input: "linear/linear_model/age_bucketized/weights/part_0"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/Unique"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/axis"
+  attr {
+    key: "Taxis"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tindices"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tparams"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "_class"
+    value {
+      list {
+        s: "loc:@linear/linear_model/age_bucketized/weights/part_0"
+      }
+    }
+  }
+  attr {
+    key: "batch_dims"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/Identity"
+  op: "Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "_class"
+    value {
+      list {
+        s: "loc:@linear/linear_model/age_bucketized/weights/part_0"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/Identity_1"
+  op: "Identity"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/Identity"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse"
+  op: "SparseSegmentSum"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/embedding_lookup/Identity_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/Unique:1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse/Cast"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Tsegmentids"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape_1/shape"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\377\377\377\377\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape_1"
+  op: "Reshape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/SparseFillEmptyRows/SparseFillEmptyRows:2"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape_1/shape"
+  attr {
+    key: "T"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "Tshape"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Shape"
+  op: "Shape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "out_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 2
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice"
+  op: "StridedSlice"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Shape"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 1
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/stack/0"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/stack"
+  op: "Pack"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/stack/0"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/strided_slice"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Tile"
+  op: "Tile"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Reshape_1"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/stack"
+  attr {
+    key: "T"
+    value {
+      type: DT_BOOL
+    }
+  }
+  attr {
+    key: "Tmultiples"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/zeros_like"
+  op: "ZerosLike"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum"
+  op: "Select"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/Tile"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/zeros_like"
+  input: "linear/linear_model/linear_model/linear_model/age_bucketized/weighted_sum/embedding_lookup_sparse"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}

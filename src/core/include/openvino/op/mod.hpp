@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mod : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
+    OPENVINO_OP("Mod", "opset1", op::util::BinaryElementwiseArithmetic);
 
     /// \brief Constructs a Mod node.
     Mod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
@@ -27,6 +27,9 @@ public:
         const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 };
 }  // namespace v1
 }  // namespace op

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -20,6 +20,7 @@ from openvino._pyopenvino.op import Constant
 """
 Constant.get_data = lambda self: np.array(self, copy=True)
 
+from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop

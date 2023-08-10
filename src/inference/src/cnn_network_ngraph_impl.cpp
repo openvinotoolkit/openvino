@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cnn_network_ngraph_impl.hpp"
 
-#include <math.h>
-
 #include <cassert>
+#include <cmath>
 #include <map>
 #include <memory>
 #include <set>
@@ -18,36 +17,22 @@
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
 #include "ie_memcpy.h"
+#include "ie_ngraph_utils.hpp"
+#include "itt.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/fix_rt_info.hpp"
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "transformations/utils/utils.hpp"
-
-// TODO: remove this pass usage
-#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
-#include <openvino/cc/pass/itt.hpp>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
-#include <transformations/disable_decompression_convert_constant_folding.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-#include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
-#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
-
-#include "exec_graph_info.hpp"
-#include "ie_itt.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -79,12 +64,13 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     SizeVector dims(1, 0);
-    if (shape.is_static()) {
-        dims = output.get_shape();
-    } else if (rank >= 0) {
-        dims = SizeVector(rank, 0);
+    if (shape.rank().is_static()) {
+        dims.resize(shape.size(), 0);
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (shape[i].get_max_length() != -1)  // dimension has an estimation
+                dims[i] = shape[i].get_max_length();
+        }
     }
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
@@ -92,6 +78,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
@@ -118,7 +105,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
+        if (unique_names.count(name) && !ov::op::util::is_parameter(parent) && parent != unique_names.at(name)) {
             IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
         }
         unique_names.insert({name, parent});
@@ -148,12 +135,11 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
-        REGISTER_PASS(m, FixRtInfo)
         using namespace ov::pass;
+        REGISTER_PASS(m, FixRtInfo)
         REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
-        REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
+        REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParamsResults)
         REGISTER_PASS(m, FoldSubgraphEmptyInputs)
         m.run_passes(_ngraph_function);
     }
@@ -215,7 +201,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     _ngraph_function = ngraph::clone_function(*network.getFunction());
     {
         ov::pass::Manager m;
-        using namespace ngraph::pass;
+        using namespace ov::pass;
         REGISTER_PASS(m, FixRtInfo)
         m.run_passes(_ngraph_function);
     }
@@ -280,7 +266,7 @@ void CNNNetworkNGraphImpl::validate(int version) {
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
                                            size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::addOutput");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::addOutput");
 
     try {
         for (const auto& layer : _ngraph_function->get_ops()) {
@@ -326,7 +312,7 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName,
 }
 
 void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node>& output) {
-    auto dataName = ngraph::op::util::create_ie_output_name(output);
+    auto dataName = ov::op::util::create_ie_output_name(output);
     DataPtr data;
     if (_data.count(dataName))
         data = _data[dataName];
@@ -399,7 +385,7 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         try {
             ngraph::pass::Manager ssr_manager;
-            using namespace ngraph::pass;
+            using namespace ov::pass;
             REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
@@ -431,14 +417,66 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
     return reshape(shapes, responseDesc);
 }
 
+#if 0
+namespace {
+void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
+                                std::map<std::string, std::map<std::string, size_t>>& signatures,
+                                bool obfuscate) {
+    for (const auto& op : ov_model->get_ordered_ops()) {
+        const auto& type_name = string(op->get_type_info().name) + "_" + op->get_type_info().version_id;
+
+        std::stringstream shape_representation;
+        for (const auto& input : op->input_values()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : input.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        shape_representation << "-> ";
+        for (const auto& output : op->outputs()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : output.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        signatures[type_name][shape_representation.str()]++;
+
+        // collect dynamism signature for sub-graphs of multi-subgraph operation
+        if (const auto multi_sub_graph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
+            for (int i = 0; i < num_subgraphs; i++)
+                collect_dynamism_signature(multi_sub_graph_op->get_function(i), signatures, obfuscate);
+        }
+    }
+}
+}  // namespace
+#endif
+
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "CNNNetworkNGraphImpl::reshape");
 
     auto params = _ngraph_function->get_parameters();
 
     bool parameter_replaced = false;
-    for (size_t i = 0; i < params.size(); i++) {
-        auto& param = params[i];
+    for (auto& param : params) {
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
             continue;
         param->set_partial_shape(inputShapes.at(param->get_friendly_name()));
@@ -447,98 +485,29 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
     if (parameter_replaced)
         _ngraph_function->validate_nodes_and_infer_types();
 
-    const auto& results = _ngraph_function->get_results();
-    bool outputs_are_static = all_of(begin(results), end(results), [](const std::shared_ptr<ngraph::Node>& n) {
-        return n->get_output_partial_shape(0).is_static();
-    });
-
-    {
-        shared_ptr<Function> specialized_ngraph_function = nullptr;
-        if (outputs_are_static) {
-            specialized_ngraph_function = _ngraph_function;
-        } else {
-            specialized_ngraph_function = ngraph::clone_function(*_ngraph_function);
-            {
-                OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
-                ::ngraph::pass::Manager manager;
-                // resolves dynamism by replacing dynamic operation with static version
-                using namespace ngraph::pass;
-                REGISTER_PASS(manager, ConvertNMS5ToLegacyMatcher, false)
-                REGISTER_PASS(manager, ConvertMulticlassNmsToMulticlassNmsIE, false)
-                REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
-                REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
-                REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
-                using namespace ov::pass;
-                REGISTER_PASS(manager, MarkDequantizationSubgraph)
-                REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-                REGISTER_PASS(manager, ConstantFolding)
-
-                // OneHotToLegacy changes output precision
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                    specialized_ngraph_function);
-                manager.run_passes(specialized_ngraph_function);
-            }
-            specialized_ngraph_function->validate_nodes_and_infer_types();
-        }
-
 #if 0
-        bool obfuscate = true; // set to false to get exact dimensions
+        bool obfuscate = true;  // set to false to get exact dimensions
         std::map<std::string, std::map<std::string, size_t>> signatures;
-        for (const auto& op : _ngraph_function->get_ordered_ops()) {
-            const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
 
-            std::stringstream shape_representation;
-            for (const auto& input : op->input_values()) {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : input.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            shape_representation << "-> ";
-            for (const auto& output: op->outputs())  {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : output.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            signatures[type_name][shape_representation.str()]++;
-        }
+        collect_dynamism_signature(_ngraph_function, signatures, obfuscate);
 
         for (const auto& item : signatures)
             for (const auto& shape_to_count : item.second)
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
-        std::unordered_set<std::string> opName;
-        for (const auto& result : specialized_ngraph_function->get_results()) {
-            addOutput(result->input_value(0));
-        }
 
-        for (const auto& parameter : specialized_ngraph_function->get_parameters()) {
-            const auto& outName = parameter->get_friendly_name();
-            if (opName.find(outName) != opName.end()) {
-                IE_THROW() << "All operations in nGraph function should have unique friendly names!";
-            }
-            opName.insert(outName);
-            createDataForResult(parameter, outName, _data[outName]);
+    std::unordered_set<std::string> opName;
+    for (const auto& result : _ngraph_function->get_results()) {
+        addOutput(result->input_value(0));
+    }
+
+    for (const auto& parameter : _ngraph_function->get_parameters()) {
+        const auto& outName = parameter->get_friendly_name();
+        if (opName.find(outName) != opName.end()) {
+            IE_THROW() << "All operations in nGraph function should have unique friendly names!";
         }
+        opName.insert(outName);
+        createDataForResult(parameter, outName, _data[outName]);
     }
 }
 
@@ -681,8 +650,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
                 std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
-        ngraph::pass::Manager ssr_manager;
-        using namespace ngraph::pass;
+        ov::pass::Manager ssr_manager;
+        using namespace ov::pass;
         REGISTER_PASS(ssr_manager, SetBatchSize)
         ssr_manager.run_passes(_ngraph_function);
 

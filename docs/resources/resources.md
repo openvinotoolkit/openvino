@@ -3,12 +3,15 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn more about OpenVINO from benchmark results, case studies 
+                 and lists of supported models, operations and devices.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    openvino_docs_performance_benchmarks
-   openvino_ir
 
 .. toctree::
    :maxdepth: 1
@@ -16,7 +19,8 @@
 
    openvino_docs_OV_UG_supported_plugins_Supported_Devices
    openvino_supported_models
-   openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
+   openvino_resources_supported_operations
+   openvino_resources_supported_operations_frontend
 
 .. toctree::
    :maxdepth: 1
@@ -25,25 +29,31 @@
    openvino_docs_OV_Glossary
    openvino_docs_Legal_Information
    openvino_docs_telemetry_information
-   openvino_docs_MO_DG_TensorFlow_Frontend
    Case Studies <https://www.intel.com/openvino-success-stories>
-
-
-@endsphinxdirective
 
 
 This section includes a variety of reference information focusing mostly on describing OpenVINO 
 and its proprietary model format, OpenVINO IR.
 
+:doc:`Performance Benchmarks <openvino_docs_performance_benchmarks>` contain results from benchmarking models with OpenVINO on Intel hardware.
 
-[Supported Devices](../OV_Runtime_UG/supported_plugins/Supported_Devices.md) is compatibility information about supported hardware accelerators.
+:doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` is compatibility information about supported hardware accelerators.
 
-[Legal Information](../Legal_Information.md) has trademark information and other legal statements.
+:doc:`Supported Models <openvino_supported_models>` is a table of models officially supported by OpenVINO.
 
-[Available Operation Sets](../ops/opset.md) is a list of supported operations and explanation of supported capabilities.
+:doc:`Supported Operations <openvino_resources_supported_operations>` is a listing of framework layers supported by OpenVINO. 
 
-[Broadcast Rules for Elementwise Operations](../ops/broadcast_rules.md) explains the rules used for to support an arbitrary number of dimensions in neural nets.
+:doc:`Supported Operations <openvino_resources_supported_operations_frontend>` is a listing of layers supported by OpenVINO inference devices.
 
-Links to [articles](https://www.intel.com/openvino-success-stories) about real-world examples of OpenVINO™ usage.
+:doc:`Glossary <openvino_docs_OV_Glossary>` contains terms used in OpenVINO.
 
-[Release Notes](https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html) contains change logs and notes for each OpenVINO release.
+:doc:`Legal Information <openvino_docs_Legal_Information>` has trademark information and other legal statements.
+
+:doc:`OpenVINO™ Telemetry <openvino_docs_telemetry_information>` has detailed information on the telemetry data collection. 
+
+`Case Studies <https://www.intel.com/openvino-success-stories>`__ are articles about real-world examples of OpenVINO™ usage.
+
+
+@endsphinxdirective
+
+

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "openvino/core/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -45,15 +46,17 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     // but in ONNX Scan the slice of input can has one dimension less,
     // so the parameter needs to have aligned rank with 1 at sliced axis,
     // and then squeezed to restore original shape.
-    for (size_t i = 0; i < num_scan_inputs; ++i) {
+    for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
         const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ov::normalize_axis(node_description,
                                       scan_input_axes[i],
                                       node_inputs[in_idx + in_offset].get_partial_shape().rank());
+            OPENVINO_SUPPRESS_DEPRECATED_END
             shape[axis] = 1;
         }
         body_inputs[in_idx]->set_partial_shape(shape);
@@ -79,11 +82,13 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     tensor_iterator->set_function(ti_body);
 
     // Set slicing for Scan (TensorIterator) inputs
-    for (size_t i = 0; i < num_scan_inputs; ++i) {
+    for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axis = ov::normalize_axis(node_description,
                                              scan_input_axes[i],
                                              node_inputs[in_idx + in_offset].get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (scan_input_directions[i]) {  // reverse direction
             tensor_iterator->set_sliced_input(body_inputs[in_idx], node_inputs[in_idx + in_offset], -1, -1, 1, 0, axis);
         } else {  // forward direction
@@ -100,8 +105,10 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     }
     for (size_t i = 0; i < num_scan_outputs; ++i) {
         const auto out_idx = num_initial_values + i;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto axis =
             ov::normalize_axis(node_description, scan_output_axes[i], body_outputs[out_idx].get_partial_shape().rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
         if (scan_output_directions[i]) {  // reverse direction
             outputs.push_back(tensor_iterator->get_concatenated_slices(body_outputs[out_idx], -1, -1, 1, 0, axis));
         } else {  // forward direction
@@ -179,3 +186,4 @@ OutputVector scan(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

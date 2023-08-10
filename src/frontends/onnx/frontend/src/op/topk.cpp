@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "op/topk.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ngraph::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node) {
@@ -96,3 +97,4 @@ OutputVector topk(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

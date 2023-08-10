@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random_uniform_inst.h>
-#include <random_uniform/random_uniform_kernel_ref.h>
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <impls/implementation_map.hpp>
-#include <random_uniform/random_uniform_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "random_uniform_inst.h"
+#include "random_uniform/random_uniform_kernel_ref.h"
+#include "random_uniform/random_uniform_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -62,3 +60,4 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
 } // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::random_uniform)

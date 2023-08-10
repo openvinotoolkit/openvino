@@ -11,12 +11,14 @@ import json
 import argparse
 from openvino.tools.mo.convert_impl import prepare_ir
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
+
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def base_args_config():
     args = argparse.Namespace()
@@ -27,6 +29,7 @@ def base_args_config():
     args.framework = 'onnx'
     args.model_name = None
     args.input_model = None
+    args.input_checkpoint = None
     args.silent = True
     args.transform=[]
     args.scale = None
@@ -39,12 +42,7 @@ def base_args_config():
     args.output_dir=os.getcwd()
     args.freeze_placeholder_with_value = None
     args.transformations_config = None
-    args.disable_fusing = None
-    args.finegrain_fusing = None
-    args.disable_resnet_optimization = None
-    args.enable_concat_optimization = None
     args.static_shape = None
-    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None

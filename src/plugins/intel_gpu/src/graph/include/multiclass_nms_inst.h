@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "primitive_inst.h"
@@ -66,10 +64,10 @@ public:
     typed_primitive_inst(network& network, const multiclass_nms_node& node) : parent(network, node) {}
 
     memory::ptr output_indices_memory() const {
-        return dep_memory_ptr(node->get_dependencies().size() - 2);
+        return dep_memory_ptr(dependencies().size() - 2);
     }
     memory::ptr output_num_memory() const {
-        return dep_memory_ptr(node->get_dependencies().size() - 1);
+        return dep_memory_ptr(dependencies().size() - 1);
     }
 };
 

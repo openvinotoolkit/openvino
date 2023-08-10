@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <nodes/common/cpu_memcpy.h>
 
 #include "common/memory_desc_wrapper.hpp"
+#include "utils/bfloat16.hpp"
 
 #include <fstream>
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -93,12 +94,12 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
 
     // check if it already plain
     if (desc.hasLayoutType(LayoutType::ncsp)) {
-        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->GetPtr()), size);
+        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->getData()), size);
         return;
     }
 
     // Copy to plain
-    const void *ptr = memory->GetData();
+    const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
         case Precision::FP32:
@@ -112,6 +113,13 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
         case Precision::BF16: {
             auto *pln_blob_ptr = reinterpret_cast<int16_t *>(data.data());
             auto *blob_ptr = reinterpret_cast<const int16_t *>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
+            break;
+        }
+        case Precision::FP16: {
+            auto *pln_blob_ptr = reinterpret_cast<float16 *>(data.data());
+            auto *blob_ptr = reinterpret_cast<const float16 *>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
             break;
@@ -160,9 +168,9 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
     stream << "(" << data_size << ")" <<
-    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->GetData()) << std::dec <<std::endl;
+    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->getData()) << std::dec <<std::endl;
 
-    const void *ptr = memory->GetData();
+    const void *ptr = memory->getData();
 
     switch (desc.getPrecision()) {
         case Precision::FP32 : {
@@ -171,18 +179,22 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;
         }
+        case Precision::I32: {
+            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+            for (size_t i = 0; i < data_size; i++)
+                stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
+            break;
+        }
         case Precision::BF16: {
-            auto *blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+            auto *blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
-                int i16n = blob_ptr[desc.getElementOffset(i)];
-                i16n = i16n << 16;
-                float fn = *(reinterpret_cast<const float *>(&i16n));
+                float fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
                 stream << fn << std::endl;
             }
             break;
         }
-        case Precision::I32: {
-            auto *blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+        case Precision::FP16: {
+            auto *blob_ptr = reinterpret_cast<const float16*>(ptr);
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[desc.getElementOffset(i)] << std::endl;
             break;

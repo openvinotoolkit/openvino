@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_policy(SET CMP0012 NEW)
 
-foreach(var UWP_API_VALIDATOR UWP_API_VALIDATOR_TARGET
-            UWP_API_VALIDATOR_APIS UWP_API_VALIDATOR_EXCLUSION
-            UWP_API_VALIDATOR_OUTPUT CMAKE_TOOLCHAIN_FILE)
+foreach(var ONECORE_API_VALIDATOR ONECORE_API_VALIDATOR_TARGET
+            ONECORE_API_VALIDATOR_APIS ONECORE_API_VALIDATOR_EXCLUSION
+            ONECORE_API_VALIDATOR_OUTPUT CMAKE_TOOLCHAIN_FILE)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "Variable ${var} is not defined")
     endif()
@@ -14,18 +14,18 @@ endforeach()
 
 # create command
 
-if(NOT EXISTS "${UWP_API_VALIDATOR_APIS}")
-    message(FATAL_ERROR "${UWP_API_VALIDATOR_APIS} does not exist")
+if(NOT EXISTS "${ONECORE_API_VALIDATOR_APIS}")
+    message(FATAL_ERROR "${ONECORE_API_VALIDATOR_APIS} does not exist")
 endif()
 
-set(command "${UWP_API_VALIDATOR}"
-        -SupportedApiXmlFiles:${UWP_API_VALIDATOR_APIS}
-        -DriverPackagePath:${UWP_API_VALIDATOR_TARGET})
-if(EXISTS "${UWP_API_VALIDATOR_EXCLUSION}")
+set(command "${ONECORE_API_VALIDATOR}"
+        -SupportedApiXmlFiles:${ONECORE_API_VALIDATOR_APIS}
+        -DriverPackagePath:${ONECORE_API_VALIDATOR_TARGET})
+if(EXISTS "${ONECORE_API_VALIDATOR_EXCLUSION}")
     list(APPEND command
-        -BinaryExclusionListXmlFile:${UWP_API_VALIDATOR_EXCLUSION}
+        -BinaryExclusionListXmlFile:${ONECORE_API_VALIDATOR_EXCLUSION}
         -StrictCompliance:TRUE)
-    set(UWP_HAS_BINARY_EXCLUSION ON)
+    set(ONECORE_HAS_BINARY_EXCLUSION ON)
 endif()
 
 # execute
@@ -36,13 +36,13 @@ execute_process(COMMAND ${command}
                 RESULT_VARIABLE exit_code
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-file(WRITE "${UWP_API_VALIDATOR_OUTPUT}" "${output_message}\n\n\n${error_message}")
+file(WRITE "${ONECORE_API_VALIDATOR_OUTPUT}" "CMAKE COMMAND: ${command}\n\n\n${output_message}\n\n\n${error_message}")
 
 # post-process output
 
-get_filename_component(name "${UWP_API_VALIDATOR_TARGET}" NAME)
+get_filename_component(name "${ONECORE_API_VALIDATOR_TARGET}" NAME)
 
-if(NOT UWP_HAS_BINARY_EXCLUSION)
+if(NOT ONECORE_HAS_BINARY_EXCLUSION)
     if(CMAKE_TOOLCHAIN_FILE MATCHES "onecoreuap.toolchain.cmake$")
         # empty since we compile with static MSVC runtime
     else()
@@ -66,7 +66,7 @@ endif()
 
 # write output
 
-if(UWP_HAS_BINARY_EXCLUSION AND NOT exit_code EQUAL 0)
+if(ONECORE_HAS_BINARY_EXCLUSION AND NOT exit_code EQUAL 0)
     message(FATAL_ERROR "${error_message}")
 endif()
 

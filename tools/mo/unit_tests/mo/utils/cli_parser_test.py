@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import numpy
 import os
 import shutil
 import sys
@@ -14,10 +15,13 @@ import numpy as np
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
-    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value
+    readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_all_cli_parser, \
+    get_mo_convert_params
+from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
 from openvino.tools.mo.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension, Layout
+from openvino.tools.mo import LayoutMap, InputCutInfo
 
 
 class TestingMeanScaleGetter(UnitTestWithMockedTelemetry):
@@ -1382,6 +1386,15 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
+    def test_get_layout_8(self):
+        argv_layout = "name1-0(n...c),name2-0(n...c->nc...)"
+        result = get_layout_values(argv_layout)
+        exp_res = {'name1-0': {'source_layout': 'n...c', 'target_layout': None},
+                   'name2-0': {'source_layout': 'n...c', 'target_layout': 'nc...'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
     def test_get_layout_scalar(self):
         argv_layout = "name1(nhwc),name2([])"
         result = get_layout_values(argv_layout)
@@ -1567,6 +1580,16 @@ class TestLayoutParsing(unittest.TestCase):
         result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
         exp_res = {'name1.0:a/b': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
                    'name2\\d\\': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
+    def test_get_layout_source_target_layout_7(self):
+        argv_source_layout = "name1-0[n,h,w,c],name2-1(?c??)"
+        argv_target_layout = "name1-0(nchw),name2-1[?,?,?,c]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1-0': {'source_layout': '[n,h,w,c]', 'target_layout': 'nchw'},
+                   'name2-1': {'source_layout': '?c??', 'target_layout': '[?,?,?,c]'}}
         self.assertEqual(list(exp_res.keys()), list(result.keys()))
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
@@ -1955,3 +1978,94 @@ class TestLayoutParsingEmptyNamesNoBrackets(unittest.TestCase):
     def wrong_case_3(self):
         argv_source_layout = "nchv->"
         self.assertRaises(get_layout_values(argv_source_layout=argv_source_layout))
+
+class TestPackParamsToArgsNamespace(unittest.TestCase):
+    def test_mo_convert_params(self):
+        from openvino.frontend import ConversionExtension
+        args = {'input_model': os.path.dirname(__file__),
+                'input_shape': [PartialShape([1,100,100,3]), [2,3]],
+                'extensions': ConversionExtension("Ext", lambda x: x),
+                'reverse_input_channels': True,
+                'scale': 0.5,
+                'input': ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])],
+                'batch': 1,
+                'output': ["a", "b", "c"],
+                'mean_values': [0.5, 0.3],
+                'scale_values': {"a": np.array([0.4]), "b": [0.5, 0.6]},
+                'source_layout': Layout("nchw"),
+                'layout': {"a": LayoutMap("nchw","nhwc"), "b": "nc"},
+                'transform': ('LowLatency2', {'use_const_initializer': False})}
+
+        cli_parser = get_all_cli_parser()
+        argv = pack_params_to_args_namespace(args, cli_parser)
+
+        assert argv.input_model == args['input_model']
+        assert argv.extensions == [args['extensions']]
+        assert argv.reverse_input_channels == args['reverse_input_channels']
+        assert argv.scale == 0.5
+        assert argv.batch == 1
+        assert argv.input_shape == [PartialShape([1,100,100,3]), [2,3]]
+        assert argv.input == ['name', InputCutInfo("a", [1,2,3], numpy.float32, [5, 6, 7])]
+        assert argv.output == "a,b,c"
+        assert argv.mean_values == "[0.5,0.3]"
+        assert argv.scale_values == "a[0.4],b[0.5,0.6]"
+        assert argv.source_layout == "[N,C,H,W]"
+        assert argv.layout == "a(nchw->nhwc),b(nc)"
+        assert argv.transform == "LowLatency2[use_const_initializer=False]"
+
+        for arg, value in vars(argv).items():
+            if arg not in args and arg != 'is_python_api_used':
+                assert value == cli_parser.get_default(arg)
+
+    def test_not_existing_dir(self):
+        args = {"input_model": "abc"}
+        cli_parser = get_all_cli_parser()
+
+        with self.assertRaisesRegex(Error, "The \"abc\" is not existing file or directory"):
+            pack_params_to_args_namespace(args, cli_parser)
+
+    def test_unknown_params(self):
+        args = {"input_model": os.path.dirname(__file__),
+                "a": "b"}
+        cli_parser = get_all_cli_parser()
+
+        with self.assertRaisesRegex(Error, "Unrecognized argument: a"):
+            pack_params_to_args_namespace(args, cli_parser)
+
+
+class TestConvertModelParamsParsing(unittest.TestCase):
+    def test_mo_convert_params_parsing(self):
+        ref_params = {
+            'Optional parameters:': {'help', 'framework'},
+            'Framework-agnostic parameters:': {'input_model', 'input_shape', 'scale', 'reverse_input_channels',
+                                               'log_level', 'input', 'output', 'mean_values', 'scale_values', 'source_layout',
+                                               'target_layout', 'layout', 'compress_to_fp16', 'transform', 'extensions',
+                                               'batch', 'silent', 'version', 'progress', 'stream_output',
+                                               'transformations_config', 'example_input', 'share_weights'},
+            'Caffe*-specific parameters:': {'input_proto', 'caffe_parser_path', 'k', 'disable_omitting_optional',
+                                            'enable_flattening_nested_params'},
+            'TensorFlow*-specific parameters:': {'input_model_is_text', 'input_checkpoint', 'input_meta_graph',
+                                                 'saved_model_dir', 'saved_model_tags',
+                                                 'tensorflow_custom_operations_config_update',
+                                                 'tensorflow_object_detection_api_pipeline_config',
+                                                 'tensorboard_logdir', 'tensorflow_custom_layer_libraries'},
+            'MXNet-specific parameters:': {'input_symbol', 'nd_prefix_name', 'pretrained_model_name', 'save_params_from_nd',
+                                           'legacy_mxnet_model', 'enable_ssd_gluoncv'},
+            'Kaldi-specific parameters:': {'counts', 'remove_output_softmax', 'remove_memory'},
+            'PaddlePaddle-specific parameters:': {'example_output'},
+        }
+
+        params = get_mo_convert_params()
+        for group_name in ref_params:
+            assert group_name in params
+            assert params[group_name].keys() == ref_params[group_name]
+
+        cli_parser = get_all_cli_parser()
+        for group_name, params in ref_params.items():
+            for param_name in params:
+                param_name = '--' + param_name
+                if group_name == 'PaddlePaddle-specific parameters:':
+                    assert param_name not in cli_parser._option_string_actions
+                else:
+                    assert param_name in cli_parser._option_string_actions
+

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,8 @@ public:
     Strides get_strides() const {
         return m_strides;
     }
+
+    void set_strides(const size_t stride);
 
 private:
     Strides m_strides;

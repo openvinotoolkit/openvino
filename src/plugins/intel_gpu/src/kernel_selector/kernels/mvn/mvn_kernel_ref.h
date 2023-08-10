@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,8 @@ protected:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
     std::string GetKernelName(const mvn_params&) const override;

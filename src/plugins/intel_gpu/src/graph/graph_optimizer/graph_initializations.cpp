@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_node.h"
@@ -19,7 +17,6 @@
 #include "lstm_dynamic_timeloop_inst.h"
 #include "mutable_data_inst.h"
 #include "arg_max_min_inst.h"
-#include "kernel_selector_utils.h"
 
 #include <iomanip>
 #include <string>
@@ -402,16 +399,16 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
 }
 
 void graph_initializations::set_outputs(program& p) {
-    auto outputs_option = p.get_options().get<build_option_type::outputs>();
-    if (!outputs_option->outputs.empty()) {
-        for (auto const& output : outputs_option->outputs) {
+    auto custom_outputs = p.get_config().get_property(ov::intel_gpu::custom_outputs);
+    if (!custom_outputs.empty()) {
+        for (auto const& output : custom_outputs) {
             auto o_node = p.get_node_ptr(output);
             o_node->set_output(true);
             p.outputs.push_back(o_node.get());
         }
     } else {
         for (auto& node : p.nodes_map)
-            if (node.second->is_endpoint()) {
+            if (node.second->is_endpoint() && !node.second->is_type<data>()) {
                 node.second->set_output(true);
                 p.outputs.push_back(node.second.get());
             }

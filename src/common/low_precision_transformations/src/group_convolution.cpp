@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace low_precision {
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
     MATCHER_SCOPE(GroupConvolutionTransformation);
-    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<ov::opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -40,7 +40,7 @@ bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Nod
 bool GroupConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
     auto convolution = m.get_match_root();
 
-    if (!GroupConvolutionTransformation::canBeTransformed(context, convolution)) {
+    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
         return false;
     }
 

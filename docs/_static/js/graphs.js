@@ -1,3 +1,61 @@
+// =================== GENERAL OUTPUT CONFIG =========================
+
+const chartDisclaimers = {
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
+}
+
+const OVdefaultSelections = {
+    platformTypes: {name: 'ietype', data: ['core']},
+    platforms: {name: 'platform',
+        data: [
+            'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i9-13900K CPU-only',
+            'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-13600K CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10900TE CPU-only',
+            'Intel® Core™  i7-1165G7 CPU-only'
+        ]
+    },
+    platformFilters: {name: 'coretype', data: ['CPU']},
+    models: {name: 'networkmodel',
+        data: [
+            'bert-large-uncased-whole-word-masking-squad-0001 ',
+            'mobilenet-ssd ',
+            'resnet-50',
+            'yolo_v3_tiny'
+        ]
+    },
+    parameters: {name: 'kpi', data: ['Throughput']},
+    pracision: {name: 'precision', data: ['INT8', 'FP32']}
+}
+
+const OVMSdefaultSelections = {
+    platforms: {name: 'platform',
+        data: [
+            'Intel® Core™  i3-10100 CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10920X CPU-only',
+        ]
+    },
+    models: {name: 'networkmodel',
+        data: [
+            'bert-small-uncased-whole-word-masking-squad-0002',
+            'mobilenet-ssd ',
+            'resnet-50',
+            'yolo_v3_tiny'
+        ]
+    },
+    parameters: {name: 'kpi', data: ['Throughput']},
+    pracision: {name: 'precision', data: ['OV-INT8 (reference)', 'INT8']}
+}
+
+// ====================================================
+
+
 class Filter {
 
     // param: GraphData[], networkModels[]
@@ -37,9 +95,11 @@ class Filter {
         });
     }
 }
+
+
 class ExcelDataTransformer {
 
-    static transform(csvdata) {
+    static transform(csvdata, version) {
         const entries = csvdata.filter((entry) => {
             return !entry.includes('begin_rec') && !entry.includes('end_rec');
         });
@@ -47,17 +107,20 @@ class ExcelDataTransformer {
 
         // else generate
         return entries.map((entry) => {
+            if (version == 'ovms')
+                return new GraphData(new OVMSExcelData(entry));
             return new GraphData(new ExcelData(entry));
         });
     }
 }
+
 
 class ExcelData {
     constructor(csvdataline) {
         if (!csvdataline) {
             return;
         }
-        this.networkModel = csvdataline[0];
+        this.networkModel = csvdataline[0].toLowerCase();
         this.release = csvdataline[1];
         this.ieType = csvdataline[2];
         this.platformName = csvdataline[3];
@@ -73,21 +136,17 @@ class ExcelData {
         this.tdpPerSocket = csvdataline[13];
         this.latency = csvdataline[14];
     }
-    networkModel = '';
-    release = '';
-    ieType = '';
-    platformName = '';
-    throughputInt8 = '';
-    throughputFP16 = '';
-    throughputFP32 = '';
-    value = '';
-    efficiency = '';
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
-    latency = '';
+}
+
+
+class OVMSExcelData extends ExcelData {
+    constructor(csvdataline) {
+        super(csvdataline);
+        this.throughputOVMSInt8 = csvdataline[5];
+        this.throughputInt8 = csvdataline[4];
+        this.throughputOVMSFP32 = csvdataline[7];
+        this.throughputFP32 = csvdataline[6];
+    }
 }
 
 
@@ -101,7 +160,13 @@ class GraphData {
         this.ieType = excelData.ieType;
         this.platformName = excelData.platformName;
         this.kpi = new KPI(
-            new Precision(excelData.throughputInt8, excelData.throughputFP16, excelData.throughputFP32),
+            {
+                'ovmsint8': excelData.throughputOVMSInt8,
+                'ovmsfp32': excelData.throughputOVMSFP32,
+                'int8': excelData.throughputInt8,
+                'fp16': excelData.throughputFP16,
+                'fp32': excelData.throughputFP32
+            },
             excelData.value,
             excelData.efficiency,
             excelData.latency);
@@ -112,17 +177,8 @@ class GraphData {
         this.tdpPerSocket = excelData.tdpPerSocket;
         this.latency = excelData.latency;
     }
-    networkModel = '';
-    platformName = '';
-    release = '';
-    ieType = '';
-    kpi = new KPI();
-    price = '';
-    tdp = '';
-    sockets = '';
-    pricePerSocket = '';
-    tdpPerSocket = '';
 }
+
 
 class KPI {
     constructor(precisions, value, efficiency, latency) {
@@ -131,22 +187,8 @@ class KPI {
         this.efficiency = efficiency;
         this.latency = latency;
     }
-    throughput = new Precision();
-    value = '';
-    efficiency = '';
-    latency = '';
 }
 
-class Precision {
-    constructor(int8, fp16, fp32) {
-        this.int8 = int8;
-        this.fp16 = fp16;
-        this.fp32 = fp32;
-    }
-    int8 = '';
-    fp16 = '';
-    fp32 = '';
-}
 
 class Modal {
     static getIeTypeLabel(ietype) {
@@ -166,10 +208,14 @@ class Modal {
     static getCoreTypesLabels() {
         return ['CPU', 'iGPU', 'CPU+iGPU'];
     }
-    static getKpisLabels() {
+    static getKpisLabels(version) {
+        if (version == 'ovms')
+            return ['Throughput'];
         return ['Throughput', 'Value', 'Efficiency', 'Latency'];
     }
-    static getPrecisionsLabels() {
+    static getPrecisionsLabels(version) {
+        if (version == 'ovms')
+            return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
         return ['INT8', 'FP16', 'FP32'];
     }
     static getCoreTypes(labels) {
@@ -189,6 +235,10 @@ class Modal {
     static getPrecisions(labels) {
         return labels.map((label) => {
             switch (label) {
+                case 'OV-INT8 (reference)':
+                    return 'ovmsint8';
+                case 'OV-FP32 (reference)':
+                    return 'ovmsfp32';
                 case 'INT8':
                     return 'int8';
                 case 'FP16':
@@ -201,6 +251,7 @@ class Modal {
         });
     }
 }
+
 
 class Graph {
     constructor(data) {
@@ -281,12 +332,16 @@ class Graph {
 
     static getPrecisionConfig(precision) {
         switch (precision) {
+            case 'ovmsint8':
+                return { data: null, color: '#FF8F51', label: 'FPS (OV Ref. INT8)' };
+            case 'ovmsfp32':
+                return { data: null, color: '#B24501', label: 'FPS (OV Ref. FP32)' };
             case 'int8':
                 return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
             case 'fp16':
-                return { data: null, color: '#0068B5', label: 'FPS (FP16)' };
+                return { data: null, color: '#009fca', label: 'FPS (FP16)' };
             case 'fp32':
-                return { data: null, color: '#00C7FD', label: 'FPS (FP32)' };
+                return { data: null, color: '#007797', label: 'FPS (FP32)' };
             default:
                 return {};
         }
@@ -308,39 +363,42 @@ class Graph {
     }
 }
 
+
+class ChartDisplay {
+    constructor(mode, numberOfCharts) {
+        this.mode = mode;
+        this.numberOfChartsInRow = numberOfCharts;
+    }
+}
+
+
 $(document).ready(function () {
 
-    $('#build-graphs-btn').on('click', showModal);
+    $('.ov-toolkit-benchmark-results').on('click', () => showModal('ov'));
+    $('.ovms-toolkit-benchmark-results').on('click', () => showModal('ovms'));
 
     function clickBuildGraphs(graph, networkModels, ietype, platforms, kpis, precisions) {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
 
-        $('.edit-settings-btn').show();
-        $('.clear-all-btn').hide();
         $('.modal-footer').show();
-        $('.configure-graphs-header h3').addClass('header-inactive');
-        $('.benchmark-graph-results-header h3').removeClass('header-inactive');
-
+        $('#modal-display-graphs').show();
         $('.edit-settings-btn').on('click', (event) => {
-            $('.configure-graphs-content').show();
-            $('.edit-settings-btn').hide();
-            $('.clear-all-btn').show();
+            $('#modal-configure-graphs').show();
+            $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
-            $('.configure-graphs-header h3').removeClass('header-inactive');
-            $('.benchmark-graph-results-header h3').addClass('header-inactive');
             $('.chart-placeholder').empty();
         });
 
         $('.graph-chart-title-header').on('click', (event) => {
             var parent = event.target.parentElement;
 
-            if ($(parent).children('.chart-wrap.container,.empty-chart-container').is(":visible")) {
-                $(parent).children('.chart-wrap.container,.empty-chart-container').hide();
+            if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
+                $(parent).children('.chart-wrap,.empty-chart-container').hide();
                 $(parent).children('.chevron-right-btn').show();
                 $(parent).children('.chevron-down-btn').hide();
                 $
             } else {
-                $(parent).children('.chart-wrap.container,.empty-chart-container').show();
+                $(parent).children('.chart-wrap,.empty-chart-container').show();
                 $(parent).children('.chevron-down-btn').show();
                 $(parent).children('.chevron-right-btn').hide();
             }
@@ -348,26 +406,24 @@ $(document).ready(function () {
     }
 
     function hideModal() {
-        $('#graphModal').hide();
+        $('#graphModal').remove();
         $('body').css('overflow', 'auto');
     }
     
-    function showModal() {
+    function showModal(version) {
         $('body').css('overflow', 'hidden');
-        if ($('#graphModal').length) {
-            $('#graphModal').show();
-            return;
-        }
 
-        const dataPath = '_static/benchmarks_files/benchmark-data.csv';
+        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
+        if (version == 'ovms')
+            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
-            complete: renderModal
+            complete: (result) => renderModal(result, version)
         });
     }
 
     function getSelectedNetworkModels() {
-        return $('.models-column-one input:checked, .models-column-two input:checked').map(function () {
+        return $('.models-column-one input:checked, .models-column-two input:checked').not('[data-networkmodel="Select All"]').map(function () {
             return $(this).data('networkmodel');
         }).get();
     }
@@ -392,7 +448,7 @@ $(document).ready(function () {
         }).get();
     }
     function getSelectedPrecisions() {
-        return $('.precisions-column .selected').map(function () {
+        return $('.precisions-column input:checked').map(function () {
             return $(this).data('precision');
         }).get();
     }
@@ -404,22 +460,22 @@ $(document).ready(function () {
         && getSelectedKpis().length > 0) {
             if (getSelectedKpis().includes('Throughput')) {
                 if (getSelectedPrecisions().length > 0) {
-                    $('#modal-build-graphs-btn').prop('disabled', false);
+                    $('#build-graphs-btn').prop('disabled', false);
                     return;
                 }
-                $('#modal-build-graphs-btn').prop('disabled', true);
+                $('#build-graphs-btn').prop('disabled', true);
                 return;
             }
-            $('#modal-build-graphs-btn').prop('disabled', false);
+            $('#build-graphs-btn').prop('disabled', false);
             return;
         }
-        $('#modal-build-graphs-btn').prop('disabled', true);
+        $('#build-graphs-btn').prop('disabled', true);
     }
 
-    function renderModal(result) {
+    function renderModal(result, version) {
         // remove header from csv line
         result.data.shift();
-        var graph = new Graph(ExcelDataTransformer.transform(result.data));
+        var graph = new Graph(ExcelDataTransformer.transform(result.data, version));
 
         var networkModels = Graph.getNetworkModels(graph.data);
         var ieTypes = Graph.getIeTypes(graph.data);
@@ -436,12 +492,15 @@ $(document).ready(function () {
             modalContent.addClass('modal-content');
             modal.append(modalContent);
 
-            // hide edit settings button
-            $('.edit-settings-btn').hide();
-
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
-            modal.find('.models-column-one').append(models.slice(0, models.length / 2));
+            const selectAllModelsButton = createCheckMark('Select All', 'networkmodel')
+            modal.find('.models-column-one').append(selectAllModelsButton).append(models.slice(0, models.length / 2));
             modal.find('.models-column-two').append(models.slice(models.length / 2));
+
+            const precisions = Modal.getPrecisionsLabels(version).map((precision) => createCheckMark(precision, 'precision'));
+            modal.find('.precisions-column').append(precisions);
+            selectAllCheckboxes(precisions);
+            disableAllCheckboxes(precisions);
 
             const types = ieTypes.map((ieType) => {
                 var labelText = Modal.getIeTypeLabel(ieType);
@@ -456,51 +515,79 @@ $(document).ready(function () {
                     return item;
                 }
             });
+            modal.find('#modal-display-graphs').hide();
+
             modal.find('.ietype-column').append(types);
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Modal.getKpisLabels().map((kpi) => createCheckMark(kpi, 'kpi'));
+            const kpiLabels = Modal.getKpisLabels(version).map((kpi) => createCheckMark(kpi, 'kpi'));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
 
-            var fPlatforms = filterClientPlatforms(graph.data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-            renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            renderClientPlatforms(graph.data, modal, version, true);
+            preselectDefaultSettings(graph.data, modal, version);
 
-            $('.clear-all-btn').on('click', () => {
-                $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-                $('.precisions-column').empty();
-                modal.find('.ietype-column input').first().prop('checked', true);
-                validateSelections();
-            });
-
-            $('#modal-build-graphs-btn').on('click', () => {
-                $('.configure-graphs-content').hide();
+            $('.clear-all-btn').on('click', clearAll);
+            $('#build-graphs-btn').on('click', () => {
+                $('#modal-configure-graphs').hide();
                 clickBuildGraphs(graph, getSelectedNetworkModels(), getSelectedIeType(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(getSelectedPrecisions()));
             });
-
             $('.modal-close').on('click', hideModal);
             $('.close-btn').on('click', hideModal);
-            modal.find('.ietype-column input').on('click', function (event) {
-                if (getSelectedIeType() === 'core') {
-                    showCoreSelectorTypes(Modal.getCoreTypesLabels(), graph.data, modal);
-                }
-                else {
-                    hideCoreSelectorTypes();
-                }
-                var fPlatforms = filterClientPlatforms(graph.data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-                renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            modal.find('.models-column-one input[data-networkmodel="Select All"]').on('click', function() {
+                if ($(this).prop('checked'))
+                    selectAllCheckboxes(models);
+                else deSelectAllCheckboxes(models);
             });
-            modal.find('.kpi-column input').on('click', function (event) {
-                if (getSelectedKpis().includes('Throughput')) {
-                    showPrecisionSelectorTypes(Modal.getPrecisionsLabels());
-                }
-                else {
-                    hidePrecisionSelectorTypes();
-                }
-            });
+            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, version, true));
+            modal.find('.kpi-column input').on('click', validateThroughputSelection);
             modal.find('input').on('click', validateSelections);
         });
+    }
+    
+    function validateThroughputSelection() {
+        const precisions = $('.precisions-column').find('input')
+        if (getSelectedKpis().includes('Throughput')) {
+            precisions.prop('disabled', false);
+        }
+        else {
+            precisions.prop('disabled', true);
+        }
+    }
+
+    function clearAll() {
+        $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
+        // Uncomment if you want the Clear All button to reset the Platform Type column as well
+        // modal.find('.ietype-column input').first().prop('checked', true);
+        validateThroughputSelection();
+        validateSelections();
+    }
+
+    function preselectDefaultSettings(data, modal, version) {
+        const defaultSelections = (version == 'ov') ? OVdefaultSelections : OVMSdefaultSelections;
+        if (defaultSelections.platformTypes) {
+            const type = defaultSelections.platformTypes.data[0]
+            $(`input[data-ietype="${type}"]`).prop('checked', true);
+            renderClientPlatforms(data, modal, version);
+        }
+        if (defaultSelections.platformFilters) {
+            const filters = modal.find('.selectable-box-container').children('.selectable-box');
+            filters.removeClass('selected');
+            defaultSelections.platformFilters.data.forEach(selection => {
+                filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
+            });
+            renderClientPlatforms(data, modal, version);
+        }
+        clearAll();
+        for (setting in defaultSelections) {
+            let name = defaultSelections[setting].name;
+            defaultSelections[setting].data.forEach(selection => {
+                $(`input[data-${name}="${selection}"]`).prop('checked', true);
+            });
+        }
+        validateThroughputSelection();
+        validateSelections();
     }
 
     function showCoreSelectorTypes(coreTypes, graphDataArr,  modal) {
@@ -524,43 +611,13 @@ $(document).ready(function () {
                 $(this).addClass('selected');
             }
             var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-            renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), true);
             validateSelections();
         });
     }
 
     function hideCoreSelectorTypes() {
         $('.client-platform-column').find('.selectable-box-container').hide();
-    }
-
-    function showPrecisionSelectorTypes(precisions) {
-
-        if ($('.precisions-column').find('.selectable-box-container').length) {
-            $('.precisions-column').find('.selectable-box-container').show();
-            return;
-        }
-        var container = $('<div>');
-        container.addClass('selectable-box-container');
-        precisions.forEach((prec) => {
-            var box = $('<div>' + prec + '</div>');
-            box.attr('data-precision', prec);
-            box.addClass('selectable-box');
-            container.append(box);
-
-        });
-        $('.precisions-column').prepend(container);
-        $('.precisions-column .selectable-box').on('click', function () {
-            if ($(this).hasClass('selected')) {
-                $(this).removeClass('selected');
-            } else {
-                $(this).addClass('selected');
-            }
-            validateSelections();
-        });
-    }
-
-    function hidePrecisionSelectorTypes() {
-        $('.precisions-column').find('.selectable-box-container').hide();
     }
 
     function filterClientPlatforms(data, networkModels, ietype, coreTypes) {
@@ -575,10 +632,24 @@ $(document).ready(function () {
         return Array.from(optionMap.values());
     }
 
-    function renderClientPlatforms(modal, platformNames) {
+    function renderClientPlatforms(data, modal, version, preselectEveryItem) {
+        if (getSelectedIeType() === 'core') {
+            showCoreSelectorTypes(Modal.getCoreTypesLabels(), data, modal);
+            if (version === 'ovms')
+                hideCoreSelectorTypes();
+        }
+        else {
+            hideCoreSelectorTypes();
+        }
+        var fPlatforms = filterClientPlatforms(data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
+        renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), preselectEveryItem);
+    }
+
+    function renderClientPlatformsItems(modal, platformNames, preselectEveryItem) {
         $('.client-platform-column .checkmark-container').remove();
         const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform'));
-        selectAllCheckboxes(clientPlatforms);
+        if (preselectEveryItem)
+            selectAllCheckboxes(clientPlatforms);
         modal.find('.client-platform-column').append(clientPlatforms);
         modal.find('.client-platform-column input').on('click', validateSelections);
     }
@@ -597,15 +668,115 @@ $(document).ready(function () {
     // receives a jquery list of items and selects all input checkboxes
     function selectAllCheckboxes(items) {
         items.forEach((item) => {
-            item.find(':input').attr('checked', true);
+            item.find(':input').prop('checked', true);
         });
     }
 
-    function getChartOptions(title) {
+    function enableAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('disabled', false);
+        })
+    }
+
+    function disableAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('disabled', true);
+        })
+    }
+
+    function deSelectAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('checked', false);
+        });
+    }
+
+    // =================== HTMLLEGEND =========================
+
+    const getOrCreateLegendList = (chart, id) => {
+      const legendContainer = document.getElementById(id);
+      let listContainer = legendContainer.querySelector('ul');
+
+      if (!listContainer) {
+        listContainer = document.createElement('ul');
+        listContainer.style.display = 'flex';
+        listContainer.style.flexDirection = 'column';
+        listContainer.style.margin = 0;
+        listContainer.style.padding = 0;
+        listContainer.style.paddingLeft = '10px';
+
+        legendContainer.appendChild(listContainer);
+      }
+
+      return listContainer;
+    };
+
+    const htmlLegendPlugin = {
+      id: 'htmlLegend',
+      afterUpdate(chart, args, options) {
+        const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
+
+        // Remove old legend items
+        while (ul.firstChild) {
+          ul.firstChild.remove();
+        }
+
+        // Reuse the built-in legendItems generator
+        const items = chart.legend.legendItems;
+
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.style.alignItems = 'center';
+          li.style.display = 'flex';
+          li.style.flexDirection = 'row';
+          li.style.marginLeft = '10px';
+
+          li.onclick = () => {
+            const {type} = chart.config;
+            if (type === 'pie' || type === 'doughnut') {
+              // Pie and doughnut charts only have a single dataset and visibility is per item
+              chart.toggleDataVisibility(item.index);
+            } else {
+              chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
+            }
+            chart.update();
+          };
+
+          // Color box
+          const boxSpan = document.createElement('span');
+          boxSpan.style.background = item.fillStyle;
+          boxSpan.style.borderColor = item.strokeStyle;
+          boxSpan.style.borderWidth = item.lineWidth + 'px';
+          boxSpan.style.display = 'inline-block';
+          boxSpan.style.height = '12px';
+          boxSpan.style.marginRight = '10px';
+          boxSpan.style.width = '30px';
+
+          // Text
+          const textContainer = document.createElement('p');
+          textContainer.style.color = item.fontColor;
+          textContainer.style.margin = 0;
+          textContainer.style.padding = 0;
+        //   textContainer.style.fontFamily = 'Roboto';
+          textContainer.style.fontSize = '0.8rem';
+          textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+
+          const text = document.createTextNode(item.text);
+          textContainer.appendChild(text);
+
+          li.appendChild(boxSpan);
+          li.appendChild(textContainer);
+          ul.appendChild(li);
+        });
+      }
+    };
+
+    // ====================================================
+
+    function getChartOptions(title, containerId) {
         return {
             responsive: true,
             maintainAspectRatio: false,
-            legend: { display: true, position: 'bottom' },
+            legend: {display: false},
             title: {
                 display: false,
                 text: title
@@ -624,17 +795,9 @@ $(document).ready(function () {
                 }]
             },
             plugins: {
-                datalabels: {
-                    color: "#4A4A4A",
-                    anchor: "end",
-                    align: "end",
-                    clamp: false,
-                    offset: 0,
-                    display: true,
-                    font: {
-                        size: 8,
-                        family: 'Roboto'
-                    }
+                htmlLegend: {
+                // ID of the container to put the legend in
+                    containerID: containerId,
                 }
             }
         }
@@ -659,8 +822,10 @@ $(document).ready(function () {
     function renderData(graph, networkModels, ietype, platforms, kpis, precisions) {
 
         $('.chart-placeholder').empty();
+        $('.modal-disclaimer-box').empty();
+        const display = new ChartDisplay(getChartsDisplayMode(kpis.length), kpis.length);
+
         networkModels.forEach((networkModel) => {
-            // graph title
             var chartName = networkModel;
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
             var chartContainer = $('<div>');
@@ -668,13 +833,13 @@ $(document).ready(function () {
             var chevronDown = '<span class="chevron-down-btn"></span>';
             var chevronRight = '<span style="display:none" class="chevron-right-btn"></span>';
             $(chevronRight).hide();
-            var chartContainerHeader = $('<span class="graph-chart-title">' + networkModel + '</span>' + chevronDown + chevronRight);
+
+            var chartContainerHeader = $(chevronDown + chevronRight + '<span class="graph-chart-title">' + networkModel + '</span>');
             chartContainerHeader.addClass('graph-chart-title-header');
             chartContainer.prepend(chartContainerHeader);
             chartContainer.attr('id', 'ov-chart-container-' + chartSlug);
 
             chartContainer.addClass('chart-container');
-            chartContainer.addClass('container');
 
             var filteredNetworkModels = Filter.FilterByNetworkModel(graph.data, [networkModel]);
             var filteredIeTypes = Filter.FilterByIeType(filteredNetworkModels, ietype);
@@ -682,25 +847,30 @@ $(document).ready(function () {
 
             $('.chart-placeholder').append(chartContainer);
             if (filteredGraphData.length > 0) {
-                createChartWithNewData(filteredGraphData, chartContainer, kpis, ietype, precisions);
+                createChartWithNewData(filteredGraphData, chartContainer, kpis, ietype, precisions, display);
             } else {
               createEmptyChartContainer(chartContainer);
             }
-
         })
+       
+        for (let kpi of kpis) {
+            if (chartDisclaimers[kpi])
+                $('.modal-disclaimer-box').append($('<p>').text(chartDisclaimers[kpi]))
+        }
+
+        $(window).off('resize');
+        $(window).resize(() => resetChartsDisplay(display));
     };
 
     function createEmptyChartContainer(chartContainer) {
       chartContainer.append($('<div>').addClass('empty-chart-container').text('No data for this configuration.'));
     }
 
-
     // this function should take the final data set and turn it into graphs
     // params: GraphData, unused, chartContainer
-    function createChartWithNewData(model, chartContainer, kpis, ietype, precisions) {
+    function createChartWithNewData(model, chartContainer, kpis, ietype, precisions, display) {
         var chartWrap = $('<div>');
         chartWrap.addClass('chart-wrap');
-        chartWrap.addClass('container');
         chartContainer.append(chartWrap);
         var labels = Graph.getPlatformNames(model);
 
@@ -719,12 +889,20 @@ $(document).ready(function () {
             return config;
         });
 
+        // get the client platform labels and create labels for all the graphs
+        var labelsContainer = $('<div>');
+        labelsContainer.addClass('chart-labels-container');
+        chartWrap.append(labelsContainer);
 
         // get the kpi title's and create headers for the graphs 
-        var chartColumnHeaderContainer = $('<div>');
-        chartColumnHeaderContainer.addClass('chart-column-header-container');
-        chartColumnHeaderContainer.append($('<div class="chart-column-title"></div>'));
-        graphConfigs.forEach((graphConfig) => {
+        var chartGraphsContainer = $('<div>');
+        chartGraphsContainer.addClass('chart-graphs-container');
+        chartWrap.append(chartGraphsContainer);
+
+        graphConfigs.forEach((graphConfig, index) => {
+            const id = getRandomNumber();
+            var graphItem = $(`<div id=${id}>`);
+            graphItem.addClass('graph-item');
             var columnHeaderContainer = $('<div>');
             columnHeaderContainer.addClass('chart-column-title');
             var columnIcon = $('<div class="icon">');
@@ -734,53 +912,134 @@ $(document).ready(function () {
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
             columnHeader.append($('<div class="title">' + Graph.getGraphPlatformText(ietype) + '</div>'));
             columnHeader.append($('<div class="subtitle">' + graphConfig.chartSubtitle + '</div>'));
+            
             columnHeaderContainer.append(columnHeader);
-            chartColumnHeaderContainer.append(columnHeaderContainer);
+            chartGraphsContainer.append(graphItem);
+            var graphClass = $('<div>');
+            graphClass.addClass('graph-row');
+            
+            graphItem.append(columnHeaderContainer);
+            graphItem.append(graphClass);
+            processMetricNew(labels, graphConfig.datasets, graphConfig.chartTitle, graphClass, 'graph-row-column', id);
+            
+            window.setTimeout(() => {
+                const topPadding = getLabelsTopPadding(display.mode);
+                const labelsHeight = (labels.length * 55);
+                const chartHeight = $(graphItem).outerHeight();
+                const bottomPadding = (chartHeight - (topPadding + labelsHeight));
+                
+                var labelsItem = $('<div>');
+                labelsItem.addClass('chart-labels-item');
+                
+                labels.forEach((label) => {
+                    labelsItem.append($('<div class="title">' + label + '</div>'));
+                });
+                
+                labelsItem.css('padding-top', topPadding + 'px');
+                labelsItem.css('padding-bottom', bottomPadding + 'px');
+                setInitialItemsVisibility(labelsItem, index, display.mode);
+                labelsContainer.append(labelsItem);
+            });
         });
-
-        // get the client platform labels and create labels for all the graphs
-
-        var labelsContainer = $('<div>');
-        labelsContainer.addClass('chart-labels-container');
-
-        labels.forEach((label) => {
-            labelsContainer.append($('<div class="title">' + label + '</div>'));
-        });
-
-        // get the legend and create legends for each graph
-
-        var graphClass = $('<div>');
-        graphClass.addClass('graph-row');
-        chartWrap.append(chartColumnHeaderContainer);
-        graphClass.append(labelsContainer);
-        chartWrap.append(graphClass);
-
-        graphConfigs.forEach((graphConfig) => {
-            processMetricNew(labels, graphConfig.datasets, graphConfig.chartTitle, graphClass, 'graph-row-column');
-        });
-
-        // might need this line for multiple graphs on a page
-        // var displayWidth = $(window).width();
-
+        setChartsDisplayDirection(display.mode);
+        adjustHeaderIcons(display.mode);
     }
 
-    function processMetricNew(labels, datasets, chartTitle, container, widthClass, displayLabels) {
+    function processMetricNew(labels, datasets, chartTitle, container, widthClass, id) {
         // ratio for consistent chart label height
-        var heightRatio = ((labels.length * 55 + 20) / labels.length) + (labels.length * 55);
+        var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
+        const containerId = `legend-container-${id}`;
+        const legend = $(`<div id="${containerId}">`);
+        legend.addClass('graph-legend-container');
         chart.addClass('chart');
         chart.addClass(widthClass);
         chart.height(heightRatio);
         var canvas = $('<canvas>');
         chart.append(canvas);
         container.append(chart);
+        container.append(legend);
         var context = canvas.get(0).getContext('2d');
         context.canvas.height = heightRatio;
-        new Chart(context, {
+        window.setTimeout(() => {
+            new Chart(context, {
             type: 'horizontalBar',
             data: getChartDataNew(labels, datasets),
-            options: getChartOptions(chartTitle, displayLabels)
+            options: getChartOptions(chartTitle, containerId),
+            plugins: [htmlLegendPlugin]
+            });
         });
     }
 
+    function getRandomNumber() {
+        return Math.floor(Math.random() * 100000);
+    }
+
+    function resetChartsDisplay(currentDisplay) {
+        const newDisplayMode = getChartsDisplayMode(currentDisplay.numberOfChartsInRow);
+        if (currentDisplay.mode != newDisplayMode) {
+            currentDisplay.mode = newDisplayMode;
+            setChartsDisplayDirection(currentDisplay.mode);
+            adjustLabels(currentDisplay.mode);
+            adjustHeaderIcons(currentDisplay.mode);
+        }
+    }
+
+    function adjustLabels(displayMode) {
+        const firstLabels = $('.chart-labels-container').find('.chart-labels-item:first-child');
+        const labels = $('.chart-labels-container').find('.chart-labels-item');
+        labels.css('padding-top', getLabelsTopPadding(displayMode));
+        if (displayMode == 'column') {
+            labels.show();
+        }
+        else {
+            labels.hide()
+            firstLabels.show();
+        }
+    }
+
+    function adjustHeaderIcons(displayMode) {
+        const icons = $('.graph-item').find('.chart-column-title');
+        if (displayMode == 'rowCompact')
+            icons.css('flex-direction', 'column')
+        else
+            icons.css('flex-direction', 'row')
+    }
+    
+    function getLabelsTopPadding(displayMode) {
+        return (displayMode == 'rowCompact') ? 105.91 : 83.912;
+    }
+
+    function setChartsDisplayDirection(displayMode) {
+        const container = $('.chart-placeholder').find('.chart-graphs-container');
+        if (displayMode == 'column') {
+            container.css('flex-direction', 'column');
+        }
+        else {
+            container.css('flex-direction', 'row');
+        }
+    }
+
+    function setInitialItemsVisibility(item, count, displayMode) {
+        if (count == 0 || displayMode == 'column') item.show();
+        else item.hide();
+    }
+
+    function getChartsDisplayMode(numberOfCharts) {
+        switch (numberOfCharts) {
+            case 4:
+                return window.matchMedia('(max-width: 721px)').matches ? 'column'
+                        : window.matchMedia('(max-width: 830px)').matches ? 'rowCompact'
+                        : 'row';
+            case 3:
+                return window.matchMedia('(max-width: 569px)').matches ? 'column'
+                        : window.matchMedia('(max-width: 649px)').matches ? 'rowCompact'
+                        : 'row';
+            case 2:
+                return window.matchMedia('(max-width: 500px)').matches ? 'column'
+                        : 'row';
+            default:
+                return 'row';
+        }
+    }
 });

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/transpose.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
@@ -41,11 +42,8 @@ void op::v1::Transpose::validate_and_infer_types() {
     set_input_is_relevant_to_shape(ORDER);
 
     std::vector<ov::PartialShape> input_shapes{arg_shape, input_order_shape};
-    std::vector<ov::PartialShape> output_shapes(OUT_COUNT, ov::PartialShape{});
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
 
-    shape_infer(this, input_shapes, output_shapes);
-
-    set_output_size(output_shapes.size());
     set_output_type(ARG, get_input_element_type(ARG), output_shapes[ARG_T]);
 }
 
@@ -55,6 +53,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[ARG], new_args[ORDER]);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_Transpose_evaluate);
 
@@ -63,7 +62,9 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
                     "Transpose axis element type has to be integral data type.");
 
     const auto& arg = input_values[ARG];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::vector<int64_t> axes_order = host_tensor_2_vector<int64_t>(order);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     auto out_shape = calc_output_shape(this, arg->get_shape(), axes_order);
 
     auto& out = output_values[ARG_T];
@@ -77,20 +78,23 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values, const Ho
                                           out_shape);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v1::Transpose::has_evaluate() const {
     OV_OP_SCOPE(v1_Transpose_has_evaluate);
     return get_input_element_type(1).is_integral_number();
 }
 
-bool op::v1::Transpose::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::Transpose::evaluate_lower(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Transpose::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::Transpose::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(ORDER).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Transpose::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_input_tensor(ORDER).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

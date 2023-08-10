@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ public:
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         if (!configuration.empty()) {
-            using namespace CommonTestUtils;
+            using namespace ov::test::utils;
             result << "config=" << (configuration);
         }
         return result.str();
@@ -249,6 +249,5 @@ using IncorrectConfigSingleOptionTests = BehaviorTestsSingleOption;
 using IncorrectConfigAPITests = CorrectConfigTests;
 using CorrectConfigCheck = CorrectConfigTests;
 using DefaultValuesConfigTests = CorrectConfigTests;
-using ExclusiveAsyncReqTests = CorrectConfigTests;
 
 } // namespace BehaviorTestsDefinitions

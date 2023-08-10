@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <behavior/plugin/auto_batching_tests.hpp>
@@ -12,20 +12,19 @@ using namespace AutoBatchingTests;
 namespace {
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::ValuesIn(get_vs_set),
                 ::testing::ValuesIn(num_streams),
                 ::testing::ValuesIn(num_requests),
                 ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test::getTestCaseName);
-// TODO: for 22.2 (CVS-68949)
-//INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test_DetectionOutput,
-//                         ::testing::Combine(
-//                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
-//                                 ::testing::ValuesIn(get_vs_set),
-//                                 ::testing::ValuesIn(num_streams),
-//                                 ::testing::ValuesIn(num_requests),
-//                                 ::testing::ValuesIn(num_batch)),
-//                         AutoBatching_Test_DetectionOutput::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test_DetectionOutput,
+                         ::testing::Combine(
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::ValuesIn(get_vs_set),
+                                 ::testing::ValuesIn(num_streams),
+                                 ::testing::ValuesIn(num_requests),
+                                 ::testing::ValuesIn(num_batch)),
+                         AutoBatching_Test_DetectionOutput::getTestCaseName);
 }  // namespace

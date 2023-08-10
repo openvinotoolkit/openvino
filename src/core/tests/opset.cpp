@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
@@ -65,12 +67,14 @@ INSTANTIATE_TEST_SUITE_P(opset,
                                          OpsetTestParams{ov::get_opset7, 156},
                                          OpsetTestParams{ov::get_opset8, 167},
                                          OpsetTestParams{ov::get_opset9, 173},
-                                         OpsetTestParams{ov::get_opset10, 177}),
+                                         OpsetTestParams{ov::get_opset10, 177},
+                                         OpsetTestParams{ov::get_opset11, 177},
+                                         OpsetTestParams{ov::get_opset12, 178}),
                          OpsetTestNameGenerator{});
 
 class MyOpOld : public ov::op::Op {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", static_cast<uint64_t>(0)};
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld"};
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return type_info;
     }
@@ -119,7 +123,7 @@ TEST(opset, custom_opset) {
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpNew>();
     EXPECT_EQ(opset.get_types_info().size(), 3);
-    EXPECT_TRUE(opset.contains_type("MyOpNewFromOld"));
-    EXPECT_TRUE(opset.contains_type("MyOpNew"));
-    EXPECT_TRUE(opset.contains_type("MyOpIncorrect"));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpNewFromOld")));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpNew")));
+    EXPECT_TRUE(opset.contains_type(std::string("MyOpIncorrect")));
 }

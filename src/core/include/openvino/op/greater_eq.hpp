@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GreaterEqual : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OP("GreaterEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("GreaterEqual", "opset1", op::util::BinaryElementwiseComparison);
     /// \brief Constructs a greater-than-or-equal operation.
     GreaterEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a greater-than-or-equal operation.

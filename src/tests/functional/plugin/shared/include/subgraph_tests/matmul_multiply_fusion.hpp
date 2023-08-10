@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,12 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(MatMulMultiplyFusion, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 
 TEST_P(QuantizedMatMulMultiplyFusion, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 } // namespace SubgraphTestsDefinitions

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,12 +31,12 @@ TEST(TransformationTests, ModDecompositionTests) {
         auto mod = std::make_shared<ngraph::op::v1::Mod>(data1, data2);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mod}, ngraph::ParameterVector{});
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMod>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertMod>();
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,6 +10,25 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd5051)
+endif()
+
+if (X86_64)
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
+else()
+    set(EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+endif()
+
+if (NOT ENABLE_MLAS_FOR_CPU)
+    set(MLAS_LIBRARY "")
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
+else()
+    set(MLAS_LIBRARY "mlas")
 endif()
 
 addIeTargetTest(
@@ -24,6 +43,8 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
                 $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
+        EXCLUDED_SOURCE_PATHS
+            ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -35,13 +56,18 @@ addIeTargetTest(
             inference_engine_lp_transformations
             ov_shape_inference
             inference_engine_s
-            unitTestUtils
+            unit_test_utils
             ngraphFunctions
             snippetsNgraphFunctions
+            snippets_test_utils
+            ${MLAS_LIBRARY}
         ADD_CPPLINT
         LABELS
             CPU
 )
+
+# LTO
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
@@ -54,6 +80,21 @@ endif()
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
+
+function(group_source_file GROUP_NAME GROUP_DIR)
+    file(GLOB GROUP_FILES  ${GROUP_DIR}/*.cpp)
+    foreach(file ${GROUP_FILES})
+        set_source_files_properties(${file} PROPERTIES UNITY_GROUP ${GROUP_NAME})
+    endforeach()
+endfunction()
+
+if(ENABLE_FASTER_BUILD) 
+    set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
+    group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
+    group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
+    group_source_file(unit_src_ngrah_transformation ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations)
+    group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
+endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common

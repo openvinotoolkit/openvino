@@ -1,15 +1,18 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 project(opencv_c_wrapper)
-set(TARGET_NAME opencv_c_wrapper)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+set(TARGET_NAME ${PROJECT_NAME})
+
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
+                  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
 # create library
-add_library(${TARGET_NAME} SHARED ${HEADERS} ${SOURCES})
+add_library(${TARGET_NAME} STATIC ${HEADERS} ${SOURCES})
 
 # Find OpenCV components if exist
 find_package(OpenCV QUIET COMPONENTS core imgproc imgcodecs)
@@ -21,16 +24,11 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 set_target_properties(${TARGET_NAME} PROPERTIES FOLDER c_samples)
 
 if(COMMAND add_clang_format_target AND NOT IE_SAMPLE_EXCLUDE_CLANG_FORMAT)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 endif()
-
-install(
-    TARGETS ${TARGET_NAME}
-    RUNTIME DESTINATION samples_bin/ COMPONENT samples_bin EXCLUDE_FROM_ALL
-    LIBRARY DESTINATION samples_bin/ COMPONENT samples_bin EXCLUDE_FROM_ALL
-)

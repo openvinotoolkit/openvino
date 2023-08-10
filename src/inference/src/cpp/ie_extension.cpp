@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 #include "openvino/util/shared_object.hpp"
 
 using namespace InferenceEngine;
+
+IE_SUPPRESS_DEPRECATED_START
 
 namespace {
 
@@ -29,10 +31,9 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
             ResponseDesc desc;
             StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
             if (sts != OK) {
-                IE_EXCEPTION_SWITCH(
-                    sts,
-                    ExceptionType,
-                    details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
+                IE_EXCEPTION_SWITCH(sts,
+                                    ExceptionType,
+                                    details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << desc.msg)
             }
             IE_SUPPRESS_DEPRECATED_START
             _ptr = std::shared_ptr<T>(object, [](T* ptr) {
@@ -61,7 +62,7 @@ Extension::Extension(const std::string& name) {
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 Extension::Extension(const std::wstring& name) {
     try {
         _so = ov::util::load_shared_object(name.c_str());
@@ -70,7 +71,7 @@ Extension::Extension(const std::wstring& name) {
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return _actual->getOpSets();

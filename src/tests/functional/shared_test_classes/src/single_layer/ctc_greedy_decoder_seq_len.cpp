@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
 
     std::ostringstream result;
 
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << '_';
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << '_';
     result << "seqLen=" << sequenceLengths << '_';
     result << "dataPRC=" << dataPrecision.name() << '_';
     result << "idxPRC=" << indicesPrecision.name() << '_';

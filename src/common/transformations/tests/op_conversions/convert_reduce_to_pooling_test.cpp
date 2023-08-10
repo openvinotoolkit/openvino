@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +36,13 @@ struct ReduceToPoolParams {
     ReduceToPoolParams(const std::vector<int64_t>& begin,
                        const ngraph::Shape& pooling_kernel,
                        const std::vector<int64_t>& end)
-        : pooling_kernel(pooling_kernel),
-          reshape_begin(begin),
-          reshape_end(end) {}
+        : reshape_begin(begin),
+          reshape_end(end),
+          pooling_kernel(pooling_kernel) {}
 };
 
 class ConvertReduceToPoolingTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<ReduceType, InputShape, ReduceAxes, KeepDims, ReduceToPoolParams>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -113,7 +113,7 @@ public:
                                                                   false /*any*/,
                                                                   ngraph::op::RoundingType::FLOOR /*any*/);
             } else {
-                throw ngraph::ngraph_error("Unsupported Reduce type!");
+                OPENVINO_THROW("Unsupported Reduce type!");
             }
         }
 
@@ -135,12 +135,12 @@ public:
 };
 
 TEST_P(ConvertReduceToPoolingTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::ConvertReduceToPooling>();
-    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::ConvertReduceToPooling>();
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -212,7 +212,7 @@ INSTANTIATE_TEST_SUITE_P(ReduceToReshapePoolReshape,
 TEST(ConvertReduceToPooling, Negative) {
     auto f = ConvertReduceToPoolingTests::get_initial_function(ngraph::PartialShape::dynamic(), {3}, MAX, true);
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    manager.register_pass<ov::pass::ConvertReduceToPooling>();
     ASSERT_NO_THROW(manager.run_passes(f));
 }
 

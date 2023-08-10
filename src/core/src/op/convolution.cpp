@@ -1,22 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/convolution.hpp"
+#include "openvino/op/convolution.hpp"
 
-#include <convolution_shape_inference.hpp>
-
+#include "bound_evaluate.hpp"
+#include "convolution_backprop_shape_inference.hpp"
+#include "convolution_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
 // *** Convolution OP SET 1 ***
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
@@ -25,12 +21,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const CoordinateDiff& pads_end,
                                  const Strides& dilations,
                                  const PadType& auto_pad)
-    : Op({data_batch, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad) {
+    : ConvolutionFwdPropBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
     constructor_validate_and_infer_types();
 }
 
@@ -46,8 +37,8 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -62,21 +53,19 @@ void op::v1::Convolution::validate_and_infer_types() {
                           result_et.is_real() || result_et.is_integral_number(),
                           "Element types must be numeric. Got: ",
                           result_et);
-    auto& data_shape = get_input_partial_shape(0);
-    auto& filter_shape = get_input_partial_shape(1);
 
-    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
-    update_and_validate_attributes(this, m_num_spatial);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    if (m_num_spatial != -1) {
-        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 2);
-        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
     }
 
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, result_et, output_shapes[0]);
+    set_num_spatial(num_spatial, input_shapes);
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -91,12 +80,6 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_auto_pad);
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::Convolution::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 // *** ConvolutionBackpropData OP SET 1 ***
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
@@ -107,13 +90,13 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
                                                          const Strides& dilations,
                                                          const PadType& auto_pad,
                                                          const CoordinateDiff& output_padding)
-    : Op({data, filters, output_shape}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters, output_shape},
+                              strides,
+                              pads_begin,
+                              pads_end,
+                              dilations,
+                              auto_pad,
+                              output_padding) {
     ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
@@ -137,44 +120,47 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
                                                          const Strides& dilations,
                                                          const PadType& auto_pad,
                                                          const CoordinateDiff& output_padding)
-    : Op({data, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters}, strides, pads_begin, pads_end, dilations, auto_pad, output_padding) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v1::ConvolutionBackpropData::is_dynamic() const {
-    bool is_dynamic = Node::is_dynamic();
-    if (inputs().size() == 3 && !is_dynamic) {
-        return !has_and_set_equal_bounds(input_value(2));
-    }
-    return is_dynamic;
+    return Node::is_dynamic() || (get_input_size() == 3 && !has_and_set_equal_bounds(input_value(2)));
 }
 
 const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const {
-    ov::PartialShape shape;
-    if (get_input_size() == 3 && evaluate_as_partial_shape(input_value(2), shape))
-        return shape;
+    auto shape = PartialShape::dynamic();
 
-    auto data_pshape = get_input_partial_shape(0);
-    auto filter_pshape = get_input_partial_shape(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (get_input_size() < 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        const auto& filter_rank = get_input_partial_shape(1).rank();
 
-    if (data_pshape.rank().is_static())
-        shape = ov::PartialShape::dynamic(data_pshape.rank().get_length() - 2);
-    else if (filter_pshape.rank().is_static())
-        shape = ov::PartialShape::dynamic(filter_pshape.rank().get_length() - 2);
-    else
-        shape = ov::PartialShape::dynamic();
+        if (data_rank.is_static()) {
+            shape.resize(data_rank.get_length() - convolution::spatial_dim_offset);
+        } else if (filter_rank.is_static()) {
+            shape.resize(filter_rank.get_length() - convolution::spatial_dim_offset);
+        } else if (get_input_size() == 3) {
+            const auto& out_spatial_shape = get_input_partial_shape(2);
+            if (out_spatial_shape.is_static()) {
+                shape.resize(out_spatial_shape[0].get_length());
+            }
+        }
+    }
+
     return shape;
 }
 
 void op::v1::ConvolutionBackpropData::set_output_shape(const ov::Shape& shape) {
-    this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
+    element::Type_t et = (get_input_size() == 3) ? get_input_element_type(2) : element::i64;
+    if (get_input_size() == 0) {
+        // Add dummy inputs when adding output shape and op has no inputs at all.
+        auto dummy = std::make_shared<v0::Constant>(et, ov::Shape{0});
+        set_argument(0, dummy);
+        set_argument(1, dummy);
+    }
+    set_argument(2, v0::Constant::create(et, Shape{shape.size()}, shape));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
@@ -206,8 +192,8 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
 
 void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
     OV_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
-    element::Type delta_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    const auto& delta_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -223,9 +209,8 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    bool is_output_shape_present = inputs().size() == 3;
-    if (is_output_shape_present) {
-        const element::Type output_shape_et = get_input_element_type(2);
+    if (get_input_size() == 3) {
+        const auto& output_shape_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               output_shape_et.is_integral_number(),
                               "Element type for output shape should be of integer type ",
@@ -234,26 +219,19 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    bool output_shape_input_present = get_input_size() == 3;
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto out_spatial_shape = get_output_shape();
+    auto num_spatial = convolution::calculate_num_spatial(this, input_shapes, out_spatial_shape);
 
-    const auto& data_shape = get_input_partial_shape(0);
-    const auto& filter_shape = get_input_partial_shape(1);
-
-    auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
-    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 2);
-    update_and_validate_attributes_back_prop(this, m_num_spatial);
-
-    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
-    if (output_shape_input_present)
-        input_shapes.push_back(get_input_partial_shape(2));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    if (m_num_spatial != -1) {
-        ov::PartialShape output_spatial_shape = get_output_shape();
-        resolve_auto_pad_for_shape_back_prop(this, m_pads_begin, m_pads_end, input_shapes, output_spatial_shape, 2, 2);
-        shape_infer(this, m_pads_begin, m_pads_end, output_spatial_shape, input_shapes, output_shapes);
+    if (num_spatial != util::num_spatial_undefined) {
+        resize_attributes(num_spatial);
     }
+
+    const auto output_shapes = shape_infer(this, input_shapes, m_pads_begin, m_pads_end);
     set_output_type(0, result_et, output_shapes[0]);
+    set_num_spatial(num_spatial, input_shapes);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -283,3 +261,4 @@ shared_ptr<Node> op::v1::ConvolutionBackpropData::clone_with_new_inputs(const Ou
                                                         m_output_padding);
     }
 }
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights& fqOnWeights) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3ul) && (rankLength != 4ul)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3ul || rankLength == 4ul || rankLength == 5ul, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
@@ -188,10 +186,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> lastOperation;
     if (operation == "Convolution") {
-        lastOperation = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        lastOperation = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             ngraph::opset1::Convolution(
-                ngraph::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },
@@ -199,10 +197,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
     } else if (operation == "GroupConvolution") {
-        lastOperation = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+        lastOperation = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
             ngraph::opset1::GroupConvolution(
-                ngraph::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnActivation, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
                 ngraph::Strides{ 1, 1 },
                 ngraph::CoordinateDiff{ 0, 0 },
                 ngraph::CoordinateDiff{ 0, 0 },

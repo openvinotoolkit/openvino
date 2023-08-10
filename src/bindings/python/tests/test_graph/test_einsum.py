@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino.runtime.opset8 as ov
@@ -7,11 +7,10 @@ import numpy as np
 import pytest
 
 from openvino.runtime.utils.types import get_element_type
-from tests import xfail_issue_58033
 
 
-def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
-                   seed=202104):
+def einsum_op_check(input_shapes: list, equation: str, data_type: np.dtype,
+                    seed=202104):
     """Test Einsum operation for given input shapes, equation, and data type.
 
     It generates input data of given shapes and type, receives reference results using numpy,
@@ -45,46 +44,44 @@ def einsum_op_exec(input_shapes: list, equation: str, data_type: np.dtype,
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_dot_product(data_type):
-    einsum_op_exec([5, 5], "i,i->", data_type)
+    einsum_op_check([5, 5], "i,i->", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_matrix_multiplication(data_type):
-    einsum_op_exec([(2, 3), (3, 4)], "ab,bc->ac", data_type)
+    einsum_op_check([(2, 3), (3, 4)], "ab,bc->ac", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_batch_trace(data_type):
-    einsum_op_exec([(2, 3, 3)], "kii->k", data_type)
+    einsum_op_check([(2, 3, 3)], "kii->k", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_diagonal_extraction(data_type):
-    einsum_op_exec([(6, 5, 5)], "kii->ki", data_type)
+    einsum_op_check([(6, 5, 5)], "kii->ki", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_transpose(data_type):
-    einsum_op_exec([(1, 2, 3)], "ijk->kij", data_type)
+    einsum_op_check([(1, 2, 3)], "ijk->kij", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_multiple_multiplication(data_type):
-    einsum_op_exec([(2, 5), (5, 3, 6), (5, 3)], "ab,bcd,bc->ca", data_type)
+    einsum_op_check([(2, 5), (5, 3, 6), (5, 3)], "ab,bcd,bc->ca", data_type)
 
 
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_simple_ellipsis(data_type):
-    einsum_op_exec([(5, 3, 4)], "a...->...", data_type)
+    einsum_op_check([(5, 3, 4)], "a...->...", data_type)
 
 
-@xfail_issue_58033
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_multiple_ellipsis(data_type):
-    einsum_op_exec([(3, 5), 1], "a...,...->a...", data_type, with_value=True)
+    einsum_op_check([(3, 5), 1], "a...,...->a...", data_type)
 
 
-@xfail_issue_58033
 @pytest.mark.parametrize("data_type", [np.float32, np.int32])
 def test_broadcasting_ellipsis(data_type):
-    einsum_op_exec([(9, 1, 4, 3), (3, 11, 7, 1)], "a...b,b...->a...", data_type, with_value=True)
+    einsum_op_check([(9, 1, 4, 3), (3, 11, 7, 1)], "a...b,b...->a...", data_type)

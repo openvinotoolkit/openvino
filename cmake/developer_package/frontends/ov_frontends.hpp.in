@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,12 @@
 
 namespace {
 
-using GetFrontEndDataFunc = void*();
-using GetAPIVersionFunc = ov::frontend::FrontEndVersion();
+using get_front_end_data_func = void*();
+using get_api_version_func = ov::frontend::FrontEndVersion();
 
 struct Value {
-    GetFrontEndDataFunc* m_dataFunc;
-    GetAPIVersionFunc* m_versionFunc;
+    get_front_end_data_func* m_dataFunc;
+    get_api_version_func* m_versionFunc;
 };
 
 using FrontendsStaticRegistry = std::vector<Value>;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     args.add_argument('-i', '--input', type=str, required=True, nargs='+',
                       help='Required. Path to an image file(s).')
     args.add_argument('-d', '--device', type=str, default='CPU',
-                      help='Optional. Specify the target device to infer on; CPU, GPU, MYRIAD, HDDL or HETERO: '
+                      help='Optional. Specify the target device to infer on; CPU, GPU, GNA or HETERO: '
                       'is acceptable. The sample will look for a suitable plugin for device specified. '
                       'Default value is CPU.')
     # fmt: on

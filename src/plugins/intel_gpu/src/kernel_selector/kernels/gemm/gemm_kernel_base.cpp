@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
@@ -63,13 +64,13 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     prim_params.outputs[0].is_dynamic());
+                     prim_params.has_dynamic_tensors());
 
     return {k_data};
 }

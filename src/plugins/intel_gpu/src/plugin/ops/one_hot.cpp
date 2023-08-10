@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,25 +23,25 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
     auto on_value_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     auto off_value_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
 
-    if (on_value_node == nullptr || off_value_node == nullptr || depth_value_node == nullptr)
-        IE_THROW() << "Unsupported on/off/depth node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    OPENVINO_ASSERT(on_value_node != nullptr || off_value_node != nullptr || depth_value_node != nullptr,
+                    "[GPU] Unsupported on/off/depth nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     float on_value;
     float off_value;
 
-    if (!ngraph::op::util::get_single_value(on_value_node, on_value) ||
-        !ngraph::op::util::get_single_value(off_value_node, off_value)) {
-        IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    if (!ov::op::util::get_single_value(on_value_node, on_value) ||
+        !ov::op::util::get_single_value(off_value_node, off_value)) {
+        OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
     }
 
     auto dims = op->get_input_partial_shape(0);
 
     if (axis < -1 || axis > static_cast<int16_t>(dims.size()))
-        IE_THROW() << op->get_friendly_name() << " Incorrect OneHot axis value: " << axis << ". Should be between -1 and " << dims.size();
+        OPENVINO_THROW(op->get_friendly_name(), " Incorrect OneHot axis value: ", axis, ". Should be between -1 and ", dims.size());
 
     if (axis == -1) {
         axis = dims.size();
-        for (int i = dims.size() - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(dims.size() - 1); i >= 0; i--) {
             if (dims[i] == 1)
                 axis--;
             else

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ class RemoteContext;
  */
 class OPENVINO_RUNTIME_API RemoteTensor : public Tensor {
     using Tensor::Tensor;
-    friend class ov::RemoteContext;
 
 public:
     /**
@@ -43,6 +42,8 @@ public:
 
     template <typename T>
     T* data() = delete;
+
+    void copy_to(ov::Tensor& dst) const = delete;
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level

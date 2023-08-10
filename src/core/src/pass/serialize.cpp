@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,24 +8,23 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
-#include "meta_data.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-using namespace ngraph;
-
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {
@@ -45,9 +44,9 @@ struct Edge {
     int to_port = 0;
 };
 
-// Here operation type names are translated from ngraph convention to IR
+// Here operation type names are translated from OpenVINO Model convention to IR
 // convention. Most of them are the same, but there are exceptions, e.g
-// Constant (ngraph name) and Const (IR name). If there will be more
+// Constant (OpenVINO Model name) and Const (IR name). If there will be more
 // discrepancies discovered, translations needs to be added here.
 const std::unordered_map<std::string, std::string> translate_type_name_translator = {{"Constant", "Const"},
                                                                                      {"PRelu", "PReLU"},
@@ -122,7 +121,7 @@ private:
 };
 
 void ngfunction_2_ir(pugi::xml_node& node,
-                     const ngraph::Function& f,
+                     const ov::Model& model,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
                      int64_t version,
@@ -138,7 +137,7 @@ class XmlSerializer {
 public:
     explicit XmlSerializer(pugi::xml_node& xml_node) : m_xml_node(xml_node) {}
 
-    void serialize(const ngraph::Node::RTMap& rt_info) {
+    void serialize(const ov::Node::RTMap& rt_info) {
         for (const auto& rt_info_name : list_of_names) {
             const auto& found_rt_info = rt_info.find(rt_info_name);
             if (found_rt_info != rt_info.end()) {
@@ -153,85 +152,85 @@ private:
     pugi::xml_node& m_xml_node;
 };
 
-class RTInfoSerializer : public ngraph::AttributeVisitor {
+class RTInfoSerializer : public ov::AttributeVisitor {
     pugi::xml_node m_node;
 
 public:
     RTInfoSerializer(const pugi::xml_node node) : m_node(node) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         check_attribute_name(name);
         if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto& value = join(a->get());
             m_node.append_attribute(name.c_str()).set_value(value.c_str());
         } else {
-            throw ngraph_error("Unsupported attribute type for serialization: " + name);
+            OPENVINO_THROW("Unsupported attribute type for serialization: ", name);
         }
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
         check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
         check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         check_attribute_name(name);
         m_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
         check_attribute_name(name);
         const auto& value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         check_attribute_name(name);
         const auto& value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         check_attribute_name(name);
         const auto& value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         check_attribute_name(name);
         const auto& value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         check_attribute_name(name);
         const auto& value = join(adapter.get());
         m_node.append_attribute(name.c_str()).set_value(value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        throw ngraph_error("Model type is unsupported for rt info serialization");
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        OPENVINO_THROW("Model type is unsupported for rt info serialization");
     }
 
     void check_attribute_name(const std::string& name) const {
         if (name == "name" || name == "version") {
-            throw ngraph_error("Attribute key with name: " + name + " is not allowed. Please use another name");
+            OPENVINO_THROW("Attribute key with name: ", name, " is not allowed. Please use another name");
         }
     }
 };
 }  // namespace rt_info
 
-class XmlSerializer : public ngraph::AttributeVisitor {
+class XmlSerializer : public ov::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     const std::string& m_node_type_name;
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
@@ -240,7 +239,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     bool m_deterministic;
 
     template <typename T>
-    std::string create_atribute_list(ngraph::ValueAccessor<std::vector<T>>& adapter) {
+    std::string create_atribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
         return join(adapter.get());
     }
 
@@ -255,16 +254,11 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             }
         }
 
-        if (ir_version < 11) {
-            // ops for serialized body function are provided in reversed order
-            std::reverse(output.begin(), output.end());
-        }
-
         return output;
     }
 
     void input_descriptions_on_adapter(
-        const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions,
+        const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>& input_descriptions,
         const std::vector<std::string>& parameter_mapping,
         const std::vector<std::string>& result_mapping,
         pugi::xml_node& port_map,
@@ -281,14 +275,14 @@ class XmlSerializer : public ngraph::AttributeVisitor {
                 .set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
             if (auto slice_input =
-                    ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
+                    ov::as_type_ptr<ov::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
                 input.prepend_attribute("axis").set_value(static_cast<long long>(slice_input->m_axis));
                 input.append_attribute("start").set_value(static_cast<long long>(slice_input->m_start));
                 input.append_attribute("end").set_value(static_cast<long long>(slice_input->m_end));
                 input.append_attribute("stride").set_value(static_cast<long long>(slice_input->m_stride));
                 input.append_attribute("part_size").set_value(static_cast<long long>(slice_input->m_part_size));
             } else if (auto merged_input =
-                           ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
+                           ov::as_type_ptr<ov::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
                 if (!back_edges) {
                     back_edges = m_xml_node.parent().insert_child_after("back_edges", port_map);
@@ -302,12 +296,12 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     }
 
     void output_descriptions_on_adapter(
-        const std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions,
+        const std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>& output_descriptions,
         const uint32_t& input_count,
         const std::vector<std::string>& result_mapping,
         pugi::xml_node& port_map,
         const std::string& portmap_name) {
-        NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
+        OPENVINO_ASSERT(!result_mapping.empty(), "No results found in body Model.");
 
         if (!port_map) {
             port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
@@ -321,7 +315,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
                 .set_value(result_mapping[output_description->m_body_value_index].c_str());
 
             if (auto concat_output =
-                    ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
+                    ov::as_type_ptr<ov::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
                 output.prepend_attribute("axis").set_value(static_cast<long long>(concat_output->m_axis));
                 output.append_attribute("start").set_value(static_cast<long long>(concat_output->m_start));
                 output.append_attribute("end").set_value(static_cast<long long>(concat_output->m_end));
@@ -331,11 +325,11 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         }
     }
 
-    void special_body_ports_on_adapter(const ngraph::op::v5::Loop::SpecialBodyPorts& special_body_ports,
+    void special_body_ports_on_adapter(const ov::op::v5::Loop::SpecialBodyPorts& special_body_ports,
                                        const std::vector<std::string>& parameter_mapping,
                                        const std::vector<std::string>& result_mapping,
                                        pugi::xml_node& port_map) {
-        NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
+        OPENVINO_ASSERT(port_map, "port_map section not found, purpose attribute cannot be added.");
 
         if (special_body_ports.current_iteration_input_idx != -1) {
             pugi::xml_node iter_input = port_map.append_child("input");
@@ -368,7 +362,7 @@ public:
           m_version(version),
           m_deterministic(deterministic) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
 
         const std::vector<BodyTargetNames> body_names = {
@@ -388,6 +382,33 @@ public:
                 }
             }
         }
+        if (!is_body_target) {
+            std::string id = "input_descriptions";
+            std::string od = "output_descriptions";
+            const auto& id_pos = name.find("input_descriptions");
+            const auto& od_pos = name.find("output_descriptions");
+            auto id_str = name;
+            size_t body_id;
+            if (id_pos != std::string::npos) {
+                id_str.erase(id_pos, id.length());
+                (void)std::stoi(id_str, &body_id);
+                is_body_target = true;
+            } else if (od_pos != std::string::npos) {
+                id_str.erase(od_pos, od.length());
+                (void)std::stoi(id_str, &body_id);
+                is_body_target = true;
+            }
+            if (is_body_target) {
+                auto body_name = "body" + id_str;
+                if (m_xml_node.parent().child(body_name.c_str())) {
+                    bnames = BodyTargetNames{body_name,
+                                             "port_map" + id_str,
+                                             {"input_descriptions" + id_str, "output_descriptions" + id_str}};
+                } else {
+                    is_body_target = false;
+                }
+            }
+        }
         if (is_body_target) {
             auto body_name = std::get<0>(bnames);
             auto portmap_name = std::get<1>(bnames);
@@ -398,32 +419,29 @@ public:
 
             pugi::xml_node port_map = m_xml_node.parent().child(portmap_name.c_str());
             // Bodies can be without parameters(dependig on constants), but can not be without results
-            NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Model.");
+            OPENVINO_ASSERT(!result_mapping.empty(), "No results found in body Model.");
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
             // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (here "m_xml_node")
             // with empty attributes is removed.
-            if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
-                    std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
+            if (const auto& a = ov::as_type<ov::AttributeAdapter<
+                    std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
                 input_descriptions_on_adapter(a->get(), parameter_mapping, result_mapping, port_map, portmap_name);
-            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<
-                           std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(
-                           &adapter)) {
+            } else if (const auto& a = ov::as_type<ov::AttributeAdapter<
+                           std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
                 uint32_t op_input_count = 0;
                 for (auto c = m_xml_node.parent().child("input").first_child(); !c.empty(); c = c.next_sibling()) {
                     op_input_count++;
                 }
                 output_descriptions_on_adapter(a->get(), op_input_count, result_mapping, port_map, portmap_name);
             } else if (const auto& a =
-                           ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(
-                               &adapter)) {
+                           ov::as_type<ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
                 special_body_ports_on_adapter(a->get(), parameter_mapping, result_mapping, port_map);
             }
         } else if (const auto& a =
-                       ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         } else if (const auto& a =
-                       ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                           &adapter)) {
+                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()), size);
@@ -431,8 +449,7 @@ public:
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(size));
             }
-        } else if (const auto& a =
-                       ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
 
             // Update type and version attributes
@@ -453,16 +470,16 @@ public:
             for (const auto& attr : attrs) {
                 m_xml_node.append_attribute(attr.first.c_str()).set_value(attr.second.c_str());
             }
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_xml_node.append_attribute(name.c_str()).set_value(join(attrs).c_str());
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::PartialShape>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             const auto& attrs = a->get();
             auto shape_str = attrs.to_string();
             if (shape_str[0] == '[' && shape_str[shape_str.size() - 1] == ']')
                 shape_str = shape_str.substr(1, shape_str.size() - 2);
             m_xml_node.append_attribute(name.c_str()).set_value(shape_str.c_str());
-        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
             const auto& attrs = a->get();
             std::stringstream dim_str_stream;
             dim_str_stream << attrs;
@@ -471,39 +488,40 @@ public:
                 dim_str = dim_str.substr(1, dim_str.size() - 2);
             m_xml_node.append_attribute(name.c_str()).set_value(dim_str.c_str());
         } else {
-            throw ngraph_error("Unsupported attribute type for serialization: " + name);
+            OPENVINO_THROW("Unsupported attribute type for serialization: ", name);
         }
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "body" || name == "then_body" || name == "else_body") {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        if (name.find("body") != std::string::npos) {
+            // name that contains subgraphs: body{n}, then_body, else_body
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
@@ -524,25 +542,25 @@ public:
                             m_version,
                             m_deterministic);
         } else {
-            NGRAPH_CHECK(false, "Unsupported Model name.");
+            OPENVINO_THROW("Unsupported Model name.");
         }
     }
 };
 
-const std::unordered_map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
-    std::unordered_map<ngraph::Node*, int> layer_ids;
+const std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
+    std::unordered_map<ov::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : f.get_ordered_ops()) {
+    for (const auto& node : model.get_ordered_ops()) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
 }
 
-const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Node*, int>& layer_ids,
-                                            const ngraph::Function& f) {
+const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids,
+                                            const ov::Model& model) {
     std::vector<Edge> edges;
-    for (const auto& node : f.get_ordered_ops()) {
-        if (ngraph::op::is_parameter(node)) {
+    for (const auto& node : model.get_ordered_ops()) {
+        if (ov::op::util::is_parameter(node)) {
             continue;
         }
 
@@ -551,8 +569,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
             auto source_node = source_output.get_node();
             auto current_node = i.get_node();
 
-            NGRAPH_CHECK(layer_ids.find(source_node) != layer_ids.end(), "Internal error");
-            NGRAPH_CHECK(layer_ids.find(current_node) != layer_ids.end(), "Internal error");
+            OPENVINO_ASSERT(layer_ids.find(source_node) != layer_ids.end(), "Internal error");
+            OPENVINO_ASSERT(layer_ids.find(current_node) != layer_ids.end(), "Internal error");
 
             Edge e{};
             e.from_layer = layer_ids.find(source_node)->second;
@@ -568,7 +586,7 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
     return edges;
 }
 
-std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+std::string get_opset_name(const ov::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     OPENVINO_ASSERT(n != nullptr);
 
     // Try to find opset name from RT info
@@ -597,47 +615,45 @@ std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ng
     return "experimental";
 }
 
-std::string get_precision_name(const ngraph::element::Type& elem_type) {
+std::string get_precision_name(const ov::element::Type& elem_type) {
     switch (elem_type) {
-    case ::ngraph::element::Type_t::undefined:
-    case ::ngraph::element::Type_t::dynamic:
+    case ::ov::element::Type_t::undefined:
+    case ::ov::element::Type_t::dynamic:
         return "UNSPECIFIED";
-    case ::ngraph::element::Type_t::f16:
+    case ::ov::element::Type_t::f16:
         return "FP16";
-    case ::ngraph::element::Type_t::f32:
+    case ::ov::element::Type_t::f32:
         return "FP32";
-    case ::ngraph::element::Type_t::bf16:
+    case ::ov::element::Type_t::bf16:
         return "BF16";
-    case ::ngraph::element::Type_t::f64:
+    case ::ov::element::Type_t::f64:
         return "FP64";
-    case ::ngraph::element::Type_t::i4:
+    case ::ov::element::Type_t::i4:
         return "I4";
-    case ::ngraph::element::Type_t::i8:
+    case ::ov::element::Type_t::i8:
         return "I8";
-    case ::ngraph::element::Type_t::i16:
+    case ::ov::element::Type_t::i16:
         return "I16";
-    case ::ngraph::element::Type_t::i32:
+    case ::ov::element::Type_t::i32:
         return "I32";
-    case ::ngraph::element::Type_t::i64:
+    case ::ov::element::Type_t::i64:
         return "I64";
-    case ::ngraph::element::Type_t::u4:
+    case ::ov::element::Type_t::u4:
         return "U4";
-    case ::ngraph::element::Type_t::u8:
+    case ::ov::element::Type_t::u8:
         return "U8";
-    case ::ngraph::element::Type_t::u16:
+    case ::ov::element::Type_t::u16:
         return "U16";
-    case ::ngraph::element::Type_t::u32:
+    case ::ov::element::Type_t::u32:
         return "U32";
-    case ::ngraph::element::Type_t::u64:
+    case ::ov::element::Type_t::u64:
         return "U64";
-    case ::ngraph::element::Type_t::u1:
+    case ::ov::element::Type_t::u1:
         return "BIN";
-    case ::ngraph::element::Type_t::boolean:
+    case ::ov::element::Type_t::boolean:
         return "BOOL";
     default:
-        std::stringstream msg;
-        msg << "Unsupported precision: " << elem_type;
-        throw ngraph_error(msg.str());
+        OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
 }
 
@@ -670,7 +686,7 @@ bool is_name_auto_generated(const T& n) {
 }
 
 // TODO: remove when CNNNetwork will be supporting not-unique names
-std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, const ngraph::Node* n) {
+std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, const ov::Node* n) {
     std::string name = n->get_friendly_name();
     if (unique_names.find(name) != unique_names.end()) {
         name = generate_unique_name(unique_names, name, 0);
@@ -679,7 +695,7 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names, 
     return name;
 }
 
-void visit_exec_graph_node(pugi::xml_node& layer, const ngraph::Node* n) {
+void visit_exec_graph_node(pugi::xml_node& layer, const ov::Node* n) {
     auto data = layer.child("data");
     for (const auto& param : n->get_rt_info()) {
         if (param.second.is<std::string>()) {
@@ -696,9 +712,9 @@ void visit_exec_graph_node(pugi::xml_node& layer, const ngraph::Node* n) {
     }
 }
 
-bool is_exec_graph(const ngraph::Function& f) {
+bool is_exec_graph(const ov::Model& model) {
     // go over all operations and check whether performance stat is set
-    for (const auto& op : f.get_ops()) {
+    for (const auto& op : model.get_ops()) {
         const auto& rtInfo = op->get_rt_info();
         if (rtInfo.find("execTimeMcs") != rtInfo.end()) {
             return true;
@@ -707,64 +723,75 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
-            return true;
-        }
-    }
-    return false;
-}
+class PaddingsFixer {
+private:
+    ov::Node* m_node;
 
-void auto_pad_resolving(ov::Node* node) {
+    ov::OutputVector m_parameters;
+    std::shared_ptr<ov::Node> m_cloned_node;
+
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,
         ov::op::PadType::SAME_UPPER,
         ov::op::PadType::VALID,
         ov::op::PadType::AUTO,
     };
-    if (auto op = as_type<opset1::Convolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
+
+    template <class T, class P>
+    void clone_op_and_fix_paddings(const T* op) {
+        for (const auto& input : op->inputs()) {
+            m_parameters.emplace_back(
+                std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
-    } else if (auto op = as_type<opset1::GroupConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<opset1::ConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<opset1::GroupConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<ngraph::op::util::DeformableConvolutionBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<opset1::BinaryConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_adding_above(CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<opset1::AvgPool>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(Shape(op->get_pads_begin().size(), 0));
-            op->set_pads_end(Shape(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = as_type<ngraph::op::util::MaxPoolBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(Shape(op->get_pads_begin().size(), 0));
-            op->set_adding_above(Shape(op->get_pads_end().size(), 0));
+        m_cloned_node = op->clone_with_new_inputs(m_parameters);
+        auto typed_cloned_node = std::dynamic_pointer_cast<T>(m_cloned_node);
+        OPENVINO_ASSERT(typed_cloned_node);
+        typed_cloned_node->set_pads_begin(P(op->get_pads_begin().size(), 0));
+        typed_cloned_node->set_pads_end(P(op->get_pads_end().size(), 0));
+        m_node = m_cloned_node.get();
+    }
+
+public:
+    ov::Node* get_node() {
+        return m_node;
+    }
+
+    explicit PaddingsFixer(ov::Node* node) : m_node(node) {
+        if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::Convolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::GroupConvolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::op::util::DeformableConvolutionBase, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+            }
+        } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::op::util::MaxPoolBase, ov::Shape>(op);
+            }
         }
     }
-}
+};
 
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
     auto child = root.append_child(name.c_str());
@@ -786,48 +813,51 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
 }
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
-                     const ngraph::Function& f,
+                     const ov::Model& model,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
                      bool deterministic) {
     // If determinism is not required, include auto-generated names into xml
-    if (!deterministic || !is_name_auto_generated(f)) {
-        netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
+    if (!deterministic || !is_name_auto_generated(model)) {
+        netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
     netXml.append_attribute("version").set_value(static_cast<long long>(version));
     pugi::xml_node layers = netXml.append_child("layers");
 
-    const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
+    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
     std::unordered_set<std::string> unique_names;
 
-    const bool exec_graph = is_exec_graph(f);
+    const bool exec_graph = is_exec_graph(model);
 
-    auto sorted_ops = f.get_ordered_ops();
-    if (version >= 11) {
+    auto sorted_ops = model.get_ordered_ops();
+
+    // get_ordered_ops() returns operations after a topological sort. The topological sort reverses order of Parameters
+    // and Results. So we need to put them into sorted_ops separately to ensure correct order of inputs and outputs.
+    {
         std::vector<std::shared_ptr<ov::Node>> result;
         result.reserve(sorted_ops.size());
-        for (const auto& param : f.get_parameters()) {
+        for (const auto& param : model.get_parameters()) {
             result.emplace_back(param);
         }
         for (auto&& node : sorted_ops) {
             if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
                 result.emplace_back(node);
         }
-        for (const auto& sink : f.get_sinks()) {
+        for (const auto& sink : model.get_sinks()) {
             result.emplace_back(sink);
         }
-        for (const auto& res : f.get_results()) {
+        for (const auto& res : model.get_results()) {
             result.emplace_back(res);
         }
         sorted_ops = result;
     }
 
     for (const auto& n : sorted_ops) {
-        ngraph::Node* node = n.get();
+        ov::Node* node = n.get();
         const std::string& node_type_name{node->get_type_name()};
 
-        NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");
+        OPENVINO_ASSERT(layer_ids.find(node) != layer_ids.end(), "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
@@ -843,7 +873,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, RTMap& attributes) {
+        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
@@ -876,7 +906,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && dynamic_cast<opset1::LSTMCell*>(node)) {
+                if (i.get_index() == 6 && dynamic_cast<ov::opset1::LSTMCell*>(node)) {
                     port_id++;
                     continue;
                 }
@@ -902,7 +932,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             }
         }
         // <layers/output>
-        if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
+        if ((node->get_output_size() > 0) && !ov::op::util::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (auto& o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
@@ -942,9 +972,17 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         }
 
         // fill <data> general attributes
-        auto_pad_resolving(node);  // Backward compatibility: clear padding values for nodes with auto_pad
-        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler, version, deterministic);
-        NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        {
+            // Backward compatibility: clear padding values for nodes with auto_pad
+            PaddingsFixer fixed_node(node);
+            XmlSerializer visitor(data,
+                                  node_type_name,
+                                  custom_opsets,
+                                  constant_node_write_handler,
+                                  version,
+                                  deterministic);
+            OPENVINO_ASSERT(fixed_node.get_node()->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        }
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
 
         if (exec_graph) {
@@ -957,17 +995,16 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         }
     }
     // <edges>
-    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, f);
+    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, model);
     pugi::xml_node edges = netXml.append_child("edges");
+    auto ordered_ops = model.get_ordered_ops();
     for (auto e : edge_mapping) {
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
-            auto type_info = f.get_ordered_ops()[e.to_layer]->get_type_info();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
+            const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
+            if (!strcmp(type_info.name, "LSTMCell")) {
                 continue;
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         pugi::xml_node edge = edges.append_child("edge");
         edge.append_attribute("from-layer").set_value(e.from_layer);
@@ -978,7 +1015,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     // Serialize rt info
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
-    for (const auto& it : f.get_rt_info()) {
+    for (const auto& it : model.get_rt_info()) {
         // Skip IR version
         if (it.first == "version")
             continue;
@@ -987,12 +1024,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 }
 
 std::string valid_xml_path(const std::string& path) {
-    NGRAPH_CHECK(path.length() > 4, "Path for xml file is to short: \"" + path + "\"");
+    OPENVINO_ASSERT(path.length() > 4, "Path for xml file is too short: \"" + path + "\"");
 
     const char* const extension = ".xml";
     const bool has_xml_extension = path.rfind(extension) == path.size() - std::strlen(extension);
-    NGRAPH_CHECK(has_xml_extension,
-                 "Path for xml file doesn't contains file name with 'xml' extension: \"" + path + "\"");
+    OPENVINO_ASSERT(has_xml_extension,
+                    "Path for xml file doesn't contains file name with 'xml' extension: \"" + path + "\"");
     return path;
 }
 
@@ -1010,33 +1047,33 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
 
 void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
-                   std::shared_ptr<ov::Model> f,
+                   std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
                    const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
-    auto& rt_info = f->get_rt_info();
+    auto& rt_info = model->get_rt_info();
     if (rt_info.count("version")) {
         version = rt_info.at("version").as<int64_t>();
     }
 
     if (version != static_cast<int64_t>(ver) && ver != ov::pass::Serialize::Version::UNSPECIFIED)
-        throw ngraph_error("Cannot serialize Model to incompatible IR version");
+        OPENVINO_THROW("Cannot serialize Model to incompatible IR version");
 
     if (version == static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED))
         version = static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11);
 
     if (version != static_cast<int64_t>(ov::pass::Serialize::Version::IR_V10) &&
         version != static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11)) {
-        throw ngraph_error("Unsupported version");
+        OPENVINO_THROW("Unsupported version");
     }
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(bin_file);
     XmlSerializer visitor(net_node, name, custom_opsets, constant_write_handler, version, deterministic);
-    visitor.on_attribute(name, f);
+    visitor.on_attribute(name, model);
 
     xml_doc.save(xml_file);
     xml_file.flush();
@@ -1046,26 +1083,25 @@ void serializeFunc(std::ostream& xml_file,
 }  // namespace
 
 namespace ov {
-bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
+bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
-    auto f = ov::clone_model(*f_orig);
     if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
+        serializeFunc(*m_xmlFile, *m_binFile, model, m_version, m_custom_opsets);
     } else {
         auto xmlDir = ov::util::get_directory(m_xmlPath);
         if (xmlDir != m_xmlPath)
             ov::util::create_directory_recursive(xmlDir);
 
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 
         // create xml file
         std::ofstream xml_file(m_xmlPath, std::ios::out);
-        NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
         try {
-            serializeFunc(xml_file, bin_file, f, m_version, m_custom_opsets);
-        } catch (const ngraph::CheckFailure&) {
+            serializeFunc(xml_file, bin_file, model, m_version, m_custom_opsets);
+        } catch (const ov::AssertFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure
@@ -1077,7 +1113,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_or
         }
     }
 
-    // Return false because we didn't change nGraph Function
+    // Return false because we didn't change ov Model
     return false;
 }
 
@@ -1122,7 +1158,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
-        throw ngraph_error("Unsupported version");
+        OPENVINO_THROW("Unsupported version");
     }
 }
 
@@ -1132,7 +1168,7 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     : StreamSerialize(stream, {}, custom_data_serializer, version) {}
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
     /*
         Format:
@@ -1147,13 +1183,13 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>
         m_stream.write((const char*)&hdr, sizeof hdr);
     };
     auto version = static_cast<int64_t>(m_version);
-    auto& rt_info = f->get_rt_info();
+    auto& rt_info = model->get_rt_info();
     if (rt_info.count("version")) {
         version = rt_info.at("version").as<int64_t>();
     }
 
     if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
-        throw ngraph_error("Cannot serialize model to incompatible IR version");
+        OPENVINO_THROW("Cannot serialize model to incompatible IR version");
 
     if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED)) {
         version = static_cast<int64_t>(Serialize::Version::IR_V11);
@@ -1176,7 +1212,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
     XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
-    std::shared_ptr<ov::Model> fun = f;
+    std::shared_ptr<ov::Model> fun = model;
     visitor.on_attribute(name, fun);
 
     // IR
@@ -1195,7 +1231,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ngraph::Function>
 
     m_stream.seekp(file_size);
 
-    // Return false because we didn't change nGraph Function
+    // Return false because we didn't change ov Model
     return false;
 }
 
@@ -1234,7 +1270,7 @@ public:
 };
 }  // namespace
 
-bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(Hash);
     OstreamHashWrapper xmlHash;
     OstreamHashWrapper binHash;
@@ -1242,14 +1278,14 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
     std::ostream bin(&binHash);
 
     // Determinism is important for hash calculation
-    serializeFunc(xml, bin, f, Serialize::Version::UNSPECIFIED, {}, true);
+    serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, {}, true);
 
     uint64_t seed = 0;
     seed = hash_combine(seed, xmlHash.getResult());
     seed = hash_combine(seed, binHash.getResult());
 
     m_hash = seed;
-    // Return false because we didn't change nGraph Function
+    // Return false because we didn't change OpenVINO Model
     return false;
 }
 

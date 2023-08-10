@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,13 @@
 
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "version_range.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace error {
+OPENVINO_SUPPRESS_DEPRECATED_START
 struct UnknownOperator : ngraph_error {
     UnknownOperator(const std::string& name, const std::string& domain)
         : ngraph_error{(domain.empty() ? "" : domain + ".") + name} {}
@@ -30,13 +33,12 @@ struct UnsupportedVersion : ngraph_error {
         : ngraph_error{"Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + name + ":" +
                        std::to_string(version)} {}
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace error
 
 class OperatorsBridge {
 public:
-    static constexpr const int LATEST_SUPPORTED_ONNX_OPSET_VERSION = ONNX_OPSET_VERSION;
-
     OperatorsBridge();
 
     OperatorsBridge(const OperatorsBridge&) = default;
@@ -77,6 +79,15 @@ public:
     void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
 
 private:
+    void register_operator_in_custom_domain(std::string name,
+                                            ov::frontend::onnx::VersionRange range,
+                                            Operator fn,
+                                            std::string domain,
+                                            std::string warning_mes = "");
+    void register_operator(std::string name,
+                           ov::frontend::onnx::VersionRange range,
+                           Operator fn,
+                           std::string warning_mes = "");
     // Registered operators structure
     // {
     //    domain_1: {
@@ -95,7 +106,7 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-constexpr const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
+extern const char* OPENVINO_ONNX_DOMAIN;
 
 }  // namespace onnx_import
 

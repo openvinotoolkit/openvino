@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32) {
 
         function = std::make_shared<ov::Model>(ov::NodeVector{resize}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -105,6 +105,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32) {
 
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{resize}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f32_If) {
@@ -146,29 +147,29 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
                                                                 default_scales_node,
                                                                 axes_node,
                                                                 interpolate4_attr);
-        auto then_op_result = std::make_shared<ngraph::opset1::Result>(resize);
+        auto then_op_result = std::make_shared<ov::op::v0::Result>(resize);
         auto body_then_function =
             std::make_shared<ov::Model>(ov::NodeVector{then_op_result}, ov::ParameterVector{input_then});
 
         // create else body
         auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto else_op_result = std::make_shared<ngraph::opset1::Result>(input_else);
+        auto else_op_result = std::make_shared<ov::op::v0::Result>(input_else);
         auto body_else_function =
             std::make_shared<ov::Model>(ov::NodeVector{else_op_result}, ov::ParameterVector{input_else});
 
         // create main graph
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
         if_op->set_then_body(body_then_function);
         if_op->set_else_body(body_else_function);
         if_op->set_input(input, input_then, input_else);
         if_op->set_output(then_op_result, else_op_result);
-        auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
+        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -211,29 +212,30 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
                                                                 default_scales_node,
                                                                 axes_node,
                                                                 interpolate4_attr);
-        auto then_op_result = std::make_shared<ngraph::opset1::Result>(resize);
+        auto then_op_result = std::make_shared<ov::op::v0::Result>(resize);
         auto body_then_function =
             std::make_shared<ov::Model>(ov::NodeVector{then_op_result}, ov::ParameterVector{input_then});
 
         // create else body
         auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto else_op_result = std::make_shared<ngraph::opset1::Result>(input_else);
+        auto else_op_result = std::make_shared<ov::op::v0::Result>(input_else);
         auto body_else_function =
             std::make_shared<ov::Model>(ov::NodeVector{else_op_result}, ov::ParameterVector{input_else});
 
         // create main graph
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto cond = std::make_shared<ngraph::opset1::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
         if_op->set_then_body(body_then_function);
         if_op->set_else_body(body_else_function);
         if_op->set_input(input, input_then, input_else);
         if_op->set_output(then_op_result, else_op_result);
-        auto if_result = std::make_shared<ngraph::opset1::Result>(if_op);
+        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, CompressConstants_f64) {
@@ -251,7 +253,7 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
                                                               ov::Strides{1, 1});
         function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -270,4 +272,247 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
                                                               ov::Strides{1, 1});
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_small_eps_out_of_range) {
+    float fp16_eps = 0.00000001f;  // smaller than fp16 minimal value: float16::from_bits(0x0001)
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        auto const_weights = ov::opset8::Constant::create(ov::element::f32,
+                                                          ov::Shape{1, 3, 4, 1},
+                                                          {0.0f,
+                                                           1.0f,
+                                                           2.0f,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        // fp16_eps is lesser that fp16 minimal value,
+        // they must be stored in fp32 because of a big proportion of such out of range values
+        auto const_weights = ov::opset8::Constant::create(ov::element::f32,
+                                                          ov::Shape{1, 3, 4, 1},
+                                                          {0.0f,
+                                                           1.0f,
+                                                           2.0f,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps,
+                                                           fp16_eps});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_keep_in_f32_max_out_of_range_val) {
+    // if fp16 out of range values fraction is greater than threshold (75%) then keep them in fp32
+    // no decompression converts should be inserted
+    float fp16_oor = static_cast<float>(std::numeric_limits<ov::float16>::max()) + 100.0f;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        auto const_weights = ov::opset8::Constant::create(ov::element::f32,
+                                                          ov::Shape{1, 3, 4, 1},
+                                                          {0.0f,
+                                                           1.0f,
+                                                           2.0f,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(ov::element::f32,
+                                                          ov::Shape{1, 3, 4, 1},
+                                                          {0.0f,
+                                                           1.0f,
+                                                           2.0f,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor,
+                                                           fp16_oor});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_max_out_of_range_val) {
+    // fp16 out of range should be clipped to fp16_max_val if fraction of out of range values is less than threshold
+    float fp16_oor = static_cast<float>(std::numeric_limits<ov::float16>::max()) + 100.0f;
+    float fp16_max = static_cast<float>(std::numeric_limits<ov::float16>::max());
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        // only half of values are out of range, therefore they will be compressed to fp16
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f32,
+            ov::Shape{1, 3, 4, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_oor, fp16_oor, fp16_oor, fp16_oor, fp16_oor, fp16_oor});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 4, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_max, fp16_max, fp16_max, fp16_max, fp16_max, fp16_max});
+        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_not_keep_in_f32_when_zeros) {
+    // zero values are less than fp16_eps, but they are exactly expressed in fp16
+    // not need to keep them in fp32
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        auto const_weights =
+            ov::opset8::Constant::create(ov::element::f32,
+                                         ov::Shape{1, 3, 4, 1},
+                                         {0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights =
+            ov::opset8::Constant::create(ov::element::f16,
+                                         ov::Shape{1, 3, 4, 1},
+                                         {0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
+    float fp16_denormal = 0.00001f;
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+
+        // only one third of values are out of fp16 normal range, therefore they will be compressed to fp16
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f32,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              const_weights,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>();
+    }
+
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
+        auto const_weights = ov::opset8::Constant::create(
+            ov::element::f16,
+            ov::Shape{1, 3, 3, 1},
+            {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, fp16_denormal, fp16_denormal, fp16_denormal});
+        auto convert_ins1 = std::make_shared<ov::opset8::Convert>(const_weights, ov::element::f32);
+        auto conv = std::make_shared<ov::opset8::Convolution>(input,
+                                                              convert_ins1,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1});
+        function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

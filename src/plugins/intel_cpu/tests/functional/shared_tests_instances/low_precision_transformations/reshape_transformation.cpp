@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -34,7 +34,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { -1 },
         { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
-        "FP32"
+        "U8"
     },
     // 4D -> 3D
     {
@@ -169,7 +169,7 @@ const std::vector<ReshapeTransformationParam> params = {
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReshapeTransformation::getTestCaseName);

@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward calcaulations of input gates for dynamic lstm layer.
 /// @details The current implementation of LSTM_DYNAMIC is described the following equations.
@@ -26,6 +19,10 @@ namespace cldnn {
 /// Where f = Sigmoid, g = Tanh, and h = Tanh.
 struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     CLDNN_DECLARE_PRIMITIVE(lstm_dynamic_input)
+
+    lstm_dynamic_input() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
@@ -49,6 +46,35 @@ struct lstm_dynamic_input : public primitive_base<lstm_dynamic_input> {
     /// @brief Primitive id containing bias data.
     primitive_id bias;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, bias.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_dynamic_input>(rhs);
+
+        return bias.empty() == rhs_casted.bias.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_dynamic_input>::save(ob);
+        ob << dyn_length;
+        ob << weights;
+        ob << bias;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_dynamic_input>::load(ib);
+        ib >> dyn_length;
+        ib >> weights;
+        ib >> bias;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -61,7 +87,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

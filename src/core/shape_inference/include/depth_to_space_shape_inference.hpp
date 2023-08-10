@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,46 +14,37 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-template <class T>
-void shape_infer(const ov::op::v0::DepthToSpace* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes) {
-    using ValType = typename std::iterator_traits<typename T::iterator>::value_type::value_type;
-
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const DepthToSpace* op, const std::vector<TShape>& input_shapes) {
+    using TDim = typename std::iterator_traits<typename TShape::iterator>::value_type;
+    using TVal = typename TShape::value_type::value_type;
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
 
     const auto& data_shape = input_shapes[0];
-    const ov::Rank data_rank = data_shape.rank();
-    const auto& block_size = op->get_block_size();
 
-    if (data_rank.is_static()) {
+    if (data_shape.rank().is_static()) {
+        static constexpr size_t spatial_dim_offset = 2;
         NODE_VALIDATION_CHECK(op,
-                              data_shape.size() >= 3,
+                              data_shape.size() > spatial_dim_offset,
                               "The input tensor with rank lower than 3 is not supported (input rank: ",
                               data_shape.size(),
                               ")");
 
-        const size_t divider = static_cast<size_t>(std::pow(block_size, data_shape.size() - 2));
-        NODE_VALIDATION_CHECK(op, (divider), "DepthToSpace: The divider must not be 0");
+        const auto& block_size = op->get_block_size();
+        const auto divisor = static_cast<TVal>(std::pow(block_size, data_shape.size() - spatial_dim_offset));
+        NODE_VALIDATION_CHECK(op, divisor != 0, "DepthToSpace: The divisor must not be 0");
 
-        auto& output_shape = output_shapes[0];
-        output_shape.resize(data_shape.size());
-
-        output_shape[0] = data_shape[0];
-        const auto divisor = static_cast<ValType>(divider);
-        output_shape[1] = data_shape[1] / divisor;
-        check_divided_result(op, output_shape[1], data_shape[1], divisor);
-        for (size_t i = 2; i < output_shape.size(); i++) {
-            output_shape[i] = data_shape[i] * static_cast<ValType>(block_size);
-        }
-
+        auto out_shape = TRShape(data_shape);
+        out_shape[1] /= divisor;
+        check_divided_result(op, out_shape[1], data_shape[1], divisor);
+        std::for_each(out_shape.begin() + spatial_dim_offset, out_shape.end(), [&block_size](TDim& d) {
+            d *= static_cast<TVal>(block_size);
+        });
+        return {out_shape};
     } else {
-        // For PartialShape, Set the output to be dynamic;
-        // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
-        output_shapes[0] = ov::PartialShape::dynamic(data_rank);
+        return {PartialShape::dynamic()};
     }
 }
-
 }  // namespace v0
 }  // namespace op
 }  // namespace ov

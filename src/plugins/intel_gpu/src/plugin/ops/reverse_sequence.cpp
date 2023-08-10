@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,8 @@ static void CreateReverseSequenceOp(Program& p, const std::shared_ptr<ngraph::op
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    size_t batch_axis = op->get_batch_axis();
-    size_t seq_axis = op->get_sequence_axis();
+    auto batch_axis = static_cast<uint32_t>(op->get_batch_axis());
+    auto seq_axis = static_cast<uint32_t>(op->get_sequence_axis());
     auto reverseSequencePrim = cldnn::reverse_sequence(layerName,
                                                        inputs[0],
                                                        inputs[1],

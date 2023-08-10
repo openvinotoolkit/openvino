@@ -14,10 +14,10 @@ using namespace ngraph;
 
 using AlignEltwiseInputRanksParams = std::tuple<PartialShape, Shape, Shape, bool>;
 
-class AlignEltwiseInputRanksTest : public testing::WithParamInterface<AlignEltwiseInputRanksParams>,
-                                   public TransformationTestsF {};
+class AlignEltwiseInputRanksTestP : public testing::WithParamInterface<AlignEltwiseInputRanksParams>,
+                                    public TransformationTestsF {};
 
-TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
+TEST_P(AlignEltwiseInputRanksTestP, FusionTest) {
     auto params = GetParam();
     const auto& input_shape = std::get<0>(params);
     auto const_shape = std::get<1>(params);
@@ -38,7 +38,7 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
         function = std::make_shared<Function>(NodeVector{less, logical_or, fq}, ParameterVector{data});
 
-        manager.register_pass<pass::AlignEltwiseInputRanks>();
+        manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
     }
 
     if (can_align) {
@@ -77,4 +77,20 @@ static std::vector<AlignEltwiseInputRanksParams> params = {
     AlignEltwiseInputRanksParams(Shape{}, {2, 3, 4}, {}, false),
 };
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, AlignEltwiseInputRanksTest, ::testing::ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(TransformationTests, AlignEltwiseInputRanksTestP, ::testing::ValuesIn(params));
+
+class AlignEltwiseInputRanksTestF : public TransformationTestsF {};
+
+TEST_F(AlignEltwiseInputRanksTestF, NegativeFakeQuantizeWithScalarFirstInput) {
+    {
+        auto data = op::Constant::create(element::f32, Shape{}, {10});
+        auto low = op::Constant::create(element::f32, Shape{1}, {0});
+        auto high = op::Constant::create(element::f32, Shape{1}, {20});
+        auto fq = std::make_shared<opset8::FakeQuantize>(data, low, high, low, high, 256);
+        function = std::make_shared<Function>(fq->outputs());
+
+        manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}

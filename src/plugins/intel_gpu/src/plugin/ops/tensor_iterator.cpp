@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@ namespace intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
-    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
+    auto mem = p.get_engine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -41,8 +41,8 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
-    auto mem = p.GetEngine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
+    auto mem = p.get_engine().allocate_memory(output_layout);
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem)); // cldnn::data cannot set dependency
     return md;
 }
 
@@ -51,7 +51,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 
     // get body topology from ngraph function
     InferenceEngine::CNNNetwork body_network(op->get_body());
-    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), true);
+    Program body_program(body_network, p.get_engine(), p.get_config(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
@@ -119,7 +119,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
         cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
-        p.add_primitive(*op, execution_condition);
+        p.add_primitive(*op, std::move(execution_condition));
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
@@ -138,7 +138,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.add_primitive(*op, output_data);
+            p.add_primitive(*op, std::move(output_data));
             external_id = layerNameWithIndex;
         } else {
             p.primitive_ids[layerNameWithIndex] = layerName;

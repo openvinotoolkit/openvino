@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace node {
 
 class GatherND : public Node {
 public:
-    GatherND(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    GatherND(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -43,12 +43,12 @@ private:
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
     private:
         template <typename dataType>
-        void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
-        void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, MemoryPtr& dstMemPtr);
+        void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
+        void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
         size_t batchSize = 1lu;
         size_t cycles = 1lu;

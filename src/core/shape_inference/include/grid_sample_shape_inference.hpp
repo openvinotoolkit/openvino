@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,21 +8,24 @@
 #include <openvino/op/grid_sample.hpp>
 #include <vector>
 
+#include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace v9 {
 
-template <class shape_t>
-void shape_infer(const GridSample* op, const std::vector<shape_t>& input_shapes, std::vector<shape_t>& output_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const GridSample* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op,
-                          input_shapes.size() == 2 && output_shapes.size() == 1,
-                          "Incorrect number of input/output shapes in GridSample's shape inference function");
+                          input_shapes.size() == 2,
+                          "Incorrect number of input shapes in GridSample's shape inference function");
     const auto& data_shape = input_shapes[0];
     NODE_VALIDATION_CHECK(op, data_shape.rank().compatible(4), "The supported shape of the input data tensor is 4D.");
     const auto& grid_shape = input_shapes[1];
     NODE_VALIDATION_CHECK(op, grid_shape.rank().compatible(4), "The supported shape of the grid tensor is 4D.");
 
-    shape_t output_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes.front();
     output_shape.resize(4);
 
     auto& batch_dim = output_shape[0];
@@ -41,23 +44,16 @@ void shape_infer(const GridSample* op, const std::vector<shape_t>& input_shapes,
         if (data_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(
                 op,
-                data_shape[0].compatible(grid_shape[0]),
+                TShape::value_type::merge(batch_dim, grid_shape[0], data_shape[0]),
                 "The batch dimension in the input data tensor's shape doesn't match the batch dimension in "
                 "the grid tensor's shape.");
-
-            // both dimensions should match but use the one which is (possibly) static for the output shape
-            if (data_shape[0].is_static()) {
-                batch_dim = data_shape[0];
-            }
-
             channel_dim = data_shape[1];
         }
     } else if (data_shape.rank().is_static()) {
         batch_dim = data_shape[0];
         channel_dim = data_shape[1];
     }
-
-    output_shapes[0] = std::move(output_shape);
+    return output_shapes;
 }
 
 }  // namespace v9

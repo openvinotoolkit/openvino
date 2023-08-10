@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 
 using namespace ngraph;
 using namespace std;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 static const size_t alignment = 64;
 
@@ -143,9 +144,8 @@ void runtime::HostTensor::set_shape(const Shape& shape) {
                  shape,
                  " must be compatible with the partial shape: ",
                  get_partial_shape());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_descriptor->set_partial_shape(shape);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_descriptor->m_partial_shape = shape;
+    m_descriptor->m_shape_changed = true;
 }
 
 void runtime::HostTensor::set_unary(const HostTensorPtr& arg) {

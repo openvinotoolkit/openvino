@@ -1,21 +1,44 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
+#include "input_model.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
+using namespace ov;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_placeholder_op(const NodeContext& node) {
+OutputVector translate_placeholder_linked_op(const NodeContext& node) {
     auto dtype = node.get_attribute<ov::element::Type>("dtype");
     auto shape = node.get_attribute<ov::PartialShape>("shape", ov::PartialShape::dynamic());
+    auto translate_session = node.get_translate_session();
+    TENSORFLOW_OP_VALIDATION(node,
+                             translate_session,
+                             "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
+    auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
+    auto tensor_places = model->get_tensor_places();
+    auto saved_model_input_names = model->get_saved_model_input_names();
+
+    if (saved_model_input_names.get() && saved_model_input_names->size() > 0) {
+        auto input_name = saved_model_input_names->find(node.get_name());
+        if (input_name == saved_model_input_names->end()) {
+            input_name = saved_model_input_names->find(node.get_name() + ":0");
+        }
+        if (input_name != saved_model_input_names->end()) {
+            auto tensor_place = tensor_places.find(input_name->second);
+            if (tensor_place != tensor_places.end()) {
+                shape = tensor_place->second->get_partial_shape();
+            }
+        }
+    }
+
     if (shape.rank().is_static() && shape.rank().get_length() == 0 && node.has_attribute("_output_shapes")) {
         // we know some cases when Placeholder operation has empty scalar `shape` attribute value
         // and non-empty `_output_shapes` attribute value.
@@ -29,17 +52,6 @@ OutputVector translate_placeholder_op(const NodeContext& node) {
     auto res = std::make_shared<Parameter>(dtype, shape);
     set_node_name(node.get_name(), res);
     return res->outputs();
-}
-
-OutputVector translate_placeholder_with_default_op(const NodeContext& node) {
-    // For parity with legacy frontend, it creates a constant node with the default value
-    // As a rule, PlaceholderWithDefault is mainly used for is_training variables in the model
-    TENSORFLOW_OP_VALIDATION(node,
-                             node.get_input_size() > 0,
-                             "PlaceholderWithDefault must have at least one input that is the default value.");
-    auto input = node.get_input(0);
-    set_out_name(node.get_name(), input);
-    return {input};
 }
 
 }  // namespace op

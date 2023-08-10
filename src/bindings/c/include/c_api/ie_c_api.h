@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,27 +25,45 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "openvino/c/deprecated.h"
+
 #ifdef __cplusplus
 #    define INFERENCE_ENGINE_C_API_EXTERN extern "C"
 #else
 #    define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
+#define IE_1_0_DEPRECATED                                                                                    \
+    OPENVINO_DEPRECATED("The Inference Engine API is deprecated and will be removed in the 2024.0 release. " \
+                        "For instructions on transitioning to the new API, please refer to "                 \
+                        "https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+
+#if !defined(IN_OV_COMPONENT) && !defined(C_API_LEGACY_HEADER_INCLUDED)
+#    define C_API_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message(
+            "The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The legacy C API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
-#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+#    define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__ IE_1_0_DEPRECATED
 #    define IE_NODISCARD
 #else
-#    if defined(_WIN32)
+#    if defined(_WIN32) || defined(__CYGWIN__)
 #        define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
 #        ifdef openvino_c_EXPORTS
 #            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllexport) __VA_ARGS__ __cdecl
 #        else
-#            define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ __cdecl
+#            define INFERENCE_ENGINE_C_API(...) \
+                INFERENCE_ENGINE_C_API_EXTERN __declspec(dllimport) __VA_ARGS__ IE_1_0_DEPRECATED __cdecl
 #        endif
 #        define IE_NODISCARD
 #    else
 #        define INFERENCE_ENGINE_C_API(...) \
-            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+            INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__ IE_1_0_DEPRECATED
 #        define IE_NODISCARD __attribute__((warn_unused_result))
 #    endif
 #endif
@@ -215,9 +233,7 @@ typedef enum {
     RGB,       //!< RGB color format
     BGR,       //!< BGR color format, default in OpenVINO
     RGBX,      //!< RGBX color format with X ignored during inference
-    BGRX,      //!< BGRX color format with X ignored during inference
-    NV12,      //!< NV12 color format represented as compound Y+UV blob
-    I420,      //!< I420 color format represented as compound Y+U+V blob
+    BGRX       //!< BGRX color format with X ignored during inference
 } colorformat_e;
 
 /**
@@ -512,14 +528,14 @@ ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const cha
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param plugin_name A name of a plugin. Depending on a platform, plugin_name is wrapped with
- * a shared library suffix and a prefix to identify a full name of the library.
+ * @param plugin - A path (absolute or relative) or name of a plugin. Depending on platform,
+ * plugin is wrapped with shared library suffix and prefix to identify library full name
  * @param device_name A device name to register plugin for. If not specified, the method registers
  * a plugin with the default name.
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name);
+ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name);
 
 /**
  * @brief Registers plugins specified in an ".xml" configuration file.
@@ -581,7 +597,7 @@ ie_core_get_config(const ie_core_t* core, const char* device_name, const char* c
  * @brief Gets available devices for neural network inference.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+ * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1 }
  * If there more than one device of specific type, they are enumerated with .# suffix
  * @return Status code of the operation: OK(0) for success.
  */
@@ -743,17 +759,6 @@ ie_infer_set_completion_callback(ie_infer_request_t* infer_request, ie_complete_
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
 ie_infer_request_wait(ie_infer_request_t* infer_request, const int64_t timeout);
-
-/**
- * @brief  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that
- * created this request.
- * @ingroup InferRequest
- * @param infer_request A pointer to ie_infer_request_t instance.
- * @param size New batch size to be used by all the following inference calls for this request.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_infer_request_set_batch(ie_infer_request_t* infer_request, const size_t size);
 
 /** @} */  // end of InferRequest
 
@@ -1062,29 +1067,6 @@ ie_blob_make_memory_from_preallocated(const tensor_desc_t* tensorDesc, void* ptr
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
 ie_blob_make_memory_with_roi(const ie_blob_t* inputBlob, const roi_t* roi, ie_blob_t** blob);
-
-/**
- * @brief Creates a NV12 blob from two planes Y and UV.
- * @ingroup Blob
- * @param y A pointer to the ie_blob_t instance that represents Y plane in NV12 color format.
- * @param uv A pointer to the ie_blob_t instance that represents UV plane in NV12 color format.
- * @param nv12Blob A pointer to the newly created blob.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_blob_make_memory_nv12(const ie_blob_t* y, const ie_blob_t* uv, ie_blob_t** nv12Blob);
-
-/**
- * @brief Creates I420 blob from three planes Y, U and V.
- * @ingroup Blob
- * @param y A pointer to the ie_blob_t instance that represents Y plane in I420 color format.
- * @param u A pointer to the ie_blob_t instance that represents U plane in I420 color format.
- * @param v A pointer to the ie_blob_t instance that represents V plane in I420 color format.
- * @param i420Blob A pointer to the newly created blob.
- * @return Status code of the operation: OK(0) for success.
- */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_blob_make_memory_i420(const ie_blob_t* y, const ie_blob_t* u, const ie_blob_t* v, ie_blob_t** i420Blob);
 
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.

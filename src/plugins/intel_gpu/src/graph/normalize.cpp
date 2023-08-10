@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ std::string normalize_inst::to_string(normalize_node const& node) {
 }
 
 normalize_inst::typed_primitive_inst(network& network, normalize_node const& node) : parent(network, node) {
+    if (node.input().is_dynamic() || node.scale().is_dynamic())
+        return;
     /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.get_tensor();

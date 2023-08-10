@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
 
-    file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+    file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/utils.cpp)
 
     # create target
 
@@ -25,7 +25,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/")
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::frontend::${FRAMEWORK})
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::runtime::dev openvino::frontend::${FRAMEWORK})
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -41,5 +41,6 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
 
     install(TARGETS ${TARGET_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/frontend/${FRAMEWORK}
-            COMPONENT ${INSTALL_COMPONENT})
+            COMPONENT ${INSTALL_COMPONENT}
+            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 endfunction()

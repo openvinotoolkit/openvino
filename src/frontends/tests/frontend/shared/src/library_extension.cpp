@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <ostream>
 
 #include "common_test_utils/file_utils.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/swish.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -19,7 +21,6 @@ std::string FrontendLibraryExtensionTest::getTestCaseName(
 }
 
 void FrontendLibraryExtensionTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
@@ -30,7 +31,7 @@ void FrontendLibraryExtensionTest::initParamTest() {
 }
 
 inline std::string get_lib_path(const std::string& lib_name) {
-    return ov::util::make_plugin_library_name<char>(CommonTestUtils::getExecutableDirectory(),
+    return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
                                                     lib_name + IE_BUILD_POSTFIX);
 }
 
@@ -53,7 +54,7 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         ASSERT_NE(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Relu>(n);
+                                   return ov::is_type<ov::op::v0::Relu>(n);
                                }),
                   nodes.end());
     }
@@ -77,13 +78,13 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         ASSERT_EQ(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Relu>(n);
+                                   return ov::is_type<ov::op::v0::Relu>(n);
                                }),
                   nodes.end());
         ASSERT_NE(std::find_if(nodes.begin(),
                                nodes.end(),
                                [](const std::shared_ptr<ov::Node>& n) {
-                                   return ov::is_type<ov::opset8::Swish>(n);
+                                   return ov::is_type<ov::op::v4::Swish>(n);
                                }),
                   nodes.end());
     }

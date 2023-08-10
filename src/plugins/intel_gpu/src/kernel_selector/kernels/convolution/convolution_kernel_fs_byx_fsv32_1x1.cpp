@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,13 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_1x1::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_1x1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -57,7 +62,7 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
 
     const convolution_params& cp = static_cast<const convolution_params&>(arg);
 
-    ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption result = {1, 1, AGE_BASED};
+    ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption result = {1, 1, EXE_MODE_AGE_BASED};
 
     size_t selected_w = 0;
     size_t selected_h = 0;
@@ -94,7 +99,7 @@ ConvolutionKernel_fs_byx_fsv32_1x1::AutoTuneOption ConvolutionKernel_fs_byx_fsv3
         selected_w = maxBlockSize / selected_h;
     }
 
-    return {selected_w, selected_h, AGE_BASED};
+    return {selected_w, selected_h, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_1x1::SetDefault(const convolution_params& arg,

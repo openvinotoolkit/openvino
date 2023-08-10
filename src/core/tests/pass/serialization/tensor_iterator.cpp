@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -13,12 +14,18 @@
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::string m_out_xml_path = test_name + ".xml";
-    std::string m_out_bin_path = test_name + ".bin";
+    std::string m_out_xml_path;
+    std::string m_out_bin_path;
+    std::string tmpXmlFileName;
+    std::string tmpBinFileName;
 
-    std::string tmpXmlFileName = "TestModel.xml";
-    std::string tmpBinFileName = "TestModel.bin";
+    void SetUp() override {
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+        tmpXmlFileName = filePrefix + "TestModel.xml";
+        tmpBinFileName = filePrefix + "TestModel.bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
@@ -389,7 +396,7 @@ TEST_F(SerializationTensorIteratorTest, TiResnet) {
     auto weights = InferenceEngine::make_shared_blob<uint8_t>(
         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
     weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
+    ov::test::utils::fill_data(weights->buffer().as<float*>(), weights->size() / sizeof(float));
 
     auto* data = weights->buffer().as<int64_t*>();
     data[0] = 1;

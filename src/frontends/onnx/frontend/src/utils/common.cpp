@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,10 @@
 
 #include "default_opset.hpp"
 #include "ngraph/graph_util.hpp"
+#include "onnx_framework_node.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace common {
@@ -43,7 +46,7 @@ const ngraph::element::Type& get_ngraph_element_type(int64_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return element::bf16;
     }
-    throw ngraph_error("unsupported element type");
+    OPENVINO_THROW("unsupported element type");
 }
 
 std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(const Output<ngraph::Node>& value,
@@ -114,6 +117,7 @@ template OutputVector handle_opset6_binary_op<default_opset::Add>(const Node& no
 template OutputVector handle_opset6_binary_op<default_opset::Divide>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Multiply>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
+template OutputVector handle_opset6_binary_op<default_opset::LogicalAnd>(const Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 
@@ -140,6 +144,45 @@ bool is_optimized_out(const Output<ov::Node>& node_output) {
     return rt_info.find(OPTIMIZED_OUT_NODE) != rt_info.end();
 }
 
+std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted) {
+    std::string fully_unsupported_ops = "OpenVINO does not support the following ONNX operations: ";
+    std::string additional_error_message = "Errors during ONNX translation: \n";
+    const std::string sep = ", ";
+
+    bool unsupported_found = false;
+    bool additional_error_found = false;
+    for (const auto& op : partially_converted->get_ops()) {
+        if (const auto unsupported = std::dynamic_pointer_cast<frontend::NotSupportedONNXNode>(op)) {
+            if (unsupported->additional_error_message().empty()) {
+                fully_unsupported_ops += (unsupported->get_attrs().get_opset_name().empty()
+                                              ? ""
+                                              : unsupported->get_attrs().get_opset_name() + ".") +
+                                         unsupported->get_attrs().get_type_name() + sep;
+                unsupported_found = true;
+            } else {
+                additional_error_message += unsupported->additional_error_message();
+                additional_error_found = true;
+            }
+        }
+    }
+    fully_unsupported_ops = fully_unsupported_ops.substr(0, fully_unsupported_ops.size() - sep.size());
+    // remove redundant new line
+    additional_error_message =
+        (additional_error_message.empty() || additional_error_message[additional_error_message.length() - 1] != '\n')
+            ? additional_error_message
+            : additional_error_message.erase(additional_error_message.length() - 1);
+    if (unsupported_found && additional_error_found) {
+        return fully_unsupported_ops + "\n" + additional_error_message;
+    } else if (unsupported_found) {
+        return fully_unsupported_ops;
+    } else if (additional_error_found) {
+        return additional_error_message;
+    } else {
+        return "";
+    }
+}
+
 }  // namespace  common
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

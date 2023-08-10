@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,13 +24,13 @@ using TargetShape = Shape;
 
 void eliminate_broadcast_test(std::shared_ptr<Function> f, std::shared_ptr<Function> f_ref) {
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     manager.run_passes(f);
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-class EliminateBroadcastTest : public CommonTestUtils::TestsCommon,
+class EliminateBroadcastTest : public ov::test::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -69,7 +69,7 @@ public:
 };
 
 class EliminateBroadcastSwapInputsTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -107,7 +107,7 @@ public:
     }
 };
 
-class NoEliminateBroadcastTest : public CommonTestUtils::TestsCommon,
+class NoEliminateBroadcastTest : public ov::test::TestsCommon,
                                  public testing::WithParamInterface<std::tuple<InputShape, InputShape, TargetShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -152,7 +152,7 @@ public:
 };
 
 class EliminateDynamicBroadcastTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape, InputShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -192,7 +192,7 @@ public:
 };
 
 class NoEliminateDynamicBroadcastTest
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, InputShape, InputShape>> {
 public:
     std::shared_ptr<Function> f, f_ref;
@@ -310,7 +310,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
         auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input, broadcast);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input});
 
-        manager.register_pass<pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
 
     {
@@ -330,6 +330,19 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOfNeg) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise, broadcast},
                                                       ngraph::ParameterVector{input});
 
-        manager.register_pass<pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
+    }
+}
+
+TEST_F(TransformationTestsF, BroadcastElementwiseFusionDynShapesDifferentRanks) {
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1, -1});
+        auto target_shape = std::make_shared<ngraph::opset5::Parameter>(ov::element::i32, ov::PartialShape{2});
+        auto constant = ngraph::opset5::Constant::create(ov::element::f32, {}, {1.f});
+        auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(constant, target_shape);
+        auto elementwise = std::make_shared<ngraph::opset5::Add>(input, broadcast);
+        function = std::make_shared<ov::Model>(ov::NodeVector{elementwise}, ov::ParameterVector{input, target_shape});
+
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
 }

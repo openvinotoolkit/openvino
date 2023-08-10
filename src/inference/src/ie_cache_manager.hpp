@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "file_utils.h"
 #include "ie_api.h"
 
-namespace InferenceEngine {
+namespace ov {
 
 /**
  * @brief This class represents private interface for Cache Manager
@@ -44,7 +44,7 @@ public:
      * @param id Id of cache (hash of the network)
      * @param writer Lambda function to be called when stream is created
      */
-    virtual void writeCacheEntry(const std::string& id, StreamWriter writer) = 0;
+    virtual void write_cache_entry(const std::string& id, StreamWriter writer) = 0;
 
     /**
      * @brief Function passing created input stream
@@ -60,7 +60,7 @@ public:
      * @param id Id of cache (hash of the network)
      * @param reader Lambda function to be called when input stream is created
      */
-    virtual void readCacheEntry(const std::string& id, StreamReader reader) = 0;
+    virtual void read_cache_entry(const std::string& id, StreamReader reader) = 0;
 
     /**
      * @brief Callback when Inference Engine intends to remove cache entry
@@ -69,7 +69,7 @@ public:
      *
      * @param id Id of cache (hash of the network)
      */
-    virtual void removeCacheEntry(const std::string& id) = 0;
+    virtual void remove_cache_entry(const std::string& id) = 0;
 };
 
 /**
@@ -99,12 +99,12 @@ public:
     ~FileStorageCacheManager() override = default;
 
 private:
-    void writeCacheEntry(const std::string& id, StreamWriter writer) override {
+    void write_cache_entry(const std::string& id, StreamWriter writer) override {
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
     }
 
-    void readCacheEntry(const std::string& id, StreamReader reader) override {
+    void read_cache_entry(const std::string& id, StreamReader reader) override {
         auto blobFileName = getBlobFile(id);
         if (FileUtils::fileExist(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
@@ -112,11 +112,11 @@ private:
         }
     }
 
-    void removeCacheEntry(const std::string& id) override {
+    void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
         if (FileUtils::fileExist(blobFileName))
             std::remove(blobFileName.c_str());
     }
 };
 
-}  // namespace InferenceEngine
+}  // namespace ov

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cpu_memory.h>
-#include <primitive.h>
 #include <onednn/iml_type_mapper.h>
 
 namespace ov {
@@ -27,22 +26,52 @@ class DnnlExecutor {
         };
 
     public:
-        void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+        explicit DnnlExecutor(const dnnl::primitive_desc& pd);
+        void exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
-        Primitive getExecPrim() const;
+        dnnl::primitive getExecPrim() const;
         const_dnnl_primitive_desc_t getPrimitiveDesc() const;
-        dnnl::memory::desc getSrcDesc() const;
-        dnnl::memory::desc getWeightDesc() const;
-        dnnl::memory::desc getDstDesc() const;
         impl_desc_type getImplementationType() const;
 
+        DnnlMemoryDescPtr getSrcDesc() const {
+            return src_md;
+        }
+        DnnlMemoryDescPtr getWeightDesc() const {
+            return wghts_md;
+        }
+        DnnlMemoryDescPtr getDstDesc() const {
+            return dst_md;
+        }
+        DnnlMemoryDescPtr getScratchPadDesc() const {
+            return scrch_md;
+        }
+
+        const dnnl::memory::desc& getDnnlSrcDesc() const {
+            return src_md->getDnnlDesc();
+        }
+        const dnnl::memory::desc& getDnnlWeightDesc() const {
+            return wghts_md->getDnnlDesc();
+        }
+        const dnnl::memory::desc& getDnnlDstDesc() const {
+            return dst_md->getDnnlDesc();
+        }
+        const dnnl::memory::desc& getDnnlScratchPadDesc() const {
+            return scrch_md->getDnnlDesc();
+        }
+
     protected:
-        DnnlExecutor() = default;
-        Primitive execPrim;
+        void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+
+    protected:
+        dnnl::primitive execPrim;
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;
         std::unordered_map<int, IntermReorder> outputReorders;
+        DnnlMemoryDescPtr src_md;
+        DnnlMemoryDescPtr wghts_md;
+        DnnlMemoryDescPtr dst_md;
+        DnnlMemoryDescPtr scrch_md;
 };
 
 }   // namespace intel_cpu

@@ -1,5 +1,12 @@
 # NonMaxSuppression {#openvino_docs_ops_sort_NonMaxSuppression_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about NonMaxSuppression-1 - a sorting and maximization 
+                operation, which can be performed on two required and three 
+                optional input tensors.
+
 **Versioned name**: *NonMaxSuppression-1*
 
 **Category**: *Sorting and maximization*
@@ -8,14 +15,14 @@
 
 **Detailed description**: *NonMaxSuppression* layer performs non maximum suppression algorithm as described below:
 
-1.  Take the box with highest score. If the score is less than `score_threshold` then stop. Otherwise add the box to the
-output and continue to the next step.
-2.  For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the
-value is greater than the `iou_threshold` threshold then remove the input box from further consideration.
-3.  Return to step 1.
+1. Take the box with highest score. If the score is less than ``score_threshold`` then stop. Otherwise add the box to the output and continue to the next step.
+
+2. For each input box, calculate the IOU (intersection over union) with the box added during the previous step. If the value is greater than the ``iou_threshold`` threshold then remove the input box from further consideration.
+
+3. Return to step 1.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
-class must not exceed `max_output_boxes_per_class`.
+class must not exceed ``max_output_boxes_per_class``.
 
 **Attributes**:
 
@@ -23,8 +30,9 @@ class must not exceed `max_output_boxes_per_class`.
 
   * **Description**: *box_encoding* specifies the format of boxes data encoding.
   * **Range of values**: "corner" or "center"
-    * *corner* - the box data is supplied as `[y1, x1, y2, x2]` where `(y1, x1)` and `(y2, x2)` are the coordinates of any diagonal pair of box corners.
-    * *center* - the box data is supplied as `[x_center, y_center, width, height]`.
+
+    * *corner* - the box data is supplied as ``[y1, x1, y2, x2]`` where ``(y1, x1)`` and ``(y2, x2)`` are the coordinates of any diagonal pair of box corners.
+    * *center* - the box data is supplied as ``[x_center, y_center, width, height]``.
   * **Type**: string
   * **Default value**: "corner"
   * **Required**: *no*
@@ -33,6 +41,7 @@ class must not exceed `max_output_boxes_per_class`.
 
   * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
   * **Range of values**: true of false
+
     * *true* - sort selected boxes across batches.
     * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
@@ -41,46 +50,50 @@ class must not exceed `max_output_boxes_per_class`.
 
 **Inputs**:
 
-*   **1**: `boxes` - floating-point tensor of shape `[num_batches, num_boxes, 4]` with box coordinates. **Required.**
+*   **1**: ``boxes`` - floating-point tensor of shape ``[num_batches, num_boxes, 4]`` with box coordinates. **Required.**
 
-*   **2**: `scores` - floating-point tensor of shape `[num_batches, num_classes, num_boxes]` with box scores. **Required.**
+*   **2**: ``scores`` - floating-point tensor of shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
-*   **3**: `max_output_boxes_per_class` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
+*   **3**: ``max_output_boxes_per_class`` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: `iou_threshold` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+*   **4**: ``iou_threshold`` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: `score_threshold` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
+*   **5**: ``score_threshold`` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 
-*   **1**: `selected_indices` - integer tensor of shape `[min(num_boxes, max_output_boxes_per_class * num_classes), 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
+*   **1**: ``selected_indices`` - integer tensor of shape ``[min(num_boxes, max_output_boxes_per_class * num_classes), 3]`` containing information about selected boxes as triplets ``[batch_index, class_index, box_index]``.
 The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 **Example**
 
-```xml
-<layer ... type="NonMaxSuppression" ... >
-    <data box_encoding="corner" sort_result_descending="1"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>1000</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>1</dim>
-            <dim>1</dim>
-            <dim>1000</dim>
-        </port>
-        <port id="2"/>
-        <port id="3"/>
-        <port id="4"/>
-    </input>
-    <output>
-        <port id="5" precision="I32">
-            <dim>1000</dim>
-            <dim>3</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block::  cpp 
+
+  <layer ... type="NonMaxSuppression" ... >
+      <data box_encoding="corner" sort_result_descending="1"/>
+      <input>
+          <port id="0">
+              <dim>1</dim>
+              <dim>1000</dim>
+              <dim>4</dim>
+          </port>
+          <port id="1">
+              <dim>1</dim>
+              <dim>1</dim>
+              <dim>1000</dim>
+          </port>
+          <port id="2"/>
+          <port id="3"/>
+          <port id="4"/>
+      </input>
+      <output>
+          <port id="5" precision="I32">
+              <dim>1000</dim>
+              <dim>3</dim>
+          </port>
+      </output>
+  </layer>
+
+
+@endsphinxdirective
+

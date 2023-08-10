@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::SYMMETRIC
 };
 
-const std::vector<std::vector<int64_t>> padsBegin1D = {{0}, {1}, {2}};
-const std::vector<std::vector<int64_t>> padsEnd1D   = {{0}, {1}, {2}};
+const std::vector<std::vector<int64_t>> padsBegin1D = {{0}, {1}, {2}, {-2}};
+const std::vector<std::vector<int64_t>> padsEnd1D   = {{0}, {1}, {2}, {-2}};
 
 const auto pad1DConstparams = testing::Combine(
         testing::ValuesIn(padsBegin1D),
@@ -40,7 +40,7 @@ const auto pad1DConstparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{5}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -60,7 +60,7 @@ const auto pad1Dparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{5}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -70,8 +70,8 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<int64_t>> padsBegin2D = {{0, 0}, {1, 1}, {2, 0}, {0, 3}};
-const std::vector<std::vector<int64_t>> padsEnd2D   = {{0, 0}, {1, 1}, {0, 1}, {3, 2}};
+const std::vector<std::vector<int64_t>> padsBegin2D = {{0, 0}, {1, 1}, {-2, 0}, {0, 3}};
+const std::vector<std::vector<int64_t>> padsEnd2D   = {{0, 0}, {1, 1}, {0, 1}, {-3, -2}};
 
 const auto pad2DConstparams = testing::Combine(
         testing::ValuesIn(padsBegin2D),
@@ -83,7 +83,7 @@ const auto pad2DConstparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -103,7 +103,7 @@ const auto pad2Dparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -113,8 +113,8 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerTest::getTestCaseName
 );
 
-const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 1}, {2, 0, 0, 0}, {0, 3, 0, 1}};
-const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {0, 3, 0, 0}, {1, 0, 0, 0}, {0, 0, 0, 2}, {1, 3, 0, 0}, {0, 3, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 0, 1}, {0, 0, -1, 1}, {2, 0, 0, 0}, {0, 3, 0, -1}};
+const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {0, 3, 0, 0}, {1, 0, 0, 0}, {0, 0, 0, 2}, {1, -3, 0, 0}, {0, 3, 0, -1}};
 
 const auto pad4DConstparams = testing::Combine(
         testing::ValuesIn(padsBegin4D),
@@ -126,7 +126,7 @@ const auto pad4DConstparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -146,7 +146,7 @@ const auto pad4Dparams = testing::Combine(
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

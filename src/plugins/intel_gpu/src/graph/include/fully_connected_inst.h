@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "primitive_inst.h"
@@ -54,7 +53,13 @@ public:
     typed_primitive_inst(network& network, fully_connected_node const& node);
 
     memory::ptr weights_memory() const {
-        return is_dynamic() && _impl_params->reordered_weights != nullptr ? _impl_params->reordered_weights : dep_memory_ptr(1);
+        if (is_dynamic()) {
+            auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
+            OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
+            return weights_mem;
+        } else {
+            return dep_memory_ptr(1);
+        }
     }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 

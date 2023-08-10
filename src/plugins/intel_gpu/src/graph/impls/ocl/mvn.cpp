@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mvn_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "mvn_inst.h"
 #include "mvn/mvn_kernel_selector.h"
 #include "mvn/mvn_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -29,13 +23,13 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         return make_unique<mvn_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<mvn>();
-        auto params = get_default_params<kernel_selector::mvn_params>(impl_param);
+        auto params = get_default_params<kernel_selector::mvn_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(impl_param.get_program());
 
-        params.mvnMode = primitive->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
-                                                    : kernel_selector::mvn_mode::WITHIN_CHANNELS;
+        params.mvnMode = primitive->across_channels() ? kernel_selector::mvn_mode::ACROSS_CHANNELS
+                                                      : kernel_selector::mvn_mode::WITHIN_CHANNELS;
         params.mvnNormalizeVariance = primitive->normalize_variance;
         params.epsilon = primitive->epsilon;
 
@@ -44,8 +38,49 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        const auto& prim = impl_params.typed_desc<mvn>();
+
+        auto& input_layout = updated_impl_params.input_layouts[0];
+        auto input_pshape = input_layout.get_partial_shape();
+        auto input_rank = input_pshape.size();
+
+        if (prim->requires_alignment(input_pshape)) {
+            auto axes = prim->reduction_axes;
+            auto min_it = std::min_element(axes.begin(), axes.end());
+            auto min = min_it == axes.end() ? 1 : *min_it;
+
+            auto new_rank = std::max<size_t>(4, input_rank);
+            ov::PartialShape shape = ov::PartialShape::dynamic(new_rank);
+
+            auto& output_layout = updated_impl_params.output_layouts[0];
+            if (input_pshape.is_static()) {
+                for (size_t i = 0; i < new_rank; i++) {
+                    shape[i] = 1;
+                }
+
+                // Split all dimensions into 2 parts:
+                // 1. normalized dimensions which are flattened and written to the last dim
+                // 2. not normalized dims which are flattened and written to the first dim
+                for (size_t i = 0; i < input_rank; i++) {
+                    shape[static_cast<int64_t>(i) < min ? 0 : (new_rank - 1)] *= input_pshape[i];
+                }
+            }
+
+            input_layout.set_partial_shape(shape);
+            output_layout.set_partial_shape(shape);
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -63,8 +98,7 @@ attach_mvn_impl::attach_mvn_impl() {
 
     auto dyn_formats = {
         format::bfyx,
-        format::bfzyx,
-        format::bfwzyx
+        format::bfzyx
     };
 
     implementation_map<mvn>::add(impl_types::ocl,
@@ -126,3 +160,4 @@ attach_mvn_impl::attach_mvn_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::mvn)

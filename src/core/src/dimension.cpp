@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/dimension.hpp"
+#include "openvino/core/dimension.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
-#include <openvino/util/common_util.hpp>
 #include <sstream>
 
-#include "dimension_tracker.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/util/common_util.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 /**
@@ -30,9 +30,9 @@ namespace {
  * \param label_a  First input label.
  * \param label_b  Second input label.
  *
- * \return size_t Merged label value
+ * \return ov::label_t Merged label value
  */
-size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequal = true) {
+ov::label_t merge_labels(const ov::label_t label_a, const ov::label_t label_b, bool merge_unequal = true) {
     if (label_a == label_b || label_b == ov::no_label)
         return label_a;
     else if (merge_unequal || label_a == ov::no_label)
@@ -230,7 +230,7 @@ bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimen
 
 Dimension::value_type Dimension::get_length() const {
     if (is_dynamic()) {
-        throw std::invalid_argument("Cannot get length of dynamic dimension");
+        OPENVINO_THROW("Cannot get length of dynamic dimension");
     }
     return m_dimension.get_min_val();
 }

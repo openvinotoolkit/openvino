@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehT
 
     std::ostringstream result;
     result << "targetDevice=" << targetDevice;
-    result << "img_info = " << CommonTestUtils::vec2str(img_info) << "_";
+    result << "img_info = " << ov::test::utils::vec2str(img_info) << "_";
 
     return proposalPramString + result.str();
 }

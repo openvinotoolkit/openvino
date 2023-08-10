@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,13 @@
 #include <vector>
 
 #include "input_model.hpp"
-#include "mmap_object.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/shared_buffer.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
-#include "so_extension.hpp"
+#include "openvino/util/mmap_object.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;
@@ -23,8 +24,8 @@ namespace frontend {
 namespace ir {
 namespace {
 
-inline size_t GetIRVersion(pugi::xml_node& root) {
-    return XMLParseUtils::GetUIntAttr(root, "version", 0);
+inline size_t get_ir_version(pugi::xml_node& root) {
+    return pugixml::utils::GetUIntAttr(root, "version", 0);
 }
 
 /**
@@ -32,7 +33,7 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-size_t GetIRVersion(std::istream& model) {
+size_t get_ir_version(std::istream& model) {
     std::array<char, 512> header{};
 
     model.seekg(0, model.beg);
@@ -51,7 +52,7 @@ size_t GetIRVersion(std::istream& model) {
         std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
 
         if (node_name == "net") {
-            return GetIRVersion(root);
+            return get_ir_version(root);
         }
     }
 
@@ -61,10 +62,12 @@ size_t GetIRVersion(std::istream& model) {
 }  // namespace
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    // Last boolean flag in `variants` (if presented) is reserved for FE configuration
+    size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
 
-    if (variants.empty() || variants.size() > 3) {
+    if (variants.empty() || variants.size() > 3 + extra_variants_num) {
         return false;
     }
 
@@ -75,7 +78,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         const auto& path = model_variant.as<std::wstring>();
-        local_model_stream.open(path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -89,9 +92,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
     size_t version;
     if (provided_model_stream) {
-        version = GetIRVersion(*provided_model_stream);
+        version = get_ir_version(*provided_model_stream);
     } else if (local_model_stream.is_open()) {
-        version = GetIRVersion(local_model_stream);
+        version = get_ir_version(local_model_stream);
         local_model_stream.close();
     } else {
         return false;
@@ -114,6 +117,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -151,11 +155,11 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         model_path = tmp_path;
 #endif
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         model_path = model_variant.as<std::wstring>();
-        local_model_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -181,6 +185,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             weights = variant.as<std::shared_ptr<ngraph::runtime::AlignedBuffer>>();
         }
     }
+    bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
 
     // Find weights if only path to xml was provided
     if (weights_path.empty()) {
@@ -193,33 +198,42 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         weights_path += ".bin";
 #endif
-        if (!FileUtils::fileExist(weights_path)) {
+        if (!ov::util::file_exists(weights_path)) {
             weights_path.clear();
         }
     }
     if (!weights_path.empty()) {
-        std::ifstream bin_stream;
-        bin_stream.open(weights_path, std::ios::binary);
-        if (!bin_stream.is_open())
+        if (enable_mmap) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights =
+                std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
+                                                                                               mapped_memory->size(),
+                                                                                               mapped_memory);
+        } else {
+            std::ifstream bin_stream;
+            bin_stream.open(weights_path.c_str(), std::ios::binary);
+            if (!bin_stream.is_open())
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            IE_THROW() << "Weights file " + ov::util::wstring_to_string(weights_path) + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", ov::util::wstring_to_string(weights_path), " cannot be opened!");
 #else
-            IE_THROW() << "Weights file " + weights_path + " cannot be opened!";
+                OPENVINO_THROW("Weights file ", weights_path, " cannot be opened!");
 #endif
 
-        bin_stream.seekg(0, std::ios::end);
-        size_t file_size = bin_stream.tellg();
-        bin_stream.seekg(0, std::ios::beg);
+            bin_stream.seekg(0, std::ios::end);
+            size_t file_size = bin_stream.tellg();
+            bin_stream.seekg(0, std::ios::beg);
 
-        auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
-        bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
-        bin_stream.close();
+            auto aligned_weights_buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(file_size);
+            bin_stream.read(aligned_weights_buffer->get_ptr<char>(), aligned_weights_buffer->size());
+            bin_stream.close();
 
-        weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-            aligned_weights_buffer->get_ptr<char>(),
-            aligned_weights_buffer->size(),
-            aligned_weights_buffer);
+            weights = std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                aligned_weights_buffer->get_ptr<char>(),
+                aligned_weights_buffer->size(),
+                aligned_weights_buffer);
+        }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return create_input_model();
 }
@@ -227,22 +241,30 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
-    return ir_model->convert();
+    const auto& converted_model = ir_model->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 std::string FrontEnd::get_name() const {
     return "ir";
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
+}
+
 }  // namespace ir
 }  // namespace frontend
 }  // namespace ov
 
-IR_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+IR_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-IR_C_API void* GetFrontEndData() {
+IR_C_API void* get_front_end_data() {
     frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {

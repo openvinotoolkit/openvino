@@ -1,16 +1,12 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
+
+#include "reverse_inst.h"
 #include "reverse/reverse_kernel_ref.h"
 #include "reverse/reverse_kernel_selector.h"
-#include "reverse_inst.h"
-#include "impls/implementation_map.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -76,3 +72,4 @@ attach_reverse_impl::attach_reverse_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reverse_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reverse)

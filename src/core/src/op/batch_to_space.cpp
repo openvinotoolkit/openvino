@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,13 +60,10 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2),
-                                                        get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    set_output_type(0, data_et, output_shape);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -80,57 +77,19 @@ bool ngraph::op::v1::BatchToSpace::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto data = inputs[0];
-    size_t elem_size = data->get_element_type().size();
+    const auto elem_size = data->get_element_type().size();
 
-    if (data->get_partial_shape().is_dynamic()) {
-        return false;
-    }
     auto data_shape = data->get_shape();
-    auto data_rank = data_shape.size();
-    if (data_rank < 2) {
-        return false;
-    }
 
-    size_t block_values_size = shape_size(inputs[1]->get_shape());
-    size_t crops_begin_size = shape_size(inputs[2]->get_shape());
-    size_t crops_end_size = shape_size(inputs[3]->get_shape());
-    NGRAPH_CHECK(block_values_size == data_rank && crops_begin_size == data_rank && crops_end_size == data_rank,
-                 "Invalid block_shape/crops_begin/crops_end shape with respect to rank of data input");
+    auto const block_values_size = shape_size(inputs[1]->get_shape());
 
     const auto* block_values = inputs[1]->get_data_ptr<int64_t>();
     const auto* crops_begin_values = inputs[2]->get_data_ptr<int64_t>();
     const auto* crops_end_values = inputs[3]->get_data_ptr<int64_t>();
-
-    const bool block_vals_valid = std::all_of(block_values, block_values + block_values_size, [](int64_t elem) {
-        return elem >= 1;
-    });
-    NGRAPH_CHECK(block_vals_valid, "Invalid element values of block_shape input");
-
-    const bool crops_begin_vals_valid =
-        std::all_of(crops_begin_values, crops_begin_values + crops_begin_size, [](int64_t elem) {
-            return elem >= 0;
-        });
-    const bool crops_end_vals_valid =
-        std::all_of(crops_end_values, crops_end_values + crops_end_size, [](int64_t elem) {
-            return elem >= 0;
-        });
-    NGRAPH_CHECK(crops_begin_vals_valid && crops_end_vals_valid,
-                 "Invalid element values of crops_begin/crops_end input/s");
-
-    const std::size_t block_prod =
-        std::accumulate(block_values, block_values + block_values_size, int64_t(1), std::multiplies<int64_t>());
-    NGRAPH_CHECK(data_shape[0] % block_prod == 0,
-                 "Invalid batch axis of data input with respect to block_shape values");
-
-    for (size_t i = 0; i < data_rank; i++) {
-        const bool is_valid_crops_and_shape =
-            crops_begin_values[i] + crops_end_values[i] <= block_values[i] * static_cast<int64_t>(data_shape[i]);
-        NGRAPH_CHECK(is_valid_crops_and_shape,
-                     "Invalid crops values (out of bounds) with respect to the shape of data input");
-    }
 
     ov::Shape dispersed_shape(1);
     dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
@@ -201,6 +160,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
     begins.assign(crops_begin_values, crops_begin_values + shape_size(inputs[2]->get_shape()));
 
     std::vector<int64_t> default_strides(begins.size(), 1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     SlicePlan slice_plan = make_slice_plan(data_shape,
                                            begins,
                                            upperbounds_values,
@@ -211,14 +171,35 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                                            AxisSet(),
                                            AxisSet());
     runtime::reference::strided_slice(flat_data, outputs[0]->get_data_ptr<char>(), data_shape, slice_plan, elem_size);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return true;
 }
 }  // namespace
 
 bool ngraph::op::v1::BatchToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_BatchToSpace_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    if (outputs[0]->get_partial_shape().is_dynamic()) {
+        std::vector<ov::PartialShape> input_shapes;
+        input_shapes.reserve(inputs.size());
+
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            input_shapes.push_back(inputs[i]->get_partial_shape());
+            if (input_shapes.back().is_dynamic()) {
+                return false;
+            }
+        }
+
+        const auto output_shape = shape_infer(this, input_shapes, ov::make_tensor_accessor(inputs)).front().to_shape();
+
+        outputs[0]->set_element_type(inputs[0]->get_element_type());
+        outputs[0]->set_shape(output_shape);
+    }
+
     return batch_to_space_evaluate(outputs, inputs);
 }
 

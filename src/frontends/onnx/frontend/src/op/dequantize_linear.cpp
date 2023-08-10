@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -72,7 +73,7 @@ void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node>
         const auto& x_shape = x.get_partial_shape();
         const auto& x_dim_at_axis = x_shape[axis];
 
-        NGRAPH_CHECK(scale_dim.same_scheme(x_dim_at_axis),
+        NGRAPH_CHECK(scale_dim.compatible(x_dim_at_axis),
                      "The number of dequantization scale elements '",
                      scale_dim,
                      "' must match the input shape dimension '",
@@ -92,7 +93,7 @@ void validate_zero_point(const Output<ngraph::Node> zero_point, const Output<ngr
         const auto& x_shape = x.get_partial_shape();
         const auto& x_dim_at_axis = x_shape[axis];
 
-        NGRAPH_CHECK(zero_point_dim.same_scheme(x_dim_at_axis),
+        NGRAPH_CHECK(zero_point_dim.compatible(x_dim_at_axis),
                      "The number of zero point elements '",
                      zero_point_dim,
                      "' must match the input shape dimension '",
@@ -122,7 +123,7 @@ std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node>& input,
     if (x_shape[axis].is_static()) {
         target_dims.push_back(x_shape[axis].get_length());
     } else {
-        target_dims.push_back(0);
+        target_dims.push_back(-1);
     }
 
     for (int64_t i = axis + 1; i < x_shape.rank().get_length(); ++i) {
@@ -143,7 +144,9 @@ OutputVector dequantize_linear(const Output<ngraph::Node>& x,
 
     NGRAPH_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = ngraph::normalize_axis(node.get_description(), axis, x_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
@@ -185,3 +188,4 @@ OutputVector dequantize_linear(const Node& node) {
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

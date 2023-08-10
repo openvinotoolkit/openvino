@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
         std::vector<size_t> inputShape = {10, 20, 30, 40};
 
         InferenceEngine::Precision netPrecision = inPrc = outPrc = Precision::FP32;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
                                     << "Indices vector size and provided indices shape doesn't fit each other";
@@ -39,9 +39,9 @@ public:
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
         } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_model(functionRefs);
         }
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
     }

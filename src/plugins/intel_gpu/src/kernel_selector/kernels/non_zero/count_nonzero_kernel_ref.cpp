@@ -29,6 +29,28 @@ ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
+    return k;
+}
+
+CountNonzeroKernelRef::DispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params& params) const {
+    DispatchData dispatchData;
+    const auto& input = params.inputs[0];
+
+    // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
+    dispatchData.dataSize = input.LogicalSize();
+    size_t max_dim_size = (dispatchData.dataSize > params.engineInfo.maxWorkGroupSize) ?
+                                    params.engineInfo.maxWorkGroupSize : dispatchData.dataSize;
+    dispatchData.lws = dispatchData.gws = { max_dim_size, 1, 1};
+
+    return dispatchData;
+}
+
+DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+
     return k;
 }
 
@@ -38,42 +60,45 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
     KernelData kd = KernelData::Default<count_nonzero_params>(params);
     count_nonzero_params& newParams = *static_cast<count_nonzero_params*>(kd.params.get());
 
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
-
+    if (newParams.has_dynamic_tensors()) {
+        const auto& input = newParams.inputs[0];
+        DimensionAccessHelper dims(input);
+        const std::string total_data_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.w(), dims.f(), dims.b()});
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", total_data_size)});
+    } else {
+        cldnn_jit.AddConstants({MakeJitConstant("DATA_SIZE", dispatchData.dataSize)});
+    }
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];
-    const auto& in_dims = in.GetDims();
 
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const count_nonzero_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
 
-    if (in_dims.size() == 4) {
-        kernel.params.workGroups.global = {in_dims[0].v, in_dims[1].v, in_dims[2].v * in_dims[3].v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else if (in_dims.size() == 5) {
-        kernel.params.workGroups.global = {in_dims[0].v, in_dims[1].v * in_dims[2].v, in_dims[3].v * in_dims[4].v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    } else {
-        kernel.params.workGroups.global = {in_dims[0].v * in_dims[1].v, in_dims[2].v * in_dims[3].v, in_dims[4].v * in_dims[5].v};
-        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
-    }
-
-    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global,
-                                                                   params.engineInfo,
-                                                                   newParams.inputs[0].GetLayout(),
-                                                                   newParams.outputs[0].GetLayout(),
-                                                                   dims_by_gws);
-
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.params.arguments = GetArgsDesc(1, false, false);
+    // In case of count-nonzero, the output shape is static unconditionally,
+    // so it should be checked as dynamic of the input shape
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.inputs[0].is_dynamic());
 
     return {kd};
 }

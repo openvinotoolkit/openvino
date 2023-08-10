@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,7 +23,7 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
     find_file(_ov_tbbbind_2_5
               NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
               HINTS "${_tbb_libs_dir}"
-              "Path to TBBBind 2.5+ library"
+              DOC "Path to TBBBind 2.5+ library"
               NO_DEFAULT_PATH
               NO_CMAKE_FIND_ROOT_PATH)
 
@@ -82,7 +82,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
        ( (DEFINED TBBROOT AND TBBROOT MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
-    ie_cpack_add_component(tbb HIDDEN)
+    ov_cpack_add_component(tbb HIDDEN)
     list(APPEND core_components tbb)
 
     if(TBBROOT MATCHES ${TEMP})
@@ -96,10 +96,10 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$" AND
         NOT ENABLE_SYSTEM_TBB AND
         NOT _ov_system_tbb_is_obsolete)
-        message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | brew | vcpkg packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
@@ -192,7 +192,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         else()
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb)
+                    COMPONENT tbb
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         install(FILES "${TBBROOT}/LICENSE"
@@ -201,15 +202,24 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         # install development files
 
-        ie_cpack_add_component(tbb_dev
+        ov_cpack_add_component(tbb_dev
                                HIDDEN
                                DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
-        install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                      "${TBBROOT}/cmake/TBBConfigVersion.cmake"
-                DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
-                COMPONENT tbb_dev)
+        if(EXISTS "${TBBROOT}/lib/cmake")
+            # oneTBB case
+            install(DIRECTORY "${TBBROOT}/lib/cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/lib"
+                    COMPONENT tbb_dev)
+        else()
+            # tbb2020 case
+            install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
+                          "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
+                    COMPONENT tbb_dev)
+        endif()
+
         install(DIRECTORY "${TBBROOT}/include"
                 DESTINATION "${IE_TBB_DIR_INSTALL}"
                 COMPONENT tbb_dev)
@@ -218,7 +228,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # .lib files are needed only for Windows
             install(DIRECTORY "${TBBROOT}/lib"
                     DESTINATION "${IE_TBB_DIR_INSTALL}"
-                    COMPONENT tbb_dev)
+                    COMPONENT tbb_dev
+                    PATTERN "cmake" EXCLUDE)
         endif()
 
         set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")

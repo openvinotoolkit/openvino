@@ -1,25 +1,25 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(clang_format_required_version 9)
-    set(CLANG_FORMAT_FILENAME clang-format-${clang_format_required_version} clang-format)
+    set(CLANG_FORMAT_REQUIRED_VERSION 9 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
     if(CLANG_FORMAT)
         execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
         if(NOT CLANG_VERSION)
-            message(WARNING "Supported clang-format version is ${clang_format_required_version}!")
+            message(WARNING "Supported clang-format version is ${CLANG_FORMAT_REQUIRED_VERSION}!")
             set(ENABLE_CLANG_FORMAT OFF)
         else()
             string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
-            if(NOT CLANG_FORMAT_MAJOR_VERSION EQUAL clang_format_required_version)
+            if(NOT CLANG_FORMAT_MAJOR_VERSION EQUAL CLANG_FORMAT_REQUIRED_VERSION)
                 message(WARNING "Supported clang-format version is 9! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
         endif()
     else()
-        message(WARNING "Supported clang-format-${clang_format_required_version} is not found!")
+        message(WARNING "Supported clang-format-${CLANG_FORMAT_REQUIRED_VERSION} is not found!")
         set(ENABLE_CLANG_FORMAT OFF)
     endif()
 endif()
@@ -31,6 +31,10 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
                           PROPERTIES FOLDER clang_format)
 endif()
 
+#
+# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+#
 function(add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
@@ -64,6 +68,10 @@ function(add_clang_format_target TARGET_NAME)
         # ignore object libraries
         if(NOT EXISTS "${source_file}")
             continue()
+        endif()
+
+        if(IS_DIRECTORY "${source_file}")
+            message(FATAL_ERROR "Directory ${source_file} cannot be passed to clang-format")
         endif()
 
         file(RELATIVE_PATH source_file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${source_file}")

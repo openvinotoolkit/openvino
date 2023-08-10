@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
 static std::shared_ptr<ngraph::Function> get(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type inputPrecision,
-    const std::shared_ptr<ngraph::opset1::Constant> weights,
+    const std::shared_ptr<ov::op::v0::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights);
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API IDFT : public util::FFTBase {
 public:
-    OPENVINO_OP("IDFT", "opset7", util::FFTBase, 7);
+    OPENVINO_OP("IDFT", "opset7", util::FFTBase);
     IDFT() = default;
 
     /// \brief Constructs a IDFT operation. IDFT is performed for full size axes.

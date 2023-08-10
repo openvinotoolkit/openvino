@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,9 +8,9 @@
 #include <set>
 #include <vector>
 
-#include <ngraph/pass/pass.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/common/precisions_restriction.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -34,23 +34,41 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupPrecisions : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupPrecisions : public ov::pass::ModelPass {
 public:
     class Restriction {
     public:
+        class RestrictionByVersion {
+        public:
+            RestrictionByVersion() = default;
+            RestrictionByVersion(
+                const std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)>& precisionsFunction,
+                const PrecisionsRestriction::PrecisionsByPorts& precisions) :
+                precisionsFunction(precisionsFunction),
+                precisions(precisions) {}
+
+            PrecisionsRestriction::PrecisionsByPorts get(const std::shared_ptr<Node>& node) const {
+                return (precisionsFunction != nullptr) ? precisionsFunction(node) : precisions;
+            }
+
+        private:
+            std::function<PrecisionsRestriction::PrecisionsByPorts(const std::shared_ptr<Node>&)> precisionsFunction;
+            PrecisionsRestriction::PrecisionsByPorts precisions;
+        };
+
         explicit Restriction(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
-        void add(const uint64_t version, const ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts& precisions) {
-            precisionsByVersion.emplace(version, precisions);
+        void add(const std::string version_id, const RestrictionByVersion& precisions) {
+            precisionsByVersion.emplace(version_id, precisions);
         }
 
         bool versionIsRequired;
-        std::unordered_map<uint64_t, ngraph::pass::low_precision::PrecisionsRestriction::PrecisionsByPorts> precisionsByVersion;
+        std::unordered_map<std::string, RestrictionByVersion> precisionsByVersion;
     };
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
     explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);

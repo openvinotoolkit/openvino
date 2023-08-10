@@ -21,6 +21,7 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
 #    pragma GCC diagnostic error "-Wswitch"
 #    pragma GCC diagnostic error "-Wswitch-enum"
 #endif
+    std::string unsupported_data_type;
     switch (type) {
     case element::Type_t::f32:
         val =
@@ -84,18 +85,27 @@ std::shared_ptr<Node> make_constant(const element::Type& type, const Shape& shap
                                                      std::vector<uint8_t>{static_cast<uint8_t>(num)});
         break;
     case element::Type_t::dynamic:
-        throw ngraph_error("make_constant: Unsupported element type 'dynamic'");
+        unsupported_data_type = "dynamic";
+        break;
     case element::Type_t::boolean:
-        throw ngraph_error("make_constant: Unsupported element type 'boolean'");
+        unsupported_data_type = "boolean";
+        break;
     case element::Type_t::u1:
-        throw ngraph_error("make_constant: Unsupported element type 'u1'");
+        unsupported_data_type = "u1";
+        break;
     case element::Type_t::i4:
-        throw ngraph_error("make_constant: Unsupported element type 'i4'");
+        unsupported_data_type = "i4";
+        break;
     case element::Type_t::u4:
-        throw ngraph_error("make_constant: Unsupported element type 'u4'");
+        unsupported_data_type = "u4";
+        break;
     case element::Type_t::undefined:
-        throw ngraph_error("make_constant: Unsupported element type 'undefined'");
+        unsupported_data_type = "undefined";
+        break;
     }
+    if (!unsupported_data_type.empty())
+        OPENVINO_THROW("make_constant: Unsupported element type '", unsupported_data_type, "'");
+
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
 #    pragma GCC diagnostic pop
 #endif

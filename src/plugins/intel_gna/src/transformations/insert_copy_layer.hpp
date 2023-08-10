@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,42 @@ public:
 };
 
 /**
+ * @brief Inserts Copy layer before Broadcast/Tile in two cases:
+ * 1. If Parameter is an input to Broadcast/Tile layer.
+ *
+ *   [Parameter]              [Parameter]
+ *     |                          |
+ *     |               =>      [Copy]
+ *     |                          |
+ *   [Broadcast/Tile]       [Broadcast/Tile]
+ *
+ *
+ * 2. If there are Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers
+ *    between Parameter and Broadcast/Tile layer.
+ *
+ *   [Parameter]              [Parameter]
+ *     |                          |
+ * [Non functional]    =>   [Non functional]
+ *     |                          |
+ *     |               =>      [Copy]
+ *     |                          |
+ *   [Broadcast/Tile]       [Broadcast/Tile]
+ *
+ * Note: Changes is required due the issue with legacy transformations.
+ * Issue is related to renaming of network input layer in case of removing
+ * Broadcast/Tile layer. It happens when two following conditions are met:
+ * - input layer of Broadcast/Tile is also network input layer (skipping non-functional)
+ * - layer is removed from network:
+ *       - layer is Broadcast and product of input and target shape is the same
+ *       - layer is Tile amd all repeats values are equal 1
+ */
+class InsertCopyBeforeLayerToBeEliminated : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("InsertCopyBeforeLayerToBeEliminated", "0");
+    InsertCopyBeforeLayerToBeEliminated();
+};
+
+/**
  * @brief Inserts Copy layer before Concat or ReadValue/Assign (Memory) layer if they use a common input
  * while skipping Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers
  * ReadValue/Assign layers have priority on Copy insertion:
@@ -117,13 +153,10 @@ public:
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 };
 
-
 /**
- * @brief Matches the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info to inputs nodes
- * to identify the subgraph which contains only layers mentioned above. If find the parameter with non-functional rt_info,
- * then inserts copy layer in subgraph:
- * [Parameter]         [Parameter]
- *     |                    |
+ * @brief Matches the Reshape/Trivial transpose/Squeeze/Unsqueeze (Non-functional), Crop, Split and passes the rt_info
+ * to inputs nodes to identify the subgraph which contains only layers mentioned above. If find the parameter with
+ * non-functional rt_info, then inserts copy layer in subgraph: [Parameter]         [Parameter] |                    |
  *     |                  [Copy]
  *  [Reshape]    =>         |
  *     |                [Reshape]
@@ -141,7 +174,6 @@ public:
  *     |         |            |           \
  * [Result]   [Result]     [Result]     [Result]
  */
-
 class MatchNonComputationalLayers : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -149,7 +181,8 @@ public:
 };
 
 /**
- * @brief Runs MatchNonComputationalLayers transformation in reverse order to passthru rt_info and identify the non-computational subgraphs.
+ * @brief Runs MatchNonComputationalLayers transformation in reverse order to passthru rt_info and identify the
+ * non-computational subgraphs.
  */
 class HandleNonFunctionalSubgraphs : public ngraph::pass::BackwardGraphRewrite {
 public:
@@ -159,6 +192,6 @@ public:
     }
 };
 
-} // namespace pass
-} // namespace intel_gna
-} // namespace ov
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

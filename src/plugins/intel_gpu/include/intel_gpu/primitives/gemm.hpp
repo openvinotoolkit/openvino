@@ -1,19 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 /// @brief Type of gemm that will be added to the input by border layer / primitive.
 
 /// @brief Adds gemm  input.
@@ -30,6 +24,10 @@ namespace cldnn {
 
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
+
+    gemm() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs gemm layer.
     /// @brief Primitive id containing first matrix
@@ -73,6 +71,49 @@ struct gemm : public primitive_base<gemm> {
     size_t input_rank;
      /// @brief Second matrix rank
     size_t weight_rank;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, transpose_input0);
+        seed = hash_combine(seed, transpose_input1);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gemm>(rhs);
+
+        return transpose_input0 == rhs_casted.transpose_input0 &&
+               transpose_input1 == rhs_casted.transpose_input1 &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               input_rank == rhs_casted.input_rank &&
+               weight_rank == rhs_casted.weight_rank;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<gemm>::save(ob);
+        ob << transpose_input0;
+        ob << transpose_input1;
+        ob << alpha;
+        ob << beta;
+        ob << input_rank;
+        ob << weight_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<gemm>::load(ib);
+        ib >> transpose_input0;
+        ib >> transpose_input1;
+        ib >> alpha;
+        ib >> beta;
+        ib >> input_rank;
+        ib >> weight_rank;
+    }
 };
 
 }  // namespace cldnn

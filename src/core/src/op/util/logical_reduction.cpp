@@ -1,23 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/logical_reduction.hpp"
+#include "openvino/op/util/logical_reduction.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
-
-using namespace std;
 
 op::util::LogicalReduction::LogicalReduction() = default;
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const AxisSet& reduction_axes)
     : ReductionBase(
           arg,
-          ngraph::op::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
+          ov::op::v0::Constant::create(element::i64, ov::Shape{reduction_axes.size()}, reduction_axes.to_vector())
               ->output(0)) {}
 
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)

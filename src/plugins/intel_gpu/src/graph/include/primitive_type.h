@@ -1,13 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "kernel_selector_helper.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <memory>
 #include <string>
@@ -32,6 +31,8 @@ struct primitive_type {
 
     virtual std::unique_ptr<primitive_impl> choose_impl(const program_node& node) const = 0;
     virtual std::unique_ptr<primitive_impl> choose_impl(const program_node& node, const kernel_impl_params& params) const = 0;
+
+    virtual std::set<impl_types> get_available_impls(const program_node& node) const = 0;
 
     virtual bool does_an_implementation_exist(const program_node& node) const = 0;
     virtual bool does_an_implementation_exist(const program_node& node, const kernel_impl_params& params) const = 0;

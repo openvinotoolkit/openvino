@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include <memory>
 
+#include "common_test_utils/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -1352,7 +1352,7 @@ template <typename T1, typename T2>
 ::testing::AssertionResult test_convert() {
     Shape shape{5};
     vector<T1> expected{1, 2, 3, 4, 5};
-    auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, expected);
+    auto c1 = make_shared<op::Constant>(ov::element::from<T2>(), shape, expected);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
@@ -1522,7 +1522,7 @@ template <typename T1, typename T2>
 ::testing::AssertionResult test_uniform_ctor() {
     Shape shape{5};
     vector<T1> expected{3, 3, 3, 3, 3};
-    auto c1 = make_shared<op::Constant>(element::from<T2>(), shape, 3);
+    auto c1 = make_shared<op::Constant>(ov::element::from<T2>(), shape, 3);
     vector<T1> actual = c1->template cast_vector<T1>();
     ::testing::AssertionResult rc =
         (actual == expected ? ::testing::AssertionSuccess() : ::testing::AssertionFailure());
@@ -1705,6 +1705,8 @@ TEST(constant, bad_get_data_ptr) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 TEST(constant, hold_host_tensor) {
     Shape shape{4};
     void* hostDataPtr = nullptr;
@@ -1779,17 +1781,17 @@ TEST(constant, lazy_bitwise_identical) {
 
 // Disabled just because of long execution time. Enable for nightly builds in future
 TEST(constant, DISABLED_nightly_huge_size_4GB) {
-    size_t start = 1llu << 32;
-    size_t s = start + 5;
+    uint64_t start = 1llu << 32;
+    uint64_t s = start + 5;
     std::vector<uint8_t> data(s);
-    for (size_t i = start; i < s; i++) {
+    for (uint64_t i = start; i < s; i++) {
         data[i] = static_cast<uint8_t>(i - start + 42);
     }
-    Shape shape{s};
+    Shape shape{static_cast<Shape::size_type>(s)};
     op::Constant c(element::u8, shape, data.data());
     auto v = c.get_vector<uint8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
-    for (size_t i = start; i < s; i++) {
+    for (uint64_t i = start; i < s; i++) {
         EXPECT_EQ(v[i], i - start + 42) << i << " failed";
     }
 }

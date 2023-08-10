@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,9 +62,8 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
             testValues.params);
-        transform
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
-                testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            testValues.params);
         transform.transform(actualFunction);
 
         ngraph::pass::Manager cleanupManager;
@@ -91,7 +90,7 @@ public:
 };
 
 TEST_P(ConvolutionWithIncorrectWeightsTransformation, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(actualFunction, referenceFunction, true);

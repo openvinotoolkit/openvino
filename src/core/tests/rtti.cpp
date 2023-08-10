@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/node.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_tools.hpp"
+#include "openvino/op/op.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-class OpType : public ngraph::op::Op {
+class OpType : public ov::op::Op {
 public:
     OPENVINO_OP("OpType");
     OpType() = default;
@@ -20,7 +20,7 @@ public:
     }
 };
 
-class OpTypeVersion : public ngraph::op::Op {
+class OpTypeVersion : public ov::op::Op {
 public:
     OPENVINO_OP("OpTypeVersion", "my_version");
     OpTypeVersion() = default;
@@ -42,7 +42,7 @@ public:
 
 class OpTypeVersionParentOld : public OpType {
 public:
-    OPENVINO_OP("OpTypeVersionParentOld", "my_version1", OpType, 1);
+    OPENVINO_OP("OpTypeVersionParentOld", "my_version1", OpType);
     OpTypeVersionParentOld() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -56,10 +56,9 @@ TEST(rtti, op_with_type) {
     auto type_info = op.get_type_info();
     ASSERT_EQ(type_info, OpType::get_type_info_static());
     ASSERT_EQ(strcmp(type_info.name, "OpType"), 0);
-    ASSERT_EQ(type_info.version, 0);
     ASSERT_EQ(strcmp(type_info.version_id, "extension"), 0);
     ASSERT_NE(type_info.parent, nullptr);
-    ASSERT_EQ(*type_info.parent, ngraph::op::Op::get_type_info_static());
+    ASSERT_EQ(*type_info.parent, ov::op::Op::get_type_info_static());
 }
 
 TEST(rtti, op_with_type_version) {
@@ -67,10 +66,9 @@ TEST(rtti, op_with_type_version) {
     auto type_info = op.get_type_info();
     ASSERT_EQ(type_info, OpTypeVersion::get_type_info_static());
     ASSERT_EQ(strcmp(type_info.name, "OpTypeVersion"), 0);
-    ASSERT_EQ(type_info.version, 0);
     ASSERT_EQ(strcmp(type_info.version_id, "my_version"), 0);
     ASSERT_NE(type_info.parent, nullptr);
-    ASSERT_EQ(*type_info.parent, ngraph::op::Op::get_type_info_static());
+    ASSERT_EQ(*type_info.parent, ov::op::Op::get_type_info_static());
 }
 
 TEST(rtti, op_with_type_version_parent) {
@@ -78,7 +76,6 @@ TEST(rtti, op_with_type_version_parent) {
     auto type_info = op.get_type_info();
     ASSERT_EQ(type_info, OpTypeVersionParent::get_type_info_static());
     ASSERT_EQ(strcmp(type_info.name, "OpTypeVersionParent"), 0);
-    ASSERT_EQ(type_info.version, 0);
     ASSERT_EQ(strcmp(type_info.version_id, "my_version"), 0);
     ASSERT_NE(type_info.parent, nullptr);
     ASSERT_EQ(*type_info.parent, OpType::get_type_info_static());
@@ -90,7 +87,6 @@ TEST(rtti, op_with_type_version_parent_old) {
     ASSERT_EQ(type_info, OpTypeVersionParentOld::get_type_info_static());
     ASSERT_EQ(strcmp(type_info.name, "OpTypeVersionParentOld"), 0);
     ASSERT_EQ(strcmp(type_info.version_id, "my_version1"), 0);
-    ASSERT_EQ(type_info.version, 1);
     ASSERT_NE(type_info.parent, nullptr);
     ASSERT_EQ(*type_info.parent, OpType::get_type_info_static());
 }

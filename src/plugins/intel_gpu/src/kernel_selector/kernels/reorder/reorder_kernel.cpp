@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,9 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
 
 JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
+    if (params.truncate) {
+        jit.AddConstant(MakeJitConstant("CONVERT_TRUNCATE", true));
+    }
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
     if (params.surface_input)

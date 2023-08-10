@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "grn_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "grn_inst.h"
 #include "grn/grn_kernel_selector.h"
 #include "grn/grn_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -55,3 +49,4 @@ attach_grn_impl::attach_grn_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grn_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::grn)

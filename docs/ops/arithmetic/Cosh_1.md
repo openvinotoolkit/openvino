@@ -1,5 +1,11 @@
 # Cosh  {#openvino_docs_ops_arithmetic_Cosh_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Cosh-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Cosh-1*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +14,9 @@
 
 **Detailed description**: *Cosh* performs element-wise hyperbolic cosine (cosh) operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = cosh(a_{i})
-\f]
+.. math::
+   
+   a_{i} = cosh(a_{i})
 
 **Attributes**: *Cosh* operation has no attributes.
 
@@ -28,19 +34,23 @@ a_{i} = cosh(a_{i})
 
 **Example**
 
-```xml
-<layer ... type="Cosh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="Cosh">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

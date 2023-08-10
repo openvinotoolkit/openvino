@@ -24,10 +24,11 @@ sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2022, Intel®'
+copyright = '2023, Intel®'
 author = 'Intel®'
 
 language = 'en'
+version_name = 'nightly'
 
 # -- General configuration ---------------------------------------------------
 
@@ -38,6 +39,7 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'sphinx_panels',
+    'sphinx_design',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -45,9 +47,15 @@ extensions = [
     'sphinx_sitemap'
 ]
 
-html_baseurl = 'https://docs.openvino.ai/latest/'
+html_baseurl = 'https://docs.openvino.ai/canonical/'
+
+# -- Sitemap configuration ---------------------------
 
 sitemap_url_scheme = "{link}"
+site_url = f'https://docs.openvino.ai/{version_name}/'
+
+# ----------------------------------------------------
+
 
 html_favicon = '_static/favicon.ico'
 autodoc_default_flags = ['members']
@@ -78,7 +86,7 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 6,
+    "navigation_depth": 8,
     "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
@@ -180,6 +188,6 @@ def setup(app):
     app.connect('build-finished',replace_index_with_redirect)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/newsletter.js')
     app.add_js_file('js/graphs_ov_tf.js')
     app.add_js_file('js/open_sidebar.js')
-    

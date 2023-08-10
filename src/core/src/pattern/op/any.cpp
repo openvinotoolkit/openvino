@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/any.hpp"
+#include "openvino/pass/pattern/op/any.hpp"
 
-#include "ngraph/pattern/matcher.hpp"
-
-using namespace std;
+#include "openvino/pass/pattern/matcher.hpp"
 
 bool ov::pass::pattern::op::Any::match_value(Matcher* matcher,
                                              const Output<Node>& pattern_value,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,31 +40,13 @@ inline std::string fileToTestName(const std::string& fileName) {
     return res;
 }
 
-inline int set_test_env(const char* name, const char* value) {
-#ifdef _WIN32
-    return _putenv_s(name, value);
-#elif defined(__linux) || defined(__APPLE__)
-    std::string var = std::string(name) + "=" + value;
-    return setenv(name, value, 0);
-#endif
-}
-
-inline void setupTestEnv() {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    // we cannot use ov::util since implementation from that library statically
-    // compiled into tests itelf, so we have to the tests instead of OpenVINO library
-    std::string fePath = InferenceEngine::getIELibraryPath();
-    set_test_env("OV_FRONTEND_PATH", fePath.c_str());
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 inline bool exists(const std::string& file) {
     std::ifstream str(file, std::ios::in | std::ifstream::binary);
     return str.is_open();
 }
 
 inline std::string make_model_path(const std::string& modelsRelativePath) {
-    return CommonTestUtils::getModelFromTestModelZoo(modelsRelativePath);
+    return ov::test::utils::getModelFromTestModelZoo(modelsRelativePath);
 }
 
 std::string get_disabled_tests(const std::string& manifest_path);

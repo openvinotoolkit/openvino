@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,6 +99,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::size_t get_hidden_size() const {
         return m_hidden_size;
+    }
+    void set_hidden_size(size_t hidden_size) {
+        m_hidden_size = hidden_size;
     }
     float get_clip() const {
         return m_clip;

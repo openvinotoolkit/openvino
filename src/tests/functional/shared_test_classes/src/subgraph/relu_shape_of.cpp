@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace SubgraphTestsDefinitions {
         std::string targetDevice;
         std::tie(inputPrecision, inputShapes, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         result << "Precision=" << inputPrecision.name() << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();

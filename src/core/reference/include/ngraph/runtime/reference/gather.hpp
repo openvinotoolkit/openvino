@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ void gather(const T* const data,
     int64_t axis_size = data_shape[axis];
     int64_t data_offset, out_offset, idx;
     // for out of bound indices is filled with zeros
-    std::fill(out, out + shape_size(out_shape), 0);
+    std::fill(out, out + shape_size(out_shape), T{0});
 
     for (int64_t batch = 0; batch < batch_size; batch++)
         for (int64_t outer_idx = 0; outer_idx < outer_size; outer_idx++) {

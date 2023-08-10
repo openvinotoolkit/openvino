@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "grid_sample_inst.hpp"
 #include "grid_sample/grid_sample_kernel_ref.hpp"
 #include "grid_sample/grid_sample_kernel_selector.hpp"
-#include "grid_sample_inst.hpp"
-#include "impls/implementation_map.hpp"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -88,3 +88,4 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::grid_sample_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::grid_sample)

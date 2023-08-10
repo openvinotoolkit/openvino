@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ struct FQ_as_Mul_Sub_dequantize {
 };
 
 class TranslateNewWeightFormatToOldOne
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<FQ_as_Mul_Sub_dequantize, ngraph::element::Type>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -93,12 +93,12 @@ public:
 };
 
 TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
-    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::WeightsDequantizeToFakeQuantize>();
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 

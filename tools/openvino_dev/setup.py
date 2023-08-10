@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2023 Intel Corporation SPDX-License-Identifier: Apache-2.0
 
 """ Use this script to create a openvino-dev wheel package:
     $ python3 setup.py bdist_wheel
@@ -12,6 +12,7 @@ import sys
 import platform
 import subprocess  # nosec
 import shutil
+import re
 from distutils import log
 from distutils.command.build import build
 from distutils.command.clean import clean
@@ -20,6 +21,7 @@ from fnmatch import fnmatchcase
 import pkg_resources
 from setuptools.command.install import install
 from setuptools import setup, find_namespace_packages
+from typing import Dict, List
 
 PYTHON_VERSION = f'python{sys.version_info.major}.{sys.version_info.minor}'
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
@@ -34,13 +36,6 @@ PKG_INSTALL_CFG = {
         'extract_entry_points': True,
         'extract_requirements': True,
         'extract_extras': True,
-    },
-    'benchmark_tool': {
-        'src_dir': OPENVINO_DIR / 'tools' / 'benchmark_tool',
-        'black_list': [],
-        'prefix': 'benchmark_tool',
-        'extract_entry_points': True,
-        'extract_requirements': True,
     },
     "accuracy_checker": {
         'src_dir': OPENVINO_DIR / 'thirdparty' / 'open_model_zoo' / 'tools' / 'accuracy_checker',  # noqa:E501
@@ -84,14 +79,17 @@ class CustomBuild(build):
         BUILD_BASE = Path.cwd() / self.build_base
         for cmp, cmp_data in PKG_INSTALL_CFG.items():
             self.announce(f'Processing package: {cmp}', level=log.INFO)
-            if not cmp_data['src_dir'].is_dir():
-                raise FileNotFoundError(
-                    f'The source directory was not found: {cmp_data["src_dir"]}'
-                )
-            subprocess.call([sys.executable, 'setup.py', 'install',
+            subprocess.run([sys.executable, 'setup.py',
+                            '--quiet',
+                            '--no-user-cfg',
+                            'install',
                             '--root', str(BUILD_BASE),
-                            '--prefix', str(cmp_data.get("prefix"))],
-                            cwd=str(cmp_data.get('src_dir')))
+                            '--prefix', str(cmp_data.get("prefix")),
+                            '--no-compile'],
+                            check=True,
+                            cwd=str(cmp_data.get('src_dir')),
+                            stdout=sys.stdout,
+                            stderr=sys.stderr)
 
             # grab installed modules
             lib_dir = 'lib/site-packages' if platform.system() == 'Windows' else f'lib/{PYTHON_VERSION}/site-packages'
@@ -152,7 +150,7 @@ class CustomBuild(build):
             unique_req = list(set(map(lambda x: x.lower(), req)))
             self.distribution.extras_require[extra] = unique_req
 
-        # add dependecy on runtime package
+        # add dependency on runtime package
         runtime_req = [f'openvino=={self.distribution.get_version()}']
         self.distribution.install_requires.extend(runtime_req)
 
@@ -172,23 +170,23 @@ class CustomInstall(install):
 class CustomClean(clean):
     """Clean up staging directories"""
 
-    def clean(self, install_cfg):
+    def clean_temp_files(self):
         """Clean components staging directories"""
-        for comp, comp_data in install_cfg.items():
-            install_prefix = comp_data.get('prefix')
-            self.announce(f'Cleaning {comp}: {install_prefix}', level=log.INFO)
-            if os.path.exists(install_prefix):
-                shutil.rmtree(install_prefix)
-
-    def run(self):
-        self.clean(PKG_INSTALL_CFG)
         for pattern in './build ./dist **/*.pyc **/*.tgz **/*.egg-info'.split(' '):
-            paths = SCRIPT_DIR.glob(pattern)
+            paths = []
+            for comp, comp_data in PKG_INSTALL_CFG.items():
+                src_dir = Path(comp_data.get('src_dir'))
+                paths += src_dir.glob(pattern)
+            paths += SCRIPT_DIR.glob(pattern)
             for path in paths:
                 if path.is_file() and path.exists():
                     path = path.parent
                 self.announce(f'Cleaning: {path}', level=log.INFO)
-                shutil.rmtree(path)
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+
+    def run(self):
+        self.clean_temp_files()
         clean.run(self)
 
 
@@ -198,12 +196,78 @@ def get_description(desc_file_path):
         description = fstream.read()
     return description
 
-with (SCRIPT_DIR / 'requirements.txt').open() as requirements:
-    install_reqs = [
-        str(requirement)
-        for requirement
-        in pkg_resources.parse_requirements(requirements)
-    ]
+
+def read_constraints(path: str='../constraints.txt') -> Dict[str, List[str]]:
+    """
+    Read a constraints.txt file and return a dict
+    of {package_name: [required_version_1, required_version_2]}.
+    The dict values are a list because a package can be mentioned
+    multiple times, for example:
+        mxnet~=1.2.0; sys_platform == 'win32'
+        mxnet>=1.7.0; sys_platform != 'win32'
+    """
+    constraints = {}
+    with open(Path(__file__).resolve().parent / path) as f:
+        raw_constraints = f.readlines()
+    for line in raw_constraints:
+        # skip comments
+        if line.startswith('#'):
+            continue
+        line = line.replace('\n', '')
+        # read constraints for that package
+        package, delimiter, constraint = re.split('(~|=|<|>|;)', line, maxsplit=1)
+        # if there is no entry for that package, add it
+        if constraints.get(package) is None:
+            constraints[package] = [delimiter + constraint]
+        # else add another entry for that package
+        else:
+            constraints[package].extend([delimiter + constraint])
+    return constraints
+
+
+def read_requirements(path: str) -> List[str]:
+    """
+    Read a requirements.txt file and return a list
+    of requirements. Three cases are supported, the
+    list corresponds to priority:
+    1. version specified in requirements.txt
+    2. version specified in constraints.txt
+    3. version unbound
+
+    Putting environment markers into constraints.txt is prone to bugs.
+    They should be specified in requirements.txt files.
+    """
+    requirements = []
+    constraints = read_constraints()
+    with open(Path(__file__).resolve().parent / path) as f:
+        raw_requirements = f.readlines()
+    for line in raw_requirements:
+        # skip comments and constraints link
+        if line.startswith(('#', '-c')):
+            continue
+        # get rid of newlines
+        line = line.replace('\n', '')
+        # if version is specified (non-word chars present) 
+        package_constraint = constraints.get(line.split(';')[0])
+        if re.search('(~|=|<|>)', line) and len(line.split(';'))>1:
+            if package_constraint:  # both markers and versions specified
+                marker_index = line.find(";")
+                # insert package version between package name and environment markers
+                line = line[:marker_index] \
+                + ",".join([constraint for constraint in package_constraint]) \
+                + line[marker_index:]
+            requirements.append(line)
+        # else get version from constraints
+        else:
+            constraint = constraints.get(line)
+            # if version found in constraints.txt
+            if constraint:
+                for marker in constraint:
+                    requirements.append(line+marker)
+            # else version is unbound
+            else:
+                requirements.append(line)
+    return requirements
 
 
 def concat_files(output_file, input_files):
@@ -214,16 +278,15 @@ def concat_files(output_file, input_files):
                 outfile.write(content)
     return output_file
 
-
 description_md = SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pypi-openvino-dev.md'
 md_files = [description_md, SCRIPT_DIR.parents[1] / 'docs' / 'install_guides' / 'pre-release-note.md']
-docs_url = 'https://docs.openvino.ai/latest/index.html'
+docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 if(os.getenv('CI_BUILD_DEV_TAG')):
     output = Path.cwd() / 'build' / 'pypi-openvino-dev.md'
     output.parent.mkdir(exist_ok=True)
     description_md = concat_files(output, md_files)
-    docs_url = 'https://docs.openvino.ai/nightly/index.html'
+    docs_url = 'https://docs.openvino.ai/2023.0/index.html'
 
 setup(
     name='openvino-dev',
@@ -248,7 +311,7 @@ setup(
     entry_points = {
         'console_scripts': [],
     },
-    install_requires=install_reqs,
+    install_requires=read_requirements(SCRIPT_DIR / 'requirements.txt'),
     packages=find_namespace_packages(where=str(SRC_DIR)),
     package_dir={'': str(SRC_DIR)},
 )

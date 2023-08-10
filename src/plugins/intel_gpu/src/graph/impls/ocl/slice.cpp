@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <slice_inst.h>
-#include <slice/slice_kernel_ref.h>
-#include <data_inst.h>
-#include <intel_gpu/runtime/error_handler.hpp>
-#include <impls/implementation_map.hpp>
-#include <slice/slice_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "slice_inst.h"
+#include "data_inst.h"
+#include "slice/slice_kernel_selector.h"
+#include "slice/slice_kernel_ref.h"
+
 #include <algorithm>
 #include <cstddef>
 
@@ -30,7 +29,8 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
 }
 
 std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
-    switch (node.get_output_layout().data_type) {
+    auto dt = node.get_output_layout().data_type;
+    switch (dt) {
     case data_types::u8:
         return extractIntegerData<std::uint8_t>(node, stream);
     case data_types::i8:
@@ -40,9 +40,7 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     case data_types::i64:
         return extractIntegerData<std::int64_t>(node, stream);
     default:
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(), "Slice parameter",
-                node.get_output_layout().data_type, "Any integral type",
-                data_types::i32, "Slice parameters should be of integral type.");
+        OPENVINO_ASSERT(false, "[GPU] Slice parameters should be of integral type for node ", node.id(), " while got ", dt);
     }
     return {};
 }
@@ -50,7 +48,11 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
 std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tensor) {
     auto logical_dims = tensor.LogicalDims();
     // LogicalDims method returns dims in reversed order
-    return {logical_dims.rbegin(), logical_dims.rend()};
+    std::vector<int32_t> reverse_logical_dims;
+    for (auto it = logical_dims.rbegin(); it != logical_dims.rend(); ++it) {
+        reverse_logical_dims.push_back(static_cast<int32_t>(*it));
+    }
+    return reverse_logical_dims;
 }
 
 } // namespace
@@ -87,7 +89,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         auto data_shape = extractShape(params.inputs[0]);
         std::vector<std::int32_t> axes(data_shape.size());
         if (inputs.size() == InputIndices::kInputsNum)
-            axes = std::move(extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream));
+            axes = extractIntegerData(inputs[InputIndices::kAxes].first->as<data>(), stream);
         else
             std::iota(axes.begin(), axes.end(), 0);
         std::vector<std::int32_t> selected_start(data_shape.size(), 0);
@@ -105,11 +107,12 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         params.start = std::move(selected_start);
         params.end = std::move(selected_end);
         params.step = std::move(selected_step);
+        params.set_dynamic_shape_offsets();
         auto &kernel_selector =
                 kernel_selector::slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        return make_unique<slice_impl>(arg, best_kernel);
+        return make_unique<slice_impl>(best_kernel);
     }
 };
 
@@ -138,3 +141,4 @@ attach_slice_impl::attach_slice_impl() {
 } // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::slice)

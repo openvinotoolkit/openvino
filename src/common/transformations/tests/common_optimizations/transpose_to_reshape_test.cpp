@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ struct ReferenceParams {
 };
 
 class TransposeToReshapeTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, TransposeOrder, ReferenceParams>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -107,12 +107,12 @@ private:
 };
 
 TEST_P(TransposeToReshapeTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager m;
-    m.register_pass<pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::TransposeToReshape>();
-    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.register_pass<ov::pass::InitUniqueNames>(unh);
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::TransposeToReshape>();
+    m.register_pass<ov::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
@@ -176,7 +176,10 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
 
         shared_ptr<Node> perm;
         if (i32) {
-            std::vector<int32_t> perm_val_i32(perm_val.begin(), perm_val.end());
+            std::vector<int32_t> perm_val_i32(perm_val.size());
+            std::transform(perm_val.begin(), perm_val.end(), perm_val_i32.begin(), [](int64_t x) {
+                return (int32_t)x;
+            });
             perm = op::Constant::create<int32_t>(element::i32, Shape{perm_val.size()}, perm_val_i32);
         } else {
             perm = op::Constant::create<int64_t>(element::i64, Shape{perm_val.size()}, perm_val);
@@ -202,15 +205,15 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto transpose = make_shared<op::v1::Transpose>((multiout ? A1->output(0) : A1), perm);
         auto transpose1 = make_shared<op::v0::Abs>(transpose);
         auto baseline_f = make_shared<Function>(transpose1, ParameterVector{param});
-        auto optimized_f = clone_function(*baseline_f);
+        auto optimized_f = baseline_f->clone();
 
-        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
-        m.register_pass<pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::Validate>();
-        m.register_pass<ngraph::pass::TransposeToReshape>();
-        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.register_pass<ov::pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::Validate>();
+        m.register_pass<ov::pass::TransposeToReshape>();
+        m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);

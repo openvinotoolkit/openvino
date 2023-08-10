@@ -1,29 +1,30 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
-/// @brief Performs non max supression of input boxes and returns indices of selected boxes.
+/// @brief Performs non max suppression of input boxes and returns indices of selected boxes.
 /// @detail Filters out boxes that have high intersection-over-union (IOU) with previously
 /// selected boxes with higher score. Boxes with score higher than score_threshold are
 /// filtered out. This filtering happens per class.
 struct non_max_suppression : public primitive_base<non_max_suppression> {
     CLDNN_DECLARE_PRIMITIVE(non_max_suppression)
 
-    /// @brief Creates non max supression primitive.
+    non_max_suppression() : primitive_base("", {}),
+                            selected_indices_num(0),
+                            center_point_box(false),
+                            sort_result_descending(false) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    /// @brief Creates non max suppression primitive.
     /// @param id This primitive id.
     /// @param boxes_positions Id of primitive with bounding boxes.
     /// @param boxes_score Id of primitive with boxes scores per class.
@@ -70,6 +71,38 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     primitive_id second_output;
     primitive_id third_output;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, center_point_box);
+        seed = hash_combine(seed, sort_result_descending);
+        seed = hash_combine(seed, num_select_per_class.empty());
+        seed = hash_combine(seed, iou_threshold.empty());
+        seed = hash_combine(seed, score_threshold.empty());
+        seed = hash_combine(seed, soft_nms_sigma.empty());
+        seed = hash_combine(seed, second_output.empty());
+        seed = hash_combine(seed, third_output.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const non_max_suppression>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(selected_indices_num) &&
+               cmp_fields(center_point_box) &&
+               cmp_fields(sort_result_descending) &&
+               cmp_fields(num_select_per_class.empty()) &&
+               cmp_fields(iou_threshold.empty()) &&
+               cmp_fields(score_threshold.empty()) &&
+               cmp_fields(soft_nms_sigma.empty()) &&
+               cmp_fields(second_output.empty()) &&
+               cmp_fields(third_output.empty());
+        #undef cmp_fields
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!num_select_per_class.empty())
@@ -87,8 +120,31 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
 
         return ret;
     }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<non_max_suppression>::save(ob);
+        ob << selected_indices_num;
+        ob << center_point_box;
+        ob << sort_result_descending;
+        ob << num_select_per_class;
+        ob << iou_threshold;
+        ob << score_threshold;
+        ob << soft_nms_sigma;
+        ob << second_output;
+        ob << third_output;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<non_max_suppression>::load(ib);
+        ib >> selected_indices_num;
+        ib >> center_point_box;
+        ib >> sort_result_descending;
+        ib >> num_select_per_class;
+        ib >> iou_threshold;
+        ib >> score_threshold;
+        ib >> soft_nms_sigma;
+        ib >> second_output;
+        ib >> third_output;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

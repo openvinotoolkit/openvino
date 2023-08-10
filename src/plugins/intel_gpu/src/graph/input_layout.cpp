@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "input_layout_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
@@ -13,7 +11,7 @@
 #include <algorithm>
 
 namespace {
-bool has_optimized_users(input_layout_node const& node) {
+bool has_optimized_users(cldnn::input_layout_node const& node) {
     for (auto& user : node.get_users()) {
         if (user->can_be_optimized()) {
             return true;
@@ -37,22 +35,29 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-void input_layout_inst::set_data(memory::ptr mem) {
+event::ptr input_layout_inst::set_data(memory::ptr mem) {
     auto ol = get_node_output_layout();
 
     check_memory_to_set(*mem, ol);
-
+    event::ptr ev = nullptr;
     if (mem->is_allocated_by(get_network().get_engine())) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
+        ev = get_network().get_stream().create_user_event(true);
     } else {
-        mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
-        mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
-        std::copy(src.begin(), src.end(), dst.begin());
+        if ((mem->get_allocation_type() == allocation_type::usm_host) ||
+            (mem->get_allocation_type() == allocation_type::usm_device)) {
+            ev = _outputs[0]->copy_from(get_network().get_stream(), *mem, false);
+        } else {
+            mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
+            mem_lock<char, mem_lock_type::write> dst(_outputs[0], get_network().get_stream());
+            std::copy(src.begin(), src.end(), dst.begin());
+            ev = get_network().get_stream().create_user_event(true);
+        }
     }
-
     _has_valid_input = true;
     _output_changed = true;
+    return ev;
 }
 
 void input_layout_inst::update_shape() {

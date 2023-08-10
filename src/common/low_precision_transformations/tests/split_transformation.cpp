@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ public:
                                                                   testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
@@ -89,7 +89,7 @@ public:
 };
 
 TEST_P(SplitTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(actualFunction, referenceFunction, true, false);

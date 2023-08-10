@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,4 +194,12 @@ TEST(layout, attribute_adapter) {
     EXPECT_EQ(at.get(), l.to_string());
     at.set("NHCW");
     EXPECT_EQ(l, l2);
+}
+
+TEST(layout, compare_string) {
+    Layout l = "HWC";
+    EXPECT_EQ("[H,W,C]", l.to_string());
+    Layout l2 = l.to_string().c_str();
+    EXPECT_EQ(l2, l);
+    EXPECT_EQ("[H,W,C]", l2.to_string());
 }

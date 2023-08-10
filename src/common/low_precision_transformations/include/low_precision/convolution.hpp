@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include "weightable_layer_transformation.hpp"
 
 namespace ngraph {
@@ -23,7 +22,7 @@ class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerT
 public:
     OPENVINO_RTTI("ConvolutionTransformation", "0");
     ConvolutionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isQuantized(const std::shared_ptr<const Node>& layer,
         const std::vector<ngraph::element::Type>&defaultPrecisions) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,

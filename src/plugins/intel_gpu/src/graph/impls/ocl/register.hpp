@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "generic_layer.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
-#include "intel_gpu/primitives/average_unpooling.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
@@ -77,6 +74,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/primitives/unique.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -92,7 +90,6 @@ namespace detail {
 REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
-REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
@@ -164,7 +161,6 @@ REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
 REGISTER_OCL(lstm_dynamic_input);
 REGISTER_OCL(lstm_dynamic_timeloop);
-REGISTER_OCL(generic_layer);
 REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
@@ -177,6 +173,8 @@ REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
+REGISTER_OCL(unique_count);
+REGISTER_OCL(unique_gather);
 
 #undef REGISTER_OCL
 

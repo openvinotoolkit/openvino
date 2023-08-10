@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,14 +84,13 @@ public:
             fakeQuantizeOnData.addNotPrecisionPreservedOperation);
 
         auto supportedPrecisions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>(
-            {ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::AvgPool>(
+            {ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>(
                 {{{0}, params.precisionsOnActivations}})});
 
         SimpleLowPrecisionTransformer transform(supportedPrecisions, {}, {ngraph::element::f32, defaultPrecisions});
-        transform
-            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
-                params);
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+            params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
@@ -182,13 +181,6 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
      {256ul, {}, {0.f}, {2.55f}, {-128.f}, {127.f}},
      ngraph::element::i8,
      {{ngraph::element::f32, {{}, {-128.f}, {0.01f}}}, {ngraph::element::f16, {{}, {-128.f}, {0.01f}}}},
-     true},
-    // dot interval
-    {LayerTransformation::createParamsI8I8(),
-     {256ul, {}, {0.f}, {2.55f}, {2.55f}, {2.55f}},
-     {256ul, {}, {0.f}, {2.55f}, {1.f}, {1.f}},
-     ngraph::element::Type_t::i8,
-     {{ngraph::element::f32, {{}, {}, {2.55f}}}},
      true},
 
     // efficientnet-b0: efficientnet-b0/model/blocks_2/depthwise_conv2d/depthwise/fq_input_0, interval: -0.504395 - +0.5

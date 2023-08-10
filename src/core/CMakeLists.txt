@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,6 +23,7 @@ add_subdirectory(shape_inference)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
@@ -30,10 +31,6 @@ set_property(SOURCE ${MIXED_SRC}
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -47,7 +44,13 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ov_core_dev INTERFACE)
 add_library(openvino::core::dev ALIAS ov_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
+target_include_directories(ov_core_dev INTERFACE
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+
+target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
@@ -55,6 +58,14 @@ openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
 
+# Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
+# the symbolic debugging information will be stored in a separate .pdb file.
+if(WIN32)
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
@@ -73,15 +84,18 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(src/version.cpp ngraph_obj)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
                                          openvino::pugixml ov_shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
+# ngraph is public API => need to mark this library as important for ABI free
+ov_abi_free_target(ngraph_obj)
+
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph_obj)
 
@@ -105,10 +119,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
-    
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-ie_add_compiler_flags(/wd4267)
-endif()
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -55,13 +55,14 @@ def aggregate_stats(stats: dict):
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
-
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [
         str(args["executable"].resolve(strict=True)),
         "-m", str(args["model"].resolve(strict=True)),
         "-d", args["device"],
+        *["-ip", args["input_precision"] if args["input_precision"] else ""],
+        *["-op", args["output_precision"] if args["output_precision"] else ""],
         "-c" if args["model_cache"] else ""
     ]
 
@@ -72,13 +73,14 @@ def run_timetest(args: dict, log=None):
         log = logging.getLogger("run_timetest")
 
     cmd_common = prepare_executable_cmd(args)
-
+    ov_env = os.environ
+    ov_env['OPENVINO_LOG_LEVEL'] = '4'
     # Run executable and collect statistics
     stats = {}
     logs = []
     for run_iter in range(args["niter"]):
         tmp_stats_path = tempfile.NamedTemporaryFile().name
-        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log)
+        retcode, msg = cmd_exec(cmd_common + ["-s", str(tmp_stats_path)], log=log, env=ov_env)
 
         if os.path.exists(tmp_stats_path):
             with open(tmp_stats_path, "r") as file:
@@ -144,6 +146,16 @@ def cli_parser():
                         dest="model_cache",
                         action="store_true",
                         help="Enable model cache usage")
+    parser.add_argument("-ip",
+                        default="",
+                        dest="input_precision",
+                        type=str,
+                        help="Change input model precision")
+    parser.add_argument("-op",
+                        default="",
+                        dest="output_precision",
+                        type=str,
+                        help="Change output model precision")
 
     args = parser.parse_args()
 

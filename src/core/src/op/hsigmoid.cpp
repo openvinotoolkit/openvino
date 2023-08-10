@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@ shared_ptr<Node> op::v5::HSigmoid::clone_with_new_inputs(const OutputVector& new
     return make_shared<op::v5::HSigmoid>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const size_t count) {
@@ -57,7 +58,9 @@ bool evaluate_hsigmoid(const HostTensorPtr& arg, const HostTensorPtr& out) {
 
 bool op::v5::HSigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v5_HSigmoid_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return evaluate_hsigmoid(inputs[0], outputs[0]);
 }
 

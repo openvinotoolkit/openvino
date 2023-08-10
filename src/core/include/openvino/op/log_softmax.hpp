@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API LogSoftmax : public Op {
 public:
-    OPENVINO_OP("LogSoftmax", "opset5", op::Op, 5);
+    OPENVINO_OP("LogSoftmax", "opset5", op::Op);
     LogSoftmax() = default;
     /// \brief Constructs a LogSoftmax operation.
     ///

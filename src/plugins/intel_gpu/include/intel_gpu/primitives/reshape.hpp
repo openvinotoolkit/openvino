@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Changes information about inputs's layout effectively creating new memory which share underlaying buffer
 /// but is interpreted in a different way (different shape).
@@ -21,6 +14,10 @@ namespace cldnn {
 /// Please note that there is no guarantee that underlying data will be in proper format if primitive was explicitly added to output list.
 struct reshape : public primitive_base<reshape> {
     CLDNN_DECLARE_PRIMITIVE(reshape)
+
+    reshape() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     enum reshape_mode : uint32_t {
         base,
@@ -86,9 +83,34 @@ struct reshape : public primitive_base<reshape> {
     ov::PartialShape output_partial_shape;
 
     reshape_mode mode;
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reshape>(rhs);
+
+        return special_zero == rhs_casted.special_zero &&
+               mode == rhs_casted.mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reshape>::save(ob);
+        ob << output_shape;
+        ob << special_zero;
+        ob << output_pattern;
+        ob << output_partial_shape;
+        ob << make_data(&mode, sizeof(reshape_mode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reshape>::load(ib);
+        ib >> output_shape;
+        ib >> special_zero;
+        ib >> output_pattern;
+        ib >> output_partial_shape;
+        ib >> make_data(&mode, sizeof(reshape_mode));
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

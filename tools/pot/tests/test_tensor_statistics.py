@@ -20,7 +20,7 @@ GOLD_VALUES_AGGREGATION_FUNCTIONS_2_2_1 = {
     'mean_no_outliers': 1.5,
     'median_no_outliers': 1.5,
     'hl_estimator': 1.5,
-    'batch_mean': np.array([[[1], [2]]], dtype=np.float)
+    'batch_mean': np.array([[[1], [2]]], dtype=float)
 }
 
 GOLD_VALUES_AGGREGATION_FUNCTIONS_2_2_2 = {
@@ -31,7 +31,7 @@ GOLD_VALUES_AGGREGATION_FUNCTIONS_2_2_2 = {
     'mean_no_outliers': [3., 4.],
     'median_no_outliers': [3., 4.],
     'hl_estimator': [3., 4.],
-    'batch_mean': np.array([[[2, 3], [4, 5]]], dtype=np.float)
+    'batch_mean': np.array([[[2, 3], [4, 5]]], dtype=float)
 }
 
 GOLD_VALUES_AGGREGATION_FUNCTIONS = [

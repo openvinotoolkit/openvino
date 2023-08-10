@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Main entry-point to run timetests tests.
@@ -43,7 +43,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
     :param cpu_cache: flag to enable model CPU cache
-    :param vpu_compiler: flag to change VPUX compiler type
+    :param npu_compiler: flag to change NPU compiler type
     :param perf_hint: performance hint (optimize device for latency or throughput settings)
     :param model_cache_dir: directory to store IE model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
@@ -56,6 +56,12 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
     assert model_path, "Model path is empty"
     model_path = Path(expand_env_vars(model_path))
 
+    # Prepare input precision from model configuration
+    input_precision = instance["model"].get("input_precision")
+
+    # Prepare output precision from model configuration
+    output_precision = instance["model"].get("output_precision")
+
     # Copy model to a local temporary directory
     model_dir = temp_dir / "model"
     shutil.copytree(model_path.parent, model_dir)
@@ -67,6 +73,8 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
         "model": Path(model_path),
         "device": instance["device"]["name"],
         "niter": niter,
+        "input_precision": input_precision,
+        "output_precision": output_precision,
         "model_cache": model_cache,
     }
     logging.info("Run timetest once to generate any cache")

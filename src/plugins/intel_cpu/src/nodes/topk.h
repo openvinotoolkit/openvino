@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
+
+#include <ie_precision.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -31,6 +32,7 @@ struct jit_topk_config_params {
     bool sort_index;         // sort by value or index. true: index; false: value
     bool topk_innermost;     // if topk sorting is applied on innermost dimension or other dimension
     bool bubble_inplace;     // all the elements in sorting is right in the register, no need to load and store for each comparison
+    bool stable;             // if require stable sorting
     TopKLayoutType layout;   // memory layout
     TopKAlgorithm algorithm; // topk sorting algorithm
     InferenceEngine::Precision precision; // precision
@@ -78,7 +80,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -101,36 +103,37 @@ private:
     void topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx);
     inline void topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *src_idx,
                                     uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount);
-    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind, size_t end_ind);
-    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind = 0);
+    inline static int count(const VectorDims& dims, size_t start_ind, size_t end_ind);
+    inline static int count(const VectorDims& dims, size_t start_ind = 0);
     inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
     void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
-    void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
+    void calc_dims_size(const VectorDims &layout_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
-                   const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
+                   const VectorDims &in_dims, std::function<float(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 
-    bool topk_innermost;
-    bool jit_mode;
-    bool sort_index;
-    bool mode_max;
-    int axis;
+    bool topk_innermost = false;
+    bool jit_mode = false;
+    bool sort_index = false;
+    bool stable = false;
+    bool mode_max = false;
+    int axis = 0;
     static const size_t TOPK_DATA = 0;
     static const size_t TOPK_K = 1;
     static const size_t TOPK_INDEX = 1;
-    size_t O, A, I;
-    size_t blk_size;
-    size_t data_size;
-    size_t axis_dim;
-    int top_k;
-    int dim, before_num;
-    bool bubble_inplace;
-    bool preset_params_done;
+    size_t O = 0, A = 0, I = 0;
+    size_t blk_size = 0;
+    size_t data_size = 0;
+    size_t axis_dim = 0;
+    int top_k = 0;
+    int dim = 0, before_num = 0;
+    bool bubble_inplace = false;
+    bool preset_params_done = false;
 
-    InferenceEngine::SizeVector src_dims, dst_dims;
-    TopKLayoutType layout;
-    TopKAlgorithm algorithm;
+    VectorDims src_dims, dst_dims;
+    TopKLayoutType layout = TopKLayoutType::topk_ncsp;
+    TopKAlgorithm algorithm = TopKAlgorithm::topk_bubble_sort;
 
     std::vector<int> vec_bitonic_idx;
     std::vector<int> vec_bitonic_k_idx;
@@ -141,7 +144,7 @@ private:
     std::vector<uint8_t> vec_process_ptr;
     std::vector<uint8_t> vec_process_idx_ptr;
 
-    std::shared_ptr<jit_uni_topk_kernel> topk_kernel;
+    std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
 
     std::string errorPrefix;
 };

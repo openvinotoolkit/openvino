@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,12 +22,11 @@
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
-#include "ie_itt.hpp"
+#include "itt.hpp"
 #include "legacy/ie_reader.hpp"
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -48,7 +47,7 @@ public:
         : m_ext(ext),
           m_opset_name(opset),
           m_type(name),
-          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
+          m_ext_type(m_type.c_str(), m_opset_name.c_str()) {}
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
@@ -117,7 +116,7 @@ public:
     }
 
     bool supportModel(std::istream& model) const override {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Reader::supportModel");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Reader::supportModel");
         return ptr->supportModel(model);
     }
 
@@ -141,7 +140,7 @@ namespace {
 Reader::Ptr reader_irv7 = nullptr;
 
 void registerReaders() {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "registerReaders");
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
@@ -160,7 +159,7 @@ void registerReaders() {
 }
 
 void assertIfIRv7LikeModel(std::istream& modelStream) {
-    auto irVersion = details::GetIRVersion(modelStream);
+    auto irVersion = details::get_ir_version(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7 || reader_irv7)
@@ -182,8 +181,12 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     std::string model_path = modelPath;
 #    endif
 
+    if (ov::util::directory_exists(modelPath)) {
+        return {};
+    }
+
     // Try to open model file
-    std::ifstream modelStream(model_path, std::ios::binary);
+    std::ifstream modelStream(model_path.c_str(), std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW() << "Model file " << modelPath << " cannot be opened!";
 
@@ -215,7 +218,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             std::string weights_path = bPath;
 #    endif
             std::ifstream binStream;
-            binStream.open(weights_path, std::ios::binary);
+            binStream.open(weights_path.c_str(), std::ios::binary);
             if (!binStream.is_open())
                 IE_THROW() << "Weights file " << bPath << " cannot be opened!";
 
@@ -226,7 +229,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {fileSize}, C});
 
             {
-                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ReadNetworkWeights");
+                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ReadNetworkWeights");
                 weights->allocate();
                 binStream.read(weights->buffer(), fileSize);
                 binStream.close();
@@ -259,12 +262,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
+        IR_READER_SCOPE(is_ir);
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
         const int64_t ir_version = function->get_rt_info<int64_t>("version");
 
         if (ir_version == 10 && newAPI) {
+            IR_READER_SCOPE(ir10_new_api);
             std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
@@ -306,7 +311,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // we need to add operation names as tensor names for inputs and outputs
             {
                 for (const auto& result : function->get_results()) {
-                    auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+                    auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
                     OPENVINO_ASSERT(
                         leaf_names.find(res_name) == leaf_names.end() ||
                             result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
@@ -332,6 +337,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
+            IR_READER_SCOPE(ir11_old_api);
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
@@ -416,7 +422,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 const std::vector<ov::Extension::Ptr>& ov_exts,
-                                bool newAPI) {
+                                bool newAPI,
+                                bool enable_mmap) {
 #ifdef ENABLE_IR_V7_READER
     // IR v7 obsolete code
     {
@@ -455,6 +462,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 #endif
         params.emplace_back(weights_path);
     }
+    params.emplace_back(enable_mmap);
 
     FE = manager.load_by_model(params);
     if (FE) {

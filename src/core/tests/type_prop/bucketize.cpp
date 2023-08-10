@@ -1,124 +1,139 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/opsets/opset11.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace ov::opset11;
+using namespace testing;
 
-TEST(type_prop, bucketize) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 2});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{4});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
-    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+class TypePropBucketizeV3Test : public TypePropOpTest<op::v3::Bucketize> {};
+
+TEST_F(TypePropBucketizeV3Test, default_ctor) {
+    auto data = make_shared<Parameter>(element::f32, Shape{2, 3, 2});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{4});
+
+    auto bucketize = make_op();
+    bucketize->set_arguments(OutputVector{data, buckets});
+    bucketize->set_output_type(element::i64);
+    bucketize->set_with_right_bound(true);
+    bucketize->validate_and_infer_types();
+
     EXPECT_TRUE(bucketize->get_with_right_bound());
-    EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{2, 3, 2}));
+    EXPECT_EQ(bucketize->get_output_type(), element::i64);
+    EXPECT_EQ(bucketize->get_input_size(), 2);
+    EXPECT_EQ(bucketize->get_output_size(), 1);
+    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), (PartialShape{2, 3, 2}));
 }
 
-TEST(type_prop, bucketize_output_type) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32);
+TEST_F(TypePropBucketizeV3Test, simple_shape) {
+    auto data = make_shared<Parameter>(element::f32, Shape{2, 3, 2});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{4});
+    auto bucketize = make_op(data, buckets);
+
+    EXPECT_TRUE(bucketize->get_with_right_bound());
+    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), (PartialShape{2, 3, 2}));
+}
+
+TEST_F(TypePropBucketizeV3Test, output_type_i32) {
+    auto data = make_shared<Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{5});
+    auto bucketize = make_op(data, buckets, element::i32);
 
     ASSERT_EQ(bucketize->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 3, 4}));
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), (PartialShape{1, 2, 3, 4}));
 }
 
-TEST(type_prop, bucketize_output_type_right_bound) {
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32, false);
+TEST_F(TypePropBucketizeV3Test, output_type_right_bound) {
+    auto data = make_shared<Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{5});
+    auto bucketize = make_op(data, buckets, element::i32, false);
 
     ASSERT_EQ(bucketize->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{1, 2, 3, 4}));
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), (PartialShape{1, 2, 3, 4}));
 }
 
-TEST(type_prop, bucketize_dynamic_input) {
-    auto data = make_shared<op::Parameter>(element::f16, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
+TEST_F(TypePropBucketizeV3Test, dynamic_input) {
+    auto data_shape = PartialShape::dynamic();
+    auto data = make_shared<Parameter>(element::f16, data_shape);
+    auto buckets = make_shared<Parameter>(element::f32, Shape{5});
+    auto bucketize = make_op(data, buckets);
 
     EXPECT_EQ(bucketize->get_element_type(), element::i64);
-    EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
-TEST(type_prop, bucketize_dynamic_buckets) {
-    auto data = make_shared<op::Parameter>(element::f16, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
-    auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
+TEST_F(TypePropBucketizeV3Test, dynamic_buckets) {
+    auto data = make_shared<Parameter>(element::f16, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+    auto bucketize = make_op(data, buckets);
 
     EXPECT_EQ(bucketize->get_element_type(), element::i64);
-    EXPECT_TRUE(bucketize->get_output_partial_shape(0).same_scheme(PartialShape{4, Dimension::dynamic()}));
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), (PartialShape{4, Dimension::dynamic()}));
 }
 
-TEST(type_prop, bucketize_invalid_input_types) {
-    // Invalid data input element type
-    try {
-        auto data = make_shared<op::Parameter>(element::boolean, Shape{1, 2, 3, 4});
-        auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-        auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32);
-        // Data input expected to be of numeric type
-        FAIL() << "Invalid input type not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data input type must be numeric"));
-    } catch (...) {
-        FAIL() << "Input type check failed for unexpected reason";
-    }
+TEST_F(TypePropBucketizeV3Test, interval_dimensions) {
+    auto data_shape = PartialShape{{10, 30}, {12, -1}, -1, {0, 30}};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<Parameter>(element::f16, data_shape);
+    auto buckets = make_shared<Parameter>(element::f32, PartialShape{{2, 4}});
+    auto bucketize = make_op(data, buckets);
 
-    // Invalid buckets input element type
-    try {
-        auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-        auto buckets = make_shared<op::Parameter>(element::boolean, Shape{5});
-        auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, element::i32);
-        // Buckets input expected to be of numeric type
-        FAIL() << "Invalid input type not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Buckets input type must be numeric"));
-    } catch (...) {
-        FAIL() << "Input type check failed for unexpected reason";
-    }
+    EXPECT_EQ(bucketize->get_element_type(), element::i64);
+    EXPECT_EQ(bucketize->get_output_partial_shape(0), data_shape);
+    EXPECT_THAT(get_shape_labels(bucketize->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
 }
 
-TEST(type_prop, bucketize_invalid_output_types) {
-    vector<ngraph::element::Type_t> output_types = {ngraph::element::f64,
-                                                    ngraph::element::f32,
-                                                    ngraph::element::f16,
-                                                    ngraph::element::bf16,
-                                                    ngraph::element::i16,
-                                                    ngraph::element::i8,
-                                                    ngraph::element::u64,
-                                                    ngraph::element::u32,
-                                                    ngraph::element::u16,
-                                                    ngraph::element::u8,
-                                                    ngraph::element::boolean};
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
-    for (auto output_type : output_types) {
-        try {
-            auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, output_type);
-            // Should have thrown, so fail if it didn't
-            FAIL() << "Invalid output type not detected";
-        } catch (const NodeValidationFailure& error) {
-            EXPECT_HAS_SUBSTRING(error.what(), std::string("Output type must be i32 or i64"));
-        } catch (...) {
-            FAIL() << "Deduced type check failed for unexpected reason";
-        }
+TEST_F(TypePropBucketizeV3Test, invalid_data_element_type) {
+    auto data = make_shared<Parameter>(element::boolean, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{5});
+    OV_EXPECT_THROW(auto bucketize = make_op(data, buckets, element::i32),
+                    NodeValidationFailure,
+                    HasSubstr("Data input type must be numeric"));
+}
+
+TEST_F(TypePropBucketizeV3Test, invalid_bucket_element_types) {
+    auto data = make_shared<Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto buckets = make_shared<Parameter>(element::boolean, Shape{5});
+
+    OV_EXPECT_THROW(auto bucketize = make_op(data, buckets, element::i32),
+                    NodeValidationFailure,
+                    HasSubstr("Buckets input type must be numeric"));
+}
+
+TEST_F(TypePropBucketizeV3Test, invalid_output_types) {
+    vector<element::Type_t> output_types = {element::f64,
+                                            element::f32,
+                                            element::f16,
+                                            element::bf16,
+                                            element::i16,
+                                            element::i8,
+                                            element::u64,
+                                            element::u32,
+                                            element::u16,
+                                            element::u8,
+                                            element::boolean};
+    auto data = make_shared<Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<Parameter>(element::f32, Shape{5});
+    for (const auto& output_type : output_types) {
+        OV_EXPECT_THROW(auto bucketize = make_op(data, buckets, output_type),
+                        NodeValidationFailure,
+                        HasSubstr("Output type must be i32 or i64"));
     }
 }
 
-TEST(type_prop, bucketize_invalid_buckets_dim) {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
-    auto buckets = make_shared<op::Parameter>(element::f16, Shape{5, 5});
-    try {
-        auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Invalid output type not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Buckets input must be a 1D tensor"));
-    } catch (...) {
-        FAIL() << "Buckets dimension check failed for unexpected reason";
-    }
+TEST_F(TypePropBucketizeV3Test, invalid_buckets_dim) {
+    auto data = make_shared<Parameter>(element::f32, PartialShape{4, Dimension::dynamic()});
+    auto buckets = make_shared<Parameter>(element::f16, Shape{5, 5});
+    OV_EXPECT_THROW(auto bucketize = make_op(data, buckets),
+                    NodeValidationFailure,
+                    HasSubstr("Buckets input must be a 1D tensor"));
 }

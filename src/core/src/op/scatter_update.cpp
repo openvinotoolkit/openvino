@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/scatter_update.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
@@ -26,6 +27,7 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
     return make_shared<v3::ScatterUpdate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace scatter_update {
 namespace {
 template <element::Type_t ET>
@@ -55,10 +57,12 @@ bool op::v3::ScatterUpdate::evaluate_scatter_update(const HostTensorVector& outp
 
     NGRAPH_CHECK(axis->get_element_type().is_integral_number(), "axis element type is not integral data type");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
     if (axis_val < 0) {
         axis_val = ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<int64_t> indices_casted_vector;
     switch (indices->get_element_type()) {
@@ -92,13 +96,13 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_lower(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_upper(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, outputs);
@@ -121,4 +125,11 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

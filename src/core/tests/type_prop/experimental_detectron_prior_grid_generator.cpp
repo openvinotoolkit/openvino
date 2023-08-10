@@ -1,255 +1,348 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "gmock/gmock.h"
+#include "openvino/opsets/opset11.hpp"
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+using namespace ov;
+using namespace ov::opset11;
+using namespace testing;
 
-using namespace ngraph;
+class TypePropExperimentalDetectronPriorGridGeneratorV6Test
+    : public TypePropOpTest<op::v6::ExperimentalDetectronPriorGridGenerator> {
+protected:
+    using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
 
-using Attrs = op::v6::ExperimentalDetectronPriorGridGenerator::Attributes;
-using GridGenerator = op::v6::ExperimentalDetectronPriorGridGenerator;
-
-TEST(type_prop, detectron_grid_generator_static_shape_flatten) {
-    Attrs attrs;
-    attrs.flatten = true;
-    attrs.h = 0;
-    attrs.w = 0;
-    attrs.stride_x = 4.0f;
-    attrs.stride_y = 4.0f;
-
-    auto priors = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 256, 200, 336});
-    auto im_data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 800, 1344});
-
-    auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, attrs);
-
-    ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
-    EXPECT_EQ(grid_gen->get_output_shape(0), (Shape{201600, 4}));
-}
-
-TEST(type_prop, detectron_grid_generator_static_shape_without_flatten) {
-    Attrs attrs;
-    attrs.flatten = false;
-    attrs.h = 0;
-    attrs.w = 0;
-    attrs.stride_x = 4.0f;
-    attrs.stride_y = 4.0f;
-
-    auto priors = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 256, 200, 336});
-    auto im_data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 800, 1344});
-
-    auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, attrs);
-
-    ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
-    EXPECT_EQ(grid_gen->get_output_shape(0), (Shape{200, 336, 3, 4}));
-}
-
-TEST(type_prop, detectron_grid_generator_dynamic_shapes) {
-    Attrs attrs;
-    attrs.flatten = false;
-    attrs.h = 0;
-    attrs.w = 0;
-    attrs.stride_x = 4.0f;
-    attrs.stride_y = 4.0f;
-
-    struct ShapesAndAttrs {
-        PartialShape priors_shape;
-        PartialShape feature_map_shape;
-        PartialShape ref_out_shape;
-        bool flatten;
+    static Attrs make_attrs(bool flatten) {
+        return {flatten, 0, 0, 4.0f, 4.0f};
     };
-
-    const Shape im_data_shape = Shape{1, 3, 800, 1344};
-    const auto dyn_dim = Dimension::dynamic();
-
-    std::vector<ShapesAndAttrs> shapes = {
-        {{3, 4}, {1, 256, 200, dyn_dim}, {dyn_dim, 4}, true},
-        {{3, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 4}, true},
-        {{3, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, 4}, true},
-        {{dyn_dim, 4}, {1, 256, 200, dyn_dim}, {dyn_dim, 4}, true},
-        {{dyn_dim, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 4}, true},
-        {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, 4}, true},
-        {{3, 4}, {1, 256, 200, dyn_dim}, {200, dyn_dim, 3, 4}, false},
-        {{3, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 336, 3, 4}, false},
-        {{3, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, 3, 4}, false},
-        {{dyn_dim, 4}, {1, 256, 200, dyn_dim}, {200, dyn_dim, dyn_dim, 4}, false},
-        {{dyn_dim, 4}, {1, 256, dyn_dim, 336}, {dyn_dim, 336, dyn_dim, 4}, false},
-        {{dyn_dim, 4}, {1, 256, dyn_dim, dyn_dim}, {dyn_dim, dyn_dim, dyn_dim, 4}, false}};
-
-    for (const auto& s : shapes) {
-        auto grid_attrs = attrs;
-        grid_attrs.flatten = s.flatten;
-
-        auto priors = std::make_shared<op::Parameter>(element::f32, s.priors_shape);
-        auto feature_map = std::make_shared<op::Parameter>(element::f32, s.feature_map_shape);
-        auto im_data = std::make_shared<op::Parameter>(element::f32, im_data_shape);
-
-        auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, grid_attrs);
-
-        ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
-        ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(s.ref_out_shape));
-    }
-}
-
-struct GridGeneratorIntervalsTestParams {
-    PartialShape priors_shape;
-    PartialShape feature_map_shape;
-    PartialShape im_data_shape;
-    PartialShape ref_out_shape;
-    bool flatten;
 };
 
-struct GridGeneratorIntervalsTest : ::testing::TestWithParam<GridGeneratorIntervalsTestParams> {};
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, default_ctor_no_flatten) {
+    const auto priors = std::make_shared<Parameter>(element::f32, Shape{3, 4});
+    const auto feature_map = std::make_shared<Parameter>(element::f32, Shape{1, 3, 200, 336});
+    const auto im_data = std::make_shared<Parameter>(element::f32, Shape{1, 3, 800, 1344});
 
-TEST_P(GridGeneratorIntervalsTest, detectron_grid_generator_dynamic_shapes_intervals_2) {
-    auto params = GetParam();
+    const auto op = make_op();
+    op->set_arguments(OutputVector{priors, feature_map, im_data});
+    op->set_attrs(make_attrs(false));
+    op->validate_and_infer_types();
 
-    Attrs attrs;
-    attrs.flatten = false;
-    attrs.h = 0;
-    attrs.w = 0;
-    attrs.stride_x = 4.0f;
-    attrs.stride_y = 4.0f;
-
-    auto grid_attrs = attrs;
-    grid_attrs.flatten = params.flatten;
-
-    auto priors = std::make_shared<op::Parameter>(element::f32, params.priors_shape);
-    auto feature_map = std::make_shared<op::Parameter>(element::f32, params.feature_map_shape);
-    auto im_data = std::make_shared<op::Parameter>(element::f32, params.im_data_shape);
-
-    auto grid_gen = std::make_shared<GridGenerator>(priors, feature_map, im_data, grid_attrs);
-
-    ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
-    ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(params.ref_out_shape));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({200, 336, 3, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_flatten) {
+    auto priors_shape = PartialShape{3, 4};
+    auto feat_map_shape = PartialShape{1, 4, 6, 10};
+    auto im_data_shape = PartialShape{1, 4, 128, 128};
+    set_shape_labels(priors_shape, 10);
+    set_shape_labels(feat_map_shape, 20);
+    set_shape_labels(im_data_shape, 30);
+
+    const auto priors = std::make_shared<Parameter>(element::f64, priors_shape);
+    const auto feature_map = std::make_shared<Parameter>(element::f64, feat_map_shape);
+    const auto im_data = std::make_shared<Parameter>(element::f64, im_data_shape);
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({180, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, static_shape_without_flatten) {
+    auto priors_shape = PartialShape{3, 4};
+    auto feat_map_shape = PartialShape{1, 4, 6, 10};
+    auto im_data_shape = PartialShape{1, 4, 128, 128};
+    set_shape_labels(priors_shape, 10);
+    set_shape_labels(feat_map_shape, 20);
+    set_shape_labels(im_data_shape, 30);
+
+    const auto priors = std::make_shared<Parameter>(element::f16, priors_shape);
+    const auto feature_map = std::make_shared<Parameter>(element::f16, feat_map_shape);
+    const auto im_data = std::make_shared<Parameter>(element::f16, im_data_shape);
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({6, 10, 3, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(22, 23, 10, no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_flatten) {
+    auto priors_shape = PartialShape{{2, 5}, {0, 4}};
+    auto feat_map_shape = PartialShape{1, {3, 4}, {5, 10}, {9, 10}};
+    auto im_data_shape = PartialShape{1, {2, 4}, {1, 128}, {1, 128}};
+    set_shape_labels(priors_shape, 10);
+    set_shape_labels(feat_map_shape, 20);
+    set_shape_labels(im_data_shape, 30);
+
+    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
+    const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{90, 500}, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, interval_shapes_no_flatten) {
+    auto priors_shape = PartialShape{{2, 5}, {0, 4}};
+    auto feat_map_shape = PartialShape{1, {3, 4}, {5, 10}, {9, 10}};
+    auto im_data_shape = PartialShape{1, {2, 4}, {1, 128}, {1, 128}};
+    set_shape_labels(priors_shape, 10);
+    set_shape_labels(feat_map_shape, 20);
+    set_shape_labels(im_data_shape, 30);
+
+    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
+    const auto feature_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{5, 10}, {9, 10}, {2, 5}, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(22, 23, 10, no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_flatten) {
+    const auto priors = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto im_data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(true));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_inputs_dynamic_rank_no_flatten) {
+    const auto priors = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+    const auto im_data = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f16);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, -1, 4}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, all_input_got_dynamic_type) {
+    const auto priors = std::make_shared<Parameter>(element::dynamic, Shape{2, 4});
+    const auto feature_map = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 5, 5});
+    const auto im_data = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 500, 500});
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::dynamic);
+    EXPECT_EQ(op->get_output_shape(0), Shape({5, 5, 2, 4}));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, some_input_got_dynamic_type) {
+    const auto priors = std::make_shared<Parameter>(element::dynamic, Shape{2, 4});
+    const auto feature_map = std::make_shared<Parameter>(element::f32, Shape{1, 4, 5, 5});
+    const auto im_data = std::make_shared<Parameter>(element::dynamic, Shape{1, 4, 500, 500});
+
+    const auto op = make_op(priors, feature_map, im_data, make_attrs(false));
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_shape(0), Shape({5, 5, 2, 4}));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_not_floating_point) {
+    const auto bad_param = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
+    const auto ok_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(bad_param, ok_param, ok_param, make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[0] type 'i32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(ok_param, bad_param, ok_param, make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'i32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(ok_param, ok_param, bad_param, make_attrs(true)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[2] type 'i32' is not floating point or not same as others inputs"));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, input_mixed_floating_point_type) {
+    const auto f32_param = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto f16_param = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(f32_param, f16_param, f16_param, make_attrs(true)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'f16' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(f16_param, f32_param, f16_param, make_attrs(true)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[1] type 'f32' is not floating point or not same as others inputs"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(f16_param, f16_param, f32_param, make_attrs(true)),
+                    NodeValidationFailure,
+                    HasSubstr("Input[2] type 'f32' is not floating point or not same as others inputs"));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_not_2d) {
+    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2}),
+                                          feature_map,
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Priors rank must be equal to 2."));
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 1}),
+                                          feature_map,
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Priors rank must be equal to 2."));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, feature_map_not_4d) {
+    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(priors,
+                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(2)),
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Feature_map rank must be equal to 4"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(priors,
+                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(5)),
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Feature_map rank must be equal to 4"));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, im_data_not_4d) {
+    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(priors,
+                                          feature_map,
+                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3)),
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Im_data rank must be equal to 4"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(priors,
+                                          feature_map,
+                                          std::make_shared<Parameter>(element::f32, PartialShape::dynamic(15)),
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("Im_data rank must be equal to 4"));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, priors_2nd_dim_not_compatible) {
+    const auto feature_map = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto im_data = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {0, 3}}),
+                                          feature_map,
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("The last dimension of the 'priors' input must be equal to 4"));
+
+    OV_EXPECT_THROW(std::ignore = make_op(std::make_shared<Parameter>(element::f32, PartialShape{-1, {5, -1}}),
+                                          feature_map,
+                                          im_data,
+                                          make_attrs(false)),
+                    NodeValidationFailure,
+                    HasSubstr("The last dimension of the 'priors' input must be equal to 4"));
+}
+
+TEST_F(TypePropExperimentalDetectronPriorGridGeneratorV6Test, not_compatible_1st_dim_of_feature_map_and_im_data) {
+    const auto priors = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(priors,
+                              std::make_shared<Parameter>(element::f32, PartialShape{3, {0, 3}, -1, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{0, 2}, {4, 0}, -1, -1}),
+                              make_attrs(false)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(priors,
+                              std::make_shared<Parameter>(element::f32, PartialShape{{0, 1}, 4, -1, -1}),
+                              std::make_shared<Parameter>(element::f32, PartialShape{{2, -1}, {2, 10}, -1, -1}),
+                              make_attrs(false)),
+        NodeValidationFailure,
+        HasSubstr("The first dimension of both 'feature_map' and 'im_data' must match"));
+}
+
+using DetectronPriorGridGenerator = std::tuple<PartialShape, PartialShape, PartialShape, PartialShape, bool>;
+
+class ExperimentalDetectronPriorGridGeneratorV6Test : public TypePropExperimentalDetectronPriorGridGeneratorV6Test,
+                                                      public WithParamInterface<DetectronPriorGridGenerator> {
+protected:
+    void SetUp() override {
+        std::tie(priors_shape, feat_map_shape, im_data_shape, exp_shape, is_flatten) = GetParam();
+    }
+
+    PartialShape priors_shape, feat_map_shape, im_data_shape, exp_shape;
+    bool is_flatten;
+};
 
 INSTANTIATE_TEST_SUITE_P(
     type_prop,
-    GridGeneratorIntervalsTest,
-    ::testing::Values(GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, 200, Dimension(0, 100)},
-                                                       {Dimension(0, 5), 3, 800, 1344},
-                                                       {Dimension(0, 60000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {Dimension(0, 7), 256, Dimension(0, 150), 336},
-                                                       {Dimension(0, 5), 3, 800, 1344},
-                                                       {Dimension(0, 151200), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       {Dimension(0, 11), 3, 800, 1344},
-                                                       {Dimension(0, 45000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, 200, Dimension(0, 150)},
-                                                       {Dimension(0, 5), 3, 800, 1344},
-                                                       {Dimension(0, 90000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {Dimension(0, 77), 256, Dimension(0, 150), 336},
-                                                       {Dimension(0, 54), 3, 800, 1344},
-                                                       {Dimension(0, 151200), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {Dimension(0, 3), 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       {Dimension(0, 54), 3, 800, 1344},
-                                                       {Dimension(0, 45000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, 200, Dimension(0, 100)},
-                                                       {Dimension(0, 6), 3, 800, 1344},
-                                                       {200, Dimension(0, 100), 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {Dimension(0, 9), 256, Dimension(0, 150), 336},
-                                                       {Dimension(0, 4), 3, 800, 1344},
-                                                       {Dimension(0, 150), 336, 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {Dimension(1, 3), 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       {Dimension(0, 4), 3, 800, 1344},
-                                                       {Dimension(0, 150), Dimension(0, 100), 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {Dimension(5, 11), 256, 200, Dimension(0, 100)},
-                                                       {Dimension(0, 17), 3, 800, 1344},
-                                                       {200, Dimension(0, 100), Dimension(0, 3), 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {Dimension(7, 9), 256, Dimension(0, 150), 336},
-                                                       {Dimension(4, 18), 3, 800, 1344},
-                                                       {Dimension(0, 150), 336, Dimension(0, 3), 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {Dimension(0, 8), 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       {Dimension(4, 18), 3, 800, 1344},
-                                                       {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, 200, Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 60000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, Dimension(0, 150), 336},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 151200), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 45000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, 200, Dimension(0, 150)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 90000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, Dimension(0, 150), 336},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 151200), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 45000), 4},
-                                                       true},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, 200, Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {200, Dimension(0, 100), 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, Dimension(0, 150), 336},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 150), 336, 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{3, 4},
-                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 150), Dimension(0, 100), 3, 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, 200, Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {200, Dimension(0, 100), Dimension(0, 3), 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, Dimension(0, 150), 336},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 150), 336, Dimension(0, 3), 4},
-                                                       false},
-                      GridGeneratorIntervalsTestParams{{Dimension(0, 3), 4},
-                                                       {1, 256, Dimension(0, 150), Dimension(0, 100)},
-                                                       Shape{1, 3, 800, 1344},
-                                                       {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
-                                                       false}),
-    PrintToDummyParamName());
+    ExperimentalDetectronPriorGridGeneratorV6Test,
+    Values(DetectronPriorGridGenerator(PartialShape::dynamic(), {1, -1, 5, 3}, {1, 3, 100, 100}, {5, 3, -1, 4}, false),
+           DetectronPriorGridGenerator(PartialShape::dynamic(2), {1, -1, 5, 3}, {1, 3, 100, 100}, {5, 3, -1, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, {1, -1, 5, 3}, {1, 3, 100, 100}, {5, 3, 2, 4}, false),
+           DetectronPriorGridGenerator({{2, 4}, {2, 5}}, {1, 3, -1, 3}, {1, -1, 100, 100}, {-1, 3, {2, 4}, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape::dynamic(), {1, 5, -1, -1}, {-1, -1, 2, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape::dynamic(4), {1, 5, -1, -1}, {-1, -1, 2, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{-1, -1, 6, 6}, {1, 5, -1, -1}, {6, 6, 2, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, {0, 5}, 7, 6}, {1, 5, -1, -1}, {7, 6, 2, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, 3, 7, 6}, PartialShape::dynamic(), {7, 6, 2, 4}, false),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, 3, 7, 6}, PartialShape::dynamic(4), {7, 6, 2, 4}, false),
+           DetectronPriorGridGenerator(PartialShape::dynamic(2),
+                                       PartialShape::dynamic(4),
+                                       PartialShape::dynamic(4),
+                                       PartialShape{-1, -1, -1, 4},
+                                       false),
+           // flatten on
+           DetectronPriorGridGenerator(PartialShape::dynamic(), {1, -1, 5, 3}, {1, 3, 100, 100}, {-1, 4}, true),
+           DetectronPriorGridGenerator(PartialShape::dynamic(2), {1, -1, 5, 3}, {1, 3, 100, 100}, {-1, 4}, true),
+           DetectronPriorGridGenerator({{2, 4}, 4}, {1, -1, 5, 3}, {1, 3, 100, 100}, {{30, 60}, 4}, true),
+           DetectronPriorGridGenerator({{2, 4}, {2, 5}}, {1, 3, -1, 3}, {1, -1, 100, 100}, {-1, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape::dynamic(), {1, 5, -1, -1}, {-1, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape::dynamic(4), {1, 5, -1, -1}, {-1, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{-1, -1, 6, 6}, {1, 5, -1, -1}, {72, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, {0, 5}, {6, 7}, 6}, {1, 5, -1, -1}, {{72, 84}, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, 3, 7, 6}, PartialShape::dynamic(), {84, 4}, true),
+           DetectronPriorGridGenerator({2, 4}, PartialShape{1, 3, 7, 6}, PartialShape::dynamic(4), {84, 4}, true),
+           DetectronPriorGridGenerator(PartialShape::dynamic(2),
+                                       PartialShape::dynamic(4),
+                                       PartialShape::dynamic(4),
+                                       PartialShape{-1, 4},
+                                       true)),
+    PrintToStringParamName());
+
+TEST_P(ExperimentalDetectronPriorGridGeneratorV6Test, shape_inference) {
+    const auto priors = std::make_shared<Parameter>(element::bf16, priors_shape);
+    const auto feat_map = std::make_shared<Parameter>(element::bf16, feat_map_shape);
+    const auto im_data = std::make_shared<Parameter>(element::bf16, im_data_shape);
+
+    const auto op = make_op(priors, feat_map, im_data, make_attrs(is_flatten));
+
+    EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
+}

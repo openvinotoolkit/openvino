@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Asinh>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace asinhop {
 namespace {
 template <element::Type_t ET>

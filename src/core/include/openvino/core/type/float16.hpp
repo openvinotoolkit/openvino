@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@
 namespace ov {
 class OPENVINO_API float16 {
 public:
-    constexpr float16() : m_value{0} {}
+    float16() = default;
 
     static uint32_t constexpr frac_size = 10;
     static uint32_t constexpr exp_size = 5;

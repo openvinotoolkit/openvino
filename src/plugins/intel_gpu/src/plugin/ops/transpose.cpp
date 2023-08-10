@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,9 +22,7 @@ static void CreateTransposeOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     std::vector<uint16_t> order;
     if (op->get_input_size() == 2) {
         auto order_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        if (!order_constant) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(order_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         order = order_constant->cast_vector<uint16_t>();
     }
 

@@ -49,7 +49,7 @@ def part1():
 
     # Optional
     # the AUTO plugin is pre-configured (globally) with the explicit option:
-    ie.set_config(config={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"}, device_name="AUTO");
+    ie.set_config(config={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"}, device_name="AUTO")
 #! [part1]
 
 def part3():
@@ -75,23 +75,22 @@ def part4():
     compiled_model0 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"HIGH"})
     compiled_model1 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"MEDIUM"})
     compiled_model2 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"LOW"})
-    # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
-    # Result: compiled_model0 will use GPU, compiled_model1 will use MYRIAD, compiled_model2 will use CPU.
+    # Assume that all the devices (CPU and GPUs) can support all the networks.
+    # Result: compiled_model0 will use GPU.1, compiled_model1 will use GPU.0, compiled_model2 will use CPU.
 
     # Example 2
     compiled_model3 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"HIGH"})
     compiled_model4 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"MEDIUM"})
     compiled_model5 = core.compile_model(model=model, device_name="AUTO", config={"MODEL_PRIORITY":"LOW"})
-    # Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
-    # Result: compiled_model3 will use GPU, compiled_model4 will use GPU, compiled_model5 will use MYRIAD.
+    # Assume that all the devices (CPU ang GPUs) can support all the networks.
+    # Result: compiled_model3 will use GPU.1, compiled_model4 will use GPU.1, compiled_model5 will use GPU.0.
 #! [part4]
 
 def part5():
 #! [part5]
     core = Core()
     model = core.read_model(model_path)
-    core.set_property(device_name="CPU", properties={})
-    core.set_property(device_name="MYRIAD", properties={})
+    # gpu_config and cpu_config will load during compile_model()
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]
@@ -102,11 +101,22 @@ def part6():
     # read a network in IR, PaddlePaddle, or ONNX format
     model = core.read_model(model_path)
     # compile a model on AUTO and set log level to debug
-    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"LOG_LEVEL":"LOG_DEBUG"});
+    compiled_model = core.compile_model(model=model, device_name="AUTO", config={"LOG_LEVEL":"LOG_DEBUG"})
     # set log level with set_property and compile model
-    core.set_property(device_name="AUTO", properties={"LOG_LEVEL":"LOG_DEBUG"});
-    compiled_model = core.compile_model(model=model, device_name="AUTO");
+    core.set_property(device_name="AUTO", properties={"LOG_LEVEL":"LOG_DEBUG"})
+    compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part6]
+
+def part7():
+#! [part7]
+    core = Core()
+    # read a network in IR, PaddlePaddle, or ONNX format
+    model = core.read_model(model_path)
+    # compile a model on AUTO and set log level to debug
+    compiled_model = core.compile_model(model=model, device_name="AUTO")
+    # query the runtime target devices on which the inferences are being executed
+    execution_devices = compiled_model.get_property("EXECUTION_DEVICES")
+#! [part7]
 
 def main():
     part0()
@@ -115,6 +125,7 @@ def main():
     part4()
     part5()
     part6()
+    part7()
 
 if __name__ == '__main__':
     sys.exit(main())

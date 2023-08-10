@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "openvino/opsets/opset12.hpp"
 
 using namespace testing;
 using namespace ngraph;
@@ -35,10 +36,10 @@ std::shared_ptr<Convolution> create_conv(Output<Node> input, Output<Node> weight
 
 std::shared_ptr<Constant> create_weights(const Shape& weigts_shape) {
     std::vector<float> values(ov::shape_size(weigts_shape));
-    float cur_value = 0.01;
+    float cur_value = 0.01f;
     for (auto& value : values) {
         value = cur_value;
-        cur_value += 0.01;
+        cur_value += 0.01f;
     }
     return Constant::create(element::f32, weigts_shape, values);
 }
@@ -123,29 +124,6 @@ void apply_reverse_input_channels(std::shared_ptr<Function> f, std::vector<std::
     p.build();
 }
 
-void apply_mean_value(std::shared_ptr<Function> f,
-                      std::vector<std::pair<int64_t, std::string>> data,
-                      std::vector<float> values) {
-    using namespace ov::preprocess;
-    PrePostProcessor p(f);
-    for (auto item : data) {
-        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
-        p.input(item.first).preprocess().mean(values);
-    }
-    p.build();
-}
-
-void apply_scale_value(std::shared_ptr<Function> f,
-                       std::vector<std::pair<int64_t, std::string>> data,
-                       std::vector<float> values) {
-    using namespace ov::preprocess;
-    PrePostProcessor p(f);
-    for (auto item : data) {
-        p.input(item.first).tensor().set_layout(ov::Layout(item.second));
-        p.input(item.first).preprocess().scale(values);
-    }
-    p.build();
-}
 }  // namespace
 
 TEST_F(TransformationTestsF, RICFusionSimple) {
@@ -157,7 +135,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -198,7 +176,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
 
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({-1, -1, -1, -1});
@@ -228,6 +206,69 @@ TEST_F(TransformationTestsF, RICFusionHard) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
+    {
+        auto input = create_param({-1, -1, -1, -1});
+        auto relu = std::make_shared<Relu>(input);
+
+        auto input2 = create_param({-1, 3, -1, -1});
+        auto split = std::make_shared<Split>(input2, Constant::create(element::i64, {}, {1}), 3);
+        auto concat = std::make_shared<Concat>(OutputVector{split->output(2), split->output(1), split->output(0)}, 1);
+        auto eltwise = std::make_shared<Add>(relu, concat);
+
+        auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        auto gconv = create_group_conv(pad, {3, 4, 1, 3, 3});
+
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
+
+        auto gconv2 = create_group_conv(convert2, {12, 1, 1, 3, 3});
+
+        auto conv = create_conv(gconv2, {6, 12, 3, 3});
+        auto conv2 = create_conv(concat, {6, 3, 3, 3});
+
+        function = std::make_shared<Function>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+
+        apply_reverse_input_channels(function, {{0, "NCHW"}});
+
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
+    }
+    {
+        auto input = create_param({-1, -1, -1, -1});
+        auto relu = std::make_shared<Relu>(input);
+
+        auto input2 = create_param({-1, 3, -1, -1});
+        auto eltwise = std::make_shared<Add>(relu, input2);
+
+        auto pads_begin = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pads_end = Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
+        auto pad = std::make_shared<ov::op::v12::Pad>(eltwise, pads_begin, pads_end, op::PadMode::CONSTANT);
+
+        //       0            1            2                 2              1            0
+        // [0, 1, 2, 3]-[4, 5, 6, 7]-[8, 9, 10, 11] -> [8, 9, 10, 11]-[4, 5, 6, 7]-[0, 1, 2, 3]
+        auto gconv = create_group_conv_with_gather(pad, {3, 4, 1, 3, 3}, {2, 1, 0});
+
+        auto pow = std::make_shared<Power>(gconv, Constant::create(element::f32, Shape{}, {-1.0f}));
+        auto convert1 = std::make_shared<Convert>(pow, element::f16);
+        auto convert2 = std::make_shared<Convert>(convert1, element::f32);
+
+        auto gconv2 = create_group_conv_with_gather(convert2, {12, 1, 1, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
+
+        auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
+        auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
+
+        function_ref = std::make_shared<Function>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
 TEST_F(TransformationTestsF, RICFusionDynamic) {
     {
         auto input = create_param({-1, -1, -1, -1});
@@ -237,7 +278,7 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -260,7 +301,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -285,7 +326,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -309,7 +350,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -333,7 +374,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -358,7 +399,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -384,7 +425,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, input2});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -398,7 +439,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, input2});
         apply_reverse_input_channels(function, {{0, "NCHW"}, {1, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({1, 3, 64, 64});
@@ -422,7 +463,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
         function = std::make_shared<Function>(NodeVector{shapeof}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -436,7 +477,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto input = create_param({1, 3, 64, 64});
@@ -463,7 +504,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -477,7 +518,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NHWC"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -503,7 +544,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -535,7 +576,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -575,7 +616,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -608,7 +649,7 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
         function = std::make_shared<Function>(NodeVector{shape_of}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 
     {
@@ -631,7 +672,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -644,7 +685,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative2) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input, input2});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -656,7 +697,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative3) {
         auto conv = create_conv(relu, {6, 1, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -668,7 +709,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative4) {
         auto conv = create_conv(relu, {6, 2, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -681,7 +722,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -695,7 +736,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative2) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -708,16 +749,16 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative3) {
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(OutputVector{conv, split->output(0)}, ParameterVector{input});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
 TEST_F(TransformationTestsF, FuseConvertLayout) {
     {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 0});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(transpose);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 0});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
+        auto relu = std::make_shared<ov::op::v0::Relu>(transpose);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
 
@@ -727,13 +768,13 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
         p.input(0).preprocess().convert_layout({2, 0, 1});
         p.build();
 
-        manager.register_pass<ngraph::pass::TransposeSinking>();
+        manager.register_pass<ov::pass::TransposeSinking>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::Shape{3, 64, 1});
-        auto convert = std::make_shared<ngraph::opset6::Convert>(input, element::f32);
-        auto relu = std::make_shared<ngraph::opset6::Relu>(convert);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f16, ngraph::Shape{3, 64, 1});
+        auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
+        auto relu = std::make_shared<ov::op::v0::Relu>(convert);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
@@ -742,8 +783,8 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
 TEST_F(TransformationTestsF, FuseScaleValue) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
@@ -751,16 +792,16 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         using namespace ov::preprocess;
         PrePostProcessor p(function);
         p.input(0).tensor().set_layout("NHWC");
-        p.input(0).preprocess().scale(1.3);
+        p.input(0).preprocess().scale(1.3f);
         p.build();
 
-        manager.register_pass<pass::MOCTransformations>(false);
+        manager.register_pass<ov::pass::MOCTransformations>(false);
     }
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
     }
@@ -771,8 +812,8 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
 TEST_F(TransformationTestsF, FuseScaleValues) {
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
@@ -780,16 +821,16 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         using namespace ov::preprocess;
         PrePostProcessor p(function);
         p.input(0).tensor().set_layout("NHWC");
-        p.input(0).preprocess().scale({1.3, 0.2, 4.1});
+        p.input(0).preprocess().scale({1.3f, 0.2f, 4.1f});
         p.build();
 
-        manager.register_pass<pass::MOCTransformations>(false);
+        manager.register_pass<ov::pass::MOCTransformations>(false);
     }
 
     {
         auto input = create_param({1, 64, 64, 3});
-        auto order = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(input, order);
+        auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
         function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
     }
@@ -851,7 +892,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiply) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -909,7 +950,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, data_shape);
         std::shared_ptr<Node> weights = opset8::Constant::create(element::f32, Shape{3, 3, 1, 4, 4}, {-2});
@@ -974,7 +1015,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegative1) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -1047,7 +1088,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNegativeBroadcast) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         std::shared_ptr<Node> activations =
@@ -1107,7 +1148,7 @@ TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
 
@@ -1146,7 +1187,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyNonScalarFQInput) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     {
         auto parameter = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 14, 14});
         auto gather =
@@ -1221,7 +1262,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplySkipIfFQLowNonConst) {
         function = std::make_shared<ngraph::Function>(conv, ParameterVector{parameter, input_low});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
     }
-    manager.register_pass<ngraph::pass::ReverseInputChannelsFusion>();
+    manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
 }
 
 TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
@@ -1232,7 +1273,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
         function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
@@ -1251,7 +1292,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
         function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
         apply_reverse_input_channels(function, {{0, "NCHW"}});
 
-        manager.register_pass<pass::ReverseInputChannelsFusion>();
+        manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});

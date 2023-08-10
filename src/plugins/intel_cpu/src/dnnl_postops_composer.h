@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,15 +29,21 @@ public:
                         std::unordered_map<int, MemoryPtr>& args,
                         const VectorDims& outputDims,
                         int indexOfOutputChannelDim,
-                        bool isINT8);
+                        bool isINT8,
+                        int weiScaleMaskPerChannel,
+                        const std::vector<float>& DQScales,
+                        bool hasBias);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
-    void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
+    void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
-    bool appendScale(const std::vector<float>& scale, bool allowBinary = true);
+    bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
-    bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary = true);
+    bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool isLastPostOp, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
+
+    void appendDecompressionScales(const std::vector<float>& scales);
+    void appendDecompressionZeroPoints(const std::vector<float>& zero_points);
 
     const VectorDims& getOutputDims() {
         return outputDims;
@@ -50,14 +56,19 @@ private:
     std::unordered_map<int, MemoryPtr>& args;
     const VectorDims outputDims;
     int idxOC;
+    const bool isINT8;  // only INT8 primitive support scales
+    const int weightScaleMaskPerChannel;
+    bool weightScaleAvailable = false;
+
     VectorDims dimsPerTensor;
     VectorDims dimsPerOC;
     Dim OC;
-    const bool isINT8;  // only INT8 primitive support output scale
-    int oscale_mask;
-    std::vector<float> oscale_values;
+    int wei_scale_mask = -1;
+    std::vector<float> wei_scale_values;
+    float dst_scale_val;
 
-    void updateOutputScales();
+    void updateWeiScales();
+    void updateDestScales();
 };
 
 }  // namespace intel_cpu

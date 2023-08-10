@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 
@@ -388,4 +388,19 @@ TEST(type_prop, idft_invalid_signal_size) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' must be equal.");
     }
+}
+
+TEST(type_prop, idft_dynamic_types) {
+    const auto input_shape = PartialShape{2, 180, 180, 2};
+    const auto axes_shape = PartialShape::dynamic();
+    const auto signal_size_shape = PartialShape::dynamic();
+    const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2};
+
+    auto data = std::make_shared<op::Parameter>(element::dynamic, input_shape);
+    auto axes_input = std::make_shared<op::Parameter>(element::dynamic, axes_shape);
+    auto signal_size_input = std::make_shared<op::Parameter>(element::dynamic, signal_size_shape);
+    auto idft = std::make_shared<op::v7::IDFT>(data, axes_input, signal_size_input);
+
+    EXPECT_EQ(idft->get_element_type(), element::dynamic);
+    ASSERT_TRUE(idft->get_output_partial_shape(0).same_scheme(ref_output_shape));
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,7 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
                                      m_auto_broadcast);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace fakequantizeop {
 namespace {
 template <element::Type_t ET>

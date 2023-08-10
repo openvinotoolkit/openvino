@@ -1,19 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const __global float* input,
     __global UNIT_TYPE* output,
-    const __global float* filter,
+    const __global float* filter
 #if BIAS_TERM
-    const __global float* bias,
+    , const __global float* bias
 #endif
-    uint split_idx)
+)
 {
     // get_global_size(0) -> Number of work items needed to compute all features and all batches for single output spatial position
     //                       (single (x, y) point in output).
@@ -39,7 +41,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const uint g = of / (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
     const uint f = of % (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
 #else
-    const uint g = split_idx;
+    const uint g = 0;
     const uint f = of;
 #endif
 
@@ -93,7 +95,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
 #ifdef USE_BLOCK_READ_2
-                        float2 _input = as_float2(intel_sub_group_block_read2((const __global uint*)input + input_idx));
+                        float2 _input = as_float2(_sub_group_block_read2((const __global uint*)input + input_idx));
                         float8 filter_transp = TRANSPOSE_BLOCK_8(filter[filter_idx]);
                         _data[0] = fma(_input.s0, filter_transp, _data[0]);
                         _data[1] = fma(_input.s1, filter_transp, _data[1]);

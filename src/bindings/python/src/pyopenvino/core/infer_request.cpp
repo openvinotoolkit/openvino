@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -11,21 +11,18 @@
 #include <string>
 
 #include "pyopenvino/core/common.hpp"
-#include "pyopenvino/core/containers.hpp"
-
-PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
-PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
-inline py::dict run_sync_infer(InferRequestWrapper& self) {
+inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self.m_outputs, self.m_request);
+    return Common::outputs_to_dict(self, share_outputs);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -102,7 +99,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_output_tensors",
         [](InferRequestWrapper& self, const py::dict& outputs) {
-            auto outputs_map = Common::cast_to_tensor_index_map(outputs);
+            auto outputs_map = Common::containers::cast_to_tensor_index_map(outputs);
             for (auto&& output : outputs_map) {
                 self.m_request.set_output_tensor(output.first, output.second);
             }
@@ -119,7 +116,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
-            auto inputs_map = Common::cast_to_tensor_index_map(inputs);
+            auto inputs_map = Common::containers::cast_to_tensor_index_map(inputs);
             for (auto&& input : inputs_map) {
                 self.m_request.set_input_tensor(input.first, input.second);
             }
@@ -171,11 +168,12 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs) {
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs) {
             self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -197,13 +195,14 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs) {
             // Update inputs if there are any
             Common::set_request_tensors(self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self);
+            return run_sync_infer(self, share_outputs);
         },
         py::arg("inputs"),
+        py::arg("share_outputs"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -344,7 +343,7 @@ void regclass_InferRequest(py::module m) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception("Caught exception: " + std::string(e.what()));
+                    OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
@@ -614,6 +613,18 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.VariableState]
         )");
 
+    cls.def(
+        "get_compiled_model",
+        [](InferRequestWrapper& self) {
+            return self.m_request.get_compiled_model();
+        },
+        R"(
+            Returns the compiled model.
+
+            :return: Compiled model object.
+            :rtype: openvino.runtime.CompiledModel
+        )");
+
     cls.def_property_readonly(
         "userdata",
         [](InferRequestWrapper& self) {
@@ -647,21 +658,29 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.ConstOutput]
         )");
 
-    cls.def_property_readonly("inputs",
-                              &InferRequestWrapper::get_input_tensors,
-                              R"(
-                                Gets all input tensors of this InferRequest.
-                                
-                                :rtype: List[openvino.runtime.Tensor]
-                              )");
+    cls.def_property_readonly(
+        "inputs",
+        [](InferRequestWrapper& self) {
+            Common::utils::deprecation_warning("inputs", "2024.0", "Please use 'input_tensors' property instead.");
+            return self.get_input_tensors();
+        },
+        R"(
+            Gets all input tensors of this InferRequest.
+            
+            :rtype: List[openvino.runtime.Tensor]
+            )");
 
-    cls.def_property_readonly("outputs",
-                              &InferRequestWrapper::get_output_tensors,
-                              R"(
-                                Gets all output tensors of this InferRequest.
-                                
-                                :rtype: List[openvino.runtime.Tensor]
-                              )");
+    cls.def_property_readonly(
+        "outputs",
+        [](InferRequestWrapper& self) {
+            Common::utils::deprecation_warning("outputs", "2024.0", "Please use 'output_tensors' property instead.");
+            return self.get_output_tensors();
+        },
+        R"(
+            Gets all output tensors of this InferRequest.
+            
+            :rtype: List[openvino.runtime.Tensor]
+            )");
 
     cls.def_property_readonly("input_tensors",
                               &InferRequestWrapper::get_input_tensors,
@@ -710,7 +729,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self.m_outputs, self.m_request);
+            return Common::outputs_to_dict(self, false);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
@@ -723,6 +742,7 @@ void regclass_InferRequest(py::module m) {
         auto inputs_str = Common::docs::container_to_string(self.m_inputs, ",\n");
         auto outputs_str = Common::docs::container_to_string(self.m_outputs, ",\n");
 
-        return "<InferRequest:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+        return "<" + Common::get_class_name(self) + ":\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str +
+               "\n]>";
     });
 }

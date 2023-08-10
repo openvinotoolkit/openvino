@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "broadcast_inst.h"
-
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "broadcast_inst.h"
 #include "broadcast/broadcast_kernel_selector.h"
 #include "broadcast/broadcast_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -26,9 +23,9 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return make_unique<broadcast_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
-        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.get_output_layout().format;
@@ -52,8 +49,79 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        const auto& primitive = impl_params.typed_desc<broadcast>();
+
+        auto i_layout = impl_params.input_layouts[0];
+        auto o_layout = impl_params.output_layouts[0];
+
+        auto input_pshape = i_layout.get_partial_shape();
+        auto output_pshape = o_layout.get_partial_shape();
+
+        auto output_rank = output_pshape.size();
+
+        if (primitive->axes_mapping.empty()) {
+            bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            if (!broadcastable(input_pshape, output_pshape, use_new_shape_infer)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, output_pshape.size());
+            } else {
+                input_pshape = extend_shape_to_rank_from_end(input_pshape, output_pshape.size());
+            }
+        } else {
+            if (i_layout.is_static() && o_layout.is_static()) {
+                // If axis_mapping is specified, then ones are inserted according to it.
+                ov::Shape tmp_shape;
+                int prev_axis = -1;
+                int next_axis = -1;
+                size_t currentRank = 0;
+                int axe_idx = 0;
+                for (auto& axis : primitive->axes_mapping) {
+                    prev_axis = next_axis;
+                    next_axis = static_cast<int>(axis);
+
+                    int ones_count = std::max(next_axis - prev_axis - 1, 0);
+                    tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
+                    tmp_shape.push_back(input_pshape[axe_idx].get_length()); // Consider the Broadcast kernel 'broadcast' input to output shape
+
+                    currentRank += ones_count + 1;
+                    axe_idx += 1;
+                }
+                input_pshape = extend_shape_to_rank_from_end(tmp_shape, output_rank);
+            } else {
+                // dynamic input
+                // insert 1 to extend dimensions by axes_mapping
+                ov::Shape tmp_shape;
+                size_t idx = 0;
+                for (auto& axis : primitive->axes_mapping) {
+                    if (idx == axis) {
+                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
+                        idx += 1;
+                    } else {
+                        tmp_shape.insert(tmp_shape.begin() + idx, axis - idx, 1);
+                        idx = axis;
+                        tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
+                        idx += 1;
+                    }
+                }
+                input_pshape = extend_shape_to_rank_from_end(tmp_shape, output_rank);
+            }
+        }
+
+        updated_impl_params.input_layouts[0].set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+        updated_impl_params.input_layouts[0].format = format::adjust_to_rank(i_layout.format, input_pshape.size());
+
+        updated_impl_params.output_layouts[0].set_partial_shape(extend_shape_to_rank_from_end(output_pshape));
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -61,7 +129,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 namespace detail {
 
 attach_broadcast_impl::attach_broadcast_impl() {
-    auto dyn_types = {
+    auto types = {
         data_types::f32,
         data_types::f16,
         data_types::i8,
@@ -79,115 +147,34 @@ attach_broadcast_impl::attach_broadcast_impl() {
     implementation_map<broadcast>::add(impl_types::ocl,
                                        shape_types::dynamic_shape,
                                        typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>,
-                                       dyn_types,
+                                       types,
                                        dyn_formats);
 
-    implementation_map<broadcast>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
+    auto static_formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv4,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv4_fsv2,
+        format::bs_fs_yx_bsv4_fsv4,
+        format::bs_fs_yx_bsv8_fsv2,
+        format::bs_fs_yx_bsv8_fsv4,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
 
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::i8, format::bfwzyx),
-        std::make_tuple(data_types::u8, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i64, format::bfwzyx),
+        format::bfwzyx
+    };
 
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i64, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i64, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i64, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
-        std::make_tuple(data_types::i64, format::b_fs_zyx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i32, format::b_fs_zyx_fsv32),
-        std::make_tuple(data_types::i64, format::b_fs_zyx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv2),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv4_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv2),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv8_fsv2),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv4),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv8_fsv4),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv16_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv16),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i64, format::bs_fs_yx_bsv32_fsv32),
-    });
+    implementation_map<broadcast>::add(impl_types::ocl,
+                                       shape_types::static_shape,
+                                       typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>,
+                                       types,
+                                       static_formats);
 }
 
 }  // namespace detail
@@ -195,3 +182,4 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::broadcast)

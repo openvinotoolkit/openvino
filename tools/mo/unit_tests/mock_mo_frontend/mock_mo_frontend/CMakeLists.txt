@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,8 +24,7 @@ if(BUILD_SHARED_LIBS)
             RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT tests EXCLUDE_FROM_ALL)
 else()
-    set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
     install(TARGETS ${TARGET_FE_NAME}
-            RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/${pyversion}/openvino COMPONENT tests EXCLUDE_FROM_ALL)
+            RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino COMPONENT tests EXCLUDE_FROM_ALL)
 endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OP("Gather", "opset1", op::util::GatherBase, 1);
+    OPENVINO_OP("Gather", "opset1", op::util::GatherBase);
     static constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
     Gather() = default;
     /// \param data The tensor from which slices are gathered
@@ -33,7 +33,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
-    OPENVINO_OP("Gather", "opset7", op::util::GatherBase, 7);
+    OPENVINO_OP("Gather", "opset7", op::util::GatherBase);
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered

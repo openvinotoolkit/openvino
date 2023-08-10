@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ const auto testCasesNegativeAxis = ::testing::Combine(
     ::testing::ValuesIn(negativeAxes),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_0 = ::testing::Combine(
@@ -48,7 +48,7 @@ const auto testCasesAxis_0 = ::testing::Combine(
     ::testing::Values(axes[0]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_1 = ::testing::Combine(
@@ -57,7 +57,7 @@ const auto testCasesAxis_1 = ::testing::Combine(
     ::testing::Values(axes[1]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_2 = ::testing::Combine(
@@ -66,7 +66,7 @@ const auto testCasesAxis_2 = ::testing::Combine(
     ::testing::Values(axes[2]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_3 = ::testing::Combine(
@@ -75,7 +75,7 @@ const auto testCasesAxis_3 = ::testing::Combine(
     ::testing::Values(axes[3]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_4 = ::testing::Combine(
@@ -84,7 +84,7 @@ const auto testCasesAxis_4 = ::testing::Combine(
     ::testing::Values(axes[4]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_5 = ::testing::Combine(
@@ -93,7 +93,7 @@ const auto testCasesAxis_5 = ::testing::Combine(
     ::testing::Values(axes[5]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto testCasesAxis_6 = ::testing::Combine(
@@ -102,14 +102,14 @@ const auto testCasesAxis_6 = ::testing::Combine(
     ::testing::Values(axes[6]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_negative_axis, CumSumLayerTest, testCasesNegativeAxis, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_0, CumSumLayerTest, testCasesAxis_0, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_1, CumSumLayerTest, testCasesAxis_1, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_2, CumSumLayerTest, testCasesAxis_2, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_3, CumSumLayerTest, testCasesAxis_3, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_4, CumSumLayerTest, testCasesAxis_4, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_5, CumSumLayerTest, testCasesAxis_5, CumSumLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_INTEL_CPU_TestsCumSum_axis_6, CumSumLayerTest, testCasesAxis_6, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_negative_axis, CumSumLayerTest, testCasesNegativeAxis, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_0, CumSumLayerTest, testCasesAxis_0, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_1, CumSumLayerTest, testCasesAxis_1, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_2, CumSumLayerTest, testCasesAxis_2, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_3, CumSumLayerTest, testCasesAxis_3, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_4, CumSumLayerTest, testCasesAxis_4, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_5, CumSumLayerTest, testCasesAxis_5, CumSumLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsCumSum_axis_6, CumSumLayerTest, testCasesAxis_6, CumSumLayerTest::getTestCaseName);

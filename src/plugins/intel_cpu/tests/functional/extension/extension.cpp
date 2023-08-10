@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@ public:
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
                                                             InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         InferenceEngine::LayerConfig layerConfig;
-        layerConfig.dynBatchSupport = true;
 
         if (node->outputs().size() != 1 && node->inputs().size() != 1)
             return InferenceEngine::GENERAL_ERROR;
@@ -148,7 +147,7 @@ static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& 
 
 static std::string model_full_path(const char* path) {
     return FileUtils::makePath<char>(
-        FileUtils::makePath<char>(CommonTestUtils::getExecutableDirectory(), TEST_MODELS), path);
+        FileUtils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS), path);
 }
 
 TEST(Extension, XmlModelWithCustomAbs) {
@@ -201,7 +200,7 @@ TEST(Extension, XmlModelWithCustomAbs) {
 
 
 static std::string get_extension_path() {
-    return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
+    return FileUtils::makePluginLibraryName<char>(ov::test::utils::getExecutableDirectory(),
         std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 

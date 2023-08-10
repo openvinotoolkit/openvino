@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/core/any.hpp"
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-#include <ngraph/variant.hpp>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -32,7 +31,7 @@ public:
         constructorCount++;
     }
 
-    ~DestructorTest() {
+    virtual ~DestructorTest() {
         destructorCount++;
     }
 
@@ -162,6 +161,210 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
 }
 
+TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    Any p = refMap;
+    bool isMap = p.is<std::map<std::string, Any>>();
+    ASSERT_TRUE(isMap);
+    auto testMap = p.as<std::map<std::string, Any>>();
+
+    ASSERT_NE(testMap.find("refMap1"), testMap.end());
+    auto testMap1 = testMap.at("refMap1").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap1.find("testParamInt"), testMap1.end());
+    ASSERT_NE(testMap1.find("testParamString"), testMap1.end());
+
+    int testInt1 = testMap1["testParamInt"].as<int>();
+    std::string testString1 = testMap1["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap1["testParamInt"].as<int>(), testInt1);
+    ASSERT_EQ(refMap1["testParamString"].as<std::string>(), testString1);
+
+    ASSERT_NE(testMap.find("refMap2"), testMap.end());
+    auto testMap2 = testMap.at("refMap2").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap2.find("testParamInt"), testMap2.end());
+    ASSERT_NE(testMap2.find("testParamString"), testMap2.end());
+
+    int testInt2 = testMap2["testParamInt"].as<int>();
+    std::string testString2 = testMap2["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap2["testParamInt"].as<int>(), testInt2);
+    ASSERT_EQ(refMap2["testParamString"].as<std::string>(), testString2);
+}
+
+TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
+    const std::string string_props = "{map1:{prop1:1,prop2:2.0},map2:{prop1:value}}";
+    ov::Any any(string_props);
+
+    ov::AnyMap map;
+    ASSERT_TRUE(any.is<std::string>());
+    ASSERT_FALSE(any.is<ov::AnyMap>());
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
+
+    // check map1
+    using MapStrDouble = std::map<std::string, double>;
+    MapStrDouble map1;
+    ASSERT_TRUE(map["map1"].is<std::string>());
+    ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
+    ASSERT_FALSE(map["map1"].is<MapStrDouble>());
+    ASSERT_NO_THROW(map1 = map["map1"].as<MapStrDouble>());
+    ASSERT_EQ(2, map1.size());
+
+    // check map1:prop1
+    ASSERT_EQ(1.0, map1["prop1"]);
+    // check map1:prop2
+    ASSERT_EQ(2.0, map1["prop2"]);
+
+    // check map2
+    ov::AnyMap map2;
+    ASSERT_TRUE(map["map2"].is<std::string>());
+    ASSERT_FALSE(map["map2"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(map2 = map["map2"].as<ov::AnyMap>());
+    ASSERT_EQ(1, map2.size());
+
+    // check map1:prop1
+    ASSERT_TRUE(map2["prop1"].is<std::string>());
+    ASSERT_FALSE(map2["prop1"].is<int>());
+    ASSERT_EQ("value", map2["prop1"].as<std::string>());
+}
+
+TEST_F(AnyTests, AnyAsMapOfMapOfMapOfAnysFromString) {
+    const std::string string_props = "{map1:{subprop_map:{prop:value}},prop1:1,prop2:2.0}";
+    ov::Any any(string_props);
+
+    ov::AnyMap map;
+    ASSERT_TRUE(any.is<std::string>());
+    ASSERT_FALSE(any.is<ov::AnyMap>());
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    ASSERT_EQ(3, map.size());
+    ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
+
+    // check prop1
+    ASSERT_TRUE(map["prop1"].is<std::string>());
+    ASSERT_FALSE(map["prop1"].is<int>());
+    ASSERT_EQ("1", map["prop1"].as<std::string>());
+    ASSERT_EQ(1, map["prop1"].as<int>());
+
+    // check prop2
+    ASSERT_TRUE(map["prop2"].is<std::string>());
+    ASSERT_FALSE(map["prop2"].is<int>());
+    ASSERT_FALSE(map["prop2"].is<double>());
+    ASSERT_EQ("2.0", map["prop2"].as<std::string>());
+    ASSERT_EQ(2, map["prop2"].as<int>());
+    ASSERT_EQ(2.0, map["prop2"].as<double>());
+
+    // check map1
+    ov::AnyMap map1;
+    ASSERT_TRUE(map["map1"].is<std::string>());
+    ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(map1 = map["map1"].as<ov::AnyMap>());
+
+    // check subprop
+    ov::AnyMap subprop_map;
+    ASSERT_TRUE(map1["subprop_map"].is<std::string>());
+    ASSERT_FALSE(map1["subprop_map"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(subprop_map = map1["subprop_map"].as<ov::AnyMap>());
+
+    // check prop
+    ASSERT_TRUE(subprop_map["prop"].is<std::string>());
+    ASSERT_FALSE(subprop_map["prop"].is<ov::AnyMap>());
+    ASSERT_EQ("value", subprop_map["prop"].as<std::string>());
+}
+
+TEST_F(AnyTests, AnyDoesNotShareValues) {
+    // simple types
+    {
+        Any a = 1;
+        Any b = a;
+        a = 2;
+        ASSERT_EQ(1, b.as<int>());
+        ASSERT_EQ(2, a.as<int>());
+        b = 3;
+        ASSERT_EQ(2, a.as<int>());
+        ASSERT_EQ(3, b.as<int>());
+    }
+
+    // AnyMap's
+    {
+        AnyMap map{
+            {"1", ov::Any(1)},
+            {"2", ov::Any(2)},
+        };
+
+        Any a = map;
+
+        // check initial state
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());
+        ASSERT_EQ(2, a.as<AnyMap>()["2"].as<int>());
+
+        map["1"] = 3;                                 // change map
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());  // Any is not changed
+
+        a.as<AnyMap>()["2"] = 4;           // change Any
+        ASSERT_EQ(2, map["2"].as<int>());  // map is not changed
+
+        // erase from Any's map
+        AnyMap from_any_map = a.as<AnyMap>();
+        from_any_map.erase(from_any_map.begin());
+        ASSERT_EQ(2, map.size());
+
+        // erase from map
+        map.erase(map.find("2"));
+        ASSERT_NE(from_any_map.end(), from_any_map.find("2"));
+        ASSERT_EQ(4, a.as<AnyMap>()["2"].as<int>());
+    }
+}
+
+TEST_F(AnyTests, AnyMapSharesValues) {
+    AnyMap map{
+        {"1", 1},
+        {"2", 2},
+    };
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["1"].as<int>());
+    ASSERT_EQ(2, copy_map["2"].as<int>());
+
+    // change map
+    map["1"].as<int>() = 110;
+
+    // check copied state
+    EXPECT_EQ(110, map["1"].as<int>());
+    EXPECT_EQ(1, copy_map["1"].as<int>());
+}
+
+TEST_F(AnyTests, AnyMapSharesComplexValues) {
+    const std::string string_props = "{map1:{subprop_map:{prop:value}},prop1:1,prop2:2.0}";
+    ov::Any any(string_props);
+    ov::AnyMap map;
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["prop1"].as<int>());
+
+    // change map
+    map["prop1"].as<std::string>() = "110";
+
+    // check original and copied state
+    EXPECT_EQ("110", map["prop1"].as<std::string>());
+    EXPECT_EQ("1", copy_map["prop1"].as<std::string>());
+}
+
 TEST_F(AnyTests, AnyNotEmpty) {
     Any p = 4;
     ASSERT_FALSE(p.empty());
@@ -226,6 +429,13 @@ TEST_F(AnyTests, CompareAnysWithoutEqualOperator) {
     class TestClass {
     public:
         TestClass(int test, int* testPtr) : test(test), testPtr(testPtr) {}
+
+        int get_test() {
+            return test;
+        }
+        int* get_test_ptr() {
+            return testPtr;
+        }
 
     private:
         int test;
@@ -395,72 +605,31 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
     {
         Any p = refMap;
         ASSERT_NO_THROW(p.print(stream));
-        ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
+        ASSERT_EQ(stream.str(), std::string{"{testParamInt:4,testParamString:test}"});
     }
 }
 
-TEST_F(AnyTests, constructFromVariantImpl) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto parameter = Any{4};
-    auto get_impl = [&] {
-        return std::make_shared<ngraph::VariantImpl<int>>();
-    };
-    auto other_parameter = Any{get_impl()};
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
+TEST_F(AnyTests, PrintToMapOfMapsOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
 
-TEST_F(AnyTests, dynamicPointerCastToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
 
-TEST_F(AnyTests, asTypePtrToVariantWrapper) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-    auto str_variant = ov::as_type_ptr<ngraph::VariantWrapper<std::string>>(p);
-    ASSERT_EQ("42", str_variant->get());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
 
-TEST_F(AnyTests, castToVariantWrapper) {
+    std::stringstream stream;
     {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        std::shared_ptr<ngraph::VariantWrapper<std::string>> str_variant = p;
-        ASSERT_EQ("42", str_variant->get());
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](const std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        Any p = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        std::shared_ptr<RuntimeAttribute> v = std::make_shared<ngraph::VariantWrapper<std::string>>("42");
-        Any p = v;
-        auto f = [](std::shared_ptr<ngraph::VariantWrapper<std::string>>& str_variant) {
-            ASSERT_NE(nullptr, str_variant);
-            ASSERT_EQ("42", str_variant->get());
-        };
-        f(p);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        Any p = refMap;
+        ASSERT_NO_THROW(p.print(stream));
+        ASSERT_EQ(
+            stream.str(),
+            std::string{
+                "{refMap1:{testParamInt:4,testParamString:test},refMap2:{testParamInt:5,testParamString:test2}}"});
     }
 }
 

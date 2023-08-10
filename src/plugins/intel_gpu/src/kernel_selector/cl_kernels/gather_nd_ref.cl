@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,15 +33,31 @@
 
 #define INDICES_MAX_DIM 6
 
-KERNEL(gather_nd_ref)(const __global INPUT0_TYPE* data,
-                   const __global INPUT1_TYPE* indices,
-                   __global OUTPUT_TYPE* output
+KERNEL(gather_nd_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* data,
+    const __global INPUT1_TYPE* indices,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-                   , FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 )
 {
-
+#if IS_DYNAMIC
+    uint wi_slice = 1;
+    #if INPUT0_DIMS == 4
+        uint input_dim[4] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #elif INPUT0_DIMS == 5
+        uint input_dim[5] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #else
+        uint input_dim[6] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #endif
+    for (uint i = BATCH_DIMS + INPUT1_SIZE_X; i < INPUT0_DIMS; i++)
+        wi_slice *= input_dim[i];
+    #define WI_SLICE_SIZE wi_slice
+#else
+    #define WI_SLICE_SIZE WI_SLICE_SIZE_STATIC
+#endif
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);

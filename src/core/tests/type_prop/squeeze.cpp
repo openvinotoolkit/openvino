@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
-
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -41,6 +40,150 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
                     HasSubstr("Parameter axis -10 out of the tensor rank range"));
 }
 
+TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_no_squeezable_dims) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 2, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+
+    OV_EXPECT_THROW(auto s = make_shared<op::Squeeze>(param, axes_node),
+                    NodeValidationFailure,
+                    HasSubstr("doesn't contain squeezable dimension"));
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_1D_two_elem_static_shape_squeezable_dims_two) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_1D_two_elem_static_shape_squeezable_dims_one) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_squeezable_dims_one) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(2));
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_scalar_static_shape_squeezable_dims_one) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, 1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(2));
+}
+
+TEST(type_prop, squeeze_data_scalar_param_axes_1D_single_elem_static_shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_1D_two_elem_static_shape_squeezable_dims_equal) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_1D_two_elem_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 3, 1});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 3, 1});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, squeeze_data_static_param_axes_scalar_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{1, 2, 1, 3, 1});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(4));
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_1D_two_elem_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_1D_single_elem_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_scalar_static_shape_squeezable_dims_more) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
+TEST(type_prop, squeeze_data_dyamic_param_axes_1D_two_elem_static_shape_squeezable_dims_one) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{2, -1, 4});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{2});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_1D_three_elem_static_shape_squeezable_dims_two) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{3});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, squeeze_data_dynamic_param_axes_1D_single_elem_static_shape_squeezable_dims_less) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, PartialShape{-1, {2, 8}, {1, 3}, {4, -1}});
+    const auto axes_node = std::make_shared<op::Parameter>(element::u64, PartialShape{1});
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic(3));
+}
+
 using SqueezeTypePropTestParam = std::tuple<PartialShape,          // Input shape
                                             std::vector<int64_t>,  // Squeeze axis
                                             PartialShape           // Expected shape
@@ -53,9 +196,9 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         std::set<int64_t> axes_to_remove;
         if (axes.empty()) {
@@ -71,11 +214,11 @@ protected:
         }
 
         auto rm_iter = axes_to_remove.begin();
-        size_t rm_idx = 0;
+        int64_t rm_idx = 0;
         auto exp_labels = in_labels;
         exp_labels.erase(std::remove_if(exp_labels.begin(),
                                         exp_labels.end(),
-                                        [&](size_t& label) {
+                                        [&](ov::label_t& label) {
                                             if ((rm_iter != axes_to_remove.end()) && (*rm_iter == rm_idx++)) {
                                                 return ++rm_iter, true;
                                             } else {
@@ -145,7 +288,7 @@ TEST_P(SqueezeTest, partial_shape_dimension_propagation_parameter_axes_no_data) 
     const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
+    EXPECT_TRUE(squeeze->get_output_partial_shape(0).compatible(exp_shape));
 }
 
 TEST_P(SqueezeTest, partial_shape_dimension_propagation_dynamic_axes) {
@@ -160,7 +303,7 @@ TEST_P(SqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -251,7 +394,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,13 @@ namespace ov {
 namespace test {
 namespace behavior {
 std::shared_ptr<ngraph::Function> GetDefaultGraph() {
-    auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 224, 224});
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 224, 224});
     size_t spatialDims = 2;
     std::vector<ptrdiff_t> padBegin(spatialDims, 0), padEnd(spatialDims, 0);
     ngraph::Shape strides(spatialDims, 1);
     auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, {64, 3, 7, 7}, {},
             true);
-    auto conv1 = std::make_shared<ov::opset8::Convolution>(input, weights, strides,
+    auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides,
             padBegin, padEnd, strides);
     auto gamma = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
             true);
@@ -27,10 +27,10 @@ std::shared_ptr<ngraph::Function> GetDefaultGraph() {
             true);
     auto variance = ngraph::builder::makeConstant<float>(ov::element::f32, {64}, {},
             true);
-    auto batchNorm1 = std::make_shared<ov::opset8::BatchNormInference>(conv1, gamma,
+    auto batchNorm1 = std::make_shared<ov::op::v0::BatchNormInference>(conv1, gamma,
             beta, mean, variance, 1e-5);
-    auto relu1 = std::make_shared<ov::opset8::Relu>(batchNorm1);
-    auto pool = std::make_shared<ov::opset8::AvgPool>(relu1, strides, ov::Shape{1, 1},
+    auto relu1 = std::make_shared<ov::op::v0::Relu>(batchNorm1);
+    auto pool = std::make_shared<ov::op::v1::AvgPool>(relu1, strides, ov::Shape{1, 1},
             ov::Shape{1, 1}, ov::Shape{4, 4}, true);
     return std::make_shared<ngraph::Function>(ngraph::OutputVector{pool},
             ngraph::ParameterVector{input},
@@ -45,6 +45,13 @@ void OVInferConsistencyTest::SetUp() {
     for (auto&& item : _deviceConfigs) {
         ModelContext modelContext;
         modelContext._model = core->compile_model(function, item.first, item.second);
+        if (_inferReqNumPerModel == 0) {
+            try {
+                _inferReqNumPerModel =  modelContext._model.get_property(ov::optimal_number_of_infer_requests);
+            } catch (...) {
+                throw("cannot deduce infer request number");
+            }
+        }
         for (auto i = 0; i < _inferReqNumPerModel; i++) {
             InferContext inferContext;
             inferContext._inferRequest = modelContext._model.create_infer_request();
@@ -171,15 +178,17 @@ void OVInferConsistencyTest::FillInput(InferContext& inferContext, int index) {
     auto input_tensor =
         inferContext._inferRequest.get_input_tensor(0);
     auto data = input_tensor.data<float>();
-    CommonTestUtils::fill_data(data, 1 * 3 * 224 * 224, index);
+    ov::test::utils::fill_data(data, 1 * 3 * 224 * 224, index);
     inferContext._inputs.push_back(input_tensor);
 }
 
 TEST_P(OVInferConsistencyTest, Infer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferCheck(true);
 }
 
 TEST_P(OVInferConsistencyTest, AsyncInfer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InferCheck(false);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -8,19 +8,18 @@
 
 namespace ov {
 namespace op {
-namespace util {
-template <class T>
-void shape_infer(const GatherBase* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::GatherBase* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
     const auto& data_pshape = input_shapes[0];
     const auto& indices_pshape = input_shapes[1];
     const auto& axis_pshape = input_shapes[2];
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
     auto axis_rank = axis_pshape.rank();
+    auto output_shapes = std::vector<TRShape>(1);
     auto& output_pshape = output_shapes[0];
 
     if (axis_rank.is_static() && axis_pshape.is_static()) {
@@ -37,15 +36,16 @@ void shape_infer(const GatherBase* op,
         batch_dims += indices_rank.get_length();
     }
 
-    std::vector<int64_t> axes_val;
-    bool axis_is_set = get_data_as_int64<T>(2, op, axes_val, constant_data);
-    int64_t axis = 0;
-
-    if (axis_is_set) {
-        axis = axes_val[0];
+    bool axis_is_set;
+    int64_t axis;
+    if (const auto axes_val = get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor)) {
+        axis = (*axes_val)[0];
+        axis_is_set = true;
 
         if (data_rank.is_static()) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             axis = ov::normalize_axis(op, axis, data_rank);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
         // indices_rank are static.
@@ -56,6 +56,9 @@ void shape_infer(const GatherBase* op,
                               batch_dims,
                               ", axis = ",
                               axis);
+    } else {
+        axis_is_set = false;
+        axis = 0;
     }
 
     if (indices_rank.is_static() && batch_dims >= 0) {
@@ -106,7 +109,7 @@ void shape_infer(const GatherBase* op,
             out_rank = out_rank - indices_rank.get_max_length();
         output_pshape = PartialShape::dynamic(out_rank);
     }
+    return output_shapes;
 }
-}  // namespace util
 }  // namespace op
 }  // namespace ov

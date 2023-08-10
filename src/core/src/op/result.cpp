@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,6 @@ using namespace std;
 using namespace ngraph;
 
 op::Result::Result(const Output<Node>& arg) : Op({arg}) {
-    constructor_validate_and_infer_types();
-}
-
-op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
@@ -46,6 +42,7 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
     return std::move(res);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Result_evaluate);
     outputs[0]->set_unary(inputs[0]);
@@ -55,6 +52,7 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
 
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::Result::has_evaluate() const {
     OV_OP_SCOPE(v0_Result_has_evaluate);

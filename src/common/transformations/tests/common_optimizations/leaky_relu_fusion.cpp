@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,11 @@ TEST_F(TransformationTestsF, LeakyReluFusionConstant) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = opset8::Constant::create(element::f32, Shape{1}, {0.1});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         function_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data});
@@ -47,11 +47,11 @@ TEST_F(TransformationTestsF, LeakyReluFusionScalar) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = opset8::Constant::create(element::f32, Shape{}, {0.1});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         function_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data});
@@ -66,11 +66,11 @@ TEST_F(TransformationTestsF, LeakyReluFusionParameter) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data, alpha});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = std::make_shared<opset8::Parameter>(element::f32, Shape{});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         function_ref = std::make_shared<Function>(NodeVector{leaky_relu}, ParameterVector{data, alpha});

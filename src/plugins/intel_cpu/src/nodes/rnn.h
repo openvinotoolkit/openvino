@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,20 +11,22 @@
 #include <memory>
 #include <vector>
 
+#include "common/dnnl_executor.h"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class RNN : public Node {
 public:
-    RNN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    RNN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     static bool isCell(const std::shared_ptr<const ngraph::Node>& op);
     static bool testNativeOrder(const std::shared_ptr<const ngraph::Node>& op);
     void getSupportedDescriptors() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
     bool created() const override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -37,6 +39,13 @@ public:
     }
 
     void cleanup() override;
+
+    enum InOutKind {
+        Layer       = 0,
+        HiddenState = 1,
+        CellState   = 2,
+        Attention   = 2
+    };
 
 protected:
     void prepareParams() override;
@@ -59,6 +68,26 @@ private:
 
     void copyWeightsData();
 
+    class RnnDnnlExecutor : public DnnlExecutor {
+        public:
+            RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+
+            DnnlMemoryDescPtr getWeightIterDesc() const {
+                return wghts_iter_md;
+            }
+
+            DnnlMemoryDescPtr getBiasDesc() const {
+                return bias_md;
+            }
+
+        private:
+            DnnlMemoryDescPtr wghts_iter_md;
+            DnnlMemoryDescPtr bias_md;
+    };
+
+    using executorPtr = std::shared_ptr<RnnDnnlExecutor>;
+    executorPtr execPtr = nullptr;
+
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 
@@ -68,7 +97,7 @@ private:
     bool nativeOrder = true;
 
     /** Direction of iteration through sequence dimension */
-    dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional;
+    dnnl::rnn_direction direction = dnnl::rnn_direction::unidirectional_left2right;
 
     /** RNN Cell type (type/activation_alg/clip)*/
     dnnl::algorithm cell_type = dnnl::algorithm::undef;
@@ -112,13 +141,6 @@ private:
     std::vector<dnnl::memory::data_type> inDataTypes;
     std::vector<dnnl::memory::data_type> outDataTypes;
 
-    enum RNNInOutKind {
-        Layer       = 0,
-        HiddenState = 1,
-        CellState   = 2,
-        Attention   = 2
-    };
-
     const size_t xIdx = 0; // ov -> input X;              dnnl -> src_layer
     const size_t hIdx = 1; // ov -> initial_hidden_state; dnnl -> src_iter_h
     const size_t cIdx = 2; // ov -> initial_cell_state;   dnnl -> src_iter_c
@@ -137,9 +159,6 @@ private:
 
     static constexpr size_t optimalBatchSize = 16lu;
     static constexpr size_t batchDimDummyValue = 64lu;
-
-    bool wasMemoryPrepared = false;
-    MemoryPtr scratchpadMem;
 
     float inputScale    = 0.f;
     float inputShift    = 0.f;

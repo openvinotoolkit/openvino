@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,16 +14,17 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for input data argument
-static const char input_message[] = "Required. Paths to input file or Layers names with corresponding paths to the "
-                                    "input files. Example of usage for single file: <file.ark> or <file.npz>. Example "
-                                    "of usage for named layers: <layer1>=<file1.ark>,<layer2>=<file2.ark>.";
+static const char input_message[] = "Required. Path(s) to input file(s). "
+                                    "Usage for a single file/layer: <input_file.ark> or <input_file.npz>. "
+                                    "Example of usage for several files/layers: "
+                                    "<layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
 
 /// @brief message for assigning calculation to device
 static const char target_device_message[] =
-    "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+    "Optional. Specify a target device to infer on. CPU, GPU, NPU, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
     "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
     " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
@@ -60,16 +61,17 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] =
-    "Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example "
-    "of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: Example of usage for "
-    "named layers: <layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.";
+static const char output_message[] = "Optional. Output file name(s) to save scores (inference results). "
+                                     "Usage for a single file/layer: <output_file.ark> or <output_file.npz>. "
+                                     "Example of usage for several files/layers: "
+                                     "<layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.";
 
 /// @brief message for reference score file argument
 static const char reference_score_message[] =
-    "Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of "
-    "usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: Example of usage "
-    "for named layers: <layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.";
+    "Optional. Read reference score file(s) and compare inference results with reference scores. "
+    "Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>. "
+    "Example of usage for several files/layers: "
+    "<layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =
@@ -89,17 +91,17 @@ static const char write_embedded_model_generation_message[] =
 
 /// @brief message for quantization argument
 static const char quantization_message[] =
-    "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
+    "Optional. Input quantization mode for GNA: static (default) or user defined (use with -sf).";
 
 /// @brief message for quantization bits argument
-static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
+static const char quantization_bits_message[] =
+    "Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
 static const char scale_factor_message[] =
-    "Optional. User-specified input scale factor for quantization (use with -q user). "
-    "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas. "
-    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
+    "Optional. User-specified input scale factor for GNA quantization (use with -q user). "
+    "If the model contains multiple inputs, provide scale factors by separating them with commas. "
+    "For example: <layer1>:<sf1>,<layer2>:<sf2> or just <sf> to be applied to all inputs.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
@@ -173,7 +175,7 @@ DEFINE_string(we, "", write_embedded_model_message);
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
-/// @brief Input quantization bits (default 16)
+/// @brief Weight resolution in bits (default 16)
 DEFINE_int32(qb, 16, quantization_bits_message);
 
 /// @brief Scale factor for quantization
@@ -222,7 +224,7 @@ static void show_usage() {
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
-    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
+    std::cout << "    -memory_reuse_off          " << memory_reuse_message << std::endl;
 }
 
 /**
@@ -272,7 +274,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
-                                                 "MYRIAD"};
+                                                 "NPU"};
 
     if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");
@@ -284,12 +286,8 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     /** default is a static quantization **/
-    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("dynamic") != 0) && (FLAGS_q.compare("user") != 0)) {
-        throw std::logic_error("Quantization mode not supported (static, dynamic, user).");
-    }
-
-    if (FLAGS_q.compare("dynamic") == 0) {
-        throw std::logic_error("Dynamic quantization not yet supported.");
+    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("user") != 0)) {
+        throw std::logic_error("Quantization mode not supported (static, user).");
     }
 
     if (FLAGS_qb != 16 && FLAGS_qb != 8) {

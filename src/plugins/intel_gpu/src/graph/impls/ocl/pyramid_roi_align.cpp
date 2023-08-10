@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "pyramid_roi_align_inst.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_selector.h"
 #include "pyramid_roi_align/pyramid_roi_align_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "pyramid_roi_align_inst.h"
 
 #include <cmath>
 
@@ -29,7 +27,7 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<pyramid_roi_align>();
-        auto params = get_default_params<kernel_selector::PyramidROIAlign_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::PyramidROIAlign_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::PyramidROIAlign_optional_params>(impl_param.get_program());
 
         const auto P2_idx = 1;
@@ -74,3 +72,4 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::pyramid_roi_align)

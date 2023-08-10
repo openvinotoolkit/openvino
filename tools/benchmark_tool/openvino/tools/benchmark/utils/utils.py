@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import defaultdict
 from datetime import timedelta
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
+import enum
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME
+    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME, HETERO_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -54,22 +55,43 @@ def next_step(additional_info='', step_id=0):
 
 def get_element_type(precision):
     format_map = {
-      'FP32' : Type.f32,
-      'I32'  : Type.i32,
-      'I64'  : Type.i64,
-      'FP16' : Type.f16,
-      'I16'  : Type.i16,
-      'U16'  : Type.u16,
-      'I8'   : Type.i8,
-      'U8'   : Type.u8,
-      'BOOL' : Type.boolean,
+      'bool'    : Type.boolean,
+
+      'f16'  : Type.f16,
+      'f32'  : Type.f32,
+      'f64'  : Type.f64,
+
+      'i8'   : Type.i8,
+      'i16'  : Type.i16,
+      'i32'  : Type.i32,
+      'i64'  : Type.i64,
+
+      'u8'   : Type.u8,
+      'u16'  : Type.u16,
+      'u32'  : Type.u32,
+      'u64'  : Type.u64,
     }
     if precision in format_map.keys():
         return format_map[precision]
-    for element_type in format_map.values():
-        if element_type.get_type_name() == precision:
-            return element_type
+
     raise Exception(f"Undefined precision: '{precision}' !")
+
+
+def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    # TODO: remove warning after 23.3 release
+    warned = False
+    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
+    for input_info in app_inputs_info:
+        if input_info.mean.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
+        if input_info.scale.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
 
 
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
@@ -117,6 +139,8 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
             elif app_inputs_info[i].is_image:
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
+
+    fuse_mean_scale(pre_post_processor, app_inputs_info)
 
     # set layout for model input
     for info in app_inputs_info:
@@ -185,7 +209,6 @@ def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, a
 
     return niter
 
-
 def get_duration_seconds(time, number_iterations, device):
     if time:
         # time limit
@@ -249,10 +272,16 @@ def check_for_static(app_input_info):
 
 def can_measure_as_static(app_input_info):
     for info in app_input_info:
-        if info.is_dynamic and (len(info.shapes) > 1 or info.original_shape.is_static):
+        if len(info.shapes) > 1:
             return False
     return True
 
+meta_plugins = [ MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, AUTO_DEVICE_NAME ]
+def is_virtual_device(device_name) -> bool:
+    return device_name in meta_plugins
+
+def is_virtual_device_found(device_names) -> bool:
+    return any(is_virtual_device(device_name) for device_name in device_names)
 
 def parse_devices(device_string):
     result = []
@@ -260,7 +289,10 @@ def parse_devices(device_string):
     result.append(target_device)
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
-        result.extend(hw_devices_str.split(','))
+        for hw_device in hw_devices_str.split(','):
+            if hw_device[0] == '-':
+                hw_device = hw_device[1:]
+            result.append(hw_device)
     return result
 
 def parse_value_per_device(devices, values_string, value_type):
@@ -298,8 +330,8 @@ def parse_value_for_virtual_device(device, values_string):
             # Remove the element that the key is virtual device MULTI
             # e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.pop(device)
-        elif device == AUTO_DEVICE_NAME:
-            # Just keep the element that the key is virtual device AUTO
+        elif device == AUTO_DEVICE_NAME or device == HETERO_DEVICE_NAME:
+            # Just keep the element that the key is virtual device AUTO/HETERO
             # e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
             value = values_string.get(device)
             values_string.clear()
@@ -307,11 +339,15 @@ def parse_value_for_virtual_device(device, values_string):
     keys = values_string.keys()
     for key in list(values_string):
         if device not in list(values_string):
-            values_string[device] = ''
-        values_string[device] += key + " " + values_string.get(key) + " "
+            values_string[device] = '{'
+        else:
+            values_string[device] += ','
+        values_string[device] += key + ":" + values_string.get(key)
         del values_string[key]
     if device in values_string.keys():
         values_string[device] = values_string[device].strip()
+        if values_string[device] != '':
+            values_string[device] += '}'
     return
 
 def process_help_inference_string(benchmark_app, device_number_streams):
@@ -377,52 +413,53 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
         elif sort_flag=="simple_sort":
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
-        print_detail_result(total_detail_data)        
-        print(f'Total time:       {total_time} microseconds')
-        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print_detail_result(total_detail_data)
+        print(f'Total time:       {total_time / 1000:.3f} milliseconds')
+        print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
 def print_detail_result(result_list):
-    """ Print_perf_counters_sort result 
+    """ Print_perf_counters_sort result
     """
-    max_layer_name = 30
+    max_print_length = 20
     for tmp_result in result_list:
         node_name = tmp_result[0]
         layerStatus = tmp_result[1]
         layerType = tmp_result[2]
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
-        real_proportion = "%.2f"%(tmp_result[5]*100)
+        real_proportion = "%.2f" % (tmp_result[5] * 100)
         if real_proportion == "0.00":
             real_proportion = "N/A"
         execType = tmp_result[6]
-        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatus):<20}"
-            f"{'layerType: ' + layerType:<30}"
-            f"{'realTime: ' + str(real_time):<20}"
-            f"{'cpu: ' +  str(cpu_time):<15}"
-            f"{'proportion: '+ str(real_proportion)+'%':<20}"
-            f"{'execType: ' + execType:<20}")
+        print(f"{node_name[:max_print_length - 4] + '...' if (len(node_name) >= max_print_length) else node_name:<20} "
+                f"{str(layerStatus):<20} "
+                f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
+                f"execType: {execType:<20} "
+                f"realTime (ms): {real_time / 1000:<10.3f} "
+                f"cpuTime (ms): {cpu_time / 1000:<10.3f}"
+                f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
-    max_layer_name = 30
+    max_print_length = 20
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
         total_time = timedelta()
         total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{str(pi.status):<15}"
-                                                                f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'execType: ' + pi.exec_type:<20}")
+            print(f"{pi.node_name[:max_print_length - 4] + '...' if (len(pi.node_name) >= max_print_length) else pi.node_name:<20} "
+                f"{str(pi.status):<20} "
+                f"layerType: {pi.node_type[:max_print_length - 4] + '...' if (len(pi.node_type) >= max_print_length) else pi.node_type:<20} "
+                f"execType: {pi.exec_type:<20} "
+                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):<10.3f}")
+
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
-        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
+        print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
+        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
@@ -507,7 +544,7 @@ def parse_scale_or_mean(parameter_string, input_info):
         if matches:
             for match in matches:
                 input_name, value = match
-                f_value = np.array(value.split(",")).astype(np.float)
+                f_value = np.array(value.split(",")).astype(float)
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:
@@ -518,12 +555,10 @@ def parse_scale_or_mean(parameter_string, input_info):
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
-
 class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = Layout()
-        self.original_shape = None
         self.partial_shape = None
         self.data_shapes = []
         self.scale = np.empty([0])
@@ -543,13 +578,13 @@ class AppInputInfo:
             return False
         return len(self.channels) >= 2 if self.channels.is_static else self.channels.relaxes(Dimension(2))
 
-    def getDimentionByLayout(self, character):
+    def getDimensionByLayout(self, character):
         if self.layout.has_name(character):
             return self.partial_shape[self.layout.get_index_by_name(character)]
         else:
             return Dimension(0)
 
-    def getDimentionsByLayout(self, character):
+    def getDimensionsByLayout(self, character):
         if self.layout.has_name(character):
             d_index = self.layout.get_index_by_name(character)
             dims = []
@@ -568,23 +603,23 @@ class AppInputInfo:
 
     @property
     def width(self):
-        return len(self.getDimentionByLayout("W"))
+        return len(self.getDimensionByLayout("W"))
 
     @property
-    def widthes(self):
-        return self.getDimentionsByLayout("W")
+    def widths(self):
+        return self.getDimensionsByLayout("W")
 
     @property
     def height(self):
-        return len(self.getDimentionByLayout("H"))
+        return len(self.getDimensionByLayout("H"))
 
     @property
     def heights(self):
-        return self.getDimentionsByLayout("H")
+        return self.getDimensionsByLayout("H")
 
     @property
     def channels(self):
-        return self.getDimentionByLayout("C")
+        return self.getDimensionByLayout("C")
 
     @property
     def is_static(self):
@@ -614,7 +649,6 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Input precision
         info.element_type = inputs[i].element_type
         # Shape
-        info.original_shape = inputs[i].partial_shape
         if info.name in shape_map:
             info.partial_shape = PartialShape(shape_map[info.name])
             reshape = True
@@ -722,29 +756,68 @@ def show_available_devices():
     print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
 
+def device_properties_to_string(config):
+    ret = "{"
+    for k, v in config.items():
+        if isinstance(v, dict):
+            sub_str = "{"
+            for sk, sv in v.items():
+                if isinstance(sv, bool):
+                    sv = "YES" if sv else "NO"
+                if isinstance(sv, properties.Affinity):
+                    sv = sv.name
+                sub_str += "{0}:{1},".format(sk, sv)
+            sub_str = sub_str[:-1]
+            sub_str += "}"
+            ret += "{0}:{1},".format(k, sub_str)
+        else:
+            ret += "{0}:{1},".format(k, v)
+    ret = ret[:-1]
+    ret += "}"
+    return ret
+
+
+def string_to_device_properties(device_properties_str):
+    ret = {}
+    if not device_properties_str:
+        return ret
+    if not device_properties_str.startswith("{") or not device_properties_str.endswith("}"):
+        raise Exception(
+            "Failed to parse device properties. Value of device properties should be started with '{' and ended with '}'."
+            "They are actually {} and {}".format(device_properties_str[0], device_properties_str[-1]))
+    pattern = r'(\w+):({.+?}|[^,}]+)'
+    pairs = re.findall(pattern, device_properties_str)
+    for key, value in pairs:
+        if value.startswith("{") and value.endswith("}"):
+            value = value[1:-1]
+            nested_pairs = re.findall(pattern, value)
+            nested_dict = {}
+            for nested_key, nested_value in nested_pairs:
+                nested_dict[nested_key] = nested_value
+            value = nested_dict
+        ret[key] = value
+    return ret
+
+
 def dump_config(filename, config):
-    properties = {}
-    for device in config:
-        properties[device] = {}
-        supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
-        # check if ov::device::properties exists in the config
-        if device not in (AUTO_DEVICE_NAME, MULTI_DEVICE_NAME):
-            properties[device] = config[device]
-            continue
-        for property_name in config[device]:
-            property_value = config[device][property_name]
-            if property_name in supported_properties:
-                properties[device][property_name] = property_value
+    json_config = {}
+    for device_name, device_config in config.items():
+        json_config[device_name] = {}
+        for key, value in device_config.items():
+            if isinstance(value, OVAny) and (isinstance(value.value, dict)):
+                value_string = device_properties_to_string(value.get())
+            elif isinstance(value, (properties.hint.PerformanceMode, properties.Affinity)):
+                value_string = value.name
+            elif isinstance(value, OVAny):
+                value_string = str(value.value)
             else:
-                properties[device].setdefault('DEVICE_PROPERTIES', {})
-                properties[device]['DEVICE_PROPERTIES'].setdefault(property_name, {})
-                array = property_value.split(' ')
-                properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
-                for key in properties_dict:
-                    properties[device]['DEVICE_PROPERTIES'][property_name][key] = properties_dict[key]
+                value_string = str(value)
+                if isinstance(value, bool):
+                    value_string = "YES" if value else "NO"
+            json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
-        json.dump(properties, f, indent=4)
+        json.dump(json_config, f, indent=4)
 
 
 def load_config(filename, config):
@@ -754,13 +827,8 @@ def load_config(filename, config):
         config[device] = {}
         for property_name in original_config[device]:
             property_value = original_config[device][property_name]
-            if property_name != 'DEVICE_PROPERTIES':
-                config[device][property_name] = property_value
-                continue
-            for hw_device in property_value:
-                hw_device_config = property_value[hw_device]
-                array = ""
-                for key in hw_device_config:
-                    value = hw_device_config[key]
-                    array += key + ' ' + value + ' '
-                config[device][hw_device] = array.strip()
+            if property_name == properties.device.properties():
+                property_value = string_to_device_properties(property_value)
+            elif property_value in ("YES", "NO"):
+                property_value = True if property_value == "YES" else False
+            config[device][property_name] = OVAny(property_value)

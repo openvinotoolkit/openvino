@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 
 using namespace ngraph;
 using namespace std;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 const Shape& runtime::Tensor::get_shape() const {
     return m_descriptor->get_shape();

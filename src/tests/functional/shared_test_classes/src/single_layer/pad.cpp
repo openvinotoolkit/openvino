@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,9 +19,9 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
       obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
-    result << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
+    result << "padsBegin=" << ov::test::utils::vec2str(padsBegin) << "_";
+    result << "padsEnd=" << ov::test::utils::vec2str(padsEnd) << "_";
     if (padMode == ngraph::helpers::PadMode::CONSTANT) {
         result << "Value=" << argPadValue << "_";
     }

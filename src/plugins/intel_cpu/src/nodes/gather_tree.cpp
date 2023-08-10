@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ bool GatherTree::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+GatherTree::GatherTree(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -140,12 +140,12 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
 
 template<typename DATA_T>
 void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const MemoryPtr& parentIdxMemPtr,
-    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, MemoryPtr& dstMemPtr) {
-    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->GetPtr());
-    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->GetPtr());
-    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->GetPtr());
-    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->GetPtr()))[0];
-    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->GetPtr());
+    const MemoryPtr& maxSeqLenMemPtr, const MemoryPtr& endTokenMemPtr, const MemoryPtr& dstMemPtr) {
+    const auto *stepIdx = reinterpret_cast<DATA_T *>(stepIdxMemPtr->getData());
+    const auto *parentIdx = reinterpret_cast<DATA_T *>(parentIdxMemPtr->getData());
+    const auto *maxSeqLen = reinterpret_cast<DATA_T *>(maxSeqLenMemPtr->getData());
+    const auto endToken = (reinterpret_cast<DATA_T *>(endTokenMemPtr->getData()))[0];
+    auto *finalIdx = reinterpret_cast<DATA_T *>(dstMemPtr->getData());
 
     bool incorrectResult = false;
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
@@ -156,7 +156,8 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr, const 
                 finalIdx[idx + beam] = endToken;
 
             for (int32_t parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
-                if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) || idx + parent >= parentIdxSize) {
+                if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) ||
+                    static_cast<size_t>(idx + parent) >= parentIdxSize) {
                     incorrectResult = true;
                     break;
                 }

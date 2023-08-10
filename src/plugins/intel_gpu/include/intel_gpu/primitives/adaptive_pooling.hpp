@@ -16,6 +16,12 @@ enum class adaptive_pooling_mode : int32_t {
 struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     CLDNN_DECLARE_PRIMITIVE(adaptive_pooling)
 
+    adaptive_pooling() : primitive_base("", {}),
+                         mode{adaptive_pooling_mode::average},
+                         output_size{} {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs AdaptiveAvgPooling primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -49,6 +55,41 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     tensor output_size;
     primitive_id indices_output;
     data_types index_element_type{data_types::i64};
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, index_element_type);
+        seed = hash_combine(seed, indices_output.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const adaptive_pooling>(rhs);
+
+        return mode == rhs_casted.mode &&
+               indices_output == rhs_casted.indices_output &&
+               index_element_type == rhs_casted.index_element_type;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<adaptive_pooling>::save(ob);
+        ob << make_data(&mode, sizeof(adaptive_pooling_mode));
+        ob << output_size;
+        ob << indices_output;
+        ob << make_data(&index_element_type, sizeof(data_types));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<adaptive_pooling>::load(ib);
+        ib >> make_data(&mode, sizeof(adaptive_pooling_mode));
+        ib >> output_size;
+        ib >> indices_output;
+        ib >> make_data(&index_element_type, sizeof(data_types));
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

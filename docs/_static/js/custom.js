@@ -28,36 +28,35 @@ var wapSection = 'openvinotoolkit';
 // legal notice for benchmarks
 function addLegalNotice() {
     if (window.location.href.indexOf('openvino_docs_performance_') !== -1) {
-        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks_openvino.html#platform-configurations">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
+        var legalNotice = $('<div class="opt-notice-wrapper"><p class="opt-notice">Results may vary. For workloads visit: <a href="openvino_docs_performance_benchmarks_faq.html#what-image-sizes-are-used-for-the-classification-network-models">workloads</a> and for configurations visit: <a href="openvino_docs_performance_benchmarks.html#platforms-configurations-methodology">configurations</a>. See also <a class="el" href="openvino_docs_Legal_Information.html">Legal Information</a>.</p></div>');
         $('body').append(legalNotice);
     }
 }
 
 $(document).ready(function () {
+    addFooter();
     createVersions();
     updateTitleTag();
+    updateLanguageSelector();
     init_col_sections();
     init_switchers();
     handleSwitcherParam();
     initViewerJS();
-    var TABLE_SORT = window.TABLE_SORT;
-    if (TABLE_SORT) {
-        addTableSort();
-    }
     addLegalNotice();
     updateSearchForm();
     initBenchmarkPickers();   // included with the new benchmarks page 
     initCollapsibleHeaders(); // included with the new benchmarks page
     createSphinxTabSets();
+    initSplide();
 });
 
 // Determine where we'd go if clicking on a version selector option
 function getPageUrlWithVersion(version) {
-    var currentURL = window.location.href;
-    var newURL = currentURL.replace(getCurrentVersion(), version);
-    return encodeURI(newURL);
+    const currentUrl = window.location.href;
+    const pattern = new RegExp('(?:http|https)\:\/\/.*?\/');
+    const newUrl = currentUrl.match(pattern) + version + '/index.html';
+    return encodeURI(newUrl);
 }
-
 
 function createSphinxTabSets() {
     var sphinxTabSets = $('.sphinxtabset');
@@ -131,76 +130,13 @@ function createVersions() {
     })
     var downloadBtn = $('#download-zip-btn');
     downloadBtn.attr('href', '/archives/' + currentVersion + '.zip')
-
 }
 
-
-function addTableSort() {
-    var tables = $('table.table');
-    tables.each(function () {
-        var table = $(this);
-        var headings = table.find('th');
-        headings.each(function () {
-            var th = $(this);
-            var index = th.index();
-            var sortBtn = $('<span class="sort-btn"></span>');
-            th.addClass('sort-header');
-            th.click(function () {
-                var counter = 0;
-                sortBtn.addClass('sort-active');
-                sortBy = sortBtn.data('sortby');
-                var trs = table.find('tbody tr');
-                sortBtn.toggleClass('ascending');
-                trs.sort(function (item1, item2) {
-
-                    if (sortBtn.hasClass('ascending')) {
-                        var text1 = $(item1).find('td').eq(index).text();
-                        var text2 = $(item2).find('td').eq(index).text();
-                    }
-                    else {
-                        var text1 = $(item2).find('td').eq(index).text();
-                        var text2 = $(item1).find('td').eq(index).text();
-                    }
-                    // try converting to num
-                    var _text1 = parseFloat(text1);
-                    var _text2 = parseFloat(text2);
-
-                    if (!isNaN(_text1) && !isNaN(_text2)) {
-                        text1 = _text1;
-                        text2 = _text2;
-                    }
-                    if (text1 > text2) {
-                        return 1;
-                    }
-                    else if (text1 < text2) {
-                        return -1;
-                    }
-                    else {
-                        return 0;
-                    }
-                }).map(function () {
-                    var row = $(this);
-                    if (counter % 2 === 0) {
-                        row.removeClass('row-odd');
-                        row.addClass('row-even');
-                    }
-                    else {
-                        row.removeClass('row-even');
-                        row.addClass('row-odd');
-                    }
-                    counter++;
-                    table.find('tbody').append(row);
-                });
-
-                headings.each(function () {
-                    if ($(this).index() !== index) {
-                        $(this).find('.sort-btn').removeClass('ascending');
-                        $(this).find('.sort-btn').removeClass('sort-active');
-                    }
-                });
-            });
-            th.find('p').append(sortBtn);
-        });
+function updateLanguageSelector() {
+    const currentVersion = getCurrentVersion();
+    $('[aria-labelledby="language-selector"]').find('a').each(function(){
+        const newUrl = $(this).attr('href').replace('latest', currentVersion);
+        $(this).attr('href', newUrl);
     });
 }
 
@@ -319,3 +255,29 @@ function initBenchmarkPickers() {
       $('#performance-information-frequently-asked-questions section p, #performance-information-frequently-asked-questions section table').hide();
     }
   }
+
+function addFooter() {
+    const footerAnchor = $('.footer');
+
+    fetch('/footer.html').then((response) => response.text()).then((text) => {
+        const footerContent = $(text);
+        footerAnchor.append(footerContent);
+    });
+}
+
+function initSplide() {
+  const slides = $('.splide__slide');
+  const height = (slides.length > 4) ? 96 + ((slides.length - 4) * 16) : 96
+  var splide = new Splide('.splide', {
+    direction         : 'ttb',
+    type              : 'loop',
+    height            : `${height}px`,
+    perPage           : 1,
+    autoplay          : true,
+    arrows            : false,
+    waitForTransition : true,
+    wheel             : true,
+    wheelSleep        : 250,
+  });
+  splide.mount();
+}

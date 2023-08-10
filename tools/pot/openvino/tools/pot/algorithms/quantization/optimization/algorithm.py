@@ -9,7 +9,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import scipy.optimize
 
 from ..qnoise_estimator.algorithm import QuantNoiseEstimator
@@ -20,13 +19,17 @@ from ....graph.model_utils import save_model
 from ....samplers.creator import create_sampler
 from ....utils.logger import get_logger
 
+
+logger = get_logger(__name__)
+
+
 try:
     import nevergrad as ng
 
     NEVERGRAD_AVAILABLE = True
 except ImportError:
     NEVERGRAD_AVAILABLE = False
-    warnings.warn(
+    logger.warning(
         'Nevergrad package could not be imported. If you are planning to use '
         'any hyperparameter optimization algo, consider installing it '
         'using pip. This implies advanced usage of the tool. '
@@ -39,8 +42,6 @@ try:
     SKOPT_AVAILABLE = True
 except ImportError:
     SKOPT_AVAILABLE = False
-
-logger = get_logger(__name__)
 
 
 @COMPRESSION_ALGORITHMS.register('OptimizationAlgorithm')
@@ -166,7 +167,7 @@ class OptimizationAlgorithm(Algorithm):
             Path('/'.join(self._result_filename.split('/')[:-1])).mkdir(
                 parents=True, exist_ok=True
             )
-            pd.DataFrame(self._results).to_csv(self._result_filename)
+            np.savetxt(self._result_filename, self._results, delimiter=",", fmt='%s')
         if self._dump_model_prefix:
             dump_path = self._dump_model_prefix + '{:05}'.format(
                 self._optimization_iter

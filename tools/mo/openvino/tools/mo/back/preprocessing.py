@@ -1,17 +1,17 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import logging as log
+from copy import copy
 
-from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.utils import refer_to_faq_msg
-
-import numpy as np
-
-from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
+from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Model, Layout, PartialShape, layout_helpers
+
+from openvino.tools.mo.moc_frontend.layout_utils import update_layout_to_dict
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
@@ -19,13 +19,12 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     Internal function. Updates mean/scale values from array to dictionary
     :param: input_nodes Inputs of model
     :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
-    :param: scale Global scale factor for all inputs from --scale command line arguments
+    :param: scale Global scale factor for all inputs from scale command line arguments
     """
     if not isinstance(mean_scale_val, dict):
         if len(mean_scale_val) != len(input_nodes):
             raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
-
-        data = np.copy(mean_scale_val)
+        data = copy(mean_scale_val)
         mean_scale_val = {}
         for idx, node in enumerate(input_nodes):
             names_list = list(node.get_tensor().get_names())
@@ -59,32 +58,6 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
                 }
             )
     return mean_scale_val
-
-
-def update_layout_to_dict(input_nodes: list, layout: [list, dict]):
-    """
-    Internal function. Updates layout values from array to dictionary
-    :param: input_nodes Inputs of model
-    :param: layout Parsed 'layout' object from command line arguments
-    """
-    if isinstance(layout, dict):
-        return layout
-    if isinstance(layout, list):
-        if len(layout) != len(input_nodes):
-            raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
-        layout_dict = {}
-        for idx, node in enumerate(input_nodes):
-            names_list = list(node.get_tensor().get_names())
-            if not names_list:
-                raise Error("Empty tensor names list for node {}".format(node.name))
-            node_name = names_list[0]
-            layout_dict.update(
-                {
-                    node_name: layout[idx]
-                }
-            )
-        return layout_dict
-    raise Error("Unknown layout type. Expected dict, list. Got {}".format(type(layout)))
 
 
 def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
@@ -201,7 +174,7 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
                     .format(shape.rank.get_length(), name, shape))
 
     layout_str = "?" * shape.rank.get_length()
-    layout_str = layout_str[:dim_idx_found] + 'C' + layout_str[dim_idx_found+1:]
+    layout_str = layout_str[:dim_idx_found] + 'C' + layout_str[dim_idx_found + 1:]
     layout_values[name] = {
         'source_layout': layout_str,
         'target_layout': None,
@@ -361,7 +334,7 @@ def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: 
         for input in ov_function.inputs:
             tensor_names = list(input.names)
             tensor_names.sort()
-            if not(name in tensor_names or name == input.node.get_friendly_name()):
+            if not (name in tensor_names or name == input.node.get_friendly_name()):
                 continue
             if input in used_nodes:
                 raise Error("Tensor names {} and {} refer to the same node.".format(name, used_nodes[input]))
@@ -418,21 +391,9 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
 
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
-        layout_values = update_layout_to_dict(ov_function.inputs, argv.layout_values)
+        layout_values = update_layout_to_dict(ov_function.inputs, argv.layout_values,
+                                              lambda ov_input: ov_input.get_tensor().get_names())
 
-    if '' in layout_values:
-        if len(ov_function.inputs) > 1:
-            input_names = [list(ov_input.get_tensor().get_names())[0] for ov_input in ov_function.inputs]
-            raise Error('Layout without name can be specified for models with only one input, '
-                        'but provided model has {} inputs: \'{}\'. '
-                        'Please specify explicitly input/output name for --layout option'
-                        .format(len(input_names), input_names))
-        layout_values = {
-            list(ov_function.input().get_tensor().get_names())[0]: {
-                'source_layout': layout_values[''].get('source_layout'),
-                'target_layout': layout_values[''].get('target_layout')
-            }
-        }
     check_keys_valid(ov_function=ov_function, dict_to_validate=mean_scale_values, search_outputs=False)
     check_keys_valid(ov_function=ov_function, dict_to_validate=layout_values, search_outputs=True)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,33 +30,33 @@ public:
         const auto input_precision = ngraph::element::f32;
 
         {
-            auto input = std::make_shared<opset1::Parameter>(input_precision, shape);
-            auto shared_il = opset1::Constant::create(input_precision, {}, {0.f});
-            auto shared_ih = opset1::Constant::create(input_precision, {}, {25.5f});
-            auto shared_ol = opset1::Constant::create(input_precision, {}, {0.f});
-            auto shared_oh = opset1::Constant::create(input_precision, {}, {25.5f});
+            auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, shape);
+            auto shared_il = ov::op::v0::Constant::create(input_precision, {}, {0.f});
+            auto shared_ih = ov::op::v0::Constant::create(input_precision, {}, {25.5f});
+            auto shared_ol = ov::op::v0::Constant::create(input_precision, {}, {0.f});
+            auto shared_oh = ov::op::v0::Constant::create(input_precision, {}, {25.5f});
             auto fq_before =
-                std::make_shared<opset1::FakeQuantize>(input, shared_il, shared_ih, shared_ol, shared_oh, 256);
+                std::make_shared<ov::op::v0::FakeQuantize>(input, shared_il, shared_ih, shared_ol, shared_oh, 256);
             auto fq_after =
-                std::make_shared<opset1::FakeQuantize>(fq_before, shared_il, shared_ih, shared_ol, shared_oh, 256);
-            auto relu = std::make_shared<opset1::Relu>(fq_after);
+                std::make_shared<ov::op::v0::FakeQuantize>(fq_before, shared_il, shared_ih, shared_ol, shared_oh, 256);
+            auto relu = std::make_shared<ov::op::v0::Relu>(fq_after);
             if (addIntervalsAlignment) {
                 addAttributes(
                     {fq_before, fq_after},
                     {IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
                 addAttributes({fq_after, relu}, {QuantizationAlignmentAttribute(true)});
             }
-            ResultVector results{std::make_shared<opset1::Result>(relu)};
+            ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
             actualFunction = std::make_shared<Function>(results, ParameterVector{input}, "FakeQuantizeFunction");
         }
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<pass::low_precision::FakeQuantizeDecompositionTransformation, opset1::FakeQuantize>(
+        transform.add<pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             LayerTransformation::createParamsU8I8());
         transform.transform(actualFunction);
 
         {
-            auto input = std::make_shared<opset1::Parameter>(input_precision, shape);
+            auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, shape);
             auto fqStructure =
                 FakeQuantizeOnData{256ul, Shape({}), {0.f}, {25.5f}, {0.f}, {255.f}, ngraph::element::u8};
             auto deqStructure = DequantizationOperations{{element::f32}, {}, {0.1f}};
@@ -64,8 +64,8 @@ public:
             auto dq_before = makeDequantization(fq_before, deqStructure);
             auto fq_after = makeFakeQuantizeTypeRelaxed(dq_before, input_precision, fqStructure);
             auto dq_after = makeDequantization(fq_after, deqStructure);
-            auto relu = std::make_shared<opset1::Relu>(dq_after);
-            ResultVector results{std::make_shared<opset1::Result>(relu)};
+            auto relu = std::make_shared<ov::op::v0::Relu>(dq_after);
+            ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
             referenceFunction = std::make_shared<Function>(results, ParameterVector{input}, "FakeQuantizeFunction");
         }
     }
@@ -87,9 +87,10 @@ TEST_P(FQDecompositionWithSharedConstants, FQDecompositionWithSharedConstants) {
     ASSERT_TRUE(res.valid) << res.message;
 
     // additional check: FQ constants after transformation mustn't be shared
-    for (const auto n : actualFunction->get_ordered_ops()) {
-        if (ov::is_type<opset1::Constant>(n))
+    for (const auto& n : actualFunction->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(n)) {
             EXPECT_EQ(n->get_output_target_inputs(0).size(), 1);
+        }
     }
 }
 namespace {

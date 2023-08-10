@@ -1,43 +1,50 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
-  - repository: openvino_contrib
+  - repository: vcpkg
     type: github
     endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino_contrib
-    ref: master
+    name: microsoft/vcpkg
+
+variables:
+  - group: github
 
 jobs:
 - job: android_arm64
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -46,19 +53,35 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    BUILD_TYPE: Release
+    BUILD_TYPE: Debug
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
+    VCPKG_ROOT: $(OPENVINO_REPO_DIR)/../vcpkg
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
     ANDROID_TOOLS: $(WORK_DIR)/android_tools
+    ANDROID_NDK_HOME: $(WORK_DIR)/android_tools/ndk-bundle
     ANDROID_SDK_VERSION: 29
     ANDROID_ABI_CONFIG: arm64-v8a
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.11.2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(OV_PYTHON_VERSION)' # Setting only major & minor version will download latest release from GH repo example 3.10 will be 3.10.10. 
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.11
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -83,6 +106,7 @@ jobs:
     displayName: 'System information'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(ANDROID_TOOLS) ; mkdir $(ANDROID_TOOLS)
@@ -94,66 +118,75 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    submodules: 'true'
+    clean: 'true'
     path: openvino
 
-  - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
-    path: openvino_contrib
+  - checkout: vcpkg
+    clean: 'true'
+    path: vcpkg
 
   - script: |
       set -e
-      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
-      # Move into contrib install_build_dependencies.sh
-      sudo apt --assume-yes install scons crossbuild-essential-arm64 libprotoc-dev protobuf-compiler default-jdk
-      # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-      unzip ninja-linux.zip
-      sudo cp -v ninja /usr/local/bin/
-      # Install Android SDK, NDK and TOOLS
+      # generic dependencies
+      sudo -E apt --assume-yes install ccache scons default-jdk python3-pip ninja-build
+      # vcpkg requires cmake 3.19 or later
+      python3 -m pip install -U pip cmake
+      # vcpkg's tool dependencies
+      sudo -E apt --assume-yes install curl zip unzip tar
+      # vcpkg tree of dependencies require extra packages
+      sudo -E apt --assume-yes install pkg-config linux-libc-dev
+      # Install Android SDK, NDK and Tools
+      sudo apt -y --no-install-recommends install unzip
       wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
       unzip commandlinetools-linux-7583922_latest.zip
       yes | ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --licenses
       ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --install "ndk-bundle" "platform-tools" "platforms;android-$(ANDROID_SDK_VERSION)"
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
+
+  - script: |
+      set -e
+      $(VCPKG_ROOT)/bootstrap-vcpkg.sh --disableMetrics
+      # patch vcpkg default (community) toolchain to build only Release configuration
+      echo "set(VCPKG_BUILD_TYPE release)" >> $(VCPKG_ROOT)/triplets/community/arm64-android.cmake
+    displayName: 'Build vcpkg'
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
-        -GNinja
+        -G Ninja
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_TOOLS)/ndk-bundle/build/cmake/android.toolchain.cmake
+        -DVCPKG_TARGET_TRIPLET=arm64-android
+        -DVCPKG_HOST_TRIPLET=x64-linux-release
+        -DCMAKE_TOOLCHAIN_FILE=$(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
+        -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$(ANDROID_NDK_HOME)/build/cmake/android.toolchain.cmake
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
-        -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
+        -DENABLE_PYTHON=OFF
+        -DENABLE_SYSTEM_OPENCL=ON
+        -DENABLE_SYSTEM_PROTOBUF=ON
+        -DENABLE_SYSTEM_PUGIXML=ON
+        -DENABLE_SYSTEM_SNAPPY=ON
+        -DENABLE_SYSTEM_TBB=ON
+        -DENABLE_SYSTEM_FLATBUFFERS=ON
+        -DENABLE_INTEL_GPU=ON
         -DENABLE_TESTS=ON
-        -DBUILD_java_api=ON
-        -DBUILD_nvidia_plugin=OFF
-        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_DIR)
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - script: |
-      export CCACHE_DIR=$(CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      ninja
-    workingDirectory: $(BUILD_DIR)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Android ARM64'
 
   - script: ccache --show-stats

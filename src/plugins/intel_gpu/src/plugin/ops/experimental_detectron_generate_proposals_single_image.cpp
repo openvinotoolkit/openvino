@@ -18,7 +18,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
         const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 2) {
-        IE_THROW() << "ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs";
+        OPENVINO_THROW("ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);
@@ -33,7 +33,7 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
     const cldnn::layout mutable_layout{cldnn::element_type_to_data_type(mutable_precision),
                                        cldnn::format::get_default_format(output_shape.size()),
                                        tensor_from_dims(output_shape)};
-    cldnn::memory::ptr shared_memory{p.GetEngine().allocate_memory(mutable_layout)};
+    cldnn::memory::ptr shared_memory{p.get_engine().allocate_memory(mutable_layout)};
 
     const auto mutable_id_w = layer_type_name + "_md_write";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w, shared_memory};

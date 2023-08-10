@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace {
                                     ::testing::ValuesIn(pads_1d),
                                     ::testing::ValuesIn(values),
                                     ::testing::Values(ngraph::op::PadMode::CONSTANT),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ConvertPadToConvTests::getTestCaseName);
 
     const std::vector<std::vector<int64_t>> pads_2d{
@@ -38,6 +38,6 @@ namespace {
                                     ::testing::ValuesIn(pads_2d),
                                     ::testing::ValuesIn(values),
                                     ::testing::Values(ngraph::op::PadMode::CONSTANT),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             ConvertPadToConvTests::getTestCaseName);
 }  // namespace

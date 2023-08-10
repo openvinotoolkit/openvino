@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,8 +21,7 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
 
     // params
     auto const_axis = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (!const_axis)
-        IE_THROW() << "Unsupported axis node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     auto axis = const_axis->cast_vector<size_t>();
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
@@ -36,13 +35,13 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
     auto scale = std::make_shared<ngraph::op::v0::Constant>(op->get_output_element_type(0), ngraph::Shape{1}, std::vector<float>{1.0});
     cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
-    auto mem = p.GetEngine().allocate_memory(constLayout, false);
-    cldnn::mem_lock<int8_t> tmpPointer{mem, p.GetEngine().get_program_stream()};
+    auto mem = p.get_engine().allocate_memory(constLayout, false);
+    cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
     auto buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 
     if (bufSize != constLayout.bytes_count())
-        IE_THROW() << "Invalid scales buffer in NormalizeL2 op " << op->get_friendly_name();
+        OPENVINO_THROW("Invalid scales buffer in NormalizeL2 op ", op->get_friendly_name());
 
     std::memcpy(&buf[0], scale->get_data_ptr(), bufSize);
     auto scalesName = layerName + "_cldnn_input_scales";

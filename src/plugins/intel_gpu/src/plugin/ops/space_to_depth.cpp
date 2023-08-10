@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ static cldnn::space_to_depth::depth_mode GetDepthMode(ngraph::op::v0::SpaceToDep
     switch (mode) {
         case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST: return cldnn::space_to_depth::blocks_first;
         case ngraph::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST: return cldnn::space_to_depth::depth_first;
-        default: IE_THROW() << "Unsupported SpaceToDepthMode value: " << static_cast<int>(mode);
+        default: OPENVINO_THROW("[GPU] Unsupported SpaceToDepthMode value: ", static_cast<int>(mode));
     }
     return cldnn::space_to_depth::blocks_first;
 }

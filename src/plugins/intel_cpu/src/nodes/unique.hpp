@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,17 +6,13 @@
 
 #include <node.h>
 
-#include <memory>
-#include <string>
-#include <vector>
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class Unique : public Node {
 public:
-    Unique(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void getSupportedDescriptors() override {};
@@ -50,10 +46,8 @@ private:
     int  axis = 0;
     bool definedOutputs[4] = { false, false, false, false };
     InferenceEngine::Precision dataPrecision;
-    int64_t dataTypeSize = 1;
-    size_t uniqueLen = 1;
-
-    int threadsNum = 1;
+    int64_t dataTypeSize = 1l;
+    size_t uniqueLen = 1lu;
 
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t AXIS    = 1;

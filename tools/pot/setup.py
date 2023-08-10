@@ -66,15 +66,14 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    "scipy~=1.7; python_version == '3.7'",
-    "scipy>=1.8; python_version >= '3.8'",
-    "jstyleson>=0.0.2",
     "numpy>=1.16.6",
+    "scipy~=1.7; python_version == '3.7'",
+    "scipy>=1.8,<1.11; python_version >= '3.8'",
+    "jstyleson>=0.0.2",
     "addict>=2.4.0",
-    "networkx<=2.8.8",
+    "networkx<=3.1",
     "tqdm>=4.54.1",
     "texttable>=1.6.3",
-    "pandas~=1.3.5",
     "openvino-telemetry>=2022.1.0"
 ]
 
@@ -84,7 +83,6 @@ DEV_EXTRAS = [
     "pytest>=5.0,<=7.0.1;python_version<'3.10'",
     "pytest==7.2.0;python_version>='3.10'",
     "py>=1.9.0",
-    "openpyxl==2.6.4",
     "pytest-mock==3.1.1"
 ]
 
@@ -134,7 +132,7 @@ DEPENDENCY_LINKS = [torch_source_url]
 
 setup(
     name='pot',
-    version=get_version(),
+    version='0.0.0',
     author='Intel',
     author_email='alexander.kozlov@intel.com',
     description='Post-training Optimization Toolkit',

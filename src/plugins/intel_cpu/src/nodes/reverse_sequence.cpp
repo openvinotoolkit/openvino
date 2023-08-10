@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@ bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                         WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ReverseSequence::ReverseSequence(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -127,11 +127,11 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 }
 
 template<typename T>
-void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, MemoryPtr& dstMemPtr) {
+void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr) {
     const VectorDims& srcDims = dataMemPtr->getStaticDims();
-    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->GetPtr());
-    auto *dstData = reinterpret_cast<float *>(dstMemPtr->GetPtr());
-    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->GetPtr());
+    const auto *srcData = reinterpret_cast<const float *>(dataMemPtr->getData());
+    auto *dstData = reinterpret_cast<float *>(dstMemPtr->getData());
+    auto *seqLengthsData = reinterpret_cast<T *>(seqLengthsMemPtr->getData());
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
         if (static_cast<int32_t>(seqLengthsData[i]) > static_cast<int>(srcDims[seqAxis])) {

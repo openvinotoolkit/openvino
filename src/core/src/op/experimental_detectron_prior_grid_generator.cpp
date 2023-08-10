@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
-#include <experimental_detectron_prior_grid_generator_shape_inference.hpp>
 #include <memory>
 
+#include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
+#include "experimental_detectron_shape_infer_utils.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
     const Output<Node>& feature_map,
@@ -34,29 +32,26 @@ bool op::v6::ExperimentalDetectronPriorGridGenerator::visit_attributes(Attribute
     return true;
 }
 
-shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
+std::shared_ptr<Node> op::v6::ExperimentalDetectronPriorGridGenerator::clone_with_new_inputs(
     const OutputVector& new_args) const {
     OV_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v6::ExperimentalDetectronPriorGridGenerator>(new_args.at(0),
-                                                                        new_args.at(1),
-                                                                        new_args.at(2),
-                                                                        m_attrs);
+    return std::make_shared<ExperimentalDetectronPriorGridGenerator>(new_args.at(0),
+                                                                     new_args.at(1),
+                                                                     new_args.at(2),
+                                                                     m_attrs);
 }
-
-static constexpr size_t priors_port = 0;
-static constexpr size_t featmap_port = 1;
-static constexpr size_t im_data_port = 2;
 
 void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types() {
     OV_OP_SCOPE(v6_ExperimentalDetectronPriorGridGenerator_validate_and_infer_types);
-    const auto& priors_shape = get_input_partial_shape(priors_port);
-    const auto& featmap_shape = get_input_partial_shape(featmap_port);
-    const auto& input_et = get_input_element_type(0);
 
-    set_output_size(1);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {priors_shape, featmap_shape, get_input_partial_shape(im_data_port)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, input_et, output_shapes[0]);
+    const auto shapes_and_type = detectron::validate::all_inputs_same_floating_type(this);
+    const auto output_shapes = shape_infer(this, shapes_and_type.first);
+
+    set_output_type(0, shapes_and_type.second, output_shapes[0]);
 }
+
+void op::v6::ExperimentalDetectronPriorGridGenerator::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+}  // namespace ov

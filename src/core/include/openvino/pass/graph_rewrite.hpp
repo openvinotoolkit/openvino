@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -256,14 +256,6 @@ public:
         m_matchers.push_back(pass);
         return pass;
     }
-
-    OPENVINO_DEPRECATED("Use MatcherPass instead")
-    void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
-
-    OPENVINO_DEPRECATED("Use MatcherPass instead")
-    void add_matcher(const std::shared_ptr<pattern::Matcher>& m, const ov::graph_rewrite_callback& callback);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

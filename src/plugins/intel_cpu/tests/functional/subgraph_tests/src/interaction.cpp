@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,9 @@ using namespace ov;
 
 static std::shared_ptr<opset8::FakeQuantize> createFQ(const std::shared_ptr<ov::Node>& input) {
     auto input_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{0});
-    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914});
+    auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{49.4914f});
     return std::make_shared<opset8::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
 }
 
@@ -54,7 +54,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ElementType inType, cons
         features.push_back(sparse_feat);
         inputsParams.push_back(sparse_input);
     }
-    auto shapeof = std::make_shared<opset8::ShapeOf>(dense_feature);
+    auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(dense_feature);
     auto gather_batch_indices =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{1}, std::vector<int32_t>{0});
     auto gather_batch_axis =  std::make_shared<opset1::Constant>(element::i32, ov::Shape{}, 0);
     auto gather_batch = std::make_shared<opset8::Gather>(shapeof, gather_batch_indices, gather_batch_axis);
@@ -142,7 +142,7 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 
@@ -163,7 +163,7 @@ protected:
         } else {
             selectedType = makeSelectedTypeStr("ref_any", ov::element::f32);
         }
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         inputDynamicShapes.push_back(inputShape.first);
         const auto& targetInput = inputShape.second;
         for (size_t i = 0; i  < targetInput.size(); i++) {

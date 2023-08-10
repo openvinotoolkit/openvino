@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,14 +7,19 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
 
 #include "itt.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 
 ov::pass::HSwishDecomposition::HSwishDecomposition() {
     MATCHER_SCOPE(HSwishDecomposition);
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
-    auto hswish = ngraph::pattern::wrap_type<opset4::HSwish>();
+    auto hswish = ngraph::pattern::wrap_type<ov::op::v4::HSwish>();
 
     matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
@@ -25,14 +30,14 @@ ov::pass::HSwishDecomposition::HSwishDecomposition() {
         }
 
         auto input_type = hswish_node->input_value(0).get_element_type();
-        auto add_constant = ov::opset4::Constant::create(input_type, ngraph::Shape{}, {3.0});
-        auto add = std::make_shared<ov::opset4::Add>(hswish_node->input_value(0), add_constant);
-        auto relu = std::make_shared<ov::opset4::Relu>(add);
-        auto min_constant = ov::opset4::Constant::create(input_type, ngraph::Shape{}, {6.0});
-        auto min = register_new_node<ov::opset4::Minimum>(relu, min_constant);
-        auto mul_first = std::make_shared<ov::opset4::Multiply>(hswish_node->input_value(0), min);
-        auto mul_constant = ov::opset4::Constant::create(input_type, ngraph::Shape{}, {(1.0 / 6.0)});  // const(1/6)
-        auto mul_second = std::make_shared<ov::opset4::Multiply>(mul_first, mul_constant);
+        auto add_constant = ov::op::v0::Constant::create(input_type, ngraph::Shape{}, {3.0});
+        auto add = std::make_shared<ov::op::v1::Add>(hswish_node->input_value(0), add_constant);
+        auto relu = std::make_shared<ov::op::v0::Relu>(add);
+        auto min_constant = ov::op::v0::Constant::create(input_type, ngraph::Shape{}, {6.0});
+        auto min = register_new_node<ov::op::v1::Minimum>(relu, min_constant);
+        auto mul_first = std::make_shared<ov::op::v1::Multiply>(hswish_node->input_value(0), min);
+        auto mul_constant = ov::op::v0::Constant::create(input_type, ngraph::Shape{}, {(1.0 / 6.0)});  // const(1/6)
+        auto mul_second = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_constant);
 
         mul_second->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(hswish_node,

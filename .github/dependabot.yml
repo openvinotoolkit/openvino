@@ -2,16 +2,158 @@
 
 version: 2
 updates:
-  # Enable version updates for Python API
+  #
+  # Python product dependencies
+  #
+
+  # Python API, Frontends
   - package-ecosystem: pip
-    directory: "/src/bindings/python"
+    directory: "/src/bindings/python/"
     schedule:
-      interval: weekly
-      day: sunday
-      time: "13:00"
-    open-pull-requests-limit: 0
-    reviewers:
-      - jiwaszki
-      - akuporos
-    labels:
-      - "category: dependencies"
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "ceciliapeng2011"
+      - "meiyang-intel"
+      - "mbencer"
+      - "tomdol"
+      - "jane-intel"
+    versioning-strategy: increase-if-necessary
+
+  # Tests
+  - package-ecosystem: pip
+    directory: "/tests"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  # Model Optimizer, openvino_dev and Benchmark tool
+  - package-ecosystem: pip
+    directory: "/tools"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "rkazants"
+      - "andrei-kochin"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "Wovchena"
+    allow:
+      - dependency-name: "*"
+        dependency-type: "production"
+    versioning-strategy: increase-if-necessary
+
+  # POT requirements
+  - package-ecosystem: pip
+    directory: "/tools/pot"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "AlexKoff88"
+      - "KodiaqQ"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Python Samples
+  #
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_reshape_ssd/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/classification_sample_async/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/benchmark/bert_benchmark/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_classification/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "jiwaszki"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Github actions - CI
+  #
+
+  # Github actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "ilyachur"
+      - "ilya-lavrenov"
+    open-pull-requests-limit: 3

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,37 +7,43 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/subtract.hpp"
 
 ov::pass::ConvertMod::ConvertMod() {
     MATCHER_SCOPE(ConvertMod);
-    auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
+    auto mod = ngraph::pattern::wrap_type<ov::op::v1::Mod>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ov::opset1::Mod>(m.get_match_root());
+        auto mod = std::dynamic_pointer_cast<ov::op::v1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }
 
-        const auto dividend = std::make_shared<opset1::Abs>(mod->input_value(0));
-        const auto dividend_sign = std::make_shared<opset1::Sign>(mod->input_value(0));
+        const auto dividend = std::make_shared<ov::op::v0::Abs>(mod->input_value(0));
+        const auto dividend_sign = std::make_shared<ov::op::v0::Sign>(mod->input_value(0));
         const auto dividend_et = dividend->get_element_type();
-        const auto divisor = std::make_shared<opset1::Abs>(mod->input_value(1));
+        const auto divisor = std::make_shared<ov::op::v0::Abs>(mod->input_value(1));
 
         // truncated(a / b)
-        auto div = register_new_node<opset1::Divide>(dividend, divisor);
-        auto convert_to_i64 = std::make_shared<opset1::Convert>(div, ngraph::element::i64);
-        auto convert = std::make_shared<opset1::Convert>(convert_to_i64, dividend_et);
+        auto div = register_new_node<ov::op::v1::Divide>(dividend, divisor);
+        auto convert_to_i64 = std::make_shared<ov::op::v0::Convert>(div, ngraph::element::i64);
+        auto convert = std::make_shared<ov::op::v0::Convert>(convert_to_i64, dividend_et);
         // truncated(a / b) * b
-        auto multiplication = std::make_shared<opset1::Multiply>(convert, divisor);
+        auto multiplication = std::make_shared<ov::op::v1::Multiply>(convert, divisor);
         // a mod b = a - truncated(a / b) * b
-        auto sub = register_new_node<opset1::Subtract>(dividend, multiplication);
+        auto sub = register_new_node<ov::op::v1::Subtract>(dividend, multiplication);
 
         // apply sign of dividend
-        auto mul = std::make_shared<opset1::Multiply>(dividend_sign, sub);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(dividend_sign, sub);
 
         mul->set_friendly_name(mod->get_friendly_name());
         ngraph::copy_runtime_info(

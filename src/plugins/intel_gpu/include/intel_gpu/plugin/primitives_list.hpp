@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -224,6 +224,7 @@ REGISTER_FACTORY(v7, Roll);
 REGISTER_FACTORY(v8, Slice);
 REGISTER_FACTORY(v8, Gather);
 REGISTER_FACTORY(v8, GatherND);
+REGISTER_FACTORY(v8, DetectionOutput);
 REGISTER_FACTORY(v8, DeformableConvolution);
 REGISTER_FACTORY(v8, NV12toRGB);
 REGISTER_FACTORY(v8, NV12toBGR);
@@ -235,6 +236,7 @@ REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
 REGISTER_FACTORY(v8, Softmax);
 REGISTER_FACTORY(v8, PriorBox);
+REGISTER_FACTORY(v8, If);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, GridSample)
@@ -243,6 +245,16 @@ REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
 REGISTER_FACTORY(v9, Eye);
+
+// ------------------------------ Supported v10 ops ----------------------------- //
+REGISTER_FACTORY(v10, IsFinite);
+REGISTER_FACTORY(v10, IsInf);
+REGISTER_FACTORY(v10, IsNaN);
+REGISTER_FACTORY(v10, Unique);
+
+// ------------------------------ Supported v11 ops ----------------------------- //
+REGISTER_FACTORY(v11, Interpolate);
+REGISTER_FACTORY(v11, TopK);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

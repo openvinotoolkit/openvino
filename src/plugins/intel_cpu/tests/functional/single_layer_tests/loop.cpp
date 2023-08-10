@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,10 +43,10 @@ public:
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
-            result << "IS=" << CommonTestUtils::partialShape2str({shapes[i].first}) << "_";
+            result << "IS=" << ov::test::utils::partialShape2str({shapes[i].first}) << "_";
             result << "TS=";
             for (const auto& item : shapes[i].second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
         result << "types=";
@@ -65,7 +65,7 @@ protected:
         const auto& funcInputs = function->inputs();
 
         // trip count
-        int i = 0;
+        size_t i = 0;
         if (funcInputs[i].get_node_shared_ptr()->get_friendly_name() == "trip_count") {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
@@ -92,7 +92,7 @@ protected:
         ElementType netType;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(netType, inputDynamicShapes);
@@ -122,7 +122,7 @@ protected:
 
         // Body
         std::shared_ptr<ngraph::Node> Zo = body_params[0];
-        for (int i = 1; i < body_params.size(); ++i) {
+        for (size_t i = 1; i < body_params.size(); ++i) {
             Zo = std::make_shared<ngraph::op::v1::Add>(body_params[i], Zo);
         }
 
@@ -133,7 +133,7 @@ protected:
         loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
-        for (int i = 0; i < body_params.size(); ++i) {
+        for (size_t i = 0; i < body_params.size(); ++i) {
             if (types[i] == LOOP_IN_TYPE::INVARIANT) {
                 loop->set_invariant_input(body_params[i], params[shift + i]);
             } else if (types[i] == LOOP_IN_TYPE::MERGED) {
@@ -172,7 +172,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
         for (auto& target : targetStaticShapes)
             target.insert(target.begin(), ngraph::Shape{});
@@ -243,7 +243,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
@@ -314,7 +314,7 @@ protected:
         std::vector<LOOP_IN_TYPE> types;
         std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);

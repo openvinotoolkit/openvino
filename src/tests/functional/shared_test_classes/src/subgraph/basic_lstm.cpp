@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ std::string Basic_LSTM_S::getTestCaseName(const testing::TestParamInfo<basicLstm
     std::tie(netPrecision, targetDevice, configuration, size_params, num_cells, decompose, weights) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -48,7 +48,7 @@ void Basic_LSTM_S::SetUp() {
     function = GetNetwork(size_params.first, size_params.second, num_cells, weights_range, netPrecision, &hidden_memory_init, &cell_memory_init);
     if (decompose) {
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ov::pass::LSTMCellDecomposition>();
         manager.run_passes(function);
     }
 }

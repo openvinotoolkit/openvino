@@ -1,54 +1,90 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "compilation_context.hpp"
-#include "threading/ie_thread_safe_containers.hpp"
-#include "kernel_selector/kernel_base.h"
+#include <mutex>
+#include <atomic>
+#include <unordered_set>
+#include <future>
+#include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
-
 class CompilationContext : public ICompilationContext {
 public:
-    using compilation_queue_t = InferenceEngine::ThreadSafeQueue<ICompilationContext::Task>;
-
-    CompilationContext(cldnn::engine& engine, size_t program_id) {
-        _kernels_cache = cldnn::make_unique<kernels_cache>(engine, program_id, kernel_selector::KernelBase::get_db().get_batch_header_str());
-        _worker = std::thread([this](){
-            while (!_stop_compilation) {
-                CompilationContext::Task task;
-                bool success = _queue.try_pop(task);
-                if (success) {
-                    task(*_kernels_cache);
-                } else {
-                    std::chrono::milliseconds ms{1};
-                    std::this_thread::sleep_for(ms);
-                }
-            }
-        });
+    CompilationContext(ov::threading::IStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
+        _task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(_task_executor_config);
     }
 
-    void push_task(ICompilationContext::Task&& task) override {
-        _queue.push(task);
+    void push_task(kernel_impl_params key, Task&& task) override {
+        if (_stop_compilation)
+            return;
+
+        auto promise = std::make_shared<std::promise<void>>();
+
+        std::lock_guard<std::mutex> lock(_mutex);
+        futures.emplace_back(promise->get_future());
+
+        if (_task_keys.find(key) == _task_keys.end()) {
+            _task_keys.insert(key);
+            if (_task_executor != nullptr) {
+                _task_executor->run([task, promise] {
+                    task();
+                    promise->set_value();
+                });
+            }
+        }
+    }
+
+    void remove_keys(std::vector<kernel_impl_params>&& keys) override {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if (!_task_keys.empty()) {
+            for (auto key : keys) {
+                if (_task_keys.find(key) != _task_keys.end()) {
+                    _task_keys.erase(key);
+                }
+            }
+        }
+    }
+
+    ~CompilationContext() noexcept {
+        cancel();
+    }
+
+    bool is_stopped() override {
+        return _stop_compilation;
     }
 
     void cancel() noexcept override {
+        if (_stop_compilation)
+            return;
+
         _stop_compilation = true;
-        if (_worker.joinable())
-            _worker.join();
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_task_executor != nullptr)
+                _task_executor.reset();
+            _task_keys.clear();
+        }
     }
 
-    ~CompilationContext() noexcept { cancel(); }
+    void wait_all() override {
+        for (auto&& future : futures) {
+            future.wait();
+        }
+    }
 
 private:
-    std::unique_ptr<kernels_cache> _kernels_cache;
-    compilation_queue_t _queue;
-    std::thread _worker;
+    ov::threading::IStreamsExecutor::Config _task_executor_config;
+    std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
+    std::mutex _mutex;
+    std::unordered_set<kernel_impl_params, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
+    std::vector<std::future<void>> futures;
 };
 
-std::unique_ptr<ICompilationContext> ICompilationContext::create(cldnn::engine& engine, size_t program_id) {
-    return cldnn::make_unique<CompilationContext>(engine, program_id);
+std::unique_ptr<ICompilationContext> ICompilationContext::create(ov::threading::IStreamsExecutor::Config task_executor_config) {
+    return cldnn::make_unique<CompilationContext>(task_executor_config);
 }
 
 }  // namespace cldnn

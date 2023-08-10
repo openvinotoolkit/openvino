@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/lstm_dynamic_timeloop.hpp"
 #include "primitive_inst.h"
@@ -28,7 +27,7 @@ private:
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog) {
+        : parent(std::move(prim), prog) {
         init_params_list();
         can_share_buffer(false);
     }

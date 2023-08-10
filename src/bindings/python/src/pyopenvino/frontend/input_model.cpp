@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -310,7 +310,7 @@ void regclass_frontend_InputModel(py::module m) {
         "set_tensor_value",
         [](ov::frontend::InputModel& self, const ov::frontend::Place::Ptr& place, py::array& value) {
             // Convert to contiguous array if not already C-style.
-            auto tensor = Common::tensor_from_numpy(value, false);
+            auto tensor = Common::object_from_data<ov::Tensor>(value, false);
             self.set_tensor_value(place, (const void*)tensor.data());
         },
         py::arg("place"),

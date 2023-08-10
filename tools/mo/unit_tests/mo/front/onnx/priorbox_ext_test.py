@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -47,7 +47,7 @@ class TestPriorBoxExt(unittest.TestCase):
         self.assertRaises(AttributeError, PriorBoxFrontExtractor.extract, None)
 
     def test_priorbox_ext_ideal_numbers(self):
-        node = self._create_priorbox_node(aspect_ratio=np.array([2, 3], dtype=np.float),
+        node = self._create_priorbox_node(aspect_ratio=np.array([2, 3], dtype=float),
                                           variance=np.array([0.2, 0.3, 0.2, 0.3]),
                                           img_size=300, step=5.0, offset=0.6, flip=True)
 
@@ -58,7 +58,7 @@ class TestPriorBoxExt(unittest.TestCase):
             'type': 'PriorBox',
             'clip': 0,
             'flip': 1,
-            'aspect_ratio': np.array([2, 3], dtype=np.float),
+            'aspect_ratio': np.array([2, 3], dtype=float),
             'variance': [0.2, 0.3, 0.2, 0.3],
             'img_size': 300,
             'img_h': 0,

@@ -1,7 +1,7 @@
 # custom OpenVINO values
 CppMethod: '^(operator\W+|[a-z_\d]+|signaling_NaN|quiet_NaN)$'
 ClassName: '^([A-Z][\w]+|b?float16|numeric_limits|ngraph_error|stopwatch|unsupported_op)$'
-StructName: '^([A-Z][\w]+|element_type_traits|hash|oi_pair)$'
+StructName: '^([A-Z][\w]+|element_type_traits|hash|oi_pair|stat)$'
 FunctionName: '^(operator\W+|[a-z_\d]+)|PrintTo$'
 Namespace: '^([a-z\d_]*|InferenceEngine)$'
 NamespaceAlias: '^([a-z\d_]+|InferenceEngine)$'
@@ -12,7 +12,7 @@ TemplateNonTypeParameter: '^\w*$'
 ClassTemplate: '^([A-Z][\w]+|element_type_traits)$'
 TemplateTypeParameter: '^\w*$'
 ParameterName: '^\w*$'
-FunctionTemplate: '^(operator.+|[\w]+|Impl<.*>)$'
+FunctionTemplate: '^(operator.+|[\w]+|SoPtr.+|Impl<.*>)$'
 TypeAliasName: '^\w+$'
 VariableReference: '^\w+$'
 
@@ -27,7 +27,7 @@ CxxDynamicCastExpression: '^.*$'
 # not needed values
 ClassTemplatePartialSpecialization: '^.*$'
 ConversionFunction: '^.*$'
-UsingDirective: 'XXXX'
+UsingDirective: '^.*$'
 ClassAccessSpecifier: '^.*$' # looks like can be fixed
 TypeReference: '^.*$' # looks like can be fixed
 CxxBaseSpecifier: '^.*$' # looks like can be fixed

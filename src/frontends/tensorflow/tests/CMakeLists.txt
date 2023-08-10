@@ -1,20 +1,25 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "ov_tensorflow_frontend_tests")
 
+list(APPEND TF_TESTS_DEPENDENCIES tensorflow_test_models tensorflow_fe_standalone_build_test openvino_intel_cpu_plugin)
+if (NOT ENABLE_INTEL_CPU)
+    list(REMOVE_ITEM TF_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
+    set(EXCLUDED_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/compilation.cpp)
+endif()
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        DEPENDENCIES
-            tensorflow_test_models
-            tensorflow_fe_standalone_build_test
+        EXCLUDED_SOURCE_PATHS ${EXCLUDED_TESTS}
+        DEPENDENCIES ${TF_TESTS_DEPENDENCIES}
         LINK_LIBRARIES
             gtest_main_manifest 
             frontend_shared_test_classes 
             openvino_tensorflow_frontend 
-            openvino_tensorflow_frontend_static_tests
+            openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
             OV

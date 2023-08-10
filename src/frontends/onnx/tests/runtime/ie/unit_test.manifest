@@ -10,20 +10,6 @@
 #
 #-------------------------------------------------------------------------------
 
-# Quantize layer input 'Multiply_7' doesn't have blobs
-onnx_model_quantize_linear
-onnx_model_quantize_linear_zero_point
-onnx_model_quantize_linear_axis_zero
-onnx_model_quantize_linear_axis_negative
-onnx_expand_function
-
-# DequantizeLinear:
-# C++ exception with description "Unsupported precisions!
-IE_CPU.onnx_model_dequantize_linear_scalar_zero_scale_int8
-IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8
-# C++ exception with description "Input data precision not supported. Expected float.
-IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
-
 
 # Result mismatch
 onnx_model_shape
@@ -101,10 +87,6 @@ onnx_model_erf_int32
 # Could not eliminate all Dyn nodes
 onnx_model_conv_with_dynamic_batch
 
-# Segmentation fault
-onnx_model_fake_quantize_nonconst_inputs_infer
-onnx_model_quantize_linear_const_scale_const_zero_p
-
 # OneHot operation has a form that is not supported
 onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
@@ -137,29 +119,6 @@ onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
 onnx_model_lp_norm_default_dynamic
 onnx_instance_normalization_dynamic
-
-# (Constant W, R inputs are required) Ticket: 49207
-# Function references undeclared parameters
-# LSTMSequence
-IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
-IE_CPU.onnx_model_lstm_fwd_mixed_seq
-IE_CPU.onnx_model_lstm_mixed_seq_reverse
-# GRUSequence
-IE_CPU.onnx_model_gru_defaults_fwd
-IE_CPU.onnx_model_gru_fwd_mixed_seq_len
-IE_CPU.onnx_model_gru_rev_clip
-IE_CPU.onnx_model_gru_reverse
-IE_CPU.onnx_model_gru_fwd_bias_initial_h
-IE_CPU.onnx_model_gru_bidirectional
-IE_CPU.onnx_model_gru_fwd_linear_before_reset
-# RNNSequence
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
 
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
 # Peepholes input unsupported
@@ -401,9 +360,6 @@ IE_CPU/ElemTypesTests/1.onnx_test_add_abc_set_precission
 # RuntimeError: Unsupported dynamic ops: v4::Interpolate - Ticket: 50691
 onnx_upsample6_dynamic
 
-# random values returned from the plugin: ticket 51762
-onnx_model_deformable_conv_2d
-
 # Not yet implemented - refer PR#6601
 IE_CPU.onnx_model_gather_float_2D_neg_indices
 
@@ -425,3 +381,11 @@ IE_CPU.onnx_softmax_crossentropy_loss_mean
 
 # Cannot find blob with name: Y
 IE_CPU.onnx_bool_init_and
+
+# Incorrect order of elements returned by the TopK implementation
+IE_CPU.onnx_model_top_k_repeating_1D
+IE_CPU.onnx_model_top_k_repeating
+IE_CPU.onnx_model_top_k_repeating_unsorted
+
+# Accuracy regression - Ticket 105909
+IE_CPU.onnx_model_attention_qkv_hidden_sizes

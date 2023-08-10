@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <openvino/util/env_util.hpp>
 #include <openvino/util/file_util.hpp>
 
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/place.hpp"
 #include "plugin_loader.hpp"
-#include "so_extension.hpp"
 #include "utils.hpp"
 
 using namespace ov;

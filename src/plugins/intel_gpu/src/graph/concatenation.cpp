@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "concatenation_inst.h"
+#include "concat_shape_inference.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -22,6 +23,9 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     auto result_sizes = input_layout.get_dims();
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (impl_param.has_fused_primitives()) {
+        output_dt = impl_param.get_fused_output_layout().data_type;
+    }
 
     auto axis_index = desc->axis;
 
@@ -47,6 +51,9 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     auto input_layout = impl_param.get_input_layout();
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (impl_param.has_fused_primitives()) {
+        output_dt = impl_param.get_fused_output_layout().data_type;
+    }
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
@@ -54,18 +61,16 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     }
 
     auto axis_index = desc->axis;
+    std::vector<ShapeType> input_shapes;
 
-    auto output_shape = input_layout.get<ShapeType>();
-    output_shape[axis_index] = 0;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
-        if (input_shape.is_dynamic()) {
-            return { layout {ov::PartialShape::dynamic(input_shape.size()), output_dt, output_format} };
-        }
-        output_shape[axis_index] += input_shape[axis_index];
+        input_shapes.push_back(input_shape);
     }
-
-    return { layout {output_shape, output_dt, output_format} };
+    ov::op::v0::Concat op;
+    op.set_concatenation_axis(axis_index);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    return { layout {output_shapes[0], output_dt, output_format} };
 }
 
 template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(concatenation_node const& node, const kernel_impl_params& impl_param);
@@ -77,18 +82,18 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
     std::stringstream ss_inputs;
     std::stringstream primitive_description;
 
-    for (size_t i = 0; i < node.inputs_count(); ++i) {
+    for (size_t i = 0; i < node.get_inputs_count(); ++i) {
         ss_inputs << node.input(i).id();
         if (node.input(i).get_output_layout().is_static())
             ss_inputs << ", count: " << node.input(i).get_output_layout().count();
         else
             ss_inputs << ", count: " << "?";
-        i != (node.inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
+        i != (node.get_inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
     }
 
     json_composite concat_info;
     concat_info.add("concat axis", desc->axis);
-    concat_info.add("inputs count", node.inputs_count());
+    concat_info.add("inputs count", node.get_inputs_count());
     concat_info.add("inputs", ss_inputs.str());
 
     node_info->add("concat info", concat_info);
@@ -149,7 +154,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             auto nodes_list = stack.front();
             stack.pop_front();
 
-            for (auto processed_nodes : *nodes_list) {
+            for (const auto& processed_nodes : *nodes_list) {
                 auto processed_node = processed_nodes.first;
                 processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {

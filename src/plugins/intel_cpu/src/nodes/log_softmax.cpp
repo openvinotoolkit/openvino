@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>&
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+LogSoftmax::LogSoftmax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -87,8 +87,8 @@ void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void LogSoftmax::execute(dnnl::stream strm) {
-    const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {

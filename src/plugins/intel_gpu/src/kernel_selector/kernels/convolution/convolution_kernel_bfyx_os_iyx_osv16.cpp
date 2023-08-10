@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,14 +44,22 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
     k.EnableGroupedConvolution();
+    k.EnableDynamicShapesSupport();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 
@@ -107,7 +115,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -121,7 +129,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         // if less than 16 values is required to compute one single row of output
         // then each WI shall compute one single row to maximize reuse within SIMD subgroup (this gives very nice
         // performance results)
-        } else if (cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
+        } else if (!p.is_shape_agnostic && cp.outputs[0].X().v + (cp.filterSize.x - 1) * cp.dilation.x < sub_group_size) {
             option.blockWidth = cp.outputs[0].X().v;
             option.blockHeight = 1;
             option.prefetch = 4;
@@ -146,7 +154,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
     // sizes
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1) {
+    if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1 || cp.outputs[0].Batch().v != 1)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
     return option;
@@ -214,7 +222,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_idx", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 

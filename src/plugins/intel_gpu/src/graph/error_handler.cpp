@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <vector>

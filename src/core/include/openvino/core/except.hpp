@@ -1,23 +1,39 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
+
+struct CheckLocInfo {
+    const char* file;
+    int line;
+    const char* check_string;
+};
+
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
-    explicit Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be removed, please use OPENVINO_THROW instead")
+    explicit Exception(const std::string& what_arg);
 
-    explicit Exception(const char* what_arg) : std::runtime_error(what_arg) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info, const std::string& explanation);
+    virtual ~Exception();
 
-    explicit Exception(const std::stringstream& what_arg) : std::runtime_error(what_arg.str()) {}
+    static const std::string default_msg;
+
+protected:
+    static std::string make_what(const CheckLocInfo& check_loc_info,
+                                 const std::string& context_info,
+                                 const std::string& explanation);
 };
 
 static inline std::ostream& write_all_to_stream(std::ostream& str) {
@@ -28,29 +44,39 @@ static inline std::ostream& write_all_to_stream(std::ostream& str, const T& arg,
     return write_all_to_stream(str << arg, args...);
 }
 
-struct CheckLocInfo {
-    const char* file;
-    int line;
-    const char* check_string;
-};
+template <class T>
+static inline std::string stringify(T&& arg) {
+    std::stringstream stream;
+    stream << arg;
+    return stream.str();
+}
 
 /// Base class for check failure exceptions.
 class OPENVINO_API AssertFailure : public Exception {
 public:
-    AssertFailure(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
-        : Exception(make_what(check_loc_info, context_info, explanation)) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+    ~AssertFailure() override;
 
-private:
-    static std::string make_what(const CheckLocInfo& check_loc_info,
-                                 const std::string& context_info,
-                                 const std::string& explanation);
+protected:
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    explicit AssertFailure(const std::string& what_arg) : ov::Exception(what_arg) {}
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 /// Exception class to be thrown on not implemented code
 class OPENVINO_API NotImplemented : public AssertFailure {
 public:
-    NotImplemented(const CheckLocInfo& check_loc_info, const std::string& context_info, const std::string& explanation)
-        : AssertFailure(check_loc_info, context_info, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+    ~NotImplemented() override;
+
+    static const std::string default_msg;
+
+protected:
+    explicit NotImplemented(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 }  // namespace ov
 
@@ -116,37 +142,55 @@ public:
 // The "..." may be filled with expressions of any type that has an "operator<<" overload for
 // insertion into std::ostream.
 //
-#define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                                        \
-    do {                                                                                           \
-        if (!(check)) {                                                                            \
-            ::std::stringstream ss___;                                                             \
-            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                         \
-            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
-        }                                                                                          \
+#define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                                          \
+    do {                                                                                             \
+        if (!(check)) {                                                                              \
+            ::std::stringstream ss___;                                                               \
+            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                           \
+            exc_class::create((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
+        }                                                                                            \
     } while (0)
 
-#define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                    \
-    do {                                                                                  \
-        if (!(check)) {                                                                   \
-            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
-        }                                                                                 \
+#define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                                          \
+    do {                                                                                                        \
+        if (!(check)) {                                                                                         \
+            exc_class::create((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), exc_class::default_msg); \
+        }                                                                                                       \
     } while (0)
+
+#define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
+
+// Helper macros for OPENVINO_THROW which is special case of OPENVINO_ASSERT_HELPER without some not required
+// parameters for ov::Exception, as result reduce binary size.
+#define OPENVINO_THROW_HELPER2(exc_class, ctx, ...)                                        \
+    do {                                                                                   \
+        ::std::stringstream ss___;                                                         \
+        ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                     \
+        exc_class::create((::ov::CheckLocInfo{__FILE__, __LINE__, nullptr}), ss___.str()); \
+    } while (0)
+
+#define OPENVINO_THROW_HELPER1(exc_class, ctx, explanation)                                                 \
+    do {                                                                                                    \
+        exc_class::create((::ov::CheckLocInfo{__FILE__, __LINE__, nullptr}), ::ov::stringify(explanation)); \
+    } while (0)
+
+#define OPENVINO_THROW_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_THROW_HELPER, exc_class, ctx, __VA_ARGS__)
 
 /// \brief Macro to check whether a boolean condition holds.
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::AssertFailure if `cond` is false.
-#define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, "", __VA_ARGS__)
+#define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, ::ov::AssertFailure::default_msg, __VA_ARGS__)
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with OPENVINO_ASSERT macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
-/// \throws ::ov::AssertFailure if the macro is executed.
-#define OPENVINO_UNREACHABLE(...)                   OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
-#define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
-#define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
+/// \throws ::ov::Exception if the macro is executed.
+#define OPENVINO_THROW(...) OPENVINO_THROW_HELPER(::ov::Exception, ov::Exception::default_msg, __VA_ARGS__)
+
+#define OPENVINO_NOT_IMPLEMENTED OPENVINO_ASSERT_HELPER(::ov::NotImplemented, ::ov::Exception::default_msg, false)
 
 #define GLUE(x, y) x y
 

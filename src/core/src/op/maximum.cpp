@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@ using namespace ngraph;
 
 // ------------------------------------ v0 -------------------------------------
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maximumop {
 namespace {
 template <element::Type_t ET>

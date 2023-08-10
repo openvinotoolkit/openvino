@@ -3,7 +3,12 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+
+inline int FUNC(get_pyramid_level_index)(uint level, uint c, uint y, uint x) {
+    uint idx = 0;
+    LEVELS_IDX_CALC_FUNCS;
+    return idx;
+}
 
 inline int FUNC(get_pyramid_level_for_roi)(const __global INPUT0_TYPE* current_roi) {
     const INPUT0_TYPE canonical_scale = 224.0;
@@ -58,13 +63,12 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
     const uint roi_bin_grid_w = (SAMPLING_RATIO > 0) ? SAMPLING_RATIO : (uint)ceil(roi_width / POOLED_WIDTH);
     const uint roi_bin_grid_h = (SAMPLING_RATIO > 0) ? SAMPLING_RATIO : (uint)ceil(roi_height / POOLED_HEIGHT);
 
-    const uint level_h = LEVEL_SIZES[3 * level];
-    const uint level_w = LEVEL_SIZES[3 * level + 1];
-    const uint level_offset = LEVEL_SIZES[3 * level + 2];
+    size_t level_sizes_arr[3*NUM_PYRAMID_LEVELS] = LEVEL_SIZES;
+    const uint level_h = level_sizes_arr[3 * level];
+    const uint level_w = level_sizes_arr[3 * level + 1];
+    const uint level_offset = level_sizes_arr[3 * level + 2];
 
     INPUT0_TYPE output_val = 0.0;
-    const __global INPUT1_TYPE* data = current_level_ptr + level_offset + c * level_h * level_w;
-
     INPUT0_TYPE current_bin_start_h = roi_start_h + y * bin_height;
     INPUT0_TYPE current_bin_start_w = roi_start_w + x * bin_width;
     for (int iy = 0; iy < roi_bin_grid_h; iy++) {
@@ -114,10 +118,10 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
             INPUT0_TYPE w3 = ly * hx;
             INPUT0_TYPE w4 = ly * lx;
 
-            output_val += w1 * data[y_low * level_w + x_low] +
-                          w2 * data[y_low * level_w + x_high] +
-                          w3 * data[y_high * level_w + x_low] +
-                          w4 * data[y_high * level_w + x_high];
+            output_val += w1 * current_level_ptr[FUNC_CALL(get_pyramid_level_index)(level, c, y_low, x_low)] +
+                          w2 * current_level_ptr[FUNC_CALL(get_pyramid_level_index)(level, c, y_low, x_high)] +
+                          w3 * current_level_ptr[FUNC_CALL(get_pyramid_level_index)(level, c, y_high, x_low)] +
+                          w4 * current_level_ptr[FUNC_CALL(get_pyramid_level_index)(level, c, y_high, x_high)];
         }
     }
     output_val /= TO_INPUT0_TYPE(roi_bin_grid_h * roi_bin_grid_w);

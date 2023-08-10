@@ -17,15 +17,9 @@ namespace pass {
 
 class TRANSFORMATIONS_API AlignEltwiseInputRanks : public MatcherPass {
 public:
-    OPENVINO_RTTI("TRANSFORMATIONS_API", "0");
+    OPENVINO_RTTI("AlignEltwiseInputRanks", "0");
     AlignEltwiseInputRanks();
 };
 
 }  // namespace pass
 }  // namespace ov
-
-namespace ngraph {
-namespace pass {
-using ov::pass::AlignEltwiseInputRanks;
-}  // namespace pass
-}  // namespace ngraph

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,7 +198,20 @@ std::vector<FakeQuantizeParams> generateParamsForFakeQuantize() {
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {0.f, 50.f}),
                            op::v0::Constant::create(IN_ET, Shape{2, 1, 1}, {20.f, 70.f}),
                            5,
-                           op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1))
+                           op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1)),
+        FakeQuantizeParams(ov::Shape{1, 2, 3, 3},
+                           ov::Shape{1, 2, 3, 3},
+                           IN_ET,
+                           IN_ET,
+                           iota_vector<T>(shape_size(Shape{1, 2, 3, 3})),
+                           std::vector<T>{5.0f, 9.0f, 13.0f, 17.0f, 21.0f, 25.0f, 25.0f, 25.0f, 25.0f,
+                                          25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 25.0f,},
+                           op::v0::Constant::create(IN_ET, Shape{1, 1, 3, 3}, {0.f,}),
+                           op::v0::Constant::create(IN_ET, Shape{1, 1, 3, 3}, {5.f,}),
+                           op::v0::Constant::create(IN_ET, Shape{1, 2, 3, 1}, {5.f,}),
+                           op::v0::Constant::create(IN_ET, Shape{1, 2, 1, 3}, {25.f,}),
+                           16,
+                           op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY)),
     };
     return params;
 }

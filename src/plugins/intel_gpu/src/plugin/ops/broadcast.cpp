@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,23 +50,6 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         if (axis_mapping.empty()) {
             // If axis_mapping is not specified, then we prepend shape with neccesary count of 1-s
             inputShape.insert(inputShape.begin(), output_rank - input_rank, 1ul);
-        } else {
-            // If axis_mapping is specified, then ones are inserted according to it.
-            ngraph::Shape tmp_shape;
-            int prev_axis = -1;
-            int next_axis = -1;
-            size_t currentRank = 0;
-            for (auto& axis : axis_mapping) {
-                prev_axis = next_axis;
-                next_axis = static_cast<int>(axis);
-
-                int ones_count = std::max(next_axis - prev_axis - 1, 0);
-                tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
-                tmp_shape.push_back(outputShape[axis]);
-
-                currentRank += ones_count + 1;
-            }
-            inputShape = tmp_shape;
         }
 
         auto targetShape = tensor_from_dims(inputShape);
@@ -86,10 +69,10 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
             case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
             case ov::op::AutoBroadcastType::PDPD: mode = ov::op::BroadcastType::PDPD; break;
             default:
-                throw ov::Exception("[GPU] Can't match Broadcast v1 mode with v3 version");
+                OPENVINO_THROW("[GPU] Can't match Broadcast v1 mode with v3 version");
         }
     } else {
-        throw ov::Exception("[GPU] Can't cast Broadcast operation to any supported version");
+        OPENVINO_THROW("[GPU] Can't cast Broadcast operation to any supported version");
     }
 
     std::shared_ptr<cldnn::broadcast> broadcast_prim = nullptr;
@@ -114,8 +97,7 @@ static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::
     validate_inputs_count(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (!axis_mapping_node)
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         auto axis_mapping = axis_mapping_node->get_axis_set_val();
         CreateCommonBroadcastOp(p, op, axis_mapping);
@@ -130,8 +112,7 @@ static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::
     ngraph::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-        if (!axis_mapping_node)
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+        OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axis_mapping = axis_mapping_node->get_axis_set_val();
     }

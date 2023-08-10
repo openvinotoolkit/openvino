@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,9 +62,15 @@ ParamsKey kernel_selector::ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetSuppo
     k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
     k.EnableDilation();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_blocked_read_write(); // for weights loading
+
     return k;
 }
 
@@ -131,11 +137,11 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
     bool stride_2x2 = params.stride.x == 2 && params.stride.y == 2;
     // Filter 3x3 with stride 1x1
     if (fsv == 16 && filter_3x3 && stride_1x1 && dilation_1x1 && output.X().v == 75 && output.Y().v == 75)
-        try_to_select(16, 15, 1, 4, true, DEFAULT);
+        try_to_select(16, 15, 1, 4, true, EXE_MODE_DEFAULT);
 
     // Filter 3x3 with stride 2x2
     if (fsv == 16 && filter_3x3 && stride_2x2 && dilation_1x1 && output.X().v == 75 && output.Y().v == 75)
-        try_to_select(16, 15, 1, 16, true, DEFAULT);
+        try_to_select(16, 15, 1, 16, true, EXE_MODE_DEFAULT);
 
     // Check if SLM can provide data reuse for current parameters
     bool use_slm_x = (params.filterSize.x - 1) * params.dilation.x + 1 >= params.stride.x;
@@ -182,7 +188,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
             lws0 = 2;
 
         if (tile_selected)
-            try_to_select(16, tile_x, lws0, lws1, true, DEFAULT);
+            try_to_select(16, tile_x, lws0, lws1, true, EXE_MODE_DEFAULT);
     }
 
     if (!selected) {
@@ -197,7 +203,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         tune_params.lws0 = 1;
         tune_params.lws1 = 1;
         tune_params.preload_input_slm = false;
-        tune_params.exeMode = DEFAULT;
+        tune_params.exeMode = EXE_MODE_DEFAULT;
     }
 
     return tune_params;
@@ -224,7 +230,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
     valid_tune_params &= tparams.tile_x * tparams.lws0 <= Align(params.outputs[0].X().v, 2);
 
     // Filter out combinations that are known to be sub-optimal in order to reduce search space
-    valid_tune_params &= tparams.exeMode == DEFAULT;
+    valid_tune_params &= tparams.exeMode == EXE_MODE_DEFAULT;
     valid_tune_params &= tparams.preload_input_slm || tparams.lws0 * tparams.lws1 == 1;
     valid_tune_params &= !tparams.preload_input_slm || (tparams.lws0 * tparams.lws1) % 2 == 0;
 
@@ -275,12 +281,12 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convoluti
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool has_pad = true;
-    has_pad &= params.padding.x <= params.inputs[0].X().pad.before;
-    has_pad &= params.padding.y <= params.inputs[0].Y().pad.before;
-    has_pad &= params.padding.z <= params.inputs[0].Z().pad.before;
-    has_pad &= inputLimitX <= params.padding.x + params.inputs[0].X().v + params.inputs[0].X().pad.after;
-    has_pad &= inputLimitY <= params.padding.y + params.inputs[0].Y().v + params.inputs[0].Y().pad.after;
-    has_pad &= inputLimitZ <= params.padding.z + params.inputs[0].Z().v + params.inputs[0].Z().pad.after;
+    has_pad &= params.padding_begin.x <= params.inputs[0].X().pad.before;
+    has_pad &= params.padding_begin.y <= params.inputs[0].Y().pad.before;
+    has_pad &= params.padding_begin.z <= params.inputs[0].Z().pad.before;
+    has_pad &= inputLimitX <= params.padding_begin.x + params.inputs[0].X().v + params.inputs[0].X().pad.after;
+    has_pad &= inputLimitY <= params.padding_begin.y + params.inputs[0].Y().v + params.inputs[0].Y().pad.after;
+    has_pad &= inputLimitZ <= params.padding_begin.z + params.inputs[0].Z().v + params.inputs[0].Z().pad.after;
 
     return has_pad;
 }
@@ -294,9 +300,9 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convol
         + (params.filterSize.z - 1) * params.dilation.z + 1;
 
     bool needs_pad = false;
-    needs_pad |= params.padding.x != 0;
-    needs_pad |= params.padding.y != 0;
-    needs_pad |= params.padding.z != 0;
+    needs_pad |= params.padding_begin.x != 0;
+    needs_pad |= params.padding_begin.y != 0;
+    needs_pad |= params.padding_begin.z != 0;
     needs_pad |= inputLimitX > params.inputs[0].X().v;
     needs_pad |= inputLimitY > params.inputs[0].Y().v;
     needs_pad |= inputLimitZ > params.inputs[0].Z().v;

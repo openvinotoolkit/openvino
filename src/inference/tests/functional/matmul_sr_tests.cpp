@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,38 @@ struct ReshapeMatMulTestCase {
     reshape_map new_shapes;
 };
 
-class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon,
+class SmartReshapeMatMulTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ReshapeMatMulTestCase>> obj) {
+        std::ostringstream result;
+        const auto& value = std::get<0>(obj.param);
+        result << "reshape_is_A_input=" << value.reshape_is_A_input << "_";
+        result << "A_shape=" << value.A_shape << "_";
+        result << "B_shape=" << value.B_shape << "_";
+        result << "reshape_pattern=[";
+        for (size_t i = 0; i < value.reshape_pattern.size(); i++) {
+            if (i)
+                result << ",";
+            result << value.reshape_pattern[i];
+        }
+        result << "]_";
+        result << "transpose_a=" << value.transpose_a << "_";
+        result << "transpose_b=" << value.transpose_b << "_";
+        result << "new_shapes={";
+        for (const auto& it : value.new_shapes) {
+            result << it.first << "=[";
+            for (size_t i = 0; i < it.second.size(); i++) {
+                if (i)
+                    result << ",";
+                result << it.second[i];
+            }
+            result << "]";
+        }
+        result << "}";
+        return result.str();
+    }
+
     void SetUp() override {
         const auto& test_case = std::get<0>(GetParam());
 
@@ -86,7 +115,8 @@ INSTANTIATE_TEST_SUITE_P(
         ReshapeMatMulTestCase{false, {20, 30}, {1, 30, 40}, {-1, 40}, false, false, {{"input_B", {2, 30, 40}}}},
         ReshapeMatMulTestCase{false, {20, 30}, {1, 40, 30}, {40, -1}, false, true, {{"input_B", {2, 40, 30}}}},
         ReshapeMatMulTestCase{false, {30, 20}, {1, 30, 40}, {-1, 40}, true, false, {{"input_B", {2, 30, 40}}}},
-        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}}));
+        ReshapeMatMulTestCase{false, {30, 20}, {1, 40, 30}, {40, -1}, true, true, {{"input_B", {2, 40, 30}}}}),
+    SmartReshapeMatMulTests::getTestCaseName);
 }  // namespace
 
 TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
@@ -100,8 +130,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -127,8 +157,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -154,8 +184,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulWithAttrFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -181,8 +211,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulWithAttrFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -207,8 +237,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulSideAttrFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -234,8 +264,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulSideAttrFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -262,8 +292,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -297,8 +327,8 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::TransposeMatMul>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

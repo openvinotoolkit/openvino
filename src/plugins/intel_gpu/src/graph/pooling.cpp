@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,13 +47,13 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
         }
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
-    uint32_t kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
-    uint32_t kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
+    auto kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
+    auto kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
+    auto kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -127,7 +127,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     // TODO: Check compatibility of output size calculation (with caffe).
     tensor size(1);
     for (size_t i = 0; i < window_size.size(); i++) {
-        size.spatial[i] = window_size[window_size.size() - i - 1];
+        size.spatial[i] = static_cast<tensor::value_type>(window_size[window_size.size() - i - 1]);
     }
     auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
                                                                                       size,
@@ -224,6 +224,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
         pads_begin.clear();
         pads_end.clear();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::try_apply_auto_padding(input_shape,
                                        kernel_size,
                                        stride,
@@ -231,6 +232,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
                                        auto_pad,
                                        pads_end,
                                        pads_begin);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     if (auto_pad == ov::op::PadType::VALID) {
         pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
@@ -248,6 +250,8 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
 
     return { layout{output_shape, output_dtype, input_layout.format} };
 }
+
+template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node, const kernel_impl_params& impl_param);
 
 std::string pooling_inst::to_string(pooling_node const& node) {
     auto desc = node.get_primitive();

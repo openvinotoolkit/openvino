@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,11 +29,11 @@ TEST_F(TransformationTestsF, ClampFusion) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -48,11 +48,11 @@ TEST_F(TransformationTestsF, ClampFusionScalars) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, ClampFusionNonConstMin) {
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
         function = std::make_shared<Function>(NodeVector{min}, ParameterVector{data, min_val});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
@@ -90,11 +90,11 @@ TEST_F(TransformationTestsF, ClampFusionMinMax) {
 
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -109,11 +109,11 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxScalars) {
         auto max = std::make_shared<opset5::Maximum>(min, min_const);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {
-        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
         function_ref = std::make_shared<Function>(NodeVector{clamp}, ParameterVector{data});
     }
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxNonConstMax) {
         auto max = std::make_shared<opset5::Maximum>(min, max_val);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data, max_val});
 
-        manager.register_pass<pass::ClampFusion>();
+        manager.register_pass<ov::pass::ClampFusion>();
     }
 
     {

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,17 @@ ParamsKey convolution_kernel_bfyx_1x1_opt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
+    return k;
+}
+
+DeviceFeaturesKey convolution_kernel_bfyx_1x1_opt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -105,7 +111,7 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
     if (cp.outputs[0].Feature().v % 64 != 0)
         return false;
 
-    if (cp.padding.x != 0 || cp.padding.y != 0)
+    if (cp.padding_begin.x != 0 || cp.padding_begin.y != 0)
         return false;
 
     if (cp.inputs[0].Feature().v % 2 != 0) {

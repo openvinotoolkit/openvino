@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/round.hpp"
 
+#include "element_visitor.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
@@ -14,51 +15,50 @@
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace roundop {
+
+class Evaluate : public ov::element::NoAction<bool> {
+    template <element::Type_t ET>
+    static constexpr bool is_floating() {
+        return (ET == element::f16) || (ET == element::f32) || (ET == element::bf16);
+    }
+
+public:
+    using ov::element::NoAction<bool>::visit;
+    template <element::Type_t ET, typename std::enable_if<!is_floating<ET>()>::type* = nullptr>
+    static result_type visit(const HostTensorPtr& arg0,
+                             const HostTensorPtr& out,
+                             const size_t count,
+                             const op::v5::Round::RoundMode) {
+        memcpy(out->get_data_ptr(), arg0->get_data_ptr(), out->get_size_in_bytes());
+        return true;
+    }
+
+    template <element::Type_t ET, typename std::enable_if<is_floating<ET>()>::type* = nullptr>
+    static result_type visit(const HostTensorPtr& arg0,
+                             const HostTensorPtr& out,
+                             const size_t count,
+                             const op::v5::Round::RoundMode mode) {
+        ngraph::runtime::reference::round(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
+        return true;
+    }
+};
+
 namespace {
-// function used by TYPE_CASE
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0,
-                     const HostTensorPtr& out,
-                     const size_t count,
-                     const op::v5::Round::RoundMode mode) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
-    return true;
-}
-
-// function used by COPY_TENSOR
-template <element::Type_t ET>
-inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
 bool evaluate_round(const HostTensorPtr& arg0,
                     const HostTensorPtr& out,
                     const size_t count,
                     const op::v5::Round::RoundMode mode) {
-    bool rc = true;
     out->set_unary(arg0);
 
-    switch (arg0->get_element_type()) {
-        NGRAPH_COPY_TENSOR(evaluate_round, boolean, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, i64, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u8, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u16, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u32, arg0, out, count);
-        NGRAPH_COPY_TENSOR(evaluate_round, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_round, f16, arg0, out, count, mode);
-        NGRAPH_TYPE_CASE(evaluate_round, f32, arg0, out, count, mode);
-        NGRAPH_TYPE_CASE(evaluate_round, bf16, arg0, out, count, mode);
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
+    using namespace ov::element;
+    return IfTypeOf<boolean, i8, i16, i32, i64, u8, u16, u32, u64, f16, f32, bf16>::apply<Evaluate>(
+        arg0->get_element_type(),
+        arg0,
+        out,
+        count,
+        mode);
 }
 }  // namespace
 }  // namespace roundop
@@ -88,7 +88,7 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v5_Round_evaluate);
-    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
+    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()), get_mode());
 }
 
 bool op::v5::Round::has_evaluate() const {
@@ -108,9 +108,8 @@ bool op::v5::Round::has_evaluate() const {
     case ngraph::element::bf16:
         return true;
     default:
-        break;
+        return false;
     }
-    return false;
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {

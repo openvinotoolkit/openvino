@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,17 +28,18 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableQuantizeScaleShiftOpt();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& params, const optional_params&) const {
+CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& params) const {
     CommonDispatchData dispatchData;
 
     auto output = params.outputs[0];
 
     if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 || output.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
         output.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
-        dispatchData.gws[0] = output.Z().v *output.Y().v * output.X().v;
+        dispatchData.gws[0] = output.Z().v * output.Y().v * output.X().v;
         dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
         dispatchData.gws[2] = output.Batch().v;
 

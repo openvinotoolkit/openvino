@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
                 fakeQuantize,
                 Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
                 op::RoundingType::FLOOR)) :
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
                 opset1::PRelu(
                     fakeQuantize,
                     std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
@@ -80,7 +80,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     std::shared_ptr<ngraph::Node> branch2Last;
     {
         // just another branch
-        branch2Last = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        branch2Last = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             opset1::PRelu(
                 fakeQuantize,
                 std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
             op::RoundingType::FLOOR)) :
-        std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+        std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
             fakeQuantize,
             std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 
@@ -138,10 +138,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
             values.fakeQuantizeOnWeights.outputLowValues,
             values.fakeQuantizeOnWeights.outputHighValues);
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
-        ngraph::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(branch1Pooling, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
@@ -153,7 +153,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
 
 
     // just another branch
-    std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
+    std::shared_ptr<ngraph::opset1::PRelu> branch2PRelu = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::PRelu>>(
         fakeQuantize,
         std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
 
@@ -165,7 +165,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
 
         if (values.operationBeforeLimitedOperationIsPrecisionTransparent) {
-            auto intermediateOpTr = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(branch1Pooling);
+            auto intermediateOpTr = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(branch1Pooling);
             if (intermediateOpTr != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
             } else {

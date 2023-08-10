@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,11 +147,11 @@ std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto activations = makeDequantization(input, dequantizationStructure);
 
-    auto convolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
+    auto convolutionBackpropData = std::make_shared<ov::op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ dequantizationAfter.empty() ? netPrecision : element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(activations, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(activations, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             Strides{ 1, 1 },
             CoordinateDiff{ 0, 0 },
             CoordinateDiff{ 0, 0 },

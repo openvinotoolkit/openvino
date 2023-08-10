@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,14 +19,13 @@
 //  limitations under the License.
 //==============================================================================
 
-#include "ngraph/type/bfloat16.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <limits>
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static_assert(sizeof(bfloat16) == 2, "class bfloat16 must be exactly 2 bytes");
 

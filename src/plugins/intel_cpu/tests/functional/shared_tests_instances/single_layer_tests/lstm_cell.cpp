@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,10 @@ namespace {
                                                          {"tanh", "relu", "sigmoid"}, {"sigmoid", "sigmoid", "sigmoid"},
                                                          {"tanh", "tanh", "tanh"}, {"relu", "relu", "relu"}};
     std::vector<float> clip{0.f, 0.7f};
+    std::vector<ngraph::helpers::InputLayerType> layer_types = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER
+    };
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
 
@@ -29,8 +33,11 @@ namespace {
                                     ::testing::ValuesIn(input_size),
                                     ::testing::ValuesIn(activations),
                                     ::testing::ValuesIn(clip),
+                                    ::testing::ValuesIn(layer_types),
+                                    ::testing::ValuesIn(layer_types),
+                                    ::testing::ValuesIn(layer_types),
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LSTMCellTest::getTestCaseName);
 
 }  // namespace

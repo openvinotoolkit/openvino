@@ -1,5 +1,11 @@
 # Sign  {#openvino_docs_ops_arithmetic_Sign_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Sign-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Sign-1*
 
 **Category**: *Arithmetic unary*
@@ -8,9 +14,9 @@
 
 **Detailed description**: *Sign* performs element-wise sign operation on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = sign(a_{i})
-\f]
+.. math:: 
+
+   a_{i} = sign(a_{i})
 
 **Attributes**: *Sign* operation has no attributes.
 
@@ -29,19 +35,23 @@ a_{i} = sign(a_{i})
 
 **Example**
 
-```xml
-<layer ... type="Sign">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+    <layer ... type="Sign">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective
+

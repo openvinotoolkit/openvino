@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,10 +42,10 @@ public:
         result << "NetType=" << netType << "_";
         result << "InType=" << inType << "_";
         result << "OutType=" << outType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         result << "TS=";
         for (const auto& item : shapes.second) {
-            result << CommonTestUtils::vec2str(item) << "_";
+            result << ov::test::utils::vec2str(item) << "_";
         }
         result << "Axis=" << axis << "_";
         result << "Device=" << targetDevice;

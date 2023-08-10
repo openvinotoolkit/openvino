@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace {
 using namespace ExecutionGraphTests;
 
 INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                         ExecGraphSerializationTest::getTestCaseName);
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
         ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
         ExecGraphUniqueNodeNames::getTestCaseName);
 
 }  // namespace

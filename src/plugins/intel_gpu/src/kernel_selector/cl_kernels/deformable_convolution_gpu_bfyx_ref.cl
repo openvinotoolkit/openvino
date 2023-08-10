@@ -1,25 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 
 KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if DEFORMABLE_MODE
-    const  __global INPUT1_TYPE* trans,
+    , const  __global INPUT1_TYPE* trans
 #if DEFORMABLE_MASK_ENABLED
-    const  __global INPUT2_TYPE* mask,
+    , const  __global INPUT2_TYPE* mask
 #endif
 #endif
-    uint split_idx)
+)
 {
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
@@ -51,10 +50,10 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const int offset_size = FILTER_SIZE_Y * FILTER_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
 
     for (uint c = 0; c < FILTER_IFM_NUM; ++c) {
-#if GROUPED
-        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS);
+#if DEFORMABLE_GROUPS == 1
+        const int deformable_group_idx = 0;
 #else
-        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (FILTER_IFM_NUM * FILTER_GROUPS_NUM / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
+        const int deformable_group_idx = (FILTER_IFM_NUM * of + c) / (( FILTER_IFM_NUM * FILTER_GROUPS_NUM) / DEFORMABLE_GROUPS) % DEFORMABLE_GROUPS;
 #endif
         const int trans_offset = b * INPUT1_BATCH_PITCH + deformable_group_idx * 2 * offset_size;
 #if DEFORMABLE_MASK_ENABLED
@@ -134,7 +133,6 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
 #endif
     dotProd += (UNIT_TYPE)biases[bias_index];
 #endif
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x) + out_split_offset;
+    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x);
     output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);
 }

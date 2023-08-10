@@ -1,12 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set (TARGET_NAME "inference_engine_lp_transformations")
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4267)
-endif()
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -56,10 +52,6 @@ target_include_directories(${TARGET_NAME} INTERFACE
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# developer package
-
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)

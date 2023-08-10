@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,12 +58,12 @@ void op::v5::GRUSequence::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, W, R and B inputs do not "
                           "match.");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic(4), ov::PartialShape::dynamic(3)};
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     // Set output size, type and shape
-    set_output_size(2);
     set_output_type(0, result_et, output_shapes[0]);
     set_output_type(1, result_et, output_shapes[1]);
 }

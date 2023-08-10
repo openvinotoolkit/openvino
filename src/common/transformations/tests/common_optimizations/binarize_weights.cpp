@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,8 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
                                                           Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -104,8 +104,8 @@ TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowNegative) {
                                                           Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -160,8 +160,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidLevels) {
                                                           Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -222,8 +222,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidActivationsOutputLowH
                                                           Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -284,8 +284,8 @@ TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidOutputLowHigh) {
                                                           Strides{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-        manager.register_pass<pass::BinarizeWeights>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::BinarizeWeights>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {

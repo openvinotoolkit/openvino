@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -112,17 +112,6 @@ macro(ov_add_frontend)
     endif()
 
     file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
-    if (WIN32)
-        # Remove linux specific files
-        file(GLOB_RECURSE LIN_FILES ${frontend_root_dir}/src/os/lin/*.cpp
-                                    ${frontend_root_dir}/src/os/lin/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${LIN_FILES}")
-    else()
-        # Remove windows specific files
-        file(GLOB_RECURSE WIN_FILES ${frontend_root_dir}/src/os/win/*.cpp
-                                    ${frontend_root_dir}/src/os/win/*.hpp)
-        list(REMOVE_ITEM LIBRARY_SRC "${WIN_FILES}")
-    endif()
     file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
     file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
 
@@ -155,18 +144,34 @@ macro(ov_add_frontend)
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
     endforeach()
 
+    file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
+    foreach(INFILE IN LISTS flatbuffers_schema_files)
+        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+        set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
+        set(GENERATED_PROTO ${INFILE})
+        add_custom_command(
+                OUTPUT "${OUTPUT_FC_HEADER}"
+                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
+                DEPENDS ${flatbuffers_DEPENDENCY} ${GENERATED_PROTO}
+                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${GENERATED_PROTO}"
+                VERBATIM
+                COMMAND_EXPAND_LISTS)
+        list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")
+    endforeach()
+
     # Disable all warnings for generated code
-    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
+    set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED ON)
 
     # Create library
-    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
+        ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
     endif()
 
-    # Shutdown protobuf when unloading the front dynamic library
+    # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
@@ -174,21 +179,8 @@ macro(ov_add_frontend)
     if(NOT BUILD_SHARED_LIBS)
         # override default function names
         target_compile_definitions(${TARGET_NAME} PRIVATE
-            "-DGetFrontEndData=GetFrontEndData${OV_FRONTEND_NAME}"
-            "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
-    endif()
-
-    # enable LTO
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-    if(OV_FRONTEND_SKIP_NCC_STYLE)
-        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
-    else()
-        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            SOURCE_DIRECTORY "${frontend_root_dir}/include"
-                            ADDITIONAL_INCLUDE_DIRECTORIES
-                                $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
+            "-Dget_front_end_data=get_front_end_data_${OV_FRONTEND_NAME}"
+            "-Dget_api_version=get_api_version_${OV_FRONTEND_NAME}")
     endif()
 
     target_include_directories(${TARGET_NAME}
@@ -198,13 +190,10 @@ macro(ov_add_frontend)
                 ${frontend_root_dir}/src
                 ${CMAKE_CURRENT_BINARY_DIR})
 
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
+    ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     # WA for TF frontends which always require protobuf (not protobuf-lite)
@@ -215,29 +204,68 @@ macro(ov_add_frontend)
 
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
-            if(NOT protobuf_lite_installed)
-                ov_install_static_lib(${Protobuf_LITE_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_lite_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
+            set(protobuf_target_name libprotobuf-lite)
+            set(protobuf_install_name "protobuf_lite_installed")
         else()
-            if(NOT protobuf_installed)
-                ov_install_static_lib(${Protobuf_LIBRARIES} ${OV_CPACK_COMP_CORE})
-                set(protobuf_installed ON CACHE INTERNAL "" FORCE)
-            endif()
-            link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LIBRARIES})
+            set(protobuf_target_name libprotobuf)
+            set(protobuf_install_name "protobuf_installed")
+        endif()
+        if(ENABLE_SYSTEM_PROTOBUF)
+            # use imported target name with namespace
+            set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
-        # prptobuf generated code emits -Wsuggest-override error
+        link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+
+        # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
             target_compile_options(${TARGET_NAME} PRIVATE -Wno-suggest-override)
         endif()
+
+        # install protobuf if it is not installed yet
+        if(NOT ${protobuf_install_name})
+            if(ENABLE_SYSTEM_PROTOBUF)
+                # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
+                # no needs to install protobuf
+            else()
+                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
+            endif()
+        endif()
+    endif()
+
+    if(flatbuffers_schema_files)
+        target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${flatbuffers_INCLUDE_DIRECTORIES})
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
+                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
+
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    if(OV_FRONTEND_SKIP_NCC_STYLE)
+        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
+    else()
+        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                            SOURCE_DIRECTORIES "${frontend_root_dir}/include"
+                                               "${frontend_root_dir}/src"
+                            ADDITIONAL_INCLUDE_DIRECTORIES
+                                $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
+                                $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
+    endif()
 
     add_dependencies(ov_frontends ${TARGET_NAME})
+
+    # must be called after all target_link_libraries
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+    # since frontends are user-facing component which can be linked against,
+    # then we need to mark it to be CXX ABI free
+    ov_abi_free_target(${TARGET_NAME})
+
+    # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)
@@ -248,7 +276,7 @@ macro(ov_add_frontend)
             set(dev_component "${OV_CPACK_COMP_CORE_DEV}")
 
             # TODO: whether we need to do it configuralbe on Windows installer?
-            ie_cpack_add_component(${lib_component} HIDDEN)
+            ov_cpack_add_component(${lib_component} HIDDEN)
 
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)

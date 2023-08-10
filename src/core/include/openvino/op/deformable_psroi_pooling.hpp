@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformablePSROIPooling : public Op {
 public:
-    OPENVINO_OP("DeformablePSROIPooling", "opset1", op::Op, 1);
+    OPENVINO_OP("DeformablePSROIPooling", "opset1", op::Op);
 
     DeformablePSROIPooling() = default;
     /// \brief Constructs a DeformablePSROIPooling operation
@@ -70,9 +70,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void set_output_dim(int64_t output_dim);
     int64_t get_output_dim() const {
         return m_output_dim;
     }
+    void set_group_size(int64_t group_size);
     int64_t get_group_size() const {
         return m_group_size;
     }

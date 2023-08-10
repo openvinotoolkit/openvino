@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include <ie_core.hpp>
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 int main() {
     //! [ie:create_core]
@@ -38,7 +48,7 @@ int main() {
     }
 
     InferenceEngine::Blob::Ptr input_blob2 = infer_request.GetBlob("data2");
-    // fill first blob
+    // fill second blob
     InferenceEngine::MemoryBlob::Ptr minput2 = InferenceEngine::as<InferenceEngine::MemoryBlob>(input_blob2);
     if (minput2) {
         // locked memory holder should be alive all time while access to its
@@ -99,5 +109,6 @@ int main() {
     //! [ie:load_old_extension]
     core.AddExtension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
     //! [ie:load_old_extension]
+    (void)status;
     return 0;
 }

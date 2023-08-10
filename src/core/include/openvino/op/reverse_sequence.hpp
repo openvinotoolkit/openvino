@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,13 +34,12 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_batch_axis() const {
-        return m_normalized_batch_axis;
-    }
+    size_t get_batch_axis() const;
     int64_t get_origin_batch_axis() const {
         return m_batch_axis;
     }
     void set_batch_axis(int64_t batch_axis);
+
     size_t get_sequence_axis() const {
         return m_normalized_seq_axis;
     }
@@ -50,16 +49,9 @@ public:
     void set_sequence_axis(int64_t sequence_axis);
 
 private:
-    int64_t m_batch_axis;
-    int64_t m_seq_axis = 1;
-    size_t m_normalized_batch_axis;
-    size_t m_normalized_seq_axis;
-    template <class T>
-    friend void shape_infer(const ReverseSequence* op,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
-
-    void normalize_axes(ReverseSequence* op);
+    int64_t m_batch_axis{};
+    int64_t m_seq_axis{1};
+    size_t m_normalized_seq_axis{};
 };
 }  // namespace v0
 }  // namespace op

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,8 @@ bool GRN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+GRN::GRN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -94,8 +94,8 @@ void GRN::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void GRN::execute(dnnl::stream strm) {
-    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    const float* src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
 
     parallel_for3d(N, H, W, [&](int b, int h, int w) {
         double variance = 0;

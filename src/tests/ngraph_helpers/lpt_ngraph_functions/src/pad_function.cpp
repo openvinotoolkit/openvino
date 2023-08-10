@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,13 +33,13 @@ std::shared_ptr<ngraph::Function> PadFunction::get(
     const auto padsEndConst = opset1::Constant::create(element::u64, Shape{ padsEnd.size() }, padsEnd);
     const auto padsValueConst = opset1::Constant::create(deqBefore->get_output_element_type(0), Shape{}, { padValue });
 
-    const auto pad = std::make_shared<ngraph::op::TypeRelaxed<opset1::Pad>>(
+    const auto pad = std::make_shared<ov::op::TypeRelaxed<opset1::Pad>>(
         std::vector<element::Type>{ precisionAfterOperation, element::u64, element::u64, precisionAfterOperation},
         std::vector<element::Type>{ precisionAfterOperation },
-        op::TemporaryReplaceOutputType(deqBefore, precisionAfterOperation).get(),
-        op::TemporaryReplaceOutputType(padsBeginConst, element::u64).get(),
-        op::TemporaryReplaceOutputType(padsEndConst, element::u64).get(),
-        op::TemporaryReplaceOutputType(padsValueConst, precisionAfterOperation).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, precisionAfterOperation).get(),
+        ov::op::TemporaryReplaceOutputType(padsBeginConst, element::u64).get(),
+        ov::op::TemporaryReplaceOutputType(padsEndConst, element::u64).get(),
+        ov::op::TemporaryReplaceOutputType(padsValueConst, precisionAfterOperation).get(),
         mode);
 
     const auto deqAfter = makeDequantization(pad, dequantizationAfter);

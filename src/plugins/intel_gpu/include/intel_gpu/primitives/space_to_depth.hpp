@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief SpaceToDepth operation rearranges data from the spatial dimensions of the input tensor into depth dimension of the output tensor.
 /// @details SpaceToDepth operation permutes element from the input tensor with shape [b, f, y, x]
@@ -49,6 +42,10 @@ namespace cldnn {
 struct space_to_depth : public primitive_base<space_to_depth> {
     CLDNN_DECLARE_PRIMITIVE(space_to_depth)
 
+    space_to_depth() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     enum depth_mode {
         depth_first,
         blocks_first
@@ -71,8 +68,34 @@ struct space_to_depth : public primitive_base<space_to_depth> {
 
     /// @brief Block size.
     size_t block_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, block_size);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const space_to_depth>(rhs);
+
+        return mode == rhs_casted.mode &&
+               block_size == rhs_casted.block_size;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<space_to_depth>::save(ob);
+        ob << make_data(&mode, sizeof(depth_mode));
+        ob << block_size;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<space_to_depth>::load(ib);
+        ib >> make_data(&mode, sizeof(depth_mode));
+        ib >> block_size;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

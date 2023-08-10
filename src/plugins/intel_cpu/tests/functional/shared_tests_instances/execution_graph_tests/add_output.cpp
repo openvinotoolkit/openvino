@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ inline InferenceEngine::CNNNetwork getTargetNetwork() {
 }
 
 std::vector<addOutputsParams> testCases = {
-        addOutputsParams(getTargetNetwork(), {"Memory"}, CommonTestUtils::DEVICE_CPU)
+        addOutputsParams(getTargetNetwork(), {"Memory"}, ov::test::utils::DEVICE_CPU)
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AddOutputBasic, AddOutputsTest,

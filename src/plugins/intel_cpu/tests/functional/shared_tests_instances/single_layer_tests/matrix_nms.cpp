@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,8 @@ const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
 
+const std::vector<bool> outStaticShape = {false};   // always be false for cpu plugin with ov2.0.
+
 const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
                                                 ::testing::Combine(::testing::Values(ov::element::f32),
                                                                    ::testing::Values(ov::element::i32),
@@ -59,7 +61,8 @@ const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::st
                                                 ::testing::ValuesIn(backgroudClass),
                                                 ::testing::ValuesIn(normalized),
                                                 ::testing::ValuesIn(decayFunction),
-                                                ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                                ::testing::ValuesIn(outStaticShape),
+                                                ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),
@@ -73,7 +76,8 @@ const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicSh
                                                  ::testing::ValuesIn(backgroudClass),
                                                  ::testing::ValuesIn(normalized),
                                                  ::testing::ValuesIn(decayFunction),
-                                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                                ::testing::ValuesIn(outStaticShape),
+                                                 ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_static, MatrixNmsLayerTest, nmsParamsStatic, MatrixNmsLayerTest::getTestCaseName);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,15 +98,11 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
                               get_input_element_type(EMB_TABLE),
                               ")");
     }
-
-    element::Type result_et = get_input_element_type(EMB_TABLE);
-
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
-    std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-
-    shape_infer(this, input_shapes, result_shapes);
+    const auto& result_et = get_input_element_type(EMB_TABLE);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto result_shapes = shape_infer(this, input_shapes);
 
     if (result_shapes[EMB_TABLE].rank().is_dynamic() || result_shapes[EMB_TABLE][0].is_dynamic()) {
         set_input_is_relevant_to_shape(NUM_SEGMENTS, true);
@@ -136,6 +132,6 @@ shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const Outpu
                                                          new_args.at(4),
                                                          new_args.at(5));
     } else {
-        throw ngraph_error("Incorrect number of arguments");
+        OPENVINO_THROW("Incorrect number of arguments");
     }
 }

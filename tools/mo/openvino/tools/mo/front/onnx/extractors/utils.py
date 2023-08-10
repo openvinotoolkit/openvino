@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -56,7 +56,7 @@ def get_onnx_opset_version(node: Node):
 def get_onnx_datatype_as_numpy(value):
     datatype_to_numpy = {
         1: np.float32,
-        9: np.bool,
+        9: bool,
         11: np.double,
         10: np.float16,
         5: np.int16,

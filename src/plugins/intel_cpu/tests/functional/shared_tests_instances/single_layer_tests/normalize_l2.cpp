@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1, 100};
+const std::vector<float> eps = {1e-12f, 1e-6f, 1e-3f, 0.1f, 100};
 
 const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::ADD,
@@ -34,7 +34,7 @@ const auto normL2params_1D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -60,7 +60,7 @@ const auto normL2params_2D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{5, 3}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -90,7 +90,7 @@ const auto normL2params_3D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 5, 3}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -123,7 +123,7 @@ const auto normL2params_4D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 3, 10, 5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(
@@ -159,7 +159,7 @@ const auto normL2params_5D = testing::Combine(
         testing::ValuesIn(epsMode),
         testing::ValuesIn(std::vector<std::vector<size_t>>({{2, 2, 3, 10, 5}})),
         testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_CPU)
+        testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(

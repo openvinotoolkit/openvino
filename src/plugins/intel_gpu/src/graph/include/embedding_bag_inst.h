@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "primitive_inst.h"
@@ -18,7 +17,6 @@ public:
     using parent::parent;
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    size_t inputs_count() const { return get_dependencies().size(); }
 };
 
 using embedding_bag_node = typed_program_node<embedding_bag>;

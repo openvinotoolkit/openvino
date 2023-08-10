@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
@@ -38,7 +38,7 @@ def pytest_collection_modifyitems(items):
                     test.add_marker(pytest.mark.xfail(reason=mark.kwargs["reason"]))
 
 
-@pytest.mark.hookwrapper
+@pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     pytest_html = item.config.pluginmanager.getplugin('html')
     outcome = yield
@@ -70,6 +70,11 @@ def pytest_addoption(parser):
         action="store_true",
         help="Use old API for model processing in Inference Engine",
     )
+    parser.addoption(
+        "--tflite",
+        required=False,
+        action="store_true",
+        help="Switch to tflite tests version")
 
 
 @pytest.fixture(scope="session")
@@ -88,6 +93,12 @@ def use_new_frontend(request):
 def use_old_api(request):
     """Fixture function for command-line option."""
     return request.config.getoption('use_old_api')
+
+
+@pytest.fixture(scope="session")
+def tflite(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('tflite')
 
 
 @pytest.fixture(scope="session", autouse=True)

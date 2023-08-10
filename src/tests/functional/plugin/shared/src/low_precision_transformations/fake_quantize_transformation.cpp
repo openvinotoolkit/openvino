@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ void FakeQuantizeTransformation::SetUp() {
         testParams.fakequantize,
         true);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void FakeQuantizeTransformation::Run() {
@@ -66,6 +66,7 @@ void FakeQuantizeTransformation::Run() {
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

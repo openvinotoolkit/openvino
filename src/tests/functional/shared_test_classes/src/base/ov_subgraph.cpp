@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <process.h>
 #endif
 
+#include "openvino/pass/manager.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"
@@ -22,8 +23,9 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/crash_handler.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -35,33 +37,34 @@ namespace ov {
 namespace test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
-    os << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << CommonTestUtils::vec2str(inputShape.second);
+    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << ov::test::utils::vec2str(inputShape.second);
     return os;
 }
 
 void SubgraphBaseTest::run() {
+    is_reported = true;
     bool isCurrentTestDisabled = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled();
 
     ov::test::utils::PassRate::Statuses status = isCurrentTestDisabled ?
          ov::test::utils::PassRate::Statuses::SKIPPED :
          ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
-    auto crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
+    auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
     // place to jump in case of a crash
     int jmpRes = 0;
 #ifdef _WIN32
-    jmpRes = setjmp(CommonTestUtils::env);
+    jmpRes = setjmp(ov::test::utils::env);
 #else
-    jmpRes = sigsetjmp(CommonTestUtils::env, 1);
+    jmpRes = sigsetjmp(ov::test::utils::env, 1);
 #endif
-    if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
+    if (jmpRes == ov::test::utils::JMP_STATUS::ok) {
         crashHandler->StartTimer();
 
         ASSERT_FALSE(targetStaticShapes.empty() && !function->get_parameters().empty()) << "Target Static Shape is empty!!!";
@@ -79,7 +82,7 @@ void SubgraphBaseTest::run() {
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
                     throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
-                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                        ov::test::utils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
             }
@@ -91,14 +94,14 @@ void SubgraphBaseTest::run() {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
-        summary.updateOPsStats(function, status);
+        summary.updateOPsStats(function, status, rel_influence_coef);
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
-    } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
+    } else if (jmpRes == ov::test::utils::JMP_STATUS::alarmErr) {
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
 }
@@ -106,7 +109,7 @@ void SubgraphBaseTest::run() {
 void SubgraphBaseTest::serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = ov::test::utils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -130,7 +133,7 @@ void SubgraphBaseTest::serialize() {
 
     EXPECT_TRUE(success) << message;
 
-    CommonTestUtils::removeIRFiles(out_xml_path, out_bin_path);
+    ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
 void SubgraphBaseTest::query_model() {
@@ -206,16 +209,9 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
     }
-
-    // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
-        if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
-                configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-        }
-    #endif
-
+    core_configuration(this);
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
@@ -265,19 +261,12 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
-    }
-    auto start_time = std::chrono::system_clock::now();
-
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
-
-    auto functionToProcess = ov::clone_model(*functionRefs);
+precisions_map SubgraphBaseTest::get_ref_precisions_convert_map() {
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
-    precisions_array precisions = {
+    precisions_map precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
     };
+
     auto convert_added = false;
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
@@ -290,11 +279,21 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             }
         }
     }
+
     if (!convert_added) {
-        precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
+        precisions.insert({ ngraph::element::f16, ngraph::element::f32});
     }
+
+    return precisions;
+}
+
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
+
+    auto functionToProcess = functionRefs->clone();
+    precisions_map convert_precisions = get_ref_precisions_convert_map();
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 
@@ -328,11 +327,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     functionToProcess = p.build();
 
     auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
-    if (is_report_stages) {
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
-    }
     return results;
 }
 
@@ -403,7 +397,6 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
     for (const auto& shape : shapes) {
         auto dynShape = shape.first;
         if (dynShape.rank() == 0) {
-            ASSERT_EQ(targetStaticShapeSize, 1) << "Incorrect number of static shapes for static case";
             dynShape = shape.second.front();
         }
         inputDynamicShapes.push_back(dynShape);

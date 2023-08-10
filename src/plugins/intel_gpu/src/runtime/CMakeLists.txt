@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,18 +30,24 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${INCLUDE_DIR}>)
-    
-target_compile_options(${TARGET_NAME} PRIVATE
-  $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
-if(COMMAND add_cpplint_target)
-  add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-endif()
+target_compile_options(${TARGET_NAME} PRIVATE
+  $<$<CONFIG:Release>:
+    $<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os
+    >
+  >
+  $<$<CXX_COMPILER_ID:GNU>:
+    $<$<VERSION_GREATER:$<CXX_COMPILER_VERSION>,6.0>:
+      -Wno-ignored-attributes
+    >
+  >)
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL
+    OpenCL::OpenCL
     openvino::itt
     inference_engine_plugin_api
   )

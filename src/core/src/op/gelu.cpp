@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ bool op::v0::Gelu::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v0::Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<op::v0::Gelu>(new_args.at(0));
 }
@@ -78,7 +78,7 @@ bool op::v7::Gelu::visit_attributes(AttributeVisitor& visitor) {
 shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v7_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1) {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
     return make_shared<op::v7::Gelu>(new_args.at(0), m_approximation_mode);
 }
@@ -101,6 +101,7 @@ op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const {
     return m_approximation_mode;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace gelu {
 namespace {
 template <element::Type_t ET>
@@ -132,7 +133,9 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
 
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v7_Gelu_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode);
 }
 

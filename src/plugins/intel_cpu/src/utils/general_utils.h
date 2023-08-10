@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,15 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
 constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
+
+#ifdef __cpp_lib_make_unique
+using std::make_unique;
+#else
+template <class T, class... Args>
+inline std::unique_ptr<T> make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+#endif
 
 template<typename T>
 std::string vec2str(const std::vector<T> &vec) {

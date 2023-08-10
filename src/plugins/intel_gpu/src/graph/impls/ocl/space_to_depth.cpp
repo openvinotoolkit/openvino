@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "space_to_depth_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "space_to_depth_inst.h"
 #include "space_to_depth/space_to_depth_kernel_selector.h"
 #include "space_to_depth/space_to_depth_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -69,3 +65,4 @@ attach_space_to_depth_impl::attach_space_to_depth_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_depth_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::space_to_depth)

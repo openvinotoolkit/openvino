@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
-                              bool across_channels, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
+                              std::vector<int64_t> axes, bool normalize_variance, float eps, bool eps_inside_sqrt = true) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -25,7 +25,7 @@ static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& o
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels);
+                              axes);
 
     p.add_primitive(*op, mvnPrim);
 }
@@ -37,26 +37,33 @@ static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& 
     bool normalize_variance = op->get_normalize_variance();
     float eps = op->get_eps();
 
-    CreateCommonMVNOp(p, op, across_channels, normalize_variance, eps);
+    int64_t axes_count = std::max<int64_t>(static_cast<int64_t>(op->get_input_partial_shape(0).size()) - 2, 0);
+    std::vector<int64_t> axes(axes_count);
+    std::iota(axes.begin(), axes.end(), 2);
+
+    if (across_channels) {
+        axes.insert(axes.begin(), 1);
+    }
+
+    CreateCommonMVNOp(p, op, axes, normalize_variance, eps);
 }
 
 static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& op) {
     validate_inputs_count(op, {2});
 
     auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-    if (!inConst)
-        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    OPENVINO_ASSERT(inConst != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-    const size_t chanelAxis = 1;
-    bool across_channels = std::find(axes.begin(), axes.end(), chanelAxis) != axes.end();
     bool normalize_variance = op->get_normalize_variance();
     float eps = op->get_eps();
     bool eps_inside_sqrt = op->get_eps_mode() == ngraph::op::MVNEpsMode::INSIDE_SQRT;
 
-    CreateCommonMVNOp(p, op, across_channels, normalize_variance, eps, eps_inside_sqrt);
+    CreateCommonMVNOp(p, op, axes, normalize_variance, eps, eps_inside_sqrt);
 }
 
 REGISTER_FACTORY_IMPL(v0, MVN);

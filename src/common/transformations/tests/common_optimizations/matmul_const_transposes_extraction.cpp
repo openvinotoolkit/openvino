@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/constant_folding.hpp>
 #include <transformations/common_optimizations/matmul_const_transposes_extraction.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -20,7 +21,8 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionConstantWeights) {
         auto matmul = std::make_shared<opset8::MatMul>(data, weights, true);
         function = std::make_shared<Function>(matmul, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -43,7 +45,8 @@ TEST_F(TransformationTestsF, MatMulConstTransposesExtractionFQOnWeights) {
         auto matmul = std::make_shared<opset8::MatMul>(data, fq);
         function = std::make_shared<Function>(matmul, ParameterVector{data});
 
-        manager.register_pass<pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -66,7 +69,7 @@ TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionInvalidRank)
     auto weights = opset8::Constant::create(element::f32, Shape{3}, {1, 2, 3});
     auto matmul = std::make_shared<opset8::MatMul>(data, weights, true);
     function = std::make_shared<Function>(matmul, ParameterVector{data});
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
@@ -75,7 +78,7 @@ TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionTransposeBSe
     auto weights = opset8::Constant::create(element::f32, Shape{1, 2, 3}, {1, 2, 3, 4, 5, 6});
     auto matmul = std::make_shared<opset8::MatMul>(data, weights, true, true);
     function = std::make_shared<Function>(matmul, ParameterVector{data});
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
@@ -84,6 +87,6 @@ TEST_F(TransformationTestsF, NegativeMatMulConstTransposesExtractionNonUnitDims)
     auto weights = opset8::Constant::create(element::f32, Shape{2, 3, 2}, {1, 2, 3, 4, 5, 6, 2, 3, 4, 5, 6, 7});
     auto matmul = std::make_shared<opset8::MatMul>(data, weights, true);
     function = std::make_shared<Function>(matmul, ParameterVector{data});
-    manager.register_pass<pass::MatMulConstTransposesExtraction>();
+    manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

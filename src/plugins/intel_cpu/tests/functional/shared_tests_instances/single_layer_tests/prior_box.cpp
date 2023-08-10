@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,5 +81,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic, PriorBoxLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(inputShape),
                                 ::testing::Values(imageShape),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             PriorBoxLayerTest::getTestCaseName);

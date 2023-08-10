@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,7 +162,6 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      !newParams.bias.empty(),
                      1,
                      fused_deps_total);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     kd.autoTuneIndex = autoTuneIndex;
 
@@ -181,8 +180,6 @@ bool CheckConvolutionBinaryPaddedInputDesc(const binary_convolution_params& para
                      reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
                      reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
-
-    properPadding &= ((params.padding.x == 0 && params.padding.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
 
     return properPadding;
 }
@@ -218,14 +215,12 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
 
 bool ConvolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     const binary_convolution_params& params = static_cast<const binary_convolution_params&>(p);
-    const binary_convolution_optional_params& optParams = static_cast<const binary_convolution_optional_params&>(o);
 
-    const auto req_input = GetConvolutionBFYXPaddedTensor(params);
-    const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
-    const bool bInputPadded = optParams.allowInputReordering || bProperInputDesc;
+    if (params.padding.x == 0 && params.padding.y == 0) {
+        const auto req_input = GetConvolutionBFYXPaddedTensor(params);
+        const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
 
-    if (!bInputPadded) {
-        return false;
+        return bProperInputDesc;
     }
 
     return true;
@@ -248,7 +243,7 @@ std::string BinaryConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) c
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData BinaryConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,

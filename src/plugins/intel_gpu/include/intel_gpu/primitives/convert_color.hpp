@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,16 +7,14 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs image conversion from one format to another
 struct convert_color : public primitive_base<convert_color> {
     CLDNN_DECLARE_PRIMITIVE(convert_color)
+
+    convert_color() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     enum color_format : uint32_t {
         RGB,       ///< RGB color format
@@ -56,8 +54,41 @@ struct convert_color : public primitive_base<convert_color> {
     color_format output_color_format;
     memory_type mem_type;
     layout output_layout;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, input_color_format);
+        seed = hash_combine(seed, output_color_format);
+        seed = hash_combine(seed, mem_type);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const convert_color>(rhs);
+
+        return input_color_format == rhs_casted.input_color_format &&
+               output_color_format == rhs_casted.output_color_format &&
+               mem_type == rhs_casted.mem_type &&
+               output_layout == rhs_casted.output_layout;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<convert_color>::save(ob);
+        ob << make_data(&input_color_format, sizeof(color_format));
+        ob << make_data(&output_color_format, sizeof(color_format));
+        ob << make_data(&mem_type, sizeof(memory_type));
+        ob << output_layout;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<convert_color>::load(ib);
+        ib >> make_data(&input_color_format, sizeof(color_format));
+        ib >> make_data(&output_color_format, sizeof(color_format));
+        ib >> make_data(&mem_type, sizeof(memory_type));
+        ib >> output_layout;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

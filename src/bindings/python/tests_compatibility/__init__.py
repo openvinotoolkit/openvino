@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -44,8 +44,6 @@ xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "GatherElements")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
-                                      "to HardSigmoid_IE")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
                                       "is_static() nGraph <value> operation with name: <value> cannot be "
                                       "converted to <value> layer with name: <value> because output "
@@ -84,10 +82,31 @@ xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsquee
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")
 xfail_issue_44958 = xfail_test(reason="Expected: Unsupported dynamic op: Interpolate")
 xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no element")
-xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_73538 = xfail_test(reason="OneHot: Unsupported negative indices, "
                                       "AssertionError: Mismatched elements.")
+xfail_issue_99949 = xfail_test(reason="Bitwise operators are not supported")
+xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
+xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
+xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
+xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
+xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
+xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
+xfail_issue_99959 = xfail_test(reason="Mish function is not supported")
+xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
+xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
+xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
+xfail_issue_99968 = xfail_test(reason="ReduceL1/L2 - Results mismatch or unsupported ReduceSum with "
+                                      "dynamic rank by CPU plugin")
+xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
+                                      "RuntimeError: While validating ONNX node '<Node(Resize): Y>' / "
+                                      "RuntimeError: Check '(false)' failed at onnx/frontend/src/op/resize.cpp")
+xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
+                                      "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
+                                      "src/frontends/onnx/frontend/src/op/scatter_nd")
+xfail_issue_99972 = xfail_test(reason="Softmax - Results mismatch")
+xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
+                                      "'<Node(Split): output_1, output_2, output_3, output_4>'")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -101,14 +120,11 @@ xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadc
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
 xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
                                       " z should be converted to TileIE operation.")
-xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
-                                      "indices value that points to non-existing output tensor element")
 
 
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
-xfail_issue_49207 = xfail_test(reason="Model references undeclared parameters")
 xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
                                       "DESIRED: 3")
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
@@ -124,7 +140,6 @@ xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
-xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
@@ -144,5 +159,7 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
 xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
+xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
 
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace low_precision {
 
 FuseMultiplyToFakeQuantizeTransformation::FuseMultiplyToFakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(FuseMultiplyToFakeQuantizeTransformation);
-    auto matcher = pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -39,15 +39,15 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     }
 
     const auto parent = multiply->get_input_node_shared_ptr(0);
-    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
+    auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     const auto multiplyConstant = multiply->get_input_node_shared_ptr(1);
-    if (!ov::is_type<opset1::Constant>(multiplyConstant)) {
+    if (!ov::is_type<ov::opset1::Constant>(multiplyConstant)) {
         return false;
     }
 
@@ -58,8 +58,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
         multiplyConstant :
         foldConvert(multiplyConstant, deqPrecision);
 
-    outputLowConst_f32 = fold<opset1::Multiply>(outputLowConst_f32, value);
-    outputHighConst_f32 = fold<opset1::Multiply>(outputHighConst_f32, value);
+    outputLowConst_f32 = fold<ov::opset1::Multiply>(outputLowConst_f32, value);
+    outputHighConst_f32 = fold<ov::opset1::Multiply>(outputHighConst_f32, value);
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
@@ -68,8 +68,8 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLowConst_f32);
     NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHighConst_f32);
 
-    auto newFakeQuantize = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-        opset1::FakeQuantize(
+    auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
+        ov::opset1::FakeQuantize(
             fakeQuantize->input_value(0),
             inputLow,
             inputHigh,
@@ -91,7 +91,7 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 }
 
 bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!ov::is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
         return false;
     }
 
@@ -104,11 +104,11 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     const auto parent = operation->get_input_node_shared_ptr(0);
-    auto fq = ov::as_type_ptr<opset1::FakeQuantize>(parent);
-    const auto convert = ov::as_type_ptr<opset1::Convert>(parent);
+    auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
+    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
 
     if (convert) {
-        fq = ov::as_type_ptr<opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
     }
 
     if (!fq) {

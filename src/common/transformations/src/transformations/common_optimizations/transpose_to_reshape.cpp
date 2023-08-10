@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -20,8 +23,8 @@ using namespace ov;
 ov::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);
 
-    auto transpose_label = pattern::wrap_type<opset6::Transpose>(
-        {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<opset6::Constant>()});
+    auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>(
+        {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<ov::op::v0::Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
@@ -29,7 +32,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
 
         const size_t input_shape_rank = input_shape.rank().get_length();
 
-        auto order = ov::as_type_ptr<opset6::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
         if (!order || !ngraph::shape_size(order->get_shape())) {
             return false;
         }
@@ -87,17 +90,18 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
             for (const auto& item : dims) {
                 reshape_value[item.pos] = item.dim.is_dynamic() ? -1 : item.dim.get_length();
             }
-            reshape_dim = opset3::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
+            reshape_dim = ov::op::v0::Constant::create(element::i64, Shape{reshape_value.size()}, reshape_value);
         } else {
-            auto shape_of = std::make_shared<opset3::ShapeOf>(data);
+            auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(data);
             new_ops.push_back(shape_of);
-            reshape_dim = std::make_shared<opset3::Gather>(shape_of,
-                                                           order,
-                                                           opset3::Constant::create(element::i64, Shape{1}, {0}));
+            reshape_dim =
+                std::make_shared<ov::op::v1::Gather>(shape_of,
+                                                     order,
+                                                     ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(reshape_dim.get_node_shared_ptr());
         }
 
-        auto reshape_op = register_new_node<opset3::Reshape>(data, reshape_dim, true);
+        auto reshape_op = register_new_node<ov::op::v1::Reshape>(data, reshape_dim, true);
         new_ops.push_back(reshape_op);
 
         reshape_op->set_friendly_name(transpose->get_friendly_name());

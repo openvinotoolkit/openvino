@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace v6 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronROIFeatureExtractor : public Op {
 public:
-    OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op, 6);
+    OPENVINO_OP("ExperimentalDetectronROIFeatureExtractor", "opset6", op::Op);
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {
@@ -52,13 +52,12 @@ public:
         return m_attrs;
     }
 
+    ///@brief Set the ExperimentalDetectronROIFeatureExtractor's attributes.
+    ///@param attrs  Attributes to set.
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
-
-    template <class T>
-    friend void shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

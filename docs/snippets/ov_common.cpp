@@ -1,7 +1,17 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include <ie_extension.h>
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 #include <openvino/core/core.hpp>
 #include <openvino/runtime/runtime.hpp>
@@ -117,6 +127,7 @@ int main() {
     core.add_extension(std::make_shared<InferenceEngine::Extension>("path_to_extension_library.so"));
     //! [ov_api_2_0:load_old_extension]
     OPENVINO_SUPPRESS_DEPRECATED_END
+    (void)status;
 
     return 0;
 }

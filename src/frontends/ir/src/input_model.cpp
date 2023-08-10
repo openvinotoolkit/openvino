@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,9 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 namespace {
-void ParsePreProcess(pugi::xml_node& root,
-                     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
-                     std::shared_ptr<Function> f) {
+void parse_pre_process(pugi::xml_node& root,
+                       std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
+                       std::shared_ptr<Function> f) {
     /* Preprocessing block can have two preprocessing types:
      *
      * <pre-process mean-precision="FP32" reference-layer-name="data">
@@ -46,7 +46,7 @@ void ParsePreProcess(pugi::xml_node& root,
     std::string inputName;
     std::shared_ptr<Node> input_node;
 
-    inputName = XMLParseUtils::GetStrAttr(ppNode, "reference-layer-name", "");
+    inputName = pugixml::utils::GetStrAttr(ppNode, "reference-layer-name", "");
     inputName = trim(inputName);
 
     if (inputName.empty()) {
@@ -102,15 +102,15 @@ void ParsePreProcess(pugi::xml_node& root,
         mean_scalar_shape = {inputDims[1], 1, 1, 1};
         mean_shape = {1, inputDims[2], inputDims[3], inputDims[4]};
     }
-    const int64_t channels = mean_scalar_shape[0];
+    const size_t channels = mean_scalar_shape[0];
 
-    int64_t next_channel_id{0};
-    std::set<std::pair<int64_t, float>> mean_scalar_values;
-    std::set<std::pair<int64_t, std::pair<int64_t, int64_t>>> mean_values;
+    uint64_t next_channel_id{0};
+    std::set<std::pair<uint64_t, float>> mean_scalar_values;
+    std::set<std::pair<uint64_t, std::pair<uint64_t, uint64_t>>> mean_values;
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
-        int chanNo = XMLParseUtils::GetIntAttr(chan, "id", static_cast<int>(next_channel_id++));
+        auto chanNo = pugixml::utils::GetUInt64Attr(chan, "id", next_channel_id++);
 
         auto meanNode = chan.child("mean");
         if (!meanNode.empty()) {
@@ -118,11 +118,11 @@ void ParsePreProcess(pugi::xml_node& root,
                 IE_THROW() << "mean should have at least one of the following attribute: value, size";
             }
             if (meanNode.attribute("value")) {
-                mean_scalar_values.insert({chanNo, XMLParseUtils::GetFloatAttr(meanNode, "value")});
+                mean_scalar_values.insert({chanNo, pugixml::utils::GetFloatAttr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
-                auto const_size = XMLParseUtils::GetIntAttr(meanNode, "size");
-                auto const_offset = XMLParseUtils::GetIntAttr(meanNode, "offset");
+                auto const_size = pugixml::utils::GetUInt64Attr(meanNode, "size");
+                auto const_offset = pugixml::utils::GetUInt64Attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
                     IE_THROW() << "mean blob size mismatch expected input, got: " << const_size << " expecting "
                                << mean_shape << " x " << input_type.size();
@@ -174,7 +174,9 @@ void ParsePreProcess(pugi::xml_node& root,
             const char* data = weights->get_ptr<char>() + offset;
             per_channel_values[item.first] = ngraph::opset1::Constant::create(input_type, mean_shape, data);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto const_node = get_constant_from_source(std::make_shared<ngraph::opset1::Concat>(per_channel_values, 0));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         IE_ASSERT(const_node);
         const auto& consumers = input_node->output(0).get_target_inputs();
         auto add = std::make_shared<ngraph::opset1::Subtract>(input_node, const_node);
@@ -229,12 +231,12 @@ std::shared_ptr<Function> InputModel::InputModelIRImpl::convert() {
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
 
     // Load default opsets
-    size_t version = XMLParseUtils::GetUIntAttr(m_root, "version", 0);
+    size_t version = pugixml::utils::GetUIntAttr(m_root, "version", 0);
     ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
     function->get_rt_info()["version"] = int64_t(version);
-    ParsePreProcess(m_root, m_weights, function);
+    parse_pre_process(m_root, m_weights, function);
 
     return function;
 }

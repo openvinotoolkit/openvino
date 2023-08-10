@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,11 +64,6 @@ public:
             }
 
             inputs.push_back(blob);
-        }
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-            auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(static_cast<int>(batchSize));
         }
         inferRequest.Infer();
     }

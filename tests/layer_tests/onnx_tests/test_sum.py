@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -37,7 +37,7 @@ class TestSum(OnnxRuntimeLayerTest):
         nodes = list()
         consts = list()
         for i, shape in enumerate(const_shapes):
-            const = np.random.randint(-127, 127, shape).astype(np.float)
+            const = np.random.randint(-127, 127, shape).astype(float)
             const_name = 'const{}'.format(i + 1)
             nodes.append(helper.make_node(
                 'Constant',
@@ -111,7 +111,7 @@ class TestSum(OnnxRuntimeLayerTest):
         input_names = list()
         consts = list()
         for i, shape in enumerate(const_shapes):
-            const = np.random.randint(-127, 127, shape).astype(np.float)
+            const = np.random.randint(-127, 127, shape).astype(float)
             const_name = 'const{}'.format(i + 1)
             nodes.append(helper.make_node(
                 'Constant',

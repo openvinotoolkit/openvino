@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,7 +229,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     kd.internalBufferDataType = GetUnitType(detectOutParams);
 
     for (size_t i = 0; i < kKernelsNum; i++) {
-        DispatchData dispatchData = SetDefault(detectOutParams, i);
+        DispatchData dispatchData = SetDefault(detectOutParams, static_cast<int>(i));
         auto cldnnJit = GetJitConstants(detectOutParams);
         auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
@@ -238,17 +238,23 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
             if (detectOutParams.detectOutParams.decrease_label_id) {
                 cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"));
             } else {
-                if (detectOutParams.detectOutParams.conf_padding_x || detectOutParams.detectOutParams.conf_padding_y) {
-                    cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true")});
-                } else {
-                    cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true")});
-                }
                 size_t num_bit_mask = CeilDiv(num_prior_boxes, 8);
                 size_t num_score_per_item = RoundUp(CeilDiv(num_prior_boxes, max_wg), 8);
                 size_t num_score_block = CeilDiv(num_prior_boxes, num_score_per_item);
                 cldnnJit.AddConstants({MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
                                        MakeJitConstant("NUM_PRIORS_PER_ITEM", num_score_per_item),
                                        MakeJitConstant("NUM_PRIOR_BLOCKS", num_score_block)});
+
+                std::string kernel_name_suffix = "_CAFFE";
+                if (detectOutParams.detectOutParams.conf_padding_x == 0 && detectOutParams.detectOutParams.conf_padding_y == 0) {
+                    size_t req_local_mem_size = num_bit_mask * 4 * BytesPerElement(kernel_selector::Datatype::INT8)
+                                            + num_score_block * 4 * BytesPerElement(kernel_selector::Datatype::INT32);
+                    // Check local mem size used in DO_STAGE_0_CAFFE_OPT.
+                    if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize) {
+                        kernel_name_suffix = "_CAFFE_OPT";
+                    }
+                }
+                cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + kernel_name_suffix, "true")});
             }
         } else if (i == 1) {
             if (detectOutParams.detectOutParams.decrease_label_id) {
@@ -256,7 +262,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             } else {
                 // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
                 //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
@@ -267,7 +273,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             }
         } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {

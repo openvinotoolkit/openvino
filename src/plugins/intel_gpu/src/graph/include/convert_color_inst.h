@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -15,7 +15,6 @@ struct typed_program_node<convert_color> : public typed_program_node_base<conver
 public:
     using parent::parent;
     program_node& input(size_t index = 0) const { return get_dependency(index); }
-    size_t inputs_count() const { return get_primitive()->input.size(); }
 };
 
 using convert_color_node = typed_program_node<convert_color>;

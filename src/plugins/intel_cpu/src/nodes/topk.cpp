@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 #include <set>
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include "ie_parallel.hpp"
 #include <ngraph/op/topk.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -32,6 +32,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 #define GET_OFF(field) offsetof(jit_topk_call_args, field)
 
 #define vmm_mask    Vmm(0)
@@ -270,12 +271,12 @@ private:
     inline void topk_loop() {
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
-                if (jcp_.top_k == 1) {
+                if (jcp_.top_k == 1 && !jcp_.stable) {
                     topk_bubble_horiz();
                 } else {
                     topk_bubble_BLK_on_channel_verti();
                 }
-            } else if (jcp_.topk_innermost && jcp_.top_k == 1) {
+            } else if (jcp_.topk_innermost && jcp_.top_k == 1 && !jcp_.stable) {
                 topk_bubble_horiz();
             } else {
                 topk_bubble_vector();
@@ -783,7 +784,7 @@ private:
     }
 
     inline bool is_valid_isa(cpu_isa_t cpu_isa) {
-        return cpu::x64::is_subset(cpu_isa, isa_all) && mayiuse(cpu_isa);
+        return mayiuse(cpu_isa);
     }
 
     inline void uni_vpcmpgtd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
@@ -1787,31 +1788,34 @@ private:
         }
     }
 };
+#endif
 
-bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
-        if (!topKOp) {
-            errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
+        if (!one_of(op->get_type_info(), ov::op::v1::TopK::get_type_info_static(),
+                                         ov::op::v3::TopK::get_type_info_static(),
+                                         ov::op::v11::TopK::get_type_info_static())) {
+            errorMessage = "Node is not an instance of the TopK from the operation sets v1, v3 or v11";
             return false;
         }
 
+        auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 errorMessage = "Second tensor is not constant in static shape mode";
                 return false;
             }
         }
 
-        if (topKOp->get_mode() != ngraph::op::TopKMode::MAX &&
-                topKOp->get_mode() != ngraph::op::TopKMode::MIN) {
+        if (topKOp->get_mode() != ov::op::TopKMode::MAX &&
+            topKOp->get_mode() != ov::op::TopKMode::MIN) {
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
-                                  ngraph::op::TopKSortType::SORT_VALUES,
-                                  ngraph::op::TopKSortType::SORT_INDICES)) {
+        if (!one_of(topKOp->get_sort_type(), ov::op::TopKSortType::NONE,
+                                             ov::op::TopKSortType::SORT_VALUES,
+                                             ov::op::TopKSortType::SORT_INDICES)) {
             errorMessage = "Unsupported sort type.";
             return false;
         }
@@ -1821,13 +1825,13 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TOPK_K))) {
+TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(TOPK_K))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";
 
-        auto topKOp = ngraph::as_type_ptr<ngraph::op::v1::TopK>(op);
+        auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
 
         auto in_dims = topKOp->get_input_partial_shape(TOPK_DATA);
         auto out_dims = topKOp->get_output_partial_shape(TOPK_DATA);
@@ -1835,15 +1839,23 @@ TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
         auto in_dims_size = in_dims.size();
 
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 IE_THROW() << errorPrefix <<  "gets non-constant second tensor in static shape mode!";
             }
         }
 
         axis = topKOp->get_axis();
-        mode_max = topKOp->get_mode() == ngraph::op::TopKMode::MAX;
-        sort_index = topKOp->get_sort_type() == ngraph::op::TopKSortType::SORT_INDICES;
+        mode_max = topKOp->get_mode() == ov::op::TopKMode::MAX;
+        sort_index = topKOp->get_sort_type() == ov::op::TopKSortType::SORT_INDICES;
+
+        stable = false;
+        if (!sort_index) {
+            const auto topKOpV11 = ngraph::as_type_ptr<const ov::op::v11::TopK>(op);
+            if (topKOpV11) {
+                stable = topKOpV11->get_stable();
+            }
+        }
 
         top_k = 0;
         preset_params_done = false;
@@ -1888,7 +1900,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::ref;
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
+#else
+    jit_mode = false;
+#endif
 
     static const Precision supportedPrecision[] = {
         Precision::FP32,
@@ -1913,9 +1929,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
 
     std::vector<std::pair<LayoutType, LayoutType>> dataFomats{
         {LayoutType::ncsp, LayoutType::ncsp},
+#if defined(OPENVINO_ARCH_X86_64)
         {LayoutType::nspc, LayoutType::nspc},
         {LayoutType::nCsp16c, LayoutType::nCsp16c},
         {LayoutType::nCsp8c, LayoutType::nCsp8c}
+#endif
     };
 
     for (const auto &df : dataFomats) {
@@ -1926,25 +1944,16 @@ void TopK::initSupportedPrimitiveDescriptors() {
 }
 
 bool TopK::needShapeInfer() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     return inputShapesModified() || src_k != top_k;
 }
 
 bool TopK::needPrepareParams() const {
-    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+    const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     return inputShapesModified() || top_k != src_k;
 }
 
 void TopK::preset_params() {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-        layout = TopKLayoutType::topk_ncsp;
-    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-        layout = TopKLayoutType::topk_nspc;
-    } else {
-        layout = TopKLayoutType::topk_blocked;
-    }
-
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto data_type = DnnlExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
@@ -1959,7 +1968,10 @@ void TopK::preset_params() {
     }
 
     if (isDynamicNode()) {
-        if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
+        if (stable) {
+            algorithm = TopKAlgorithm::topk_bubble_sort;
+            bubble_inplace = false;
+        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
             algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
             algorithm = TopKAlgorithm::topk_bubble_sort;
@@ -1969,8 +1981,8 @@ void TopK::preset_params() {
 }
 
 void TopK::prepareParams() {
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " has not allocated destination memory.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -1982,14 +1994,14 @@ void TopK::prepareParams() {
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
-        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
-        if (src_k > src_dims[axis])
+        const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
+        if (static_cast<size_t>(src_k) > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
         if (top_k != src_k) {
             top_k = src_k;
         }
     } else {
-        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
+        top_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->getData())[0];
     }
 
     if (jit_mode) {
@@ -1998,7 +2010,7 @@ void TopK::prepareParams() {
             preset_params_done = true;
         }
 
-        auto layout_dims = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        auto layout_dims = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
         calc_dims_size(layout_dims);
 
         axis_dim = src_dims[axis];
@@ -2006,8 +2018,11 @@ void TopK::prepareParams() {
         // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are sufficient
         //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble sort;
         //           (horizotal sorting cases not included)
-        // [case 2]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
-        // [case 3]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
+        // [case 2]: if stable sorting is required, bubble sort(topk_bubble_vector/topk_bubble_BLK_on_channel_verti) will be
+        //           applied currently, because among the implemented sorting algorithms, these bubble sort implementations
+        //           are the only stable ones;
+        // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
+        // [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
         //           alg_cost_bubble = K * (K - 1) / 2 + (N - K) * K
         //           where, N = axis_dim, K = topk_k
@@ -2015,9 +2030,12 @@ void TopK::prepareParams() {
         //           which algorithm should be used for specific N and K.
         if (!isDynamicNode()) {
             const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_core
-            if (top_k <= count_xmm / 2 - 2) {
+            if (static_cast<size_t>(top_k) <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = topk_innermost && top_k == 1 ? false : true;
+            } else if (stable) {
+                algorithm = TopKAlgorithm::topk_bubble_sort;
+                bubble_inplace = false;
             } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
                 algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
@@ -2046,6 +2064,15 @@ void TopK::prepareParams() {
 }
 
 void TopK::createPrimitive() {
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        layout = TopKLayoutType::topk_ncsp;
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
+        layout = TopKLayoutType::topk_nspc;
+    } else {
+        layout = TopKLayoutType::topk_blocked;
+    }
+
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams())
             prepareParams();
@@ -2074,14 +2101,14 @@ void TopK::createPrimitive() {
         jcp.topk_innermost = topk_innermost;
         jcp.algorithm = algorithm;
         jcp.bubble_inplace = bubble_inplace;
+        jcp.stable = stable;
         jcp.sort_stride = static_cast<int>(I);
         jcp.work_amount = static_cast<int>(I);
         jcp.bitonic_idx_cnt = 0;
         jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-            size_t src_count = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
 
@@ -2090,7 +2117,7 @@ void TopK::createPrimitive() {
                 calc_bitonic_idx(top_k, jcp.bitonic_k_idx_cnt, false);
             }
         }
-
+#if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             topk_kernel.reset(new jit_uni_topk_kernel_f32<cpu::x64::avx512_core>(jcp));
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -2101,6 +2128,7 @@ void TopK::createPrimitive() {
 
         if (topk_kernel)
             topk_kernel->create_ker();
+#endif
     }
 }
 
@@ -2109,13 +2137,13 @@ void TopK::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void TopK::execute(dnnl::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
-    auto &dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(TOPK_DATA)->getMemoryPtr();
+    auto dstIndexesMemPtr = getChildEdgeAt(TOPK_INDEX)->getMemoryPtr();
 
-    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->GetPtr());
-    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->GetPtr());
-    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->GetPtr());
+    const uint8_t *src_data = reinterpret_cast<const uint8_t *>(srcMemPtr->getData());
+    uint8_t *dst_data = reinterpret_cast<uint8_t *>(dstMemPtr->getData());
+    uint8_t *dst_idx = reinterpret_cast<uint8_t *>(dstIndexesMemPtr->getData());
 
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);
@@ -2207,7 +2235,9 @@ inline void TopK::prepare_original_idx() {
     bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
                              (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        if (topk_innermost) {
+        bool use_idx_seq = stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
+                                  : topk_innermost;
+        if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
                 std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);
@@ -2322,7 +2352,7 @@ void TopK::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
 // O: total size of the outer dimensions
 // A: size of the topk imposed dimension
 // I: total size of the inner dimensions
-void TopK::calc_dims_size(const SizeVector &layout_dims) {
+void TopK::calc_dims_size(const VectorDims &layout_dims) {
     O = 1, I = 1;
     A = src_dims[axis];
     int layout_axis = axis;
@@ -2346,7 +2376,7 @@ void TopK::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
         topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x < y; });
 }
 
-void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const SizeVector &in_dims,
+void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const VectorDims &in_dims,
                                std::function<float(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
@@ -2410,14 +2440,14 @@ void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst
     });
 }
 
-inline int TopK::count(SizeVector dims, size_t start_ind, size_t end_ind) {
+inline int TopK::count(const VectorDims& dims, size_t start_ind, size_t end_ind) {
     size_t count = 1;
     for (size_t i = start_ind; i < end_ind; i++)
         count *= dims[i];
     return static_cast<int>(count);
 }
 
-inline int TopK::count(SizeVector dims, size_t start_ind) {
+inline int TopK::count(const VectorDims& dims, size_t start_ind) {
     return count(dims, start_ind, dims.size());
 }
 

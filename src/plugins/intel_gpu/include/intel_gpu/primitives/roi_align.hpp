@@ -1,22 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief ROIAlign is a pooling layer used over feature maps of
 /// non-uniform input sizes and outputs a feature map of a fixed size.
 struct roi_align : public primitive_base<roi_align> {
     CLDNN_DECLARE_PRIMITIVE(roi_align)
+
+    roi_align() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Pooling mode for the @ref roi_align
     enum PoolingMode { max, avg };
@@ -64,8 +63,48 @@ struct roi_align : public primitive_base<roi_align> {
     PoolingMode pooling_mode;
     /// @brief Method to coordinate alignment.
     AlignedMode aligned_mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_combine(seed, spatial_scale);
+        seed = hash_combine(seed, pooling_mode);
+        seed = hash_combine(seed, aligned_mode);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roi_align>(rhs);
+
+        return pooled_h == rhs_casted.pooled_h &&
+               pooled_w == rhs_casted.pooled_w &&
+               sampling_ratio == rhs_casted.sampling_ratio &&
+               spatial_scale == rhs_casted.spatial_scale &&
+               pooling_mode == rhs_casted.pooling_mode &&
+               aligned_mode == rhs_casted.aligned_mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<roi_align>::save(ob);
+        ob << pooled_h;
+        ob << pooled_w;
+        ob << sampling_ratio;
+        ob << spatial_scale;
+        ob << make_data(&pooling_mode, sizeof(PoolingMode));
+        ob << make_data(&aligned_mode, sizeof(AlignedMode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<roi_align>::load(ib);
+        ib >> pooled_h;
+        ib >> pooled_w;
+        ib >> sampling_ratio;
+        ib >> spatial_scale;
+        ib >> make_data(&pooling_mode, sizeof(PoolingMode));
+        ib >> make_data(&aligned_mode, sizeof(AlignedMode));
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

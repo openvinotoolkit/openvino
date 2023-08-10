@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace SubgraphTestsDefinitions {
 using ReduceEltwiseParamsTuple = typename std::tuple<
         std::vector<size_t>,              // Input shapes
         std::vector<int>,                 // Axis to reduce order
-        CommonTestUtils::OpType,          // Scalar or vector type axis
+        ov::test::utils::OpType,          // Scalar or vector type axis
         bool,                             // Keep dims
         InferenceEngine::Precision,       // Network precision
         std::string>;                     // Device name

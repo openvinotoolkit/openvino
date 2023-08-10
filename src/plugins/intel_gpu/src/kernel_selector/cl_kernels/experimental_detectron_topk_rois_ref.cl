@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 KERNEL(experimental_detectron_topk_rois_ref)(const __global INPUT0_TYPE* input_rois,
         const __global INPUT1_TYPE* topk_indices, __global OUTPUT_TYPE* output_rois)

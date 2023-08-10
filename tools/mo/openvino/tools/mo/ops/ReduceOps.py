@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,7 +43,7 @@ def reduce_helper(func: callable, x: np.array, axis: tuple, keepdims: bool):
     if is_fully_defined(x):
         return result
     else:
-        return np.ma.masked_array(result, mask=np.ones(result.shape, dtype=np.bool))
+        return np.ma.masked_array(result, mask=np.ones(result.shape, dtype=bool))
 
 
 def reduce_infer(node: Node):
@@ -73,7 +73,7 @@ def reduce_infer(node: Node):
         value = reduce_helper(reduce_map[node.op], in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
         node.out_port(0).data.set_value(value)
     else:
-        used_dims = np.zeros(len(in_shape), dtype=np.bool)
+        used_dims = np.zeros(len(in_shape), dtype=bool)
         output_shape = in_shape.copy()
 
         for dim in axis:

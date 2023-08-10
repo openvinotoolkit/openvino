@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 #include <functional>
@@ -11,12 +10,7 @@
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 ///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
@@ -58,6 +52,11 @@ namespace cldnn {
 struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
+    loop() : primitive_base("", {}),
+             max_iteration(0) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///
@@ -67,21 +66,39 @@ struct loop : public primitive_base<loop> {
         /// @param start Index where the iteration starts from. Applies only when axis >=0.
         /// @param end Index where iteration ends. Negative value means counting indexes from the end. Applies only when axis >=0.
         /// @param stride Step of iteration. Negative value means backward iteration. Applies only when axis >=0.
-        io_primitive_map(primitive_id external_id, primitive_id internal_id,
+        io_primitive_map(primitive_id external_id = "", primitive_id internal_id = "",
             int64_t axis = -1, int64_t start = 0, int64_t end = -1, int64_t stride = 1) :
-            external_id(external_id),
-            internal_id(internal_id),
+            external_id(std::move(external_id)),
+            internal_id(std::move(internal_id)),
             axis(axis),
             start(start),
             end(end),
-            stride(stride)
-            {}
+            stride(stride) {}
+
         primitive_id external_id;
         primitive_id internal_id;
         int64_t axis;
         int64_t start;
         int64_t end;
         int64_t stride;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << external_id;
+            ob << internal_id;
+            ob << axis;
+            ob << start;
+            ob << end;
+            ob << stride;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> external_id;
+            ib >> internal_id;
+            ib >> axis;
+            ib >> start;
+            ib >> end;
+            ib >> stride;
+        }
     };
 
     struct backedge_mapping {
@@ -91,8 +108,19 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
+        backedge_mapping() {}
         primitive_id from;
         primitive_id to;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << from;
+            ob << to;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> from;
+            ib >> to;
+        }
     };
 
     /// @brief Constructs loop primitive.
@@ -171,6 +199,38 @@ struct loop : public primitive_base<loop> {
 
     int64_t max_iteration;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<loop>::save(ob);
+        ob << trip_count_id;
+        ob << initial_execution_id;
+        ob << num_iteration_id;
+        ob << current_iteration_id;
+        ob << condition_id;
+        ob << input_primitive_maps;
+        ob << output_primitive_maps;
+        ob << back_edges;
+        ob << max_iteration;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<loop>::load(ib);
+        ib >> trip_count_id;
+        ib >> initial_execution_id;
+        ib >> num_iteration_id;
+        ib >> current_iteration_id;
+        ib >> condition_id;
+        ib >> input_primitive_maps;
+        ib >> output_primitive_maps;
+        ib >> back_edges;
+        ib >> max_iteration;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret{
@@ -190,7 +250,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

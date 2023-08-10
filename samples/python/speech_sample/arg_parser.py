@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import re
@@ -18,14 +18,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
                        help='Read GNA model from file using path/filename provided (required if -m is missing).')
 
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
-    args.add_argument('-i', '--input', required=True, type=str, help='Required. Path to an input file (.ark or .npz).')
+    args.add_argument('-i', '--input', required=True, type=str,
+                      help='Required. Path(s) to input file(s). '
+                      'Usage for a single file/layer: <input_file.ark> or <input_file.npz>. '
+                      'Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.')
     args.add_argument('-o', '--output', type=str,
-                      help='Optional. Output file name to save inference results (.ark or .npz).')
+                      help='Optional. Output file name(s) to save scores (inference results). '
+                      'Usage for a single file/layer: <output_file.ark> or <output_file.npz>. '
+                      'Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.')
     args.add_argument('-r', '--reference', type=str,
-                      help='Optional. Read reference score file and compare scores.')
+                      help='Optional. Read reference score file(s) and compare inference results with reference scores. '
+                      'Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>. '
+                      'Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify a target device to infer on. '
-                      'CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
+                      'CPU, GPU, NPU, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
                       ' as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. '
                       'The sample will look for a suitable plugin for device specified. Default value is CPU.')
     args.add_argument('-bs', '--batch_size', type=int, choices=range(1, 9), metavar='[1-8]',
@@ -33,9 +40,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     args.add_argument('-layout', type=str,
                       help='Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all inputs)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
-                      help='Optional. Weight bits for quantization: 8 or 16 (default 16).')
+                      help='Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
-                      help='Optional. The user-specified input scale factor for quantization.')
+                      help='Optional. User-specified input scale factor for GNA quantization. '
+                      'If the model contains multiple inputs, provide scale factors by separating them with commas. '
+                      'For example: <layer1>:<sf1>,<layer2>:<sf2> or just <sf> to be applied to all inputs.')
     args.add_argument('-wg', '--export_gna_model', type=str,
                       help='Optional. Write GNA model to file using path/filename provided.')
     args.add_argument('-we', '--export_embedded_gna_model', type=str,

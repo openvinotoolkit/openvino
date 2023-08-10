@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "permute_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "permute_inst.h"
 #include "permute/permute_kernel_selector.h"
 #include "permute/permute_kernel_ref.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -28,7 +24,7 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     // 1. Switch permute order values for spatial dims
     for (auto const& o : ie_order_aligned) {
         if (o >= 2)
-            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
+            cldnn_order.push_back(1 + static_cast<uint16_t>(ie_order_aligned.size()) - o);
         else
             cldnn_order.push_back(o);
     }
@@ -54,9 +50,9 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
         return make_unique<permute_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<permute>();
-        auto params = get_default_params<kernel_selector::permute_params>(impl_param);
+        auto params = get_default_params<kernel_selector::permute_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::permute_optional_params>(impl_param.get_program());
 
         auto in_rank = impl_param.get_input_layout(0).get_rank();
@@ -67,7 +63,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -88,7 +84,9 @@ attach_permute_impl::attach_permute_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<permute>::add(impl_types::ocl,
@@ -103,3 +101,4 @@ attach_permute_impl::attach_permute_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::permute_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::permute)

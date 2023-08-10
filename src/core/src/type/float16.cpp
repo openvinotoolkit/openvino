@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,14 +19,13 @@
 //  limitations under the License.
 //==============================================================================
 
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <limits>
 
-using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 static_assert(sizeof(float16) == 2, "class float16 must be exactly 2 bytes");
 
@@ -97,8 +96,12 @@ float16::float16(float value) {
     // Restore the hidden 1
     frac = 0x04000000 | ((iv & fmask_32) << 3);
     // Will any bits be shifted off?
-    uint32_t sticky = (frac & ((1 << (1 - biased_exp_16)) - 1)) ? 1 : 0;
-    frac >>= 1 + (-biased_exp_16);
+    int32_t shift = biased_exp_16 < -30 ? 0 : (1 << (1 - biased_exp_16));
+    uint32_t sticky = (frac & (shift - 1)) ? 1 : 0;
+    if (1 + (-biased_exp_16) > 31)
+        frac = 0;
+    else
+        frac >>= 1 + (-biased_exp_16);
     frac |= sticky;
     if (((frac & rhalf_16) == rodd_16) || ((frac & rnorm_16) != 0)) {
         frac += reven_16;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
     AnyOf(const element::Type& type, const PartialShape& s, ValuePredicate pred, const OutputVector& wrapped_values)
         : Pattern(wrapped_values, pred) {
         if (wrapped_values.size() != 1) {
-            throw Exception("AnyOf expects exactly one argument");
+            OPENVINO_THROW("AnyOf expects exactly one argument");
         }
         set_output_type(0, type, s);
     }

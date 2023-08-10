@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/detection_output.hpp"
+
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -53,21 +55,25 @@ void is_equal_attrs(const DetectionOutputBase::AttributesBase& attrs1,
 }  // namespace
 
 TEST(attributes, detection_output_op) {
-    NodeBuilder::get_ops().register_factory<op::v0::DetectionOutput>();
+    NodeBuilder::get_ops().register_factory<ov::op::v0::DetectionOutput>();
     const auto box_logits = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
     const auto class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 32});
     const auto proposals = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2 * 4});
     const auto aux_class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 2});
     const auto aux_box_pred = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
 
-    op::v0::DetectionOutput::Attributes attrs;
+    ov::op::v0::DetectionOutput::Attributes attrs;
     initialize_attributes(attrs);
     attrs.num_classes = 32;
 
-    auto detection_output =
-        make_shared<op::v0::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
+    auto detection_output = make_shared<ov::op::v0::DetectionOutput>(box_logits,
+                                                                     class_preds,
+                                                                     proposals,
+                                                                     aux_class_preds,
+                                                                     aux_box_pred,
+                                                                     attrs);
     NodeBuilder builder(detection_output, {box_logits, class_preds, proposals, aux_class_preds, aux_box_pred});
-    auto g_detection_output = ov::as_type_ptr<op::v0::DetectionOutput>(builder.create());
+    auto g_detection_output = ov::as_type_ptr<ov::op::v0::DetectionOutput>(builder.create());
 
     const auto do_attrs = detection_output->get_attrs();
     const auto g_do_attrs = g_detection_output->get_attrs();
@@ -78,14 +84,14 @@ TEST(attributes, detection_output_op) {
 
 // ------------------------------ V8 ------------------------------
 TEST(attributes, detection_output_v8) {
-    NodeBuilder::get_ops().register_factory<op::v8::DetectionOutput>();
+    NodeBuilder::get_ops().register_factory<ov::op::v8::DetectionOutput>();
     const auto box_logits = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
     const auto class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 32});
     const auto proposals = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2 * 4});
     const auto aux_class_preds = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 2});
     const auto aux_box_pred = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2 * 1 * 4});
 
-    op::v8::DetectionOutput::Attributes attrs;
+    ov::op::v8::DetectionOutput::Attributes attrs;
     initialize_attributes(attrs);
 
     auto detection_output =

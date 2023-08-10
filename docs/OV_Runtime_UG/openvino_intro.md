@@ -13,24 +13,28 @@
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_UG_ShapeInference
    openvino_docs_OV_UG_DynamicShapes
-   openvino_docs_OV_UG_network_state_intro
-   
-@endsphinxdirective
+   openvino_docs_OV_UG_model_state_intro
+   Optimize Inference <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>
 
-OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR),
-TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../resources/tensorflow_frontend.md)), ONNX, or PaddlePaddle model and execute it on preferred devices.
-
-OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
- 
-The scheme below illustrates the typical workflow for deploying a trained deep learning model: 
-
-<!-- TODO: need to update the picture below with PDPD files -->
-![](img/BASIC_FLOW_IE_C.svg)
+.. meta::
+   :description: OpenVINO Runtime is an API comprised of a set of C++ libraries 
+                 with C and Python bindings and it delivers inference solutions 
+                 on different platforms.
 
 
-## Video
+OpenVINO Runtime is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice. Use the OpenVINO Runtime API to read an Intermediate Representation (IR), TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle model and execute it on preferred devices.
 
-@sphinxdirective
+OpenVINO Runtime uses a plugin architecture. Its plugins are software components that contain complete implementation for inference on a particular Intel® hardware device: CPU, GPU, GNA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs for configuring devices or API interoperability between OpenVINO Runtime and underlying plugin backend.
+
+The scheme below illustrates the typical workflow for deploying a trained deep learning model:
+
+
+.. image:: _static/images/BASIC_FLOW_IE_C.svg
+
+
+Video
+####################
+
 
 .. list-table::
 
@@ -40,5 +44,5 @@ The scheme below illustrates the typical workflow for deploying a trained deep l
            src="https://www.youtube.com/embed/e6R13V8nbak">
            </iframe>
    * - **OpenVINO Runtime Concept**. Duration: 3:43
-     
+
 @endsphinxdirective

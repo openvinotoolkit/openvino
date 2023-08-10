@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "ngraph/file_util.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -36,6 +37,7 @@ void remove_dangling_parameters(std::shared_ptr<Function>& function) {
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void remove_dangling_results(std::shared_ptr<Function>& function) {
     const auto results = function->get_results();
     for (auto result : results) {
@@ -51,6 +53,7 @@ void remove_dangling_results(std::shared_ptr<Function>& function) {
         }
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void apply_transformations(ONNX_NAMESPACE::ModelProto& model_proto) {
     transform::fixup_legacy_operators(model_proto);
@@ -88,20 +91,28 @@ void convert_decoded_function(std::shared_ptr<Function> function) {
 
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                             const std::string& model_path,
+                                            const bool enable_mmap,
                                             ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    Graph graph{file_util::get_directory(model_path), model_proto, std::move(extensions)};
+    Graph graph{file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
+                model_proto,
+                enable_mmap,
+                std::move(extensions)};
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph.convert();
 }
 
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
                                                     const std::string& model_path,
+                                                    const bool enable_mmap,
                                                     ov::frontend::ExtensionHolder extensions) {
     apply_transformations(*model_proto);
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto graph = std::make_shared<Graph>(file_util::get_directory(model_path), model_proto, extensions);
+    auto graph = std::make_shared<Graph>(file_util::get_directory(ov::util::get_absolute_file_path(model_path)),
+                                         model_proto,
+                                         enable_mmap,
+                                         extensions);
     NGRAPH_SUPPRESS_DEPRECATED_END
     return graph->decode();
 }

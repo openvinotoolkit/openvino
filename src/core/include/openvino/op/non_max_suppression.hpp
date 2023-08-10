@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_OP("NonMaxSuppression", "opset1", op::Op, 1);
+    OPENVINO_OP("NonMaxSuppression", "opset1", op::Op);
 
     NonMaxSuppression() = default;
 
@@ -86,7 +86,7 @@ class OPENVINO_API NonMaxSuppression : public Op {
 public:
     enum class BoxEncodingType { CORNER, CENTER };
 
-    OPENVINO_OP("NonMaxSuppression", "opset3", op::Op, 3);
+    OPENVINO_OP("NonMaxSuppression", "opset3", op::Op);
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -155,7 +155,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
     int64_t max_boxes_output_from_input() const;
 };
 }  // namespace v3
@@ -166,7 +165,7 @@ namespace v4 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
-    OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression, 4);
+    OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression);
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -217,7 +216,7 @@ namespace v5 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
-    OPENVINO_OP("NonMaxSuppression", "opset5", op::Op, 5);
+    OPENVINO_OP("NonMaxSuppression", "opset5", op::Op);
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;
@@ -356,7 +355,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
 };
 }  // namespace v5
 
@@ -365,7 +363,7 @@ namespace v9 {
 ///
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
-    OPENVINO_OP("NonMaxSuppression", "opset9", op::Op, 9);
+    OPENVINO_OP("NonMaxSuppression", "opset9", op::Op);
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;
@@ -506,7 +504,6 @@ protected:
     BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
     bool m_sort_result_descending = true;
     ov::element::Type m_output_type = ov::element::i64;
-    void validate();
 };
 }  // namespace v9
 }  // namespace op

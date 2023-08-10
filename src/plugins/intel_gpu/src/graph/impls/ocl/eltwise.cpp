@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "eltwise_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "eltwise_inst.h"
 #include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
-#include <vector>
 
 namespace cldnn {
 namespace ocl {
@@ -27,35 +24,39 @@ struct eltwise_impl : typed_primitive_impl_ocl<eltwise> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<eltwise>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<eltwise>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<eltwise>();
         auto inputs_count = primitive->input.size();
 
-        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param);
+        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
+        const auto mode = convert_to_eltwise_mode(primitive->mode);
 
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
-        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                     convert_to_eltwise_mode(primitive->mode)});
+        if (inputs_count == 1) {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
+        } else {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
+                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
+                                         mode});
+        }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
                                           kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                          convert_to_eltwise_mode(primitive->mode)});
+                                         mode});
         }
 
-        if (primitive->mode == eltwise_mode::sum) {
-            params.coefficients = primitive->coefficients;
-        }
+        params.coefficients = primitive->coefficients;
 
         // WA to always match compiled dynamic kernel with dispatch data
         // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
@@ -101,7 +102,7 @@ public:
                 if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
                     params.layoutBased = true;
             }
-        } else if (!params.inputs[0].SameDimsSizes(params.inputs[1])) {
+        } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
             params.broadcast = true;
         }
 
@@ -118,8 +119,32 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            auto input_pshape = input_layout.get_partial_shape();
+            if (!broadcastable(input_pshape, out_pshape, use_new_shape_infer)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
+            }
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+            input_layout.format = format::adjust_to_rank(input_layout.format, input_pshape.size());
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
@@ -139,7 +164,9 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<eltwise>::add(impl_types::ocl,
@@ -188,6 +215,20 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::bfuwzyx),
+        std::make_tuple(data_types::f16, format::bfuwzyx),
+        std::make_tuple(data_types::i8, format::bfuwzyx),
+        std::make_tuple(data_types::u8, format::bfuwzyx),
+        std::make_tuple(data_types::i32, format::bfuwzyx),
+        std::make_tuple(data_types::i64, format::bfuwzyx),
+
+        std::make_tuple(data_types::f32, format::bfvuwzyx),
+        std::make_tuple(data_types::f16, format::bfvuwzyx),
+        std::make_tuple(data_types::i8, format::bfvuwzyx),
+        std::make_tuple(data_types::u8, format::bfvuwzyx),
+        std::make_tuple(data_types::i32, format::bfvuwzyx),
+        std::make_tuple(data_types::i64, format::bfvuwzyx),
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
@@ -312,3 +353,4 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eltwise)
