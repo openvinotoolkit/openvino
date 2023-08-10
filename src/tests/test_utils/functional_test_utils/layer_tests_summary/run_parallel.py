@@ -10,6 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
+
 import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
@@ -21,6 +22,7 @@ import threading
 import csv
 import datetime
 import shlex
+import operator
 
 if sys.version_info.major >= 3:
     import _thread as thread
@@ -61,7 +63,7 @@ def parse_arguments():
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="suite")
-    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=True)
+    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=False)
     parser.add_argument("-pp", "--post_progress", help=post_progress_help, type=bool, required=False, default=True)
 
     return parser.parse_args()
@@ -393,7 +395,8 @@ class TestParallelRunner:
                 longest_device = device
 
         real_worker_num = self._worker_num * len(self._available_devices)
-        tasks = [(0, "")] * real_worker_num
+
+        tasks = [{"time": 0, "pattern": ""}] * real_worker_num
 
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_item in tests_sorted :
@@ -404,17 +407,17 @@ class TestParallelRunner:
             # try to add new filter to the rest tasks
             w_id = -1
             for i in range(len(tasks)) :
-                if len(tasks[i][1]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
+                if len(tasks[i]["pattern"]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
                     w_id = i
                     break
             if w_id == -1 :
-                tasks.append((test_time, test_pattern))
+                tasks.append({"time": test_time, "pattern": test_pattern})
             else :
-                tasks[w_id] = (tasks[w_id][0] + test_time, tasks[w_id][1] + test_pattern)
-            tasks.sort()
+                tasks[w_id] = {"time": tasks[w_id]["time"] + test_time, "pattern": tasks[w_id]["pattern"] + test_pattern}
+            tasks.sort(key=operator.itemgetter('time'))
 
         for filter in tasks:
-            res_test_filters.append(filter[1])
+            res_test_filters.append(filter["pattern"])
 
         # logging for debug
         for i in range(len(res_test_filters)):
