@@ -5,3 +5,4 @@ py>=1.9.0
 attrs==22.1.0
 pytest-html==1.19.0
 cython>=0.29.32
+g

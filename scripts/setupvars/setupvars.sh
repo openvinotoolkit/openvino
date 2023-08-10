@@ -87,7 +87,7 @@ if [ -e "$INSTALLDIR/runtime" ]; then
 fi
 
 if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
-    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    export PATH=$INSTALLDIR/tools/compile_tool${PATH:+:$PATH}
 fi
 
 # OpenCV environment
