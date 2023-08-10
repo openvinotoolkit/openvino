@@ -20,9 +20,9 @@ Every deep learning workflow begins with obtaining a model. You can choose to pr
 Import a model using ``read_model()``
 #################################################
 
-Model files (not Python objects) from :doc:`ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite <Supported_Model_Formats>`  (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`) do not require a separate step for model conversion, that is ``mo.convert_model``. OpenVINO provides C++ and Python APIs for importing the models to OpenVINO Runtime directly by just calling the ``read_model`` method, therefore reducing application start time.
+Model files (not Python objects) from :doc:`ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite <Supported_Model_Formats>`  (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`) do not require a separate step for model conversion, that is ``mo.convert_model``.
 
-The ``read_model()`` method reads a model from a file and produces `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__. If the file is in one of the supported original framework file :doc:`formats <Supported_Model_Formats>`, the method runs internal conversion to an OpenVino model format. If the file is already in the :doc:`OpenVINO IR format <openvino_ir>`, it is read "as-is", without any conversion involved.
+The ``read_model()`` method reads a model from a file and produces `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__. If the file is in one of the supported original framework file :doc:`formats <Supported_Model_Formats>`, the method runs internal conversion to an OpenVINO model format. If the file is already in the :doc:`OpenVINO IR format <openvino_ir>`, it is read "as-is", without any conversion involved.
 
 You can also convert a model from original framework to `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ using ``convert_model()`` method. More details about ``convert_model()`` are provided in :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` .
 
