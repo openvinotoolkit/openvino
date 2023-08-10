@@ -38,7 +38,8 @@ except:
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAULT_PROCESS_TIMEOUT = 3600
-DEFAULT_TEST_TIMEOUT = 3600
+DEFAULT_SUITE_TIMEOUT = 3600
+DEFAULT_TEST_TIMEOUT = 900
 MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
 
 def parse_arguments():
@@ -59,8 +60,8 @@ def parse_arguments():
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
-    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="")
-    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=False)
+    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="suite")
+    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=True)
     parser.add_argument("-pp", "--post_progress", help=post_progress_help, type=bool, required=False, default=True)
 
     return parser.parse_args()
@@ -229,12 +230,6 @@ class TestParallelRunner:
             os.mkdir(head)
         self._is_save_cache = True
         self._split_unit = split_unit
-        # if argument is not set and cash is absent we need to split tests by suites to speed up generation of the new cash
-        if (not self._split_unit) :
-            if (os.path.isfile(self._cache_path)) :
-                self._split_unit = "test"
-            else :
-                self._split_unit = "suite"
         self._repeat_failed = repeat_failed
         self._disabled_tests = list()
         self._total_test_cnt = 0
@@ -481,7 +476,7 @@ class TestParallelRunner:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                         has_status = False
                         if test_name is not None:
-                            test_names.add(f'"{self.__replace_restricted_symbols(test_name)}":')
+                            test_names.add(f'"{self.__replace_restricted_symbols(test_name)}"')
                     for _, status_messages in constants.TEST_STATUS.items():
                         for status_msg in status_messages:
                             if status_msg in line:
@@ -490,7 +485,7 @@ class TestParallelRunner:
                         if has_status:
                             break
                 if not has_status:
-                    interapted_tests.append(f'"{test_name}":')
+                    interapted_tests.append(f'"{test_name}"')
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
         not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
@@ -513,12 +508,12 @@ class TestParallelRunner:
             worker_cnt += self.__execute_tests(filters_cache, worker_cnt)
         # 15m for one test in one process
         if TaskManager.process_timeout == -1 or TaskManager.process_timeout == DEFAULT_PROCESS_TIMEOUT:
-            TaskManager.process_timeout = DEFAULT_TEST_TIMEOUT
+            TaskManager.process_timeout = DEFAULT_SUITE_TIMEOUT if self._split_unit == "suite" else DEFAULT_TEST_TIMEOUT
         if len(filters_runtime):
             logger.info(f"Execute jobs taken from runtime")
             worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
         not_runned_test_filter, interapted_tests = self.__find_not_runned_tests()
-        if (self._repeat_failed > 0) :
+        if (self._repeat_failed == True) :
             if len(not_runned_test_filter) > 0:
                 logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
                 worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
@@ -599,7 +594,6 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
-                        test_suite = test_name[:test_name.find(".")]
                         if self._device != None and self._available_devices != None:
                             for device_name in self._available_devices:
                                 if device_name in test_name:
@@ -665,7 +659,7 @@ class TestParallelRunner:
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:
-                cache_file.writelines([f"{time}:\"" + test_name + "\":\n" for time, test_name in test_times])
+                cache_file.writelines([f"{time}:\"" + test_name + "\n" for time, test_name in test_times])
                 cache_file.close()
                 logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
@@ -771,7 +765,7 @@ class TestParallelRunner:
                 is_successfull_run = False
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
-        if self._total_test_cnt != test_cnt:
+        if (self._split_unit == "test" and self._total_test_cnt != test_cnt) or (self._split_unit == "suite" and test_cnt < self._total_test_cnt) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
             is_successfull_run = False
         logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
