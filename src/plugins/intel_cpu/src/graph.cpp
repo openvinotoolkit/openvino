@@ -40,6 +40,7 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "utils/precision_support.h"
+#include "utils/my_profiler.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
@@ -1148,12 +1149,16 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 }
 
 void Graph::InferStatic(SyncInferRequest* request) {
+    auto _prof0 = MY_PROFILE("::InferStatic#" + std::to_string(infer_count));
     for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
         if (request)
             request->throw_if_canceled();
+
+        auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
+                                     {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
         ExecuteNode(node, m_stream);
     }
 }
@@ -1361,6 +1366,7 @@ public:
 
 template<typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
+    auto _prof0 = MY_PROFILE("::InferDynamic_#" + std::to_string(infer_count));
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         update(stopIndx);
@@ -1370,6 +1376,8 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
+            auto _prof = MY_PROFILE_ARGS(node->getTypeStr(),
+                                         {{"Name", node->getName()}, {"Impl", node->getPrimitiveDescriptorType()}});
             if (request)
                 request->throw_if_canceled();
             try {
@@ -1482,7 +1490,8 @@ void Graph::Infer(SyncInferRequest* request) {
         OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
     }
 
-    if (infer_count != -1) infer_count++;
+    // if (infer_count != -1) infer_count++;
+    infer_count++;
 }
 
 void Graph::SortTopologically() {
