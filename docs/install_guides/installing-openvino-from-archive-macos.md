@@ -65,7 +65,11 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
          tar -xf openvino_2022.3.1.tgz
          sudo mv m_openvino_toolkit_macos_11_0_2022.3.1.9227.cf2c7da5689_arm64 /opt/intel/openvino_2022.3.1
 
-5. Install *numpy* Python Library:
+5. (Optional) Install *numpy* Python Library:
+
+   .. note::
+
+      This step is required only when you decide to use Python API.
 
    You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
 
