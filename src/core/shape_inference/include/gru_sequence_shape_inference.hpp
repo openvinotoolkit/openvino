@@ -11,10 +11,8 @@
 namespace ov {
 namespace op {
 namespace v5 {
-template <class TShape>
-void shape_infer(const ov::op::v5::GRUSequence* op,
-                 const std::vector<TShape>& input_shapes,
-                 std::vector<TShape>& output_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const ov::op::v5::GRUSequence* op, const std::vector<TShape>& input_shapes) {
     constexpr size_t expected_in_shapes_count = 6;
     NODE_VALIDATION_CHECK(op,
                           input_shapes.size() == expected_in_shapes_count,
@@ -26,12 +24,12 @@ void shape_infer(const ov::op::v5::GRUSequence* op,
 
     constexpr auto num_gates = 3;
     constexpr auto num_state_nodes = 1;
-    output_shapes = rnn::seq_base_shape_infer(op,
-                                              input_shapes,
-                                              num_gates,
-                                              num_state_nodes,
-                                              op->get_direction(),
-                                              op->get_linear_before_reset());
+    return rnn::seq_base_shape_infer(op,
+                                     input_shapes,
+                                     num_gates,
+                                     num_state_nodes,
+                                     op->get_direction(),
+                                     op->get_linear_before_reset());
 }
 }  // namespace v5
 }  // namespace op

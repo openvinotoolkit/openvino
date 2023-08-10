@@ -115,7 +115,7 @@ protected:
     void SetUp() override {
         // Loosen threshold because of precision decrease during test
         threshold = 0.1;
-        targetDevice = CommonTestUtils::DEVICE_GNA;
+        targetDevice = ov::test::utils::DEVICE_GNA;
 
         const size_t height = 512;
         const size_t width = 1024;

@@ -13,23 +13,23 @@ class AutoRuntimeFallback : public tests::AutoTest,
                             public ::testing::TestWithParam<ConfigParams> {
 public:
     ov::SoPtr<ov::MockCompiledModel>  mockExeNetworkGPU_1;
-    ov::SoPtr<ov::MockCompiledModel>  mockExeNetworkVPU;
+    ov::SoPtr<ov::MockCompiledModel> mockExeNetworkOTHER;
 
-    std::shared_ptr<NiceMock<ov::MockSyncInferRequest>>     inferReqInternalGPU_1;
-    std::shared_ptr<NiceMock<ov::MockSyncInferRequest>>     inferReqInternalVPU;
+    std::shared_ptr<NiceMock<ov::MockSyncInferRequest>> inferReqInternalGPU_1;
+    std::shared_ptr<NiceMock<ov::MockSyncInferRequest>> inferReqInternalOTHER;
 
-    std::shared_ptr<NiceMock<ov::MockCompiledModel>>     mockIExeNetGPU_1;
-    std::shared_ptr<NiceMock<ov::MockCompiledModel>>     mockIExeNetVPU;
+    std::shared_ptr<NiceMock<ov::MockCompiledModel>> mockIExeNetGPU_1;
+    std::shared_ptr<NiceMock<ov::MockCompiledModel>> mockIExeNetOTHER;
 
-    std::shared_ptr<ov::MockAsyncInferRequest>     mockInferrequest;
-    std::shared_ptr<ov::MockAsyncInferRequest>     mockInferrequestGPU_0;
-    std::shared_ptr<ov::MockAsyncInferRequest>     mockInferrequestGPU_1;
-    std::shared_ptr<ov::MockAsyncInferRequest>     mockInferrequestVPU;
+    std::shared_ptr<ov::MockAsyncInferRequest> mockInferrequest;
+    std::shared_ptr<ov::MockAsyncInferRequest> mockInferrequestGPU_0;
+    std::shared_ptr<ov::MockAsyncInferRequest> mockInferrequestGPU_1;
+    std::shared_ptr<ov::MockAsyncInferRequest> mockInferrequestOTHER;
 
-    std::shared_ptr<ov::threading::ImmediateExecutor>     mockExecutor;
-    std::shared_ptr<ov::threading::ImmediateExecutor>     mockExecutorGPU_0;
-    std::shared_ptr<ov::threading::ImmediateExecutor>     mockExecutorGPU_1;
-    std::shared_ptr<ov::threading::ImmediateExecutor>     mockExecutorVPU;
+    std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutor;
+    std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorGPU_0;
+    std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorGPU_1;
+    std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorOTHER;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
@@ -66,15 +66,15 @@ public:
     void TearDown() override {
         mockExeNetworkGPU_1 = {};
         inferReqInternalGPU_1.reset();
-        inferReqInternalVPU.reset();
+        inferReqInternalOTHER.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPU.reset();
+        mockIExeNetOTHER.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPU.reset();
+        mockIExeNetOTHER.reset();
         mockExecutor.reset();
         mockExecutorGPU_0.reset();
         mockExecutorGPU_1.reset();
-        mockExecutorVPU.reset();
+        mockExecutorOTHER.reset();
     }
 
     void SetUp() override {
@@ -82,8 +82,8 @@ public:
         mockIExeNetGPU_1 = std::make_shared<NiceMock<ov::MockCompiledModel>>(model, plugin);
         mockExeNetworkGPU_1 = {mockIExeNetGPU_1, {}};
 
-        mockIExeNetVPU = std::make_shared<NiceMock<ov::MockCompiledModel>>(model, plugin);
-        mockExeNetworkVPU = {mockIExeNetVPU, {}};
+        mockIExeNetOTHER = std::make_shared<NiceMock<ov::MockCompiledModel>>(model, plugin);
+        mockExeNetworkOTHER = {mockIExeNetOTHER, {}};
 
         // prepare mockicore and cnnNetwork for loading
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -95,12 +95,12 @@ public:
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
                         return mockExeNetworkGPU_1; }));
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_KEEMBAY)), _)).WillByDefault(InvokeWithoutArgs([this]() {
+                    ::testing::Matcher<const std::string&>(StrEq("OTHER")), _)).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        return mockExeNetworkVPU; }));
+                        return mockExeNetworkOTHER; }));
 
         ON_CALL(*core, compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                    ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                    ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                     (_))).WillByDefault(Return(mockExeNetwork));
 
         mockExecutor = std::make_shared<ov::threading::ImmediateExecutor>();
@@ -112,10 +112,10 @@ public:
         ON_CALL(*mockIExeNetGPU_1, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
            .WillByDefault(Return(optimalNum));
 
-        inferReqInternalVPU = std::make_shared<NiceMock<ov::MockSyncInferRequest>>(mockIExeNetVPU);
-        mockExecutorVPU = std::make_shared<ov::threading::ImmediateExecutor>();
-        ON_CALL(*mockIExeNetVPU, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
-           .WillByDefault(Return(optimalNum));
+        inferReqInternalOTHER = std::make_shared<NiceMock<ov::MockSyncInferRequest>>(mockIExeNetOTHER);
+        mockExecutorOTHER = std::make_shared<ov::threading::ImmediateExecutor>();
+        ON_CALL(*mockIExeNetOTHER, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+            .WillByDefault(Return(optimalNum));
     }
 };
 
@@ -163,12 +163,13 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(0));
                             return mockInferrequestGPU_1; }));
             }
-        } else if (deviceName == "VPU") {
-            mockInferrequestVPU = std::make_shared<ov::MockAsyncInferRequest>(
-                inferReqInternalVPU, mockExecutorVPU, nullptr, ifThrow);
-            ON_CALL(*mockIExeNetVPU.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                        return mockInferrequestVPU; }));
+        } else if (deviceName == "OTHER") {
+            mockInferrequestOTHER =
+                std::make_shared<ov::MockAsyncInferRequest>(inferReqInternalOTHER, mockExecutorOTHER, nullptr, ifThrow);
+            ON_CALL(*mockIExeNetOTHER.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(0));
+                return mockInferrequestOTHER;
+            }));
         } else {
             return;
         }
@@ -209,10 +210,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPU", false}}, 1, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPU", false}}, 2, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPU", false}}, 3, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPU", true}}, 3, true, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"OTHER", false}}, 1, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 2, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", false}}, 3, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", true}}, 3, true, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
@@ -233,10 +234,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPU", false}}, 1, false, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPU", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPU", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPU", true}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"OTHER", false}}, 1, false, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"OTHER", true}}, 1, false, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
@@ -246,8 +247,8 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false, true, false, false},
     // loadFail and CreateInferRequestFail
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPU", false}}, 3, true, false, true, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPU", false}}, 3, true, false, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 3, true, false, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"OTHER", false}}, 3, true, false, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoRuntimeFallback, AutoRuntimeFallback,

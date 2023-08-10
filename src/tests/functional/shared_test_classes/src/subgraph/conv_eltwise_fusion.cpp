@@ -31,9 +31,9 @@ std::string ConvEltwiseFusion::getTestCaseName(const testing::TestParamInfo<Conv
     results << "NumInputs=" << num_inputs << "_";
     results << "Negative=" << std::boolalpha << negative << "_";
     results << eltwise_type.name << "_";
-    results << "Input" << CommonTestUtils::vec2str(input_shape);
-    results << "Weights" << CommonTestUtils::vec2str(weights_shape);
-    results << "Const" << CommonTestUtils::vec2str(const_shape);
+    results << "Input" << ov::test::utils::vec2str(input_shape);
+    results << "Weights" << ov::test::utils::vec2str(weights_shape);
+    results << "Const" << ov::test::utils::vec2str(const_shape);
     results << "netPRC=" << precision << "_";
     results << "targetDevice=" << targetName << "_";
     return results.str();

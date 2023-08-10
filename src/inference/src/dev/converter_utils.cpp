@@ -430,6 +430,26 @@ public:
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        // Add legacy supported properties
+        if (METRIC_KEY(SUPPORTED_METRICS) == name || METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+            try {
+                return m_model->get_property(name);
+            } catch (const ov::Exception&) {
+                auto props = m_model->get_property(ov::supported_properties.name()).as<std::vector<PropertyName>>();
+                std::vector<std::string> legacy_properties;
+                for (const auto& prop : props) {
+                    if ((METRIC_KEY(SUPPORTED_METRICS) == name && !prop.is_mutable()) ||
+                        (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name && prop.is_mutable()))
+                        legacy_properties.emplace_back(prop);
+                }
+                if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_METRICS));
+                    legacy_properties.emplace_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                }
+
+                return legacy_properties;
+            }
+        }
         return m_model->get_property(name);
     }
 
@@ -544,14 +564,28 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return tensor_to_blob(m_request->get_tensor(find_port(name)));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        return tensor_to_blob(m_request->get_tensor(port), true, desc);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
-        auto tensors = m_request->get_tensors(find_port(name));
+        auto port = find_port(name);
+        auto& rt_info = port.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        InferenceEngine::TensorDesc desc;
+        if (it != rt_info.end()) {
+            desc = it->second.as<InferenceEngine::TensorDesc>();
+        }
+        auto tensors = m_request->get_tensors(port);
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor_to_blob(tensor));
+            blobs.emplace_back(tensor_to_blob(tensor, true, desc));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }

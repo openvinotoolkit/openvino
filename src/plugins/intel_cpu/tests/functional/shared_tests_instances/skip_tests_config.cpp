@@ -188,6 +188,8 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // TODO: for 22.2 (CVS-68949)
+        R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -196,10 +198,25 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*HeteroSyntheticTest.*)");
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    {
+        // TODO: enable once streams / tput mode is supported
+        retVector.emplace_back(R"(OVClassConfigTestCPU.smoke_CpuExecNetworkCheck(Model|Core)StreamsHasHigherPriorityThanLatencyHint.*)");
+        retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
+        retVector.emplace_back(R"(smoke_BehaviorTests/CorrectConfigCheck.canSetConfigTwiceAndCheckGetConfig.*CPU_THROUGHPUT_STREAMS=8.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest/OVClassLoadNetworkAndCheckSecondaryPropertiesTest.LoadNetworkAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest.*)");
+        retVector.emplace_back(R"(smoke_CPU_OVClassCompileModelAndCheckWithSecondaryPropertiesDoubleTest.*)");
+    }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
+    // TODO: fix CVS-115961
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_2_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
+    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -242,12 +259,17 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
     }
 #endif
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+        // Skip fp16 tests for paltforms that don't support fp16 precision
+        retVector.emplace_back(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)");
+#endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

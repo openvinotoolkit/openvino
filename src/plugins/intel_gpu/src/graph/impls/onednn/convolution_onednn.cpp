@@ -213,6 +213,8 @@ public:
             _pd = *prim_desc;
         }
 
+        _scratchpad_md = _pd.scratchpad_desc();
+
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 

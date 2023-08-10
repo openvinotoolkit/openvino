@@ -1422,3 +1422,28 @@ TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
     }
 }
+
+TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
+
+        auto axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(data, axis);
+
+        auto binary =
+            std::make_shared<op::v1::Multiply>(squeeze, op::v0::Constant::create(element::f32, Shape{}, {0.2}));
+
+        auto reshape =
+            std::make_shared<op::v1::Reshape>(binary, op::v0::Constant::create(element::i32, Shape{1}, {1}), false);
+
+        auto relu = std::make_shared<op::v0::Relu>(reshape);
+        model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1});
+        auto binary = std::make_shared<op::v1::Multiply>(data, op::v0::Constant::create(element::f32, Shape{1}, {0.2}));
+        auto relu = std::make_shared<op::v0::Relu>(binary);
+        model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+    }
+}

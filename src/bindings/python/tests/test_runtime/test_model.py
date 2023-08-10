@@ -8,11 +8,10 @@ import pytest
 import math
 
 import openvino.runtime.opset12 as ops
-from openvino.runtime import (
+from openvino import (
     Core,
     Model,
     Tensor,
-    Output,
     Dimension,
     Layout,
     Type,
@@ -22,6 +21,7 @@ from openvino.runtime import (
     get_batch,
     serialize,
 )
+from openvino.runtime import Output
 
 from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
 

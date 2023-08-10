@@ -9,6 +9,7 @@
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "assign_inst.h"
+#include "mvn_inst.h"
 #include "tensor_type.h"
 
 #include <algorithm>
@@ -75,14 +76,15 @@ void add_required_reorders::run(program& p) {
             }
         }
 
-        if (usr->is_type<eltwise>() && usr->is_in_shape_of_subgraph()) {
+        if (usr->is_type<eltwise>()) {
             for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
                 auto& dep = usr->get_dependency(i);
                 if (!dep.is_in_data_flow() || dep.is_constant())
                     continue;
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
-                bool required_reorder = out_layout.data_type != dep_layout.data_type;
+                bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
+                                        (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
                 if (required_reorder) {
                     auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
@@ -127,6 +129,22 @@ void add_required_reorders::run(program& p) {
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     new_reorder_node.recalc_output_layout(false);
                 }
+            }
+        }
+
+        // Remove padded-inputs in spatial axes not to use ref kernel which causes huge perf drop
+        if (usr->is_type<mvn>() && usr->as<mvn>().input().is_padded_spatial()) {
+            auto out_layout = usr->get_output_layout();
+            // Check formats of implemented opt kernels without a spatial padding support
+            if (out_layout.format == format::b_fs_yx_fsv16 || out_layout.format == format::b_fs_zyx_fsv16 ||
+                out_layout.format == format::bs_fs_yx_bsv32_fsv16 || out_layout.format == format::bs_fs_yx_bsv32_fsv32) {
+                auto& dep = usr->as<mvn>().input();
+                cldnn::layout layout_wo_padding = dep.get_output_layout();
+                layout_wo_padding.data_padding = cldnn::padding{};
+                auto new_reorder = std::make_shared<reorder>(dep.id() + "_no_pad_reorder", dep.id(), layout_wo_padding);
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, *usr, dep);
+                new_reorder_node.recalc_output_layout(false);
             }
         }
 
