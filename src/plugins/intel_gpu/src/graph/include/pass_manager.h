@@ -57,7 +57,7 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
