@@ -39,11 +39,11 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& model,
 
 void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model, const std::string& model_path,
                               std::map<std::string, InputInfo>& input_info, const std::string& extractor_name, size_t model_op_cnt) {
-    // todo: check the number 1GB
-    if (m_graph_cache_bytesize >> 30 > 0) {
+    // todo: check the number 8GB
+    if (m_graph_cache_bytesize >> 33 > 0) {
         std::cout << "[ GRAPH CACHE ][ WARNING ] Cache size > 8 GB. Serialize graph cache" << std::endl;
         serialize_cache();
-        m_graph_cache.clear();
+        // m_graph_cache.clear();
         m_graph_cache_bytesize = 0;
     }
 
@@ -104,10 +104,16 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
 }
 
 void GraphCache::serialize_cache() {
-    for (const auto& cache_item : m_graph_cache) {
-        auto rel_dir = ov::util::path_join({ "subgraph", cache_item.second.get_any_extractor() });
-        serialize_model(cache_item, rel_dir);
-    }
+    // for (const auto& cache_item : m_graph_cache) {
+        auto it = m_graph_cache.begin();
+        while (it != m_graph_cache.end()) {
+            auto rel_dir = ov::util::path_join({ "subgraph", it->second.get_any_extractor() });
+            serialize_model(*it, rel_dir);
+            m_graph_cache.erase(it->first);
+            it = m_graph_cache.begin();
+        }
+        auto a = 0;
+    // }
 }
 
 }  // namespace subgraph_dumper
