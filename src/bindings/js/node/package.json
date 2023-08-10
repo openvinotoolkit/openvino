@@ -12,7 +12,7 @@
     "postinstall": "npm run build & npm run tsc",
     "lint": "eslint .",
     "rebuild": "node-gyp rebuild",
-    "test": "jest",
+    "test": "node --test",
     "tsc": "tsc"
   },
   "devDependencies": {
