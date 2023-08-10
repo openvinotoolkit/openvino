@@ -142,7 +142,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         graphNodes.push_back(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            inputNodesMap[node->getName()] = node;
+            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0), is_legacy_api);
+            inputNodesMap[name] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }

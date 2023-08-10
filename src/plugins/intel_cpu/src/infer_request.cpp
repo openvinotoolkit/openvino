@@ -661,6 +661,13 @@ void SyncInferRequest::init_tensor(const std::string& name) {
             } else {
                 OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
             }
+            // update tensors in case of multiple output ports with the same name
+            for (const auto& out : get_outputs()) {
+                auto port_name = get_port_name(out, m_is_legacy_api);
+                if ((name == port_name) && tensor && port != out) {
+                    ov::ISyncInferRequest::set_tensor(out, tensor);
+                }
+            }
         }
     }
     if (!tensor) {
