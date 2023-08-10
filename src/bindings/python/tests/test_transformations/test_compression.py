@@ -33,6 +33,7 @@ def make_model(add_consts, mul_consts):
 
 
 def get_constants(model) -> List[Constant]:
+    restored_model = None
     with tempfile.TemporaryDirectory() as tmp:
         model_name = f"{tmp}/f32_partially_compressed.xml"
         ov.save_model(model, model_name)
