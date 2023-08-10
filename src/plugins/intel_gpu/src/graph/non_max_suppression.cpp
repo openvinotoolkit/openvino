@@ -38,12 +38,12 @@ std::vector<layout> non_max_suppression_inst::calc_output_layouts(non_max_suppre
     };
 
     auto& memory_deps = impl_param.memory_deps;
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     if (memory_deps.count(2)) {
         auto max_output_boxes_per_class_mem = memory_deps.at(2);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> max_output_boxes_per_class_lock(max_output_boxes_per_class_mem,
                                                                                       impl_param.get_stream());
-        auto max_output_boxes_per_class_tensor = make_host_tensor(max_output_boxes_per_class_mem->get_layout(),
+        auto max_output_boxes_per_class_tensor = make_tensor(max_output_boxes_per_class_mem->get_layout(),
                                                                   max_output_boxes_per_class_lock.data());
         const_data.emplace(2, max_output_boxes_per_class_tensor);
 

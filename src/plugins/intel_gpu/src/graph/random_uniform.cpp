@@ -33,18 +33,18 @@ std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node
                                             impl_param.get_input_layout(2).get_partial_shape() };
 
     auto& memory_deps = impl_param.memory_deps;
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
 
     auto run_shape_infer = [&]() {
         ov::op::v8::RandomUniform op;
         if (memory_deps.count(1) > 0 && memory_deps.count(2) > 0) {
             auto min_val = memory_deps.at(1);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> min_val_lock(min_val, impl_param.get_stream());
-            const_data.emplace(1, make_host_tensor(min_val->get_layout(), min_val_lock.data()));
+            const_data.emplace(1, make_tensor(min_val->get_layout(), min_val_lock.data()));
 
             auto max_val = memory_deps.at(2);
             cldnn::mem_lock<uint8_t, mem_lock_type::read> max_val_lock(max_val, impl_param.get_stream());
-            const_data.emplace(2, make_host_tensor(max_val->get_layout(), max_val_lock.data()));
+            const_data.emplace(2, make_tensor(max_val->get_layout(), max_val_lock.data()));
 
             return ov::op::v8::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
         } else {
@@ -55,7 +55,7 @@ std::vector<layout> random_uniform_inst::calc_output_layouts(random_uniform_node
     if (memory_deps.count(0) > 0) {
         auto output_shape = memory_deps.at(0);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_shape_lock(output_shape, impl_param.get_stream());
-        const_data.emplace(0, make_host_tensor(output_shape->get_layout(), output_shape_lock.data()));
+        const_data.emplace(0, make_tensor(output_shape->get_layout(), output_shape_lock.data()));
 
         output_shapes = run_shape_infer();
     } else {
