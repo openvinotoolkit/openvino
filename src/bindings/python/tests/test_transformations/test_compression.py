@@ -92,11 +92,11 @@ def test_compression_2():
 
     assert const_fp16_1.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
     assert const_fp16_2.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
-    f16_min, f16_max = np.finfo(np.float16).min,np.finfo(np.float16).max
-    res = np.clip(more_in_range, f16_min, f16_max).astype(np.float16)
+    f16_min, f16_max = np.finfo(np.float16).min, np.finfo(np.float16).max
+    in_range_clipped = np.clip(more_in_range, f16_min, f16_max).astype(np.float16)
 
-    assert np.all(res == const_fp16_1.get_vector())
-    assert np.all(res == const_fp16_2.get_vector())
+    assert np.all(in_range_clipped == const_fp16_1.get_vector())
+    assert np.all(in_range_clipped == const_fp16_2.get_vector())
 
 
 def test_no_compression():
