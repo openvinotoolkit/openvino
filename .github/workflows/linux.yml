@@ -153,11 +153,12 @@ jobs:
             -DENABLE_PYTHON=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=ON \
+            -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DENABLE_OV_ONNX_FRONTEND=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
@@ -166,6 +167,7 @@ jobs:
             -DENABLE_SYSTEM_TBB=ON \
             -DBUILD_nvidia_plugin=OFF \
             -DENABLE_DEBUG_CAPS=ON \
+            -DCPACK_GENERATOR=TGZ \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
             -S ${{ env.OPENVINO_REPO }} \
