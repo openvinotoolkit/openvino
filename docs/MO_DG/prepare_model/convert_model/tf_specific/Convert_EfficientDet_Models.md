@@ -8,7 +8,7 @@ There are several public versions of EfficientDet model implementation available
 convert models from the [repository](https://github.com/google/automl/tree/master/efficientdet)
  (commit 96e1fee) to the OpenVINO format.
 
-Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz) referenced in the **"Pretrained EfficientDet Checkpoints"** section of the model repository:
+Download and extract the model checkpoint [efficientdet-d4.tar.gz](https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz) referenced in the **Pretrained EfficientDet Checkpoints** section of the model repository:
 
 ```sh
 wget https://storage.googleapis.com/cloud-tpu-checkpoints/efficientdet/coco2/efficientdet-d4.tar.gz
