@@ -31,13 +31,13 @@ class aten_native_multi_head_attention(torch.nn.Module):
         # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
         # which later returns NaNs as MHA's output
         if mask == 0:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool)) 
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype("bool")) 
             self.mask_type = 0
         elif mask == 1:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype(np.bool))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype("bool"))
             self.mask_type = 1
         elif mask == 2:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype(np.bool))
+            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype("bool"))
             self.mask_type = 2
         else:
             self.mask = None
