@@ -44,7 +44,11 @@ OutputVector translate_cat(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));
     auto axis = context.const_input<int64_t>(1);
-    return translate_cat_common(context, list_elems, axis);
+    auto out = translate_cat_common(context, list_elems, axis);
+    if (!context.input_is_none(2)){
+        context.mutate_input(2, out[0]);
+    }
+    return out;
 };
 
 OutputVector translate_cat_fx(const NodeContext& context) {
