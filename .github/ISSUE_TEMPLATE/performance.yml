@@ -114,12 +114,11 @@ body:
     attributes:
       label: Performance issue description
       description: What issue are you having, and what did you expect to happen instead?
-      placeholder: |
-          Please provide a detailed description of what happened
+      placeholder: Please provide a detailed description of what happened
+      value: |
           let us know the application you use for performance tests
           e.g., hello_classification.py / benchmark_app / own test script
           if you are using your own test script, could this reproduce using benchmark_app?
-      value: "iGPU performance shows better results than CPU devices."
     validations:
       required: true
   - type: textarea
