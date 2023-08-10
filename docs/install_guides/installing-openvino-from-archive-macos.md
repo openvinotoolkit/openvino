@@ -83,8 +83,20 @@ Step 1: Install OpenVINO Core Components
             tar -xf openvino_2023.0.1.tgz
             sudo mv m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
 
+5. (Optional) Install *numpy* Python Library:
 
-5. For simplicity, it is useful to create a symbolic link as below:
+   .. note::
+
+      This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2023.0.1/python/python.<x>`` folder:
+
+   .. code-block:: sh
+
+      cd /opt/intel/openvino_2023.0.1
+      python3 -m pip install -r ./python/python3.<x>/requirements.txt
+
+6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
