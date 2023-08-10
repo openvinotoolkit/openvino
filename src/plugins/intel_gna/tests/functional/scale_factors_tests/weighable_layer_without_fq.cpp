@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_WeighableLayerWithoutFqTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::ValuesIn(constantShapes),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
                          WeighableLayerWithoutFqTest::getTestCaseName);
 }  // namespace

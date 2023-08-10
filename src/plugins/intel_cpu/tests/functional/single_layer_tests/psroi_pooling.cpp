@@ -167,7 +167,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingAverageLayoutTest, PSROIPoolingLayerC
                                 ::testing::Combine(
                                         psroiPoolingAverageParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PSROIPoolingBilinearLayoutTest, PSROIPoolingLayer
                                 ::testing::Combine(
                                         psroiPoolingBilinearParams,
                                         ::testing::ValuesIn(netPrecisions),
-                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUSpecificParams(resCPUParams))),
                         PSROIPoolingLayerCPUTest::getTestCaseName);
 } // namespace

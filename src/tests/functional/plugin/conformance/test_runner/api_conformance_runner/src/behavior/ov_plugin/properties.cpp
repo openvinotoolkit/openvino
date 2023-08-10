@@ -16,9 +16,7 @@ const std::vector<ov::AnyMap> inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
-        {{ov::auto_batch_timeout(-1)}},
-};
+const std::vector<ov::AnyMap> auto_batch_inproperties = {};
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
                         ::testing::Combine(
@@ -28,7 +26,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                ::testing::Values(ov::test::utils::DEVICE_BATCH),
                                 ::testing::ValuesIn(auto_batch_inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
@@ -51,8 +49,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_AutoBatch, OVPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(CommonTestUtils::DEVICE_BATCH, auto_batch_properties))),
+                ::testing::Values(ov::test::utils::DEVICE_BATCH),
+                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(ov::test::utils::DEVICE_BATCH, auto_batch_properties))),
         OVPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,

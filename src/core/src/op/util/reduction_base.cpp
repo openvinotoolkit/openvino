@@ -7,8 +7,6 @@
 #include "openvino/op/constant.hpp"
 #include "reduce_shape_inference.hpp"
 
-using namespace std;
-
 ov::op::util::ReductionBase::ReductionBase() = default;
 
 ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)

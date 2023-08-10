@@ -37,13 +37,13 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
         }
@@ -78,7 +78,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
         const int batchDims = std::get<1>(axisAndBatchDims);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -169,15 +169,15 @@ public:
         std::ostringstream result;
         result << "IS=(";
 
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_TS=";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << ")_TS=";
 
         result << "{";
         for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
-            result << CommonTestUtils::vec2str(inputShapes.second[i]) << (i < inputShapes.second.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(inputShapes.second[i]) << (i < inputShapes.second.size() - 1lu ? "_" : "");
         }
         result << "}_";
         result << "axis=" << axis << "_";
-        result << "indices=" << CommonTestUtils::vec2str(indices) << "_";
+        result << "indices=" << ov::test::utils::vec2str(indices) << "_";
         result << "netPrc=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -196,7 +196,7 @@ protected:
 
         std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({ inputShapes });
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);

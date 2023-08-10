@@ -46,7 +46,7 @@ protected:
         auto add_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  shape,
-                                                 CommonTestUtils::generate_float_numbers(shape_size, -0.5f, 0.5f),
+                                                 ov::test::utils::generate_float_numbers(shape_size, -0.5f, 0.5f),
                                                  false);
 
         auto add = std::make_shared<ngraph::opset9::Add>(params[0], add_const);

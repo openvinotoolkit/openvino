@@ -89,11 +89,11 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
         hw_device = temp_device.substr(++pos, std::string::npos);
     }
 
-    if (target_device == std::string(CommonTestUtils::DEVICE_MULTI) ||
-        target_device == std::string(CommonTestUtils::DEVICE_AUTO) ||
-        target_device == std::string(CommonTestUtils::DEVICE_HETERO)) {
+    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
+        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
+        target_device == std::string(ov::test::utils::DEVICE_HETERO)) {
         compileModelProperties = { ov::device::priorities(hw_device) };
-    } else if (target_device == std::string(CommonTestUtils::DEVICE_BATCH)) {
+    } else if (target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
         compileModelProperties = {{ CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , hw_device}};
     }
 
@@ -221,6 +221,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalPro
     std::vector<ov::AnyMap> res;
     res.push_back({{ov::PropertyName(ov::loaded_from_cache.name(), ov::loaded_from_cache.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});
+    res.push_back({{ov::PropertyName(ov::device::luid.name(), ov::device::luid.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::gops.name(), ov::device::gops.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::thermal.name(), ov::device::thermal.mutability), nullptr}});
 

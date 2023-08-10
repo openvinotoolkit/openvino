@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -10,7 +11,6 @@
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -58,6 +58,7 @@ TEST(attributes, constant_op_identical_elements) {
     ASSERT_TRUE(g_k->get_all_data_elements_bitwise_identical());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(attributes, constant_op_from_host_tensor_different_elements) {
     vector<int64_t> data{5, 4, 3, 2, 1, 0};
     auto tensor = std::make_shared<runtime::HostTensor>(element::i64, Shape{2, 3}, &data[0]);

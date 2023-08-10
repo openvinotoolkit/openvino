@@ -430,7 +430,7 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
                                           ::testing::ValuesIn(encodType),
                                           ::testing::ValuesIn(sortResDesc),
                                           ::testing::ValuesIn(outType),
-                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerCPUTest, NmsLayerCPUTest, nmsParams, NmsLayerCPUTest::getTestCaseName);

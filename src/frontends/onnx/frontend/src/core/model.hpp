@@ -77,8 +77,10 @@ public:
     const Operator& get_operator(const std::string& name, const std::string& domain) const;
 
     /// \brief Check availability of operator base on NodeProto.
+    /// \param name       Type name of the operator.
+    /// \param domain     Domain name of the operator.
     /// \return `true` if the operator is available, otherwise it returns `false`.
-    bool is_operator_available(const ONNX_NAMESPACE::NodeProto& node_proto) const;
+    bool is_operator_available(const std::string& name, const std::string& domain) const;
 
     /// \brief      Enable operators from provided domain to use by this model.
     ///

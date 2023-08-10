@@ -170,7 +170,7 @@ typedef std::tuple<std::tuple<ngraph::Shape, ngraph::Shape, bool, bool>,
     UnfuseReshapeAndTransposeParams;
 
 class UnfuseReshapeAndTransposeTestSuiteFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<UnfuseReshapeAndTransposeParams> {
 public:
     void SetUp() override;

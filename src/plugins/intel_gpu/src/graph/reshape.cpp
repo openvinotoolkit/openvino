@@ -85,7 +85,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         pattern_shape,
     };
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
+    const auto ta = ov::make_tensor_accessor(const_data);
 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
          switch (mode) {
@@ -93,19 +94,19 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::squeeze: {
                 ov::op::v0::Squeeze op;
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             case reshape::reshape_mode::unsqueeze: {
                 ov::op::v0::Unsqueeze op;
                 op.set_friendly_name(prim->id.c_str());
-                shape_infer(&op, input_shapes, output_shapes, const_data);
+                output_shapes = shape_infer(&op, input_shapes, ta);
                 break;
             }
             default:
@@ -119,13 +120,13 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.get_stream());
 
         auto pattern_ptr = pattern_lock.data();
-        auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
+        auto pattern_tensor = make_tensor(pattern_mem->get_layout(), pattern_ptr);
 
         const_data.emplace(1, pattern_tensor);
         run_shape_infer(prim->mode);
     } else {
         auto pattern_data = prim->output_pattern;
-        auto pattern_tensor = make_host_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
+        auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));
 
         const_data.emplace(1, pattern_tensor);
         run_shape_infer(prim->mode);

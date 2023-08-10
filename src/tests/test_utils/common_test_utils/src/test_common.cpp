@@ -3,68 +3,21 @@
 //
 
 #include "common_test_utils/test_common.hpp"
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-
-#include <threading/ie_executor_manager.hpp>
-
-#include <algorithm>
-#include <cctype>
-#include <chrono>
-#include <random>
-
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#define _WINSOCKAPI_
-
-#include <windows.h>
-#include "psapi.h"
-#endif
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "precomp.hpp"
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"
 #endif
 
-namespace CommonTestUtils {
-
-inline size_t getVmSizeInKB() {
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS pmc;
-        pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-        GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb);
-        return pmc.WorkingSetSize;
-#else
-    auto parseLine = [](char *line) {
-        // This assumes that a digit will be found and the line ends in " Kb".
-        size_t i = strlen(line);
-        const char *p = line;
-        while (*p < '0' || *p > '9') p++;
-        line[i - 3] = '\0';
-        i = (size_t) atoi(p);
-        return i;
-    };
-
-    FILE *file = fopen("/proc/self/status", "r");
-    size_t result = 0;
-    if (file != nullptr) {
-        char line[128];
-
-        while (fgets(line, 128, file) != NULL) {
-            if (strncmp(line, "VmSize:", 7) == 0) {
-                result = parseLine(line);
-                break;
-            }
-        }
-        fclose(file);
-    }
-    return result;
-#endif
-}
+namespace ov {
+namespace test {
 
 TestsCommon::~TestsCommon() {
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 
 #ifdef ENABLE_CONFORMANCE_PGQL
     delete PGLink;
@@ -74,18 +27,18 @@ TestsCommon::~TestsCommon() {
 
 TestsCommon::TestsCommon()
 #ifdef ENABLE_CONFORMANCE_PGQL
-    : PGLink(new PostgreSQLLink(this))
+    : PGLink(new utils::PostgreSQLLink(this))
 #endif
 {
-    auto memsize = getVmSizeInKB();
+    auto memsize = ov::test::utils::getVmSizeInKB();
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
-    InferenceEngine::executorManager()->clear();
+    ov::threading::executor_manager()->clear();
 }
 
 std::string TestsCommon::GetTimestamp() {
-    return CommonTestUtils::GetTimestamp();
+    return ov::test::utils::GetTimestamp();
 }
 
 std::string TestsCommon::GetTestName() const {
@@ -107,4 +60,18 @@ std::string TestsCommon::GetFullTestName() const {
     return suite_name + "_" + test_name;
 }
 
-}  // namespace CommonTestUtils
+}  // namespace test
+std::shared_ptr<SharedRTInfo> ModelAccessor::get_shared_info() const {
+    if (auto f = m_function.lock()) {
+        return f->m_shared_rt_info;
+    }
+    OPENVINO_THROW("Original model is not available");
+}
+
+std::set<std::shared_ptr<SharedRTInfo>> NodeAccessor::get_shared_info() const {
+    if (auto node = m_node.lock()) {
+        return node->m_shared_rt_info;
+    }
+    OPENVINO_THROW("Original node is not available");
+}
+}  // namespace ov

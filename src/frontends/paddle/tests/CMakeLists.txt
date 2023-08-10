@@ -17,7 +17,7 @@ ov_add_test_target(
             openvino_paddle_frontend
             openvino::runtime
             gtest_main_manifest
-            funcTestUtils
+            func_test_utils
         ADD_CLANG_FORMAT
         LABELS
             OV

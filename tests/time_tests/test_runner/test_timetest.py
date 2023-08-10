@@ -43,7 +43,7 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache, model_
     :param niter: number of times to run executable
     :param cl_cache_dir: directory to store OpenCL cache
     :param cpu_cache: flag to enable model CPU cache
-    :param vpu_compiler: flag to change VPUX compiler type
+    :param npu_compiler: flag to change NPU compiler type
     :param perf_hint: performance hint (optimize device for latency or throughput settings)
     :param model_cache_dir: directory to store IE model cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture

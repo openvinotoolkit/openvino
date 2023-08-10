@@ -23,6 +23,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Ceiling>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ceiling {
 namespace {
 // function used by TYPE_CASE

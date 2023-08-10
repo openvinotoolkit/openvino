@@ -1740,6 +1740,25 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
                                  std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1))};;
         return std::make_shared<ov::Model>(results, params, "LSTMCell4BaseGraph");
+    } else if (ov::is_type<ov::op::v5::GRUSequence>(node)) {
+        const auto params =
+            ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::i64},
+                                               {{5, 10, 10}, {5, 1, 10}, {5}});
+        const auto W = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30, 10}, {}, true);
+        const auto R = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30, 10}, {}, true);
+        const auto B = ngraph::builder::makeConstant<float>(ov::element::f32, {1, 30}, {}, true);
+        const size_t hidden_size = 10;
+        const auto gru_sequence =
+            std::make_shared<ov::op::v5::GRUSequence>(params[0],
+                                                       params[1],
+                                                       params[2],
+                                                       W,
+                                                       R,
+                                                       B,
+                                                       hidden_size,
+                                                       ov::op::RecurrentSequenceDirection::FORWARD);
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence)};
+        return std::make_shared<ov::Model>(results, params, "GRUSequence");
     } else if (ov::is_type<ov::op::v0::LSTMSequence>(node)) {
         const auto params = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::i64},
                                                                {{5, 10, 10}, {5, 1, 10}, {5, 1, 10}, {5}});

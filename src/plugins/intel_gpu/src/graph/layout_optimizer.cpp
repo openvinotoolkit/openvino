@@ -159,22 +159,18 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
-    if (reorder_params == nullptr)
-        return {};
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    layout expected_layout = reorder_params->get_output_layout();
-
-    cache_key ckey{ input_id, expected_layout, false };
-    auto itr = _cached_generic_reorders.find(ckey);
-    if (itr != _cached_generic_reorders.end()) {
+    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
+    auto itr = _cached_reorders.find(ckey);
+    if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
     } else {
-        auto count = _cached_generic_reorders.size();
-        std::stringstream ss;
-        ss << input_id << "_generic_layer_" << count;
+        auto count = _cached_reorders.size();
+        std::string reorder_id = input_id + "_weights_reorder_" + std::to_string(count);
 
-        auto reorder = std::make_shared<cldnn::generic_layer>(ss.str(), input_id, reorder_params);
-        _cached_generic_reorders[ckey] = reorder;
+        auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_params);
+        _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
 }
@@ -500,11 +496,20 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
 }
 
 namespace {
-bool should_use_winograd_2x3_s1(std::shared_ptr<const convolution> const& prim,
+bool should_use_winograd_2x3_s1(const convolution_node& node,
                                 layout const& input_layout,
                                 layout const& weights_layout,
                                 bool output_size_handling_enabled) {
+    bool disable_winograd_conv = node.get_program().get_config().get_property(ov::intel_gpu::disable_winograd_convolution);
+    if (disable_winograd_conv)
+        return false;
+
     // cases when NOT to use winograd
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_winograd_conv == 1)
+        return false;
+
+    auto prim = node.get_primitive();
     if (input_layout.data_type != data_types::f16
         || input_layout.feature() % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
         || weights_layout.spatial(0) != 3     // weights have to be 3x3 by definiton
@@ -593,7 +598,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          all_zeroes(conv->padding_begin) &&
          all_zeroes(conv->padding_end)) ||
         // Winograd
-        should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
+        should_use_winograd_2x3_s1(node, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
 
     return false;
@@ -942,8 +947,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
         return true;
 
     for (auto& dep : node.get_dependencies()) {
-        // skip data and generic_layers
-        if (dep.first->is_type<data>() || dep.first->is_type<generic_layer>())
+        // skip data layers
+        if (dep.first->is_type<data>())
             continue;
 
         if (dep.first->is_type<convolution>()) {
@@ -1039,10 +1044,15 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto output_layout = node.get_output_layout(0);
     auto weights_layout = node.weights().get_output_layout().convert_to_weights_layout(prim->grouped_weights_shape);
     auto expected_format = output_layout.format;
+    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (prim->deformable_mode) {
         return format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
     }
+
+    // Use planar bfyx format for dynamic convolutions with explicit padding
+    if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input)
+        return format::bfyx;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
@@ -1056,7 +1066,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
-    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
         expected_format = node.get_preferred_output_fmt();
@@ -1208,22 +1217,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     } else if (layout.is_static() && layout.format.spatial_num() == 2 &&
                 (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
                 layout.batch() % 16 == 0) {
-        if (use_onednn_impls && layout.batch() % 32 == 0) {
-            if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
-                auto& conv = node.get_users().front()->as<convolution>();
-                auto ws = conv.get_input_layout(1).get_tensor();
-                if (ws.spatial[0] != 7 || conv.get_primitive()->groups > 1 || layout.feature() == 1)
-                    expected = format::bfyx;
-                else
-                    expected = format::bs_fs_yx_bsv16_fsv4;
-
-                auto conv_output_layout = conv.get_output_layout();
-                auto weights_layout = conv.weights().get_output_layout().convert_to_weights_layout(conv.get_primitive()->grouped_weights_shape);
-                format expected_conv_fmt = get_expected_format(conv);
-                if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 && layout.feature() % 32 == 0)
-                    expected = expected_conv_fmt;
-            }
-        } else if (layout.feature() > 8) {
+        if (layout.feature() > 8) {
             expected = format::b_fs_yx_fsv16;
         } else {
             expected = format::b_fs_yx_fsv4;
@@ -1428,13 +1422,17 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto& detection_output_node = node.as<detection_output>();
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();
-        auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
-        if (confidence_layout.batch() <= lws_max && batch_size_limitations &&
-            prim->confidence_threshold >= 0.1 &&
-            prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.feature() > 10000)
-            preferred_impl = impl_types::ocl;
-        else
+        if (confidence_layout.is_dynamic()) {
             preferred_impl = impl_types::cpu;
+        } else {
+            auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
+            auto can_use_ocl_impl = confidence_layout.batch() <= lws_max &&
+                                    batch_size_limitations &&
+                                    prim->confidence_threshold >= 0.1 &&
+                                    prim->top_k <= 400 && prim->num_classes >= 16 &&
+                                    confidence_layout.feature() > 10000;
+            preferred_impl = can_use_ocl_impl ? impl_types::ocl : impl_types::cpu;
+        }
     } else if (node.is_type<non_max_suppression>()) {
         const std::set<format> blocked_formats = {
             format::b_fs_yx_fsv16,
@@ -1625,9 +1623,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         preferred_impl = impl_candidate;
     } else if (node.is_type<prior_box>()) {
-        if (node.as<prior_box>().get_primitive()->support_opset8) {
-            preferred_impl = impl_types::ocl;
-        }
+        preferred_impl = impl_types::ocl;
     }
 
     return preferred_impl;
@@ -2017,7 +2013,7 @@ bool layout_optimizer::is_format_optimized(const convolution_node& node, const f
         case format::b_fs_yx_fsv16:
             return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&
                    // Work-around for inability to use b_fs_yx_fsv16 and winograd together
-                   !should_use_winograd_2x3_s1(prim, input_layout, weights_layout, _output_size_handling_enabled);
+                   !should_use_winograd_2x3_s1(node, input_layout, weights_layout, _output_size_handling_enabled);
         case format::b_fs_zyx_fsv16:
         case format::bs_fs_zyx_bsv16_fsv16:
             return convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim);

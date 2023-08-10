@@ -87,7 +87,10 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
 
     // for activation function
     jit.Merge(MakeUnitTypeJitConstants(unitType));
-    jit.Merge(MakeActivationJitConstants(params.activations, unitType));
+    // Changed data type from unit type to output data type to fix the issue case that
+    // the activation function makes cl kernel build error when the output data type
+    // and unit type are different and activation param is existed
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType()));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {

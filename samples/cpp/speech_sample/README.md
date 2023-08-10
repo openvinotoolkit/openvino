@@ -12,40 +12,50 @@ This sample demonstrates how to execute an Asynchronous Inference of acoustic mo
 
 The sample works with Kaldi ARK or Numpy* uncompressed NPZ files, so it does not cover an end-to-end speech recognition scenario (speech to text), requiring additional preprocessing (feature extraction) to get a feature vector from a speech signal, as well as postprocessing (decoding) to produce text from scores.
 
-The following C++ API is used in the application:
+.. tab-set::
 
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Feature                                                     | API                                                                                                         | Description                                                                  |
-+=============================================================+=============================================================================================================+==============================================================================+
-| Available Devices                                           | ``ov::Core::get_available_devices``, ``ov::Core::get_property``                                             | Get information of the devices for inference                                 |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Import/Export Model                                         | ``ov::Core::import_model``, ``ov::CompiledModel::export_model``                                             | The GNA plugin supports loading and saving of the GNA-optimized model        |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Model Operations                                            | ``ov::set_batch``, ``ov::Model::add_output``, ``ov::CompiledModel::inputs``, ``ov::CompiledModel::outputs`` | Managing of model: configure batch_size, input and output tensors            |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Node Operations                                             | ``ov::OutputVector::size``, ``ov::Output::get_shape``                                                       | Get node shape                                                               |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Asynchronous Infer                                          | ``ov::InferRequest::start_async``, ``ov::InferRequest::wait``                                               | Do asynchronous inference and waits until inference result becomes available |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| InferRequest Operations                                     | ``ov::InferRequest::query_state``, ``ov::VariableState::reset``                                             | Gets and resets CompiledModel state control                                  |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Tensor Operations                                           | ``ov::Tensor::get_size``, ``ov::Tensor::data``, ``ov::InferRequest::get_tensor``                            | Get a tensor, its size and data                                              |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
-| Profiling                                                   | ``ov::InferRequest::get_profiling_info``                                                                    | Get infer request profiling info                                             |
-+-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+   .. tab-item:: Requirements 
 
+      +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Options                                                     | Values                                                                                                                                                        |
+      +=============================================================+===============================================================================================================================================================+
+      | Validated Models                                            | Acoustic model based on Kaldi\* neural networks (see :ref:`Model Preparation <model-preparation-speech>` section)                                             |
+      +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Model Format                                                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin)                                                                                               |
+      +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      | Supported devices                                           | See :ref:`Execution Modes <execution-modes-speech>` section below and :doc:`List Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
+      +-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+   .. tab-item:: C++ API 
 
-+-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Options                                                     | Values                                                                                                                                                        |
-+=============================================================+===============================================================================================================================================================+
-| Validated Models                                            | Acoustic model based on Kaldi\* neural networks (see :ref:`Model Preparation <model-preparation-speech>` section)                                             |
-+-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Model Format                                                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin)                                                                                               |
-+-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Supported devices                                           | See :ref:`Execution Modes <execution-modes-speech>` section below and :doc:`List Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` |
-+-------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+
+      The following C++ API is used in the application:
+
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Feature                                                     | API                                                                                                         | Description                                                                  |
+      +=============================================================+=============================================================================================================+==============================================================================+
+      | Available Devices                                           | ``ov::Core::get_available_devices``, ``ov::Core::get_property``                                             | Get information of the devices for inference                                 |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Import/Export Model                                         | ``ov::Core::import_model``, ``ov::CompiledModel::export_model``                                             | The GNA plugin supports loading and saving of the GNA-optimized model        |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Model Operations                                            | ``ov::set_batch``, ``ov::Model::add_output``, ``ov::CompiledModel::inputs``, ``ov::CompiledModel::outputs`` | Managing of model: configure batch_size, input and output tensors            |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Node Operations                                             | ``ov::OutputVector::size``, ``ov::Output::get_shape``                                                       | Get node shape                                                               |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Asynchronous Infer                                          | ``ov::InferRequest::start_async``, ``ov::InferRequest::wait``                                               | Do asynchronous inference and waits until inference result becomes available |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | InferRequest Operations                                     | ``ov::InferRequest::query_state``, ``ov::VariableState::reset``                                             | Gets and resets CompiledModel state control                                  |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Tensor Operations                                           | ``ov::Tensor::get_size``, ``ov::Tensor::data``, ``ov::InferRequest::get_tensor``                            | Get a tensor, its size and data                                              |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+
+      | Profiling                                                   | ``ov::InferRequest::get_profiling_info``                                                                    | Get infer request profiling info                                             |
+      +-------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------+   
+
+      Basic OpenVINO™ Runtime API is covered by :doc:`Hello Classification C++ sample <openvino_inference_engine_samples_hello_classification_README>`.
+   
+   .. tab-item:: Sample Code 
+
+      .. doxygensnippet:: samples/cpp/speech_sample/main.cpp  
+         :language: cpp
 
 How It Works
 ############
@@ -86,7 +96,7 @@ Several execution modes are supported via the ``-d`` flag:
 
 - ``CPU`` - All calculations are performed on CPU device using CPU Plugin.
 - ``GPU`` - All calculations are performed on GPU device using GPU Plugin.
-- ``VPUX`` - All calculations are performed on VPUX device using VPUX Plugin.
+- ``NPU`` - All calculations are performed on NPU device using NPU Plugin.
 - ``GNA_AUTO`` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - ``GNA_HW`` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - ``GNA_SW`` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -134,7 +144,7 @@ Usage message:
        -i "<path>"                Required. Path(s) to input file(s). Usage for a single file/layer: <input_file.ark> or <input_file.npz>. Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.
        -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
        -o "<path>"                Optional. Output file name(s) to save scores (inference results). Example of usage for a single file/layer: <output_file.ark> or <output_file.npz>. Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.
-       -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
+       -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, NPU, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
        -pc                        Optional. Enables per-layer performance report.
        -q "<mode>"                Optional. Input quantization mode for GNA: static (default) or user defined (use with -sf).
        -qb "<integer>"            Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default)
@@ -152,7 +162,7 @@ Usage message:
        -compile_target "<string>" Optional. Specify GNA compile target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_COMPILE_TARGET config option description.
        -memory_reuse_off          Optional. Disables memory optimizations for compiled model.
    
-   Available target devices:  CPU  GNA  GPU  VPUX
+   Available target devices:  CPU  GNA  GPU  NPU
    
 
 .. _model-preparation-speech:

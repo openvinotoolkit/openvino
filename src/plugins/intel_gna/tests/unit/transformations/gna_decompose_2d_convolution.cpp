@@ -291,7 +291,7 @@ std::shared_ptr<ngraph::Function> get_initial_function(const bool& fq,
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestInvalidFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestInvalidFixture : public ov::test::TestsCommon,
                                           public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;
@@ -341,7 +341,7 @@ void Decompose2DConvTestInvalidFixture::SetUp() {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-class Decompose2DConvTestFixture : public CommonTestUtils::TestsCommon,
+class Decompose2DConvTestFixture : public ov::test::TestsCommon,
                                    public ::testing::WithParamInterface<fqDecompose2DConvParams> {
 public:
     void SetUp() override;

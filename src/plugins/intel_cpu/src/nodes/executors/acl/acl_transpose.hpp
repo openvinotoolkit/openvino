@@ -35,7 +35,7 @@ public:
               dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
             !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
               dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
-            DEBUG_LOG("NEPermute does not support precisions:",
+            DEBUG_LOG("NEPermute does not support layout:",
                       " src: ", srcDescs[0]->serializeFormat(),
                       " dst: ", dstDescs[0]->serializeFormat());
             return false;
@@ -43,6 +43,15 @@ public:
         if (srcDescs[0]->getShape().getRank() > 4) {
             DEBUG_LOG("NEPermute supports up to 4D input tensor. Passed tensor rank: ",
                       srcDescs[0]->getShape().getRank());
+            return false;
+        }
+        if (srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
+            DEBUG_LOG("NEPermute requires the same input and output precisions");
+            return false;
+        }
+        if (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
+            srcDescs[0]->getPrecision() != InferenceEngine::Precision::I8) {
+            DEBUG_LOG("NEPermute supports 1, 2, 4 bytes data types. FP16 implementation is disabled due to performance issues");
             return false;
         }
         return true;

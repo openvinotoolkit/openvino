@@ -41,7 +41,7 @@ public:
         for (auto const& configItem : configuration) {
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
-        result << "_SIS=" << CommonTestUtils::vec2str(splitInputShape);
+        result << "_SIS=" << ov::test::utils::vec2str(splitInputShape);
         return result.str();
     }
 
@@ -51,7 +51,7 @@ protected:
         blob->allocate();
 
         auto* rawBlobDataPtr = blob->buffer().as<float*>();
-        std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
+        std::vector<float> values = ov::test::utils::generate_float_numbers(blob->size(), -0.2f, 0.2f);
         for (size_t i = 0; i < blob->size(); i++) {
             rawBlobDataPtr[i] = values[i];
         }
@@ -102,7 +102,7 @@ const std::vector<std::vector<size_t>> shapes{{16, 24}, {8, 32}};
 INSTANTIATE_TEST_SUITE_P(smoke_conv_align_filter,
                          ConvolutionAlignFilterTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(shapes)),
                          ConvolutionAlignFilterTest::getTestCaseName);

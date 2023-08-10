@@ -11,9 +11,13 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
+#include "properties.hpp"
 #include "xml_parse_utils.h"
 
 template <typename T>
@@ -53,6 +57,14 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     bool dumpDotFile = m_cfg.dump_graph;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         dumpDotFile = true;
+
+    // Calling of ConstantFolding in HETERO plugin is required because
+    // in some cases topology split is happening after constant subgraph.
+    // It may cause replacement of Constant by Parameter in such operations
+    // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.run_passes(model);
 
     ov::SupportedOpsMap queryNetworkResult;
     auto orderedOps = model->get_ordered_ops();
@@ -257,16 +269,17 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                     input_subsets[input_subgraph_id].emplace(input);
                 }
             }
-            // for each subset of inputs create separate Result operation if subset belongs to other
+            // Avoid duplicate results on the same output port
+            auto result = std::make_shared<ov::op::v0::Result>(output);
+            ov::copy_runtime_info(output.get_node_shared_ptr(), result);
+            subgraphIds.emplace(result, output_subgraph_id);
+            results.push_back(result);
             for (const auto& input_subset : input_subsets) {
-                auto result = std::make_shared<ov::op::v0::Result>(output);
-                ov::copy_runtime_info(output.get_node_shared_ptr(), result);
-                subgraphIds.emplace(result, output_subgraph_id);
-                results.push_back(result);
+                // Avoid duplicate parameters in the same subgraph
+                auto parameter =
+                    std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
                 for (const auto& input : input_subset.second) {
                     output.remove_target_input(input);
-                    auto parameter =
-                        std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
                     ov::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
                     input.replace_source_output(parameter->output(0));
                     subgraphIds.emplace(parameter, input_subset.first);
@@ -401,6 +414,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
                                                        subgraph._sinks,
                                                        subgraph._parameters,
                                                        m_name + '_' + std::to_string(id));
+        m_compiled_submodels[id].model = subFunctions[id];
 
         auto metaDevices = get_hetero_plugin()->get_properties_per_device(m_compiled_submodels[id].device,
                                                                           m_cfg.get_device_properties());
@@ -408,8 +422,18 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
         // disable caching for subgraphs, because the whole HETERO model is cached
         auto device_config = metaDevices[m_compiled_submodels[id].device];
         device_config[ov::cache_dir.name()] = "";
-
-        m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(subFunctions[id]->clone(),
+        // set exclusive_async_requests in case when model is split
+        if (orderedSubgraphs.size() > 1) {
+            auto supported_internal_properties =
+                plugin->get_core()->get_property(m_compiled_submodels[id].device, ov::internal::supported_properties);
+            if (std::find(supported_internal_properties.begin(),
+                          supported_internal_properties.end(),
+                          ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
+                // adds property if it is not set yet
+                device_config.insert(ov::internal::exclusive_async_requests(true));
+            }
+        }
+        m_compiled_submodels[id].compiled_model = plugin->get_core()->compile_model(m_compiled_submodels[id].model,
                                                                                     m_compiled_submodels[id].device,
                                                                                     device_config);
         ++id;
@@ -456,6 +480,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         auto& loadConfig = metaDevices[device];
 
         ov::SoPtr<ov::ICompiledModel> compiled_model;
+        std::shared_ptr<ov::Model> ov_model;
 
         if (get_plugin()->get_core()->device_supports_model_caching(device)) {
             compiled_model = plugin->get_core()->import_model(model, device, loadConfig);
@@ -475,12 +500,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                 model.read(weights.data<char>(), dataSize);
             }
 
-            auto ov_model = plugin->get_core()->read_model(xmlString, weights);
+            ov_model = plugin->get_core()->read_model(xmlString, weights);
             compiled_model = plugin->get_core()->compile_model(ov_model, device, loadConfig);
         }
 
         m_compiled_submodels.emplace_back(ov::hetero::CompiledModel::CompiledModelDesc{
             device,
+            ov_model,
             compiled_model,
         });
     }
@@ -526,7 +552,110 @@ void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    std::vector<std::shared_ptr<ov::Model>> rt_models;
+    // Collect runtime subgraphs
+    for (size_t i = 0; i < m_compiled_submodels.size(); i++) {
+        rt_models.push_back(m_compiled_submodels.at(i).compiled_model->get_runtime_model()->clone());
+    }
+    // Results which should not be present in final graph
+    std::set<std::string> result_names_to_be_removed;
+    // Remap port indexes to names, because order of them will be modified during merge
+    std::map<std::pair<size_t, std::string>, std::pair<size_t, std::string>> input_to_prev_output;
+    for (const auto& kvp : m_submodels_input_to_prev_output) {
+        const auto& input_node = rt_models[kvp.first.first]->inputs()[kvp.first.second].get_node();
+        const auto& output_node = rt_models[kvp.second.first]->outputs()[kvp.second.second].get_node();
+        input_to_prev_output[{kvp.first.first, input_node->get_friendly_name()}] = {kvp.second.first,
+                                                                                    output_node->get_friendly_name()};
+        result_names_to_be_removed.insert(output_node->get_friendly_name());
+    }
+    int submodel_in_index = static_cast<int>(rt_models.size()) - 1;
+    while (submodel_in_index >= 0 && input_to_prev_output.size() > 0) {
+        auto& submodel_in = rt_models[submodel_in_index];
+        size_t port_in_index = 0;
+        while (port_in_index < submodel_in->get_parameters().size()) {
+            auto parameter_to_replace = submodel_in->get_parameters()[port_in_index];
+            auto item = input_to_prev_output.find({submodel_in_index, parameter_to_replace->get_friendly_name()});
+            if (item == input_to_prev_output.end()) {
+                port_in_index++;
+                continue;
+            }
+            auto submodel_out_index = item->second.first;
+            auto submodel_out_result_name = item->second.second;
+            auto submodel_out = rt_models.at(submodel_out_index);
+
+            // Get all results from previous subgraph except already existed in next subgraph
+            std::shared_ptr<ov::op::v0::Result> result_to_replace = nullptr;
+            ov::ResultVector add_results;
+            for (auto& result : submodel_out->get_results()) {
+                if (result->get_friendly_name() == submodel_out_result_name) {
+                    result_to_replace = result;
+                }
+                auto it = std::find_if(submodel_in->get_results().begin(),
+                                       submodel_in->get_results().end(),
+                                       [&](const std::shared_ptr<ov::op::v0::Result>& result_to_check) {
+                                           return result_to_check == result;
+                                       });
+                if (it == submodel_in->get_results().end())
+                    add_results.push_back(result);
+            }
+            OPENVINO_ASSERT(result_to_replace != nullptr);
+
+            // Get all parameters from previous subgraph except already existed in next subgraph
+            ov::ParameterVector add_parameters;
+            for (auto& parameter : submodel_out->get_parameters()) {
+                auto it = std::find_if(submodel_in->get_parameters().begin(),
+                                       submodel_in->get_parameters().end(),
+                                       [&](const std::shared_ptr<ov::op::v0::Parameter>& parameter_to_check) {
+                                           return parameter_to_check == parameter;
+                                       });
+                if (it == submodel_in->get_parameters().end())
+                    add_parameters.push_back(parameter);
+            }
+
+            // Reconnect appropariate target inputs to the new source output
+            auto result_source = result_to_replace->get_input_source_output(0);
+            auto parameter_targets = parameter_to_replace->get_output_target_inputs(0);
+            for (auto parameter_target : parameter_targets) {
+                parameter_target.replace_source_output(result_source);
+            }
+
+            // Update parameter and results
+            submodel_in->remove_parameter(parameter_to_replace);
+            submodel_in->add_parameters(add_parameters);
+            submodel_in->add_results(add_results);
+
+            // Remove processed connection
+            input_to_prev_output.erase(item);
+
+            // Update incoming model since it is merged
+            for (size_t i = 0; i < rt_models.size(); i++) {
+                if (rt_models[i] == submodel_out) {
+                    rt_models[i] = submodel_in;
+                }
+            }
+
+            // Start check ports from the beginning because number of ports are modified
+            port_in_index = 0;
+        }
+        --submodel_in_index;
+    }
+    // Finally all subgraphs should be merged into single one
+    OPENVINO_ASSERT(input_to_prev_output.size() == 0);
+    OPENVINO_ASSERT(all_of(rt_models.begin(), rt_models.end(), [&](const std::shared_ptr<ov::Model>& rt_model) {
+        return rt_model == rt_models[0];
+    }));
+    auto runtime_graph = rt_models[0];
+    // Cleanup intermidiate results
+    for (size_t i = 0; i < runtime_graph->get_results().size();) {
+        auto& result = runtime_graph->get_results()[i];
+        if (result_names_to_be_removed.count(result->get_friendly_name())) {
+            runtime_graph->remove_result(result);
+        } else {
+            i++;
+        }
+    }
+    OPENVINO_ASSERT(runtime_graph->inputs().size() == inputs().size());
+    return runtime_graph;
 }
 
 std::shared_ptr<const ov::hetero::Plugin> ov::hetero::CompiledModel::get_hetero_plugin() const {
@@ -546,7 +675,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::execution_devices,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::hetero::number_of_submodels};
         return ro_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -605,6 +735,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
             device_names.push_back(comp_model_desc.device);
         }
         return decltype(ov::execution_devices)::value_type{device_names};
+    } else if (ov::hetero::number_of_submodels == name) {
+        return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
     }
     return m_cfg.get(name);
     OPENVINO_SUPPRESS_DEPRECATED_END
@@ -685,26 +817,32 @@ void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
 
     for (const auto& comp_model_desc : m_compiled_submodels) {
         if (get_plugin()->get_core()->device_supports_model_caching(comp_model_desc.device)) {
-            comp_model_desc.compiled_model->export_model(model_stream);
-        } else {
-            auto model = std::const_pointer_cast<ov::Model>(comp_model_desc.compiled_model->get_runtime_model());
-            if (!model)
-                OPENVINO_THROW("OpenVINO Model is empty");
-
-            std::stringstream xmlFile, binFile;
-            ov::pass::Serialize serializer(xmlFile, binFile);
-            serializer.run_on_model(model);
-
-            auto constants = binFile.str();
-            auto model_str = xmlFile.str();
-
-            auto dataSize = static_cast<std::uint64_t>(model_str.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(model_str.c_str(), dataSize);
-
-            dataSize = static_cast<std::uint64_t>(constants.size());
-            model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-            model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
+            try {
+                // Batch plugin reports property of low level plugin
+                // If we use Batch plugin inside hetero, we won't be able to call export
+                // Auto batch plugin will throw NOT_IMPLEMENTED
+                comp_model_desc.compiled_model->export_model(model_stream);
+                continue;
+            } catch (ov::NotImplemented&) {
+            }
         }
+        auto model = comp_model_desc.model;
+        if (!model)
+            OPENVINO_THROW("OpenVINO Model is empty");
+
+        std::stringstream xmlFile, binFile;
+        ov::pass::Serialize serializer(xmlFile, binFile);
+        serializer.run_on_model(model);
+
+        auto constants = binFile.str();
+        auto model_str = xmlFile.str();
+
+        auto dataSize = static_cast<std::uint64_t>(model_str.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(model_str.c_str(), dataSize);
+
+        dataSize = static_cast<std::uint64_t>(constants.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(reinterpret_cast<char*>(&constants[0]), dataSize);
     }
 }

@@ -34,7 +34,7 @@ class paddle_frontend_converter:
         # remove the *.pdiparams.info
         if os.path.exists(self.pdiparams_info):
             os.remove(self.pdiparams_info)
-        
+
     def convert_paddle_to_pdmodel(self):
         '''
             There are three paddle model categories:
