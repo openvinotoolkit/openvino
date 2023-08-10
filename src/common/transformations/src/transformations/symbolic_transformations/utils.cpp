@@ -9,6 +9,15 @@
 #include <openvino/core/node.hpp>
 #include <transformations/utils/utils.hpp>
 
+bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs) {
+    if (rhs.size() != lhs.size() || rhs.empty())
+        return false;
+    for (size_t i = 0; i < lhs.size(); ++i)
+        if (lhs[i] == ov::no_label || rhs[i] == ov::no_label || lhs[i] != rhs[i])
+            return false;
+    return true;
+}
+
 bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     bool labels_exist_and_equal = false;
 

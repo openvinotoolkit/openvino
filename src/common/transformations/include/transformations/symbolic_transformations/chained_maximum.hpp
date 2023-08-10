@@ -15,7 +15,9 @@ class TRANSFORMATIONS_API ChainedMaximumOptimization;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief Optimizes graphs like Maximum(Maximum(A, B), B) to Maximum(A, B) based on value labels / symbols
+ * @brief Optimizes graphs based on value labels / symbols
+ *      Maximum(Maximum(A, B), B) -> Maximum(A, B)
+ *      Maximum(Maximum(A, B), A) -> Maximum(A, B)
  */
 class ov::pass::ChainedMaximumOptimization : public ov::pass::MatcherPass {
 public:

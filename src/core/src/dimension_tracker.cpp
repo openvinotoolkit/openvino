@@ -87,3 +87,8 @@ void DimensionTracker::set_up_for_tracking(Dimension& d, label_t label) const {
     set_label(d, label);
     set_table_of_equivalence(d);
 }
+
+void DimensionTracker::set_up_for_tracking(ov::PartialShape &shape) {
+    for (auto& d : shape)
+        set_up_for_tracking(d);
+}

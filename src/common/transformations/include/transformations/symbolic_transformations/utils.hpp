@@ -7,6 +7,9 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
+
+bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
 
 bool labels_eq_or_eq_static_dims(const ov::Dimension& lhs, const ov::Dimension& rhs);
 
