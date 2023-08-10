@@ -19,7 +19,6 @@ SubgraphExtractor::match(const std::shared_ptr<ov::Model> &model,
                                            ref_ordered_ops = ref_model->get_ordered_ops();
     if (ordered_ops.size() != ref_ordered_ops.size())
         return false;
-
     MatchersManager::MatchersMap matchers = {
         { "generic_single_op", SingleOpMatcher::Ptr(new SingleOpMatcher) },
         { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },

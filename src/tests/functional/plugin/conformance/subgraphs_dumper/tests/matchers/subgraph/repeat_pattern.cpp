@@ -27,7 +27,7 @@ protected:
         for (const auto& model : models) {
             bool is_match = false;
             for (const auto& ref_model : ref_models) {
-                if (this->match(model.first, ref_model)) {
+                if (this->match(std::get<0>(model), ref_model)) {
                     is_match = true;
                     ++match_numbers;
                     break;

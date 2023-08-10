@@ -239,6 +239,7 @@ void ReadIRTest::SetUp() {
             auto it = inputMap.find(next_node->get_type_info());
             auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
             utils::ConstRanges::reset();
@@ -246,6 +247,11 @@ void ReadIRTest::SetUp() {
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
         }
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::Serialize>("test.xml", "test.bin");
+        manager.run_passes(function);
+        auto b = function->get_parameters();
+        auto c = 0;
     }
 
     bool hasDynamic = false;

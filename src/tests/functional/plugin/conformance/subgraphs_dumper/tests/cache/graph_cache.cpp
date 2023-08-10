@@ -87,8 +87,6 @@ protected:
 };
 
 TEST_F(GraphCacheUnitTest, update_cache_by_graph) {
-    // const std::shared_ptr<ov::Model>& model, const std::string& model_path,
-                    //   const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt
     Model_2 test;
     auto model_to_cache = test.get();
     std::map<std::string, InputInfo> in_info;
@@ -97,7 +95,7 @@ TEST_F(GraphCacheUnitTest, update_cache_by_graph) {
             in_info.insert({ op->get_friendly_name(), InputInfo()});
         }
     }
-    this->update_cache(model_to_cache, test_model_path, in_info, model_to_cache->get_ordered_ops().size());
+    this->update_cache(model_to_cache, test_model_path, in_info, "test_extractor", model_to_cache->get_ordered_ops().size());
     ASSERT_EQ(m_graph_cache.size(), 1);
 }
 }  // namespace

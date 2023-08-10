@@ -52,7 +52,8 @@ struct InputInfo {
     }
 };
 
-using ExtractedPattern = std::pair<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>>;
+// ov_model, input_info, extractor_name
+using ExtractedPattern = std::tuple<std::shared_ptr<ov::Model>, std::map<std::string, InputInfo>, std::string>;
 
 }  // namespace subgraph_dumper
 }  // namespace tools
