@@ -15,7 +15,7 @@ class aten_quantized_cat(torch.nn.Module):
         self.dtype = dtype
 
     def forward(self, inp):
-        x = torch.quantize_per_tensor(inp, 1.25, 0, self.dtype)
+        x = torch.quantize_per_tensor(inp, 1.0, 0, self.dtype)
         y = torch.quantize_per_tensor(inp, 1.0, 1, self.dtype)
         return torch.dequantize(torch.ops.quantized.cat([x, y], 1, self.scale, self.zero_point))
 
