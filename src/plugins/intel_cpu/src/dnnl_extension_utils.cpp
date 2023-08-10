@@ -107,14 +107,16 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
 
 bool DnnlExtensionUtils::isSupportedPrecision(const InferenceEngine::Precision& prec) {
     switch (prec) {
-    case InferenceEngine::Precision::FP32:
-    case InferenceEngine::Precision::I32:
-    case InferenceEngine::Precision::BF16:
-    case InferenceEngine::Precision::I8:
-    case InferenceEngine::Precision::U8:
-    case InferenceEngine::Precision::BOOL:
-    case InferenceEngine::Precision::BIN:
-    case InferenceEngine::Precision::FP16:
+        case InferenceEngine::Precision::FP32:
+        case InferenceEngine::Precision::I32:
+        case InferenceEngine::Precision::I8:
+        case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::BOOL:
+        case InferenceEngine::Precision::BIN:
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        case InferenceEngine::Precision::BF16:
+        case InferenceEngine::Precision::FP16:
+#endif
             return true;
     default:
             return false;
