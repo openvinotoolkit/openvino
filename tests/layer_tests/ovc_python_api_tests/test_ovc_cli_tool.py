@@ -89,3 +89,18 @@ class TestOVCTool(CommonMOConvertTest):
         ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
+
+    def test_ovc_tool_output_dir(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+        from openvino.runtime import Core
+
+        model_path = self.create_tf_model(temp_dir)
+
+        core = Core()
+
+        # tests for MO cli tool
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir})
+        assert not exit_code
+
+        ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
+        flag, msg = compare_functions(ov_model, create_ref_graph(), False)
+        assert flag, msg

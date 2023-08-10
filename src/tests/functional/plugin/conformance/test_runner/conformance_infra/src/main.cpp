@@ -31,7 +31,7 @@ void RegisterTestCustomQueries(void) {
         "OpImplCheck_CheckPluginImpl($__test_id)";  // Query expected in case of a refused results
     extTestNames[testName] = "$opName";
 
-    testName = "ReadIR";
+    testName = "Inference";
     extTestQueries[testName + "_ON_START"] =
         "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$hashXml', '$pathXml', '$config', "
