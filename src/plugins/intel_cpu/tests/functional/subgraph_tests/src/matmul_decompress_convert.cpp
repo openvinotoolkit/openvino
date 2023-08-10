@@ -380,7 +380,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
 
 } // namespace
 
-// todo: leave comment
+
+/* In case of Convert has 2 or more childs there is a problem with memory allocation in CPU plug-in (see Edge::init() method).
+   Maybe we can just remove the check (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) and everything will be OK,
+   But this solution should be additionally checked. For now, for these cases we will not be doing CF on the CPU side and it should be done
+   on the ngraph side.
+
+ * Graph before:
+   ------------              ------------            ------------
+   |Input(f32)|              |Input(f16)|            |Input(f32)|
+   ------------              ------------            ------------
+        |                         |                         |
+        |         ---------------------------------         |
+        |         |Convert(decompression f16->f32)|         |
+        |         ---------------------------------         |
+        |             |                       |             |
+    -----------------------               -----------------------
+    |       MatMul        |               |       MatMul        |
+    -----------------------               -----------------------
+                      |                       |
+                   --------------------------------- 
+                   |             Concat            | 
+                   --------------------------------- 
+                                   |
+                                --------
+                                |Output|
+                                --------
+
+ * Exec graph:
+   ------------   --------------------------------   ------------
+   |Input(f32)|   |           Input(f32)         |   |Input(f32)|
+   ------------   --------------------------------   ------------
+        |             |                       |             |
+    -----------------------               -----------------------
+    |       MatMul        |               |       MatMul        |
+    -----------------------               -----------------------
+                      |                       |
+                   --------------------------------- 
+                   |             Concat            | 
+                   --------------------------------- 
+                                   |
+                                --------
+                                |Output|
+                                --------
+*/
 using MatMulDecompressConvertParams2 = std::tuple<
     std::vector<InputShape>,            // input shapes
     std::pair<bool, bool>,              // transposeA, transposeB
