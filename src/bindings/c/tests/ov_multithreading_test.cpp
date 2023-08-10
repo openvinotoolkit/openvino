@@ -14,6 +14,10 @@ class ov_multithreading_test : public ov_capi_test_base {
         ov_capi_test_base::TearDown();
     }
 
+protected:
+    unsigned int iterations;
+    unsigned int threadsNum;
+
 public:
     void runParallel(std::function<void(void)> func,
                      const unsigned int iterations = 100,
@@ -31,6 +35,13 @@ public:
         for (auto& thread : threads) {
             if (thread.joinable())
                 thread.join();
+        }
+    }
+    std::vector<std::pair<std::string, std::string>> networks;
+    void set_up_networks(const unsigned int iterations = 100) {
+        for (unsigned i = 0; i < iterations; i++) {
+            std::pair<std::string, std::string> network(xml_file_name, bin_file_name);
+            networks.emplace_back(network);
         }
     }
 };
@@ -57,9 +68,34 @@ TEST_P(ov_multithreading_test, get_property) {
     runParallel([&]() {
         OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     });
-    
+
     ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
+}
+
+TEST_P(ov_multithreading_test, compile_model) {
+    auto device_name = GetParam();
+
+    std::atomic<unsigned int> counter{0u};
+    set_up_networks();
+    runParallel([&]() {
+        auto value = counter++;
+        ov_core_t* core = nullptr;
+        OV_EXPECT_OK(ov_core_create(&core));
+        EXPECT_NE(nullptr, core);
+        ov_compiled_model_t* compiled_model = nullptr;
+        ov_model_t* model = nullptr;
+        std::string model_path = networks[value % networks.size()].first,
+                    bin_path = networks[value % networks.size()].second;
+        OV_EXPECT_OK(ov_core_read_model(core, model_path.c_str(), bin_path.c_str(), &model));
+        EXPECT_NE(nullptr, model);
+        OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 0, &compiled_model));
+        EXPECT_NE(nullptr, compiled_model);
+
+        ov_compiled_model_free(compiled_model);
+        ov_model_free(model);
+        ov_core_free(core);
+    });
 }
