@@ -15,19 +15,11 @@ body:
       placeholder: 2021.4.0 LTS / Master Branch / tag 2022.3.0
     validations:
       required: false
-  - type: input
-    id: target_platform
-    attributes:
-      label: Target Platform
-      description: The platform that the OpenVINO source is built on
-      placeholder: 11th Gen Intel Core i7-1185G7
-    validations:
-      required: false
   - type: dropdown
     id: os
     attributes:
       label: Operating System
-      description: What OS are you using?
+      description: What OS are you using? 
       options:
         - Ubuntu 18.04 (LTS)
         - Ubuntu 20.04 (LTS)
@@ -38,6 +30,7 @@ body:
         - macOS Systems for Intel CPU
         - macOS Systems for Apple Silicon
         - WebAssembly
+        - WSL2 on Windows
         - Other (Please specify in description)
     validations:
       required: true
@@ -50,7 +43,7 @@ body:
         - CPU
         - iGPU
         - dGPU
-        - VPU
+        - NPU
     validations:
       required: false
   - type: dropdown
@@ -62,7 +55,7 @@ body:
         - PyPi
         - Docker
         - Build from source
-        - Other
+        - Other virtual machines 
     validations:
       required: true
   - type: dropdown
@@ -105,12 +98,27 @@ body:
         - 'No'
     validations:
       required: true
+  - type: input
+    id: target_platform
+    attributes:
+      label: Target Platform
+      description: |
+          You can also provide us full system log with the following command 
+          Windows cmd     - "systeminfo" 
+          Linux terminal  - "lscpu" and "lscpu -e"
+      placeholder: Paste your full platform/system information here 
+    validations:
+      required: false
   - type: textarea
     id: performance_description
     attributes:
       label: Performance issue description
       description: What issue are you having, and what did you expect to happen instead?
-      placeholder: Please provide a detailed description of what happened
+      placeholder: |
+          Please provide a detailed description of what happened
+          let us know the application you use for performance tests
+          e.g., hello_classification.py / benchmark_app / own test script
+          if you are using your own test script, could this reproduce using benchmark_app?
       value: "iGPU performance shows better results than CPU devices."
     validations:
       required: true
