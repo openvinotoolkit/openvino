@@ -11,10 +11,13 @@
 #include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
+#include "properties.hpp"
 #include "xml_parse_utils.h"
 
 template <typename T>
@@ -54,6 +57,14 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     bool dumpDotFile = m_cfg.dump_graph;
     if (std::getenv("OPENVINO_HETERO_VISUALIZE"))
         dumpDotFile = true;
+
+    // Calling of ConstantFolding in HETERO plugin is required because
+    // in some cases topology split is happening after constant subgraph.
+    // It may cause replacement of Constant by Parameter in such operations
+    // like Reshape/Transpose/Gather and lead to unexpected dynamism or exception
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.run_passes(model);
 
     ov::SupportedOpsMap queryNetworkResult;
     auto orderedOps = model->get_ordered_ops();
@@ -664,7 +675,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::optimal_number_of_infer_requests,
                                                     ov::execution_devices,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::hetero::number_of_submodels};
         return ro_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -723,6 +735,8 @@ ov::Any ov::hetero::CompiledModel::get_property(const std::string& name) const {
             device_names.push_back(comp_model_desc.device);
         }
         return decltype(ov::execution_devices)::value_type{device_names};
+    } else if (ov::hetero::number_of_submodels == name) {
+        return decltype(ov::hetero::number_of_submodels)::value_type{m_compiled_submodels.size()};
     }
     return m_cfg.get(name);
     OPENVINO_SUPPRESS_DEPRECATED_END

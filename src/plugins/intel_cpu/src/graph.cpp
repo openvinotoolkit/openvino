@@ -1184,15 +1184,15 @@ public:
             m_completion.store(true, std::memory_order::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_release);
-        m_completion.store(true, std::memory_order::memory_order_relaxed);
+        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_relaxed);
+        m_completion.store(true, std::memory_order::memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            bool completion = m_completion.load(std::memory_order::memory_order_relaxed);
-            size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_acquire);
+            const bool completion = m_completion.load(std::memory_order::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
