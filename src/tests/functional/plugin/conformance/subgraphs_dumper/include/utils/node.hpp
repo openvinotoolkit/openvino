@@ -36,6 +36,9 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
                                      bool is_copy_const_node = false,
                                      std::string node_name = "");
 
+
+std::shared_ptr<ov::op::v0::Parameter> convert_const_to_param(const std::shared_ptr<ov::op::v0::Constant>& constant_node);
+
 // all inputs are defined as parameters and contains detailed info in meta
 std::shared_ptr<ov::Model> generate_model_by_node(const std::shared_ptr<ov::Node>& node);
 

@@ -22,7 +22,7 @@ void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
     std::map<std::string, std::string>& extTestNames = *::PostgreSQLLink::get_ext_test_names();
 
-    std::string testName("checkPluginImplementation");
+    std::string testName("checkPluginImplementationCompileModel");
     extTestQueries[testName + "_ON_START"] =
         "OpImplCheck_CheckPluginImpl($__test_id, '$opName', '$opSet', "
         "'$targetDevice', '$targetDeviceArch', '$targetDeviceName', '$config', $__is_temp)";

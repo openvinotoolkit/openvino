@@ -24,7 +24,6 @@ except:
     if PY_OPENVINO in os.listdir(ov_bin_path):
         env = os.environ
         py_ov = os.path.join(ov_bin_path, PY_OPENVINO)
-        py_ov = os.path.join(py_ov, find_latest_dir(py_ov))
 
         env = set_env_variable(env, "PYTHONPATH", py_ov)
         env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
