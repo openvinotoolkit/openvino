@@ -60,27 +60,38 @@ std::shared_ptr<Node> u4_compression_concat(const NodeContext& context,
     auto dst = const_cast<uint8_t*>(
         reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));  // TODO: How to better accees u4 data?
 
+    auto pack_byte = [](uint8_t lo, uint8_t hi) { return (lo << 4) | hi; };  // swap halfs because Convert op assumes this layout
+
     for (size_t lane_start = 0; lane_start < full_size; lane_start += lane_size) {
         auto src_lane = src + lane_start;
         auto dst_lane = dst + lane_start;
 
         size_t i = 0;
         for (; i < lane_size - 1; i += 2) {
-            dst_lane[i / 2] = (src_lane[i] & 0x0F) | (src_lane[i + 1] << 4);
+            dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[i + 1] & 0x0F);//(src_lane[i] & 0x0F) | (src_lane[i + 1] << 4);
+            //std::cerr << dst_lane[i / 2] << ", ";
+            //std::cerr << int(src_lane[i] & 0x0F) << "|" << int(src_lane[i + 1] & 0x0F) << ", ";
         }
 
         // Handle a byte in the middle if lane_size is odd
         if (i < lane_size) {
             OPENVINO_ASSERT(i == lane_size - 1);
-            dst_lane[i / 2] = (src_lane[i] & 0x0F) | (src_lane[0] & 0xF0);
+            dst_lane[i / 2] = pack_byte(src_lane[i] & 0x0F, src_lane[0] >> 4); //(src_lane[i] & 0x0F) | (src_lane[0] & 0xF0);
+            //std::cerr << dst_lane[i / 2] << ", ";
+            //std::cerr << int(src_lane[i] & 0x0F) << "|" << int((src_lane[0] & 0xF0) >> 4) << ", ";
+
             i = 1;
         } else {
             i = 0;
         }
 
         for (; i < lane_size; i += 2) {
-            dst_lane[(lane_size + i) / 2] = (src_lane[i] >> 4) | (src_lane[i + 1] & 0xF0);
+            dst_lane[(lane_size + i) / 2] = pack_byte(src_lane[i] >> 4, src_lane[i + 1] >> 4); //(src_lane[i] >> 4) | (src_lane[i + 1] & 0xF0);
+            //std::cerr << dst_lane[(lane_size + i) / 2] << ", ";
+            //std::cerr << int(src_lane[i] >> 4) << "|" << int((src_lane[i + 1] & 0xF0) >> 4) << ", ";
         }
+
+        //std::cerr << "\n";
 
         OPENVINO_ASSERT(i == lane_size);
     }
