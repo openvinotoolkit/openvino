@@ -17,20 +17,20 @@
 
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, `Torchvision models <https://pytorch.org/hub/>`__.
 
-Import a model directly using ``read_model()``
+Import a model using ``read_model()``
 #################################################
 
 Model files (not Python objects) from :doc:`ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite <Supported_Model_Formats>`  (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`) do not require a separate step for model conversion, that is ``mo.convert_model``. OpenVINO provides C++ and Python APIs for importing the models to OpenVINO Runtime directly by just calling the ``read_model`` method, therefore reducing application start time.
 
-The ``read_model()`` method reads a model from a file and produces ``ov.Model``. If the file is in one of the supported original framework file :doc:`formats <Supported_Model_Formats>`, it is converted automatically to OpenVINO Intermediate Representation. If the file is already in the :doc:`OpenVINO IR format <openvino_ir>`, it is read "as-is", without any conversion involved.
+The ``read_model()`` method reads a model from a file and produces `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__. If the file is in one of the supported original framework file :doc:`formats <Supported_Model_Formats>`, the method runs internal conversion to an OpenVino model format. If the file is already in the :doc:`OpenVINO IR format <openvino_ir>`, it is read "as-is", without any conversion involved.
 
-You can still choose to convert a model from original framework to `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ (`ov.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ ), with a :doc:`tool <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` dedicated to this task.
+You can also convert a model from original framework to `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ using ``convert_model()`` method. More details about ``convert_model()`` are provided in :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` .
 
 ``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` that applies post-training quantization methods.
 
 .. note::
 
-   Model conversion is still necessary in more complex cases, such as, new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+   ``convert_model()`` also allows you to perform input/output cut, add pre-processing or add custom Python conversion extensions.
 
 Convert a model with Python using ``mo.convert_model()``
 ###########################################################
@@ -51,7 +51,7 @@ The figure below illustrates the typical workflow for deploying a trained deep l
 Convert a model using ``mo`` command-line tool
 #################################################
 
-Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``mo.convert_model`` method.
+Another option to convert a model is to use ``mo`` command-line tool. ``mo`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``mo.convert_model()`` method.
 
 ``mo`` requires the use of a pre-trained deep learning model in one of the supported formats: TensorFlow, TensorFlow Lite, PaddlePaddle, or ONNX. ``mo`` converts the model to the OpenVINO Intermediate Representation format (IR), which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
