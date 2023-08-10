@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/descriptor/tensor.hpp"
 
 bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
 

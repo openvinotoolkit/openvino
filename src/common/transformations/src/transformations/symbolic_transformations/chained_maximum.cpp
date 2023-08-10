@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "itt.hpp"
 #include "transformations/symbolic_transformations/chained_maximum.hpp"
-#include "openvino/core/dimension_tracker.hpp"
-#include "transformations/symbolic_transformations/utils.hpp"
 
 #include <openvino/op/maximum.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
+
+#include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 
 ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);

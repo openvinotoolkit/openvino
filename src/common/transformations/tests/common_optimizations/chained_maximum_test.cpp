@@ -7,13 +7,13 @@
 #include <gtest/gtest.h>
 
 #include <openvino/core/model.hpp>
+#include <openvino/op/maximum.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/shape_of.hpp>
-#include <openvino/op/maximum.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
     // Maximum(Maximum(A, B), C) -> Maximum(B, C)
     {
         auto shape = PartialShape::dynamic(4);
-        label_shape(shape); // we label shape with consecutive labels: 42, 43, 44, 45
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
         auto input = make_shared<v0::Parameter>(element::f32, shape);
 
         auto A = make_shared<v3::ShapeOf>(input);
@@ -40,14 +40,14 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         auto maximum_0 = make_shared<v1::Maximum>(A, B);
         auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
 
-        ov::evaluate_both_bounds(maximum_1); // we request value, but more importantly label propagation for this graph
+        ov::evaluate_both_bounds(maximum_1);  // we request value, but more importantly label propagation for this graph
 
         model = make_shared<Model>(NodeVector{maximum_1}, ParameterVector{input});
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
     {
         auto shape = PartialShape::dynamic(4);
-        label_shape(shape); // we label shape with consecutive labels: 42, 43, 44, 45
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
         auto input = make_shared<v0::Parameter>(element::f32, shape);
 
         auto B = v0::Constant::create(element::i64, {}, {1});
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
     // Maximum(Maximum(A, B), C) -> Maximum(A, C)
     {
         auto shape = PartialShape::dynamic(4);
-        label_shape(shape); // we label shape with consecutive labels: 42, 43, 44, 45
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
         auto input = make_shared<v0::Parameter>(element::f32, shape);
 
         auto A = v0::Constant::create(element::i64, {}, {1});
@@ -74,14 +74,14 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         auto maximum_0 = make_shared<v1::Maximum>(A, B);
         auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
 
-        ov::evaluate_both_bounds(maximum_1); // we request value, but more importantly label propagation for this graph
+        ov::evaluate_both_bounds(maximum_1);  // we request value, but more importantly label propagation for this graph
 
         model = make_shared<Model>(NodeVector{maximum_1}, ParameterVector{input});
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
     {
         auto shape = PartialShape::dynamic(4);
-        label_shape(shape); // we label shape with consecutive labels: 42, 43, 44, 45
+        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
         auto input = make_shared<v0::Parameter>(element::f32, shape);
 
         auto A = v0::Constant::create(element::i64, {}, {1});
@@ -113,9 +113,9 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
 TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
     {
         auto shape_0 = PartialShape::dynamic(4);
-        label_shape(shape_0, 42); // we label shape with consecutive labels: 42, 43, 44, 45
+        label_shape(shape_0, 42);  // we label shape with consecutive labels: 42, 43, 44, 45
         auto shape_1 = PartialShape::dynamic(4);
-        label_shape(shape_1, 47); // we label shape with consecutive labels: 47, 48, 49, 50
+        label_shape(shape_1, 47);  // we label shape with consecutive labels: 47, 48, 49, 50
         auto input_0 = make_shared<v0::Parameter>(element::f32, shape_0);
         auto input_1 = make_shared<v0::Parameter>(element::f32, shape_1);
 
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
         auto maximum_0 = make_shared<v1::Maximum>(A, B);
         auto maximum_1 = make_shared<v1::Maximum>(maximum_0, C);
 
-        ov::evaluate_both_bounds(maximum_1); // we request value, but more importantly label propagation for this graph
+        ov::evaluate_both_bounds(maximum_1);  // we request value, but more importantly label propagation for this graph
 
         model = make_shared<Model>(NodeVector{maximum_1}, ParameterVector{input_0, input_1});
         manager.register_pass<pass::ChainedMaximumOptimization>();

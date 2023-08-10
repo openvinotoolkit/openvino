@@ -27,9 +27,9 @@ ov::pass::pattern::op::ValuePredicate constant_predicate(
     });
 }
 
-#define CONSTANT_WITH_PREDICATE(expression)                                                         \
+#define CONSTANT_WITH_PREDICATE(expression)                                                                 \
     pattern::wrap_type<op::v0::Constant>(constant_predicate([](const std::vector<int64_t>& value) -> bool { \
-        return expression;                                                                          \
+        return expression;                                                                                  \
     }))
 
 ov::pass::RPE_Fusion::RPE_Fusion() {
@@ -70,9 +70,9 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         auto cos_output = value_map.at(mul_cos).get_node_shared_ptr()->input_value(1);
 
         if (actual_source != potential_source && actual_source != cos_output)
-            return false; // flawed match
+            return false;  // flawed match
         if (actual_source == potential_source && actual_source == cos_output)
-            return false; // flawed match
+            return false;  // flawed match
         if (actual_source != potential_source && actual_source == cos_output)
             cos_output = potential_source;
 
@@ -99,10 +99,8 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
             if (concat_axis != split_axis)
                 return false;
         }
-        auto rope = std::make_shared<ov::op::internal::RPE>(input,
-                                                            value_map.at(sin),
-                                                            cos_output,
-                                                            concat_node->get_axis());
+        auto rope =
+            std::make_shared<ov::op::internal::RPE>(input, value_map.at(sin), cos_output, concat_node->get_axis());
         ov::replace_output_update_name(value_map.at(add), rope->output(0));
         return true;
     };

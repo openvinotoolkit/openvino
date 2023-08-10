@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, FuseRPE) {
 // FIXME: this test should pass. Right now I get the following error during matching process:
 // Process finished with exit code 139 (interrupted by signal 11: SIGSEGV)
 //
-//TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
+// TEST_F(TransformationTestsF, FuseRPESorcesAreMultiOutputed) {
 //    {
 //        auto data_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
 //        auto sin_ = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
