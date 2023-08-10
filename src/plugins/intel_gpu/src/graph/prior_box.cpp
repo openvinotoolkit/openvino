@@ -440,7 +440,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         impl_param.get_input_layout(1).get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes = {ShapeType()};
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
 
     auto& memory_deps = impl_param.memory_deps;
 
@@ -451,7 +451,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_size_lock(output_size_mem, impl_param.get_stream());
         cldnn::mem_lock<uint8_t, mem_lock_type::read> img_size_lock(img_size_mem, impl_param.get_stream());
 
-        const_data.emplace(0, make_host_tensor(output_size_mem->get_layout(), output_size_lock.data()));
+        const_data.emplace(0, make_tensor(output_size_mem->get_layout(), output_size_lock.data()));
 
         auto p_param = const_cast<kernel_impl_params*>(&impl_param);
         if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
