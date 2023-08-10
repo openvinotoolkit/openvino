@@ -253,7 +253,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             inferencePrecision = ov::element::f32;
         }
     }
-
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    inferencePrecision = ov::element::f16;
+#endif
     if (!prop.empty())
         _config.clear();
 
