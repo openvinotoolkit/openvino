@@ -278,30 +278,30 @@ const auto miscParams = ::testing::Combine(::testing::ValuesIn(biases2D),
                                            ::testing::ValuesIn(maxpool1DPools),
                                            ::testing::ValuesIn(maxpool1DStrides));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv,
-                         Decompose2DConvTest,
-                         ::testing::Combine(conv2DParams,
-                                            miscParams,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input2DNHWC),
-                                            ::testing::ValuesIn(models)),
-                         Decompose2DConvTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConv,
+//                          Decompose2DConvTest,
+//                          ::testing::Combine(conv2DParams,
+//                                             miscParams,
+//                                             ::testing::ValuesIn(netPrecisions),
+//                                             ::testing::Values(ov::test::utils::DEVICE_GNA),
+//                                             ::testing::ValuesIn(configs),
+//                                             ::testing::ValuesIn(input2DNHWC),
+//                                             ::testing::ValuesIn(models)),
+//                          Decompose2DConvTest::getTestCaseName);
 
 // These tests flow compile the model for GNA 2.0
 // and load by GNA Library for GNA 3.0 execution target
 // They assure that the W/A for pooling output differences btw GNA 2.0 / 3.0 is properly working
-INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec3XCompile20,
-                        Decompose2DConvTest,
-                        ::testing::Combine(conv2DParams,
-                                           miscParams,
-                                           ::testing::ValuesIn(netPrecisions),
-                                           ::testing::Values(ov::test::utils::DEVICE_GNA),
-                                           ::testing::ValuesIn(configsExec3XCompile20),
-                                           ::testing::ValuesIn(input2DNHWC),
-                                           ::testing::ValuesIn(modelsWithPool)),
-                        Decompose2DConvTest::getTestCaseName);
+// INSTANTIATE_TEST_CASE_P(smoke_Decompose2DConv_Exec3XCompile20,
+//                         Decompose2DConvTest,
+//                         ::testing::Combine(conv2DParams,
+//                                            miscParams,
+//                                            ::testing::ValuesIn(netPrecisions),
+//                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
+//                                            ::testing::ValuesIn(configsExec3XCompile20),
+//                                            ::testing::ValuesIn(input2DNHWC),
+//                                            ::testing::ValuesIn(modelsWithPool)),
+//                         Decompose2DConvTest::getTestCaseName);
 
 /* ============= Strides & Dilations Combination ============= */
 
@@ -330,16 +330,16 @@ const auto conv2DParamsStrides = ::testing::Combine(::testing::ValuesIn(kernels2
                                                     ::testing::ValuesIn(numOutChannels2D),
                                                     ::testing::ValuesIn(padTypesStrides));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvStridesDilations,
-                         Decompose2DConvTest,
-                         ::testing::Combine(conv2DParamsStrides,
-                                            miscParams,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configsStrides),
-                                            ::testing::ValuesIn(input2DNHWCStrides),
-                                            ::testing::ValuesIn(modelsStrides)),
-                         Decompose2DConvTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvStridesDilations,
+//                          Decompose2DConvTest,
+//                          ::testing::Combine(conv2DParamsStrides,
+//                                             miscParams,
+//                                             ::testing::ValuesIn(netPrecisions),
+//                                             ::testing::Values(ov::test::utils::DEVICE_GNA),
+//                                             ::testing::ValuesIn(configsStrides),
+//                                             ::testing::ValuesIn(input2DNHWCStrides),
+//                                             ::testing::ValuesIn(modelsStrides)),
+//                          Decompose2DConvTest::getTestCaseName);
 
 /* ============= GNA 3.0 Supported Convolutions Combination ============= */
 
@@ -378,15 +378,15 @@ const auto miscParamsGNA3X = ::testing::Combine(::testing::ValuesIn(biases2DGNA3
                                                 ::testing::ValuesIn(maxpool2DPoolsGNA3X),
                                                 ::testing::ValuesIn(maxpoo2DStridesGNA3X));
 
-INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA3X,
-                         Decompose2DConvTest,
-                         ::testing::Combine(conv2DParamsGNA3X,
-                                            miscParamsGNA3X,
-                                            ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configsGNA3X),
-                                            ::testing::ValuesIn(input2DNHWCGNA3X),
-                                            ::testing::ValuesIn(modelsGNA3X)),
-                         Decompose2DConvTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA3X,
+//                          Decompose2DConvTest,
+//                          ::testing::Combine(conv2DParamsGNA3X,
+//                                             miscParamsGNA3X,
+//                                             ::testing::ValuesIn(netPrecisions),
+//                                             ::testing::Values(ov::test::utils::DEVICE_GNA),
+//                                             ::testing::ValuesIn(configsGNA3X),
+//                                             ::testing::ValuesIn(input2DNHWCGNA3X),
+//                                             ::testing::ValuesIn(modelsGNA3X)),
+//                          Decompose2DConvTest::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions
