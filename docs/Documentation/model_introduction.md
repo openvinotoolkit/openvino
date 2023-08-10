@@ -3,7 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: Preparing models for OpenVINO Runtime. Learn how to convert and compile models from different frameworks or read them directly.
+   :description: Preparing models for OpenVINO Runtime. Learn about the methods 
+                 used to read, convert and compile models from different frameworks.
 
 
 .. toctree::
