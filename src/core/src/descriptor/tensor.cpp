@@ -4,7 +4,6 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
