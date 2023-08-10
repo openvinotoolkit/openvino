@@ -12,7 +12,7 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
-cldnn::padding prepare_padding::get_convolution_required_padding(const convolution_node& node) {
+cldnn::padding prepare_padding::get_convolution_required_padding(convolution_node& node) {
     auto conv = node.get_primitive();
     auto conv_layout = node.get_output_layout();
 
