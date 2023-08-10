@@ -86,17 +86,27 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM) {
                                                  std::vector<Shape>{{10, 9, 1024, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     function = f.getOriginal();
     function_ref = f.getReference();
-    config.minimal_concurrency = 18;
+    config.concurrency = 18;
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-114607 */, smoke_Snippets_MHASelect_SplitM) {
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
+    const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{5, 30, 32}, {5, 32, 30}, {5, 30, 32}},
+                                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
+                                                 std::vector<Shape>{{5, 6, 5, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    config.concurrency = 32;
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1, 512, 64}, {1, 1, 64}, {8, 64, 512}},
                                             std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {1, 2, 256, 64}, {1, 1, 1, 64},
                                                                {8, 1, 64, 512}, {8, 512, 512}});
     function = f.getOriginal();
     function_ref = f.getReference();
-    config.minimal_concurrency = 16;
+    config.concurrency = 16;
     run();
 }
 

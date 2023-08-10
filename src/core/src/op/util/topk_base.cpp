@@ -5,11 +5,10 @@
 #include "openvino/op/util/topk_base.hpp"
 
 #include <limits>
-#include <ngraph/validation_util.hpp>
-#include <topk_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "topk_shape_inference.hpp"
 
 namespace {
 constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();

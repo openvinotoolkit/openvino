@@ -38,6 +38,8 @@ private:
 namespace Conversion {
     const std::vector<InputShape>& inShapes_4D_static();
     const std::vector<InputShape>& inShapes_4D_dynamic();
+    const std::vector<InputShape>& inShapes_7D_static();
+    const std::vector<InputShape>& inShapes_7D_dynamic();
     const std::vector<Precision>& precisions();
 } // namespace Conversion
 } // namespace CPULayerTestsDefinitions

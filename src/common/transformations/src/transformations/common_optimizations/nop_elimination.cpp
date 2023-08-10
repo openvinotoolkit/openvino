@@ -829,6 +829,45 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
     register_matcher(m, matcher_pass_callback);
 }
 
+ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
+    MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
+    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze>(pattern::rank_equals(0));
+    auto other_input_label = pattern::any_input(pattern::rank_equals(0));
+    auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
+                                              op::util::BinaryElementwiseComparison,
+                                              op::util::BinaryElementwiseLogical>({first_label, other_input_label},
+                                                                                  pattern::consumers_count(1));
+    auto second_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
+                                                                               pattern::rank_equals(1));
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_node = m.get_pattern_map();
+
+        auto second_node = pattern_to_node.at(second_label);
+        auto binary = pattern_to_node.at(binary_op_label);
+
+        auto lhs_node =
+            ov::op::util::clone_try_fold(second_node, {binary->input_value(0), second_node->input_value(1)});
+        auto rhs_node =
+            ov::op::util::clone_try_fold(second_node, {binary->input_value(1), second_node->input_value(1)});
+
+        register_new_node(lhs_node);
+        register_new_node(rhs_node);
+
+        binary->input(0).replace_source_output(lhs_node->output(0));
+        binary->input(1).replace_source_output(rhs_node->output(0));
+        binary->validate_and_infer_types();
+
+        ov::copy_runtime_info(second_node, {lhs_node, rhs_node});
+
+        replace_output_update_name(second_node->output(0), binary->output(0));
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(second_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     ADD_MATCHER_FOR_THIS(EliminatePad)
@@ -847,6 +886,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateReshape)
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
+        ADD_MATCHER_FOR_THIS(PrepareShapeOpsForEliminationAroundBE)
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
