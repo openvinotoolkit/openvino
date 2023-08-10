@@ -17,16 +17,18 @@
 #include "itt.hpp"
 
 ov::pass::pattern::op::ValuePredicate constant_predicate(
-    const std::function<bool(const std::vector<int64_t>& values)>& value_predicate) {
+    const std::function<bool(const std::vector<int64_t>&)>& predicate) {
     return ov::pass::pattern::op::as_value_predicate([&](std::shared_ptr<ov::Node> n) -> bool {
-        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(n))
-            return value_predicate(constant->cast_vector<int64_t>());
+        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(n)) {
+            auto values = constant->cast_vector<int64_t>();
+            return predicate(values);
+        }
         return false;
     });
 }
 
 #define CONSTANT_WITH_PREDICATE(expression)                                                         \
-    pattern::wrap_type<op::v0::Constant>(constant_predicate([](const std::vector<int64_t>& value) { \
+    pattern::wrap_type<op::v0::Constant>(constant_predicate([](const std::vector<int64_t>& value) -> bool { \
         return expression;                                                                          \
     }))
 
@@ -36,7 +38,9 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
     auto sin = pattern::any_input();
     auto cos = pattern::any_input();
 
-    auto source = pattern::wrap_type<ov::op::Op>();  // FIXME: any_input doesn't work here
+    // FIXME: should be a single node match
+    auto source_1 = pattern::any_input();
+    auto source = pattern::any_input();
     // BEGIN: rotate_half
 
     // Variadic Split into two equal parts
@@ -55,11 +59,22 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
     // END: rotate half
 
     auto mul_sin = pattern::wrap_type<op::v1::Multiply>({concat, sin});
-    auto mul_cos = pattern::wrap_type<op::v1::Multiply>({source, cos});
+    auto mul_cos = pattern::wrap_type<op::v1::Multiply>({source_1, cos});
     auto add = pattern::wrap_type<op::v1::Add>({mul_cos, mul_sin});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto value_map = m.get_pattern_value_map();
+
+        auto actual_source = value_map.at(vsplit).get_node_shared_ptr()->input_value(0);
+        auto potential_source = value_map.at(mul_cos).get_node_shared_ptr()->input_value(0);
+        auto cos_output = value_map.at(mul_cos).get_node_shared_ptr()->input_value(1);
+
+        if (actual_source != potential_source && actual_source != cos_output)
+            return false; // flawed match
+        if (actual_source == potential_source && actual_source == cos_output)
+            return false; // flawed match
+        if (actual_source != potential_source && actual_source == cos_output)
+            cos_output = potential_source;
 
         auto input = value_map.at(source);
         auto concat_node = ov::as_type_ptr<op::v0::Concat>(value_map.at(concat).get_node_shared_ptr());
@@ -86,7 +101,7 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
         }
         auto rope = std::make_shared<ov::op::internal::RPE>(input,
                                                             value_map.at(sin),
-                                                            value_map.at(cos),
+                                                            cos_output,
                                                             concat_node->get_axis());
         ov::replace_output_update_name(value_map.at(add), rope->output(0));
         return true;
