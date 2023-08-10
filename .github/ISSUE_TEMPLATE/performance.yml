@@ -23,8 +23,10 @@ body:
       options:
         - Ubuntu 18.04 (LTS)
         - Ubuntu 20.04 (LTS)
+        - Ubuntu 22.04 (LTS)
         - Windows System
         - Red Hat Enterprise Linux 8
+        - OpenSUSE
         - Android System
         - Raspbian Stretch OS
         - macOS Systems for Intel CPU
@@ -75,9 +77,12 @@ body:
       label: Hardware Architecture 
       description: What is your hardware architecture used in this test?
       options:
-        - Intel
-        - ARM
-        - Other
+        - x86 (64 bits)
+        - x86 (32 bits)
+        - ARM (64 bits)
+        - ARM (32 bits)
+        - RISC-V
+        - Other (please specify in the description)
     validations:
       required: true
   - type: input
@@ -98,7 +103,7 @@ body:
         - 'No'
     validations:
       required: true
-  - type: input
+  - type: textarea
     id: target_platform
     attributes:
       label: Target Platform
