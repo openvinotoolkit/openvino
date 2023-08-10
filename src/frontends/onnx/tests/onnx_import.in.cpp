@@ -6701,3 +6701,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) 
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/blackmanwindow.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.0509f, 0.2580f, 0.6300f, 0.9511f, 0.9511f, 0.6300f, 0.2580f, 0.0509f, 0.0000f});
+
+    test_case.run();
+}
