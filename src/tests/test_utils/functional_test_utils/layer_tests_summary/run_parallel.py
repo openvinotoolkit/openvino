@@ -346,9 +346,10 @@ class TestParallelRunner:
                                 tests_dict_cache[test_name] = tests_dict_cache.get(test_name, 0) + time
                     elif (self._split_unit == "suite") :
                         if not constants.DISABLED_PREFIX in test_suite:
-                            itime = int(time)
-                            if (itime != -1) :
-                                tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, 0) + itime
+                            if (time == -1) :
+                                tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, -1)
+                            else :
+                                tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, 0) + time
 
         logger.info(f"Len tests_dict_cache: {len(tests_dict_cache)}")
         return tests_dict_cache
@@ -359,7 +360,7 @@ class TestParallelRunner:
 
         for test in test_dict_cache:
             if test in test_dict_runtime:
-                cached_test_dict[test] = test_dict_cache[test]
+                cached_test_dict[test] = test_dict_cache[test] if test_dict_cache[test] != -1 else test_dict_runtime.get(test, -1)
 
         for test in test_dict_runtime:
             if not test in cached_test_dict:
@@ -367,8 +368,8 @@ class TestParallelRunner:
 
         if len(runtime_test_dict) > 0:
             logger.warning(f'Cache file is not relevant the run. The will works in hybrid mode.')
-            logger.info(f'Test count from cache: {len(cached_test_dict)}')
-            logger.info(f'Test count from runtime: {len(runtime_test_dict)}')
+            logger.info(f'{self._split_unit.title()} count from cache: {len(cached_test_dict)}')
+            logger.info(f'{self._split_unit.title()} count from runtime: {len(runtime_test_dict)}')
         return cached_test_dict, runtime_test_dict
 
     def __prepare_smart_filters(self, proved_test_dict: dict):
@@ -443,8 +444,6 @@ class TestParallelRunner:
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
             runtime_test_dist = self.__prepare_smart_filters(runtime_test_dist)
-            # self._total_test_cnt += len(runtime_test_list)
-            # runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_dict, runtime_test_dist
 
@@ -479,7 +478,7 @@ class TestParallelRunner:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                         has_status = False
                         if test_name is not None:
-                            test_names.add(f'"{self.__replace_restricted_symbols(test_name)}"')
+                            test_names.add(test_name)
                     for _, status_messages in constants.TEST_STATUS.items():
                         for status_msg in status_messages:
                             if status_msg in line:
@@ -488,8 +487,10 @@ class TestParallelRunner:
                         if has_status:
                             break
                 if not has_status:
-                    interapted_tests.append(f'"{test_name}"')
+                    interapted_tests.append(test_name)
                 log_file.close()
+        split_unit_tmp = self._split_unit
+        self._split_unit = "test"
         test_list_runtime = set(self.__get_test_list_by_runtime())
         not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
         interapted_tests = set(interapted_tests).difference(self._excluded_tests_re)
@@ -515,14 +516,16 @@ class TestParallelRunner:
         if len(filters_runtime):
             logger.info(f"Execute jobs taken from runtime")
             worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
-        not_runned_test_filter, interapted_tests = self.__find_not_runned_tests()
+        not_runned_tests, interapted_tests = self.__find_not_runned_tests()
         if (self._repeat_failed == True) :
-            if len(not_runned_test_filter) > 0:
-                logger.info(f"Execute not runned {len(not_runned_test_filter)} tests")
-                worker_cnt += self.__execute_tests(not_runned_test_filter, worker_cnt)
+            if len(not_runned_tests) > 0:
+                logger.info(f"Execute not runned {len(not_runned_tests)} tests")
+                not_runned_test_filters = [f'"{self.__replace_restricted_symbols(test)}"' for test in not_runned_tests]
+                worker_cnt += self.__execute_tests(not_runned_test_filters, worker_cnt)
             if len(interapted_tests) > 0:
                 logger.info(f"Execute interapted {len(interapted_tests)} tests")
-                worker_cnt += self.__execute_tests(interapted_tests, worker_cnt)
+                interapted_tests_filters = [f'"{self.__replace_restricted_symbols(test)}"' for test in interapted_tests]
+                worker_cnt += self.__execute_tests(interapted_tests_filters, worker_cnt)
 
         t_end = datetime.datetime.now()
         total_seconds = (t_end - t_start).total_seconds()
