@@ -1076,10 +1076,10 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
                 self.data = torch.tensor([1, 2, 3, 4])
         
             def forward(self, x):                
-                return x + self.data
+                return self.data, x
 
         data_model = DataModel()
-        test_input = np.array([1, 2, 3, 4])
+        test_input = np.array([0, 0, 0, 0])
 
         # Convert model to OV
         ov_model = convert_model(data_model, input=([4], Type.i32), share_weights=False)
@@ -1092,7 +1092,36 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         cmp_model = core.compile_model(ov_model, ie_device)
         ov_infer1 = cmp_model(test_input)
 
-        assert np.array_equal(ov_infer1[0], [2, 4, 6, 8])
+        assert np.array_equal(ov_infer1[0], [1, 2, 3, 4])
+
+    @ pytest.mark.precommit
+    def test_sharing_memory_switched_on(self, ie_device, precision, ir_version, temp_dir):
+        from openvino.tools.ovc import convert_model
+        from openvino.runtime import Core
+        
+        class DataModel(torch.nn.Module):
+            def __init__(self):
+                super(DataModel, self).__init__()
+                self.data = torch.tensor([1, 2, 3, 4])
+        
+            def forward(self, x):                
+                return self.data, x
+
+        data_model = DataModel()
+        test_input = np.array([0, 0, 0, 0])
+
+        # Convert model to OV
+        ov_model = convert_model(data_model, input=([4], Type.i32), share_weights=True)
+
+        # Change value of variables in original model
+        data_model.data[0] *= 2
+
+        # Check model inference
+        core = Core()
+        cmp_model = core.compile_model(ov_model, ie_device)
+        ov_infer1 = cmp_model(test_input)
+
+        assert np.array_equal(ov_infer1[0], [2, 2, 3, 4])
 
 
 def create_pt_model_with_custom_op():
