@@ -68,12 +68,23 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
    To do this step using command-lines, run the following commands in the command prompt window you opened:
    ```sh
-   tar -xf openvino_2022.3.0.zip
-   ren w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64 openvino_2022.3.0
-   move openvino_2022.3.0 "C:\Program Files (x86)\Intel"
+   tar -xf openvino_2022.3.1.zip
+   ren w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64 openvino_2022.3.1
+   move openvino_2022.3.1 "C:\Program Files (x86)\Intel"
    ```
 
-4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
+6. (Optional) Install *numpy* Python Library:
+
+   > **NOTE**: This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2022.3.1\python\python.<x>`` folder:
+
+   ```
+   cd "C:\Program Files (x86)\Intel\openvino_2022.3.1"
+   python -m pip install -r .\python\python3.<x>\requirements.txt
+   ```
+
+5. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
    ```sh
    cd C:\Program Files (x86)\Intel
    mklink /D openvino_2022 openvino_2022.3.0
