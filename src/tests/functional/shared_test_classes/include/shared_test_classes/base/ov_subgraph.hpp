@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/model.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -69,6 +70,7 @@ protected:
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
+    virtual precisions_map get_ref_precisions_convert_map();
 
     friend void core_configuration(SubgraphBaseTest* test);
 };
