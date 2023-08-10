@@ -757,7 +757,7 @@ void network::reset_execution(bool wait) {
     _events.clear();
 }
 
-event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
+event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool reuse_prev_output) {
     GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
@@ -772,6 +772,32 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
 
+    // if input is reusing prev output
+    // the user node which uses this input data should use new output memory
+    std::function<void(cldnn::primitive_inst*)> force_users_realloc_mem = [&](cldnn::primitive_inst* user) {
+        if (user->is_output()) {
+            user->force_realloc_mem();
+            return;
+        }
+        if (user->can_be_optimized()) {
+            auto users_of_user = user->get_user_insts();
+            for (auto u : users_of_user) {
+                if (u->is_output())
+                    u->force_realloc_mem();
+                else if (u->can_be_optimized())
+                    force_users_realloc_mem(u.get());
+                else
+                    continue;
+            }
+        }
+        return;
+    };
+    if (reuse_prev_output) {
+        auto users = input->get_user_insts();
+        for (auto u : users) {
+            force_users_realloc_mem(u.get());
+        }
+    }
     return input->set_data(data);
 }
 

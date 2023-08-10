@@ -212,6 +212,12 @@ public:
     void build_deps();
     void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
+    void force_realloc_mem() {
+        force_realloc = true;
+    }
+    bool is_forced_realloc_mem() const {
+        return force_realloc;
+    }
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -277,6 +283,7 @@ protected:
 
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
+    bool force_realloc = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;

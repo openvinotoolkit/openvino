@@ -395,6 +395,7 @@ void InferRequest::enqueue_notify() {
 }
 
 void InferRequest::enqueue() {
+//    std::cout << "##########Infer " << std::endl;
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
@@ -856,6 +857,29 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
     auto _nw_ptr = m_graph->GetNetwork();
     if (input_layout.is_dynamic()) {
+        if (std::getenv("REUSE") != nullptr) {
+            for (auto omem : _outputs) {
+                auto out_ptr = omem.second->cbuffer().as<void*>();
+                auto in_ptr = inputBlob->cbuffer().as<void*>();
+                if (out_ptr == in_ptr) {
+                    //         std::cout << "prev output " << omem.first << " is used as current input " << inputName <<
+                    //         std::endl;
+                    const cldnn::primitive_id internalName = "parameter:" + inputName;
+                    auto outputID = outputsMap.empty() ? m_graph->MapOutputName(omem.first) : outputsMap.at(omem.first);
+                    auto in_layout = cldnn::layout{ov::PartialShape(inputBlob->getTensorDesc().getDims()),
+                                                cldnn::data_types::f16,
+                                                cldnn::format::bfyx};
+                    auto prev_output_mem = internal_outputs.at(outputID).get_memory(false);
+                    auto prev_output_layout = internal_outputs.at(outputID).get_layout();
+                    OPENVINO_ASSERT(prev_output_layout == in_layout);
+                    if (prev_output_mem->get_layout() != prev_output_layout) {
+                        prev_output_mem = m_graph->get_engine().reinterpret_buffer(*prev_output_mem, prev_output_layout);
+                    }
+                    dependencies.push_back(_nw_ptr->set_input_data(internalName, prev_output_mem, true));
+                    return;
+                }
+            }
+        }
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
         if (has_device_blob) {
@@ -865,7 +889,6 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                 should_allocate_device_blob = true;
             }
         }
-
         auto& sp = _nw_ptr->get_shape_predictor();
         const auto& tensor_desc = inputBlob->getTensorDesc();
         auto dt_size = cldnn::data_type_traits::size_of(DataTypeFromPrecision(tensor_desc.getPrecision()));
@@ -874,8 +897,8 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
         if (should_allocate_device_blob) {
             auto preallocation_shape = prealloc_info.second;
-            auto can_preallocate_buffer = prealloc_info.first &&
-                                          sp.can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
+            auto can_preallocate_buffer =
+                prealloc_info.first && sp.can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
 
             if (can_preallocate_buffer) {
                 auto new_tensor_desc = tensor_desc;
@@ -891,7 +914,11 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     } else if (input_layout.is_static() && !is_dev_input && can_use_usm) {
         allocate_dev_mem_if_needed(_deviceInputs, inputBlob, inputName, input_layout, (conv_to_supported_prec(prec) != prec));
     }
-    OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
+
+    OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(),
+                    "[GPU] Couldn't find device blob allocated for ",
+                    inputName,
+                    " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
     const cldnn::primitive_id internalName = "parameter:" + inputName;
 
@@ -948,6 +975,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     auto src_lock = inputBlob->cbuffer();
                     auto src_ptr = src_lock.as<uint8_t*>();
                     if (!same_host_mem(inputMem, src_ptr)) {
+//                        std::cout << inputName << " copy input mem" << std::endl;
                         auto ev = inputMem->copy_from(stream, src_ptr, false);
                         dependencies.push_back(ev);
                     }

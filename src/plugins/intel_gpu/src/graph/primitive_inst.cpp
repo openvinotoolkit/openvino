@@ -68,6 +68,10 @@ bool is_optimized_output_user(const T user) {
     return false;
 }
 bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
+    if (runtime_alloc) {
+        if (prim->is_forced_realloc_mem())
+            return false;
+    }
     if (prim->is_output())
         return true;
 
@@ -382,6 +386,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
+//    if (id() == "concat:present.0.value")
+//        std::cout << "here" << std::endl;
     event::ptr ev = nullptr;
     if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
         auto concat_inst = _network.get_primitive(get_users().front()->id());
@@ -414,7 +420,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
+    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size && !force_realloc;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -681,6 +687,8 @@ void primitive_inst::do_runtime_skip_reorder() {
             }
             if (alloc_type == allocation_type::usm_device && u->is_output())
                 continue;
+            if (u->_is_output)
+                _is_output = true;
             GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
             u->update_shape();
             u->update_shape_done_by_other = true;
