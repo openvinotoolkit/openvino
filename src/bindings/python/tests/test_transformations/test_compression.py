@@ -33,19 +33,18 @@ def make_model(add_consts, mul_consts):
 
 
 def get_constants(model) -> List[Constant]:
-    model = None
     with tempfile.TemporaryDirectory() as tmp:
         model_name = f"{tmp}/f32_partially_compressed.xml"
         ov.save_model(model, model_name)
         core = ov.Core()
-        model = core.read_model(model_name)
+        restored_model = core.read_model(model_name)
 
-    assert model is not None
+    assert restored_model is not None
 
     op_ind_map = {"Add": 0, "Multiply": 1}
     constants_list = [[]] * len(op_ind_map)
 
-    for op in model.get_ordered_ops():
+    for op in restored_model.get_ordered_ops():
         op_type = op.get_type_info().name
         if op_type not in op_ind_map.keys():
             continue
@@ -64,7 +63,7 @@ def get_constants(model) -> List[Constant]:
         assert not isinstance(node, list)
 
     # sanity check that model is compilable
-    ov.compile_model(model)
+    ov.compile_model(restored_model)
     return constants_list
 
 
@@ -79,8 +78,8 @@ def test_compression_1():
 
     assert const_fp16.get_output_element_type(0) == ov.Type.f16
 
-    assert np.all(np.array(converted_more_in_range, dtype=np.float32) == const_fp16.get_vector()), \
-        f"Difference: {np.array(converted_more_in_range, dtype=np.float32) - const_fp16.get_vector()}"
+    msg = f"Difference: {np.array(converted_more_in_range, dtype=np.float32) - const_fp16.get_vector()}"
+    assert np.all(np.array(converted_more_in_range, dtype=np.float32) == const_fp16.get_vector()), msg
 
 
 def test_compression_2():
@@ -92,9 +91,11 @@ def test_compression_2():
 
     assert const_fp16_1.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
     assert const_fp16_2.get_output_element_type(0) == ov.Type.f16, "Const element type is not f16"
+    f16_min, f16_max = np.finfo(np.float16).min,np.finfo(np.float16).max
+    res = np.clip(more_in_range, f16_min, f16_max).astype(np.float16)
 
-    assert np.all(np.array(more_out_of_range, dtype=np.float16) == const_fp16_1.get_vector())
-    assert np.all(np.array(more_out_of_range, dtype=np.float16) == const_fp16_2.get_vector())
+    assert np.all(res == const_fp16_1.get_vector())
+    assert np.all(res == const_fp16_2.get_vector())
 
 
 def test_no_compression():
