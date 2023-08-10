@@ -65,8 +65,7 @@ int main(int argc, char *argv[]) {
                 value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
             }
         }
-    }
-    {
+    } else {
         auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
         for (auto& model_status : cache_model_status) {
             auto& key = model_status.first;
