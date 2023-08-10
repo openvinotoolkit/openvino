@@ -64,7 +64,7 @@ bool IsSpecialPRelu(NodePtr node) {
         return false;
 
     const auto arg_shape = prelu->get_input_partial_shape(0);
-    if (arg_shape.is_dynamic())
+    if (arg_shape.rank().is_dynamic())
         return false;
 
     const auto channel_dim_idx = arg_shape.size() > 1 ? 1 : 0;

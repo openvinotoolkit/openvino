@@ -1290,3 +1290,38 @@ TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabNotSpecial) {
 
     manager.register_pass<TSBinaryBackward>();
 }
+
+TEST_F(TransformationTestsF, TSBinaryBackwardPReluSlabSpecialRank1) {
+    const Shape input_shape = {5};
+    const Shape slope_shape = {5};
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{5, 7, 9, 11, 15});
+        auto prelu = std::make_shared<PRelu>(X, slope);
+
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose = std::make_shared<Transpose>(prelu, ts_order);
+
+        function = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, input_shape);
+
+        auto ts_order0 = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose0 = std::make_shared<Transpose>(X, ts_order0);
+
+        auto slope = std::make_shared<Constant>(element::f32, slope_shape, Shape{1});
+
+        auto ts_order1 = std::make_shared<Constant>(element::u64, Shape{1}, Shape{0});
+        auto transpose1 = std::make_shared<Transpose>(slope, ts_order1);
+
+        auto prelu = std::make_shared<PRelu>(transpose0, transpose1);
+
+        function_ref = std::make_shared<Model>(ov::OutputVector{prelu}, ov::ParameterVector{X});
+    }
+
+    manager.register_pass<TSBinaryBackward>();
+}
