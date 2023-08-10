@@ -67,20 +67,15 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        ivalue = ivalue.to(memory_format=torch.contiguous_format)
+        ivalue = ivalue.contiguous()
         if ivalue.dtype == torch.bfloat16:
             # reinterpret bfloat16 data as float16 to allow conversion to numpy
             ivalue = ivalue.view(torch.float16)
             narr = ivalue.numpy(force=True)
-            if not narr.flags['C_CONTIGUOUS']:
-                narr = np.ascontiguousarray(narr)
-            # TODO: this tensor doesn't share memory with initial tensor
             tensor = Tensor(narr, ivalue.shape, OVType.bf16)
             ov_const = op.Constant(tensor, shared_memory=True)
         else:
             narr = ivalue.numpy(force=True)
-            if not narr.flags['C_CONTIGUOUS']:
-                narr = np.ascontiguousarray(narr)
             ov_const = op.Constant(narr, shared_memory=True)
         return ov_const.outputs()
     return None
