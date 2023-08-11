@@ -109,7 +109,14 @@ std::vector<float> split_float(const std::string& s, char delim) {
 }
 
 bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info) {
-    return app_input_info.size() == 1;
+    for (const benchmark_app::InputsInfo& info : app_input_info) {
+        for (const auto& pair : info) {
+            if (pair.second.partialShape.is_dynamic() && app_input_info.size() > 1) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};
