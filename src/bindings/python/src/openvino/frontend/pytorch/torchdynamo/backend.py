@@ -45,11 +45,12 @@ log = logging.getLogger(__name__)
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
-    if (os.getenv("PYTORCH_TRACING_MODE") is not None):
-        if (os.getenv("PYTORCH_TRACING_MODE") == "TORCHFX"):
-            return fx_openvino(subgraph, example_inputs)
-    return ts_openvino(subgraph, example_inputs)
+    return fx_openvino(subgraph, example_inputs)
 
+@register_backend
+@fake_tensor_unsupported
+def ts_openvino(subgraph, example_inputs):
+    return ts_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):
     try:
