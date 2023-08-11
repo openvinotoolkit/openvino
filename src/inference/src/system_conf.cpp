@@ -247,7 +247,7 @@ int get_num_numa_nodes() {
     return cpu_info()._numa_nodes;
 }
 int get_num_sockets() {
-    return -1;
+    return cpu_info()._sockets;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
@@ -255,6 +255,12 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {}
 
 int get_socket_by_numa_node(int numa_node_id) {
+    CPU& cpu = cpu_info();
+    for (size_t i = 0; i < cpu._proc_type_table.size(); i++) {
+        if (cpu._proc_type_table[i][PROC_NUMA_NODE_ID] == numa_node_id) {
+            return cpu._proc_type_table[i][PROC_SOCKET_ID];
+        }
+    }
     return -1;
 };
 
