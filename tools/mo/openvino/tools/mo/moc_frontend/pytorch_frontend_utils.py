@@ -20,14 +20,15 @@ def get_pytorch_decoder(model, input_shape, example_inputs, args):
         log.error("PyTorch frontend loading failed")
         raise e
     try:
-        import nncf
-        from nncf.torch.nncf_network import NNCFNetwork
-        from packaging import version
+        if 'nncf' in sys.modules:
+            import nncf
+            from nncf.torch.nncf_network import NNCFNetwork
+            from packaging import version
 
-        if isinstance(model, NNCFNetwork):
-            if version.parse(nncf.__version__) < version.parse("2.6"):
-                raise RuntimeError(
-                    "NNCF models produced by nncf<2.6 are not supported directly. Please export to ONNX first.")
+            if isinstance(model, NNCFNetwork):
+                if version.parse(nncf.__version__) < version.parse("2.6"):
+                    raise RuntimeError(
+                        "NNCF models produced by nncf<2.6 are not supported directly. Please export to ONNX first.")
     except:
         pass
     inputs = prepare_torch_inputs(example_inputs)
