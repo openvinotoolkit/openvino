@@ -204,7 +204,8 @@ void FullyConnected::getSupportedDescriptors() {
 
     useSparseWeights = useSparseWeightsDecompression();
     useWeightsDecompressionImpl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                  inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::u8;
+                                  one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                                  weightsDataType == memory::data_type::u8;
 
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
@@ -594,10 +595,18 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
 
+    NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+    // OneDNN API doesn't provide an abilitiy to query optimal layout for runtime attributes
+    // As workaround we assume that all AMX IP implementations use equal internal IC block size for weights layout
+    // and prepack runtime attributes accordingly for better performance
+    bool withAMX = selected_pd->getImplementationType() & impl_desc_type::amx;
+    int icBlock = withAMX ? 2 : 1;
     if (!decompressionMultiply.empty())
-        dnnlpoc.appendDecompressionScales(decompressionMultiply);
+        dnnlpoc.appendDecompressionScales(decompressionMultiply, icBlock);
     if (!decompressionSubtract.empty())
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract);
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract, icBlock);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

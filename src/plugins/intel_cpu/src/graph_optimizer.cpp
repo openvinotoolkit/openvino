@@ -287,6 +287,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph &graph) {
 
 void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
     const std::set<InferenceEngine::Precision> supportedWeightsPrecisions{InferenceEngine::Precision::U8};
+    const std::set<InferenceEngine::Precision> supportedDataPrecisions{InferenceEngine::Precision::FP32, InferenceEngine::Precision::BF16};
     auto expectedNode = [](NodePtr node, Type expectedType) {
         return node->getType() == expectedType && node->getChildEdges().size() == 1;
     };
@@ -334,13 +335,13 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
 
         // Precision limitations
-        if (fcNode->getOriginalInputPrecisionAtPort(0) != Precision::FP32)
-            continue;
         if (multiplyConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
             continue;
-        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
-            continue;
         if (withSubtract && subtractConstNode->getOriginalOutputPrecisionAtPort(0) != Precision::FP32)
+            continue;
+        if (supportedDataPrecisions.find(fcNode->getOriginalInputPrecisionAtPort(0)) == supportedDataPrecisions.end())
+            continue;
+        if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
 
         // Shape limitations
@@ -356,6 +357,22 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         if (withSubtract && subtractConstNode->getOutputShapeAtPort(0).getDims() != expectedDims)
             continue;
 
+        // HW specific shape limitations
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx)) {
+            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a current solution conditions below are copied
+            // from OneDNN to make sure correct IP impl will be used since fallback one doesn't support weights decompression feature.
+            size_t OC = withTranspose ? weightsShape.getDims()[1] : weightsShape.getDims()[0];
+            size_t IC = withTranspose ? weightsShape.getDims()[0] : weightsShape.getDims()[1];
+            size_t simdWidth = 16;
+            size_t vnniFactor = 2;
+            size_t maxSize = 512;
+            auto amxRow = vnniFactor * simdWidth;
+
+            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0))
+                continue;
+        }
+
+        // Fusion processing
         fcNode->fuseDecompressionMultiply(multiplyConstNode);
         if (withSubtract)
             fcNode->fuseDecompressionSubtract(subtractConstNode);
