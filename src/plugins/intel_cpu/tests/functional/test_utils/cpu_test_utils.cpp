@@ -353,13 +353,13 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     return implString;
 }
 
-void CPUTestsBase::updateSelectedType(const ov::element::Type netType, const ov::AnyMap& config) {
+void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
     auto getExecType = [&](){
         // inference_precision affects only floating point type networks
         if (!netType.is_real())
             return netType;
 
-        auto it = config.find(ov::hint::inference_precision.name());
+        const auto it = config.find(ov::hint::inference_precision.name());
         if (it == config.end())
             return netType;
 
@@ -374,7 +374,7 @@ void CPUTestsBase::updateSelectedType(const ov::element::Type netType, const ov:
 
     const auto execType = getExecType();
 
-    selectedType = getPrimitiveType();
+    selectedType = primitiveType;
     selectedType.push_back('_');
     selectedType += InferenceEngine::details::convertPrecision(execType).name();
 }

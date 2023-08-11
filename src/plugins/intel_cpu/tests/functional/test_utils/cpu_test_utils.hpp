@@ -128,9 +128,7 @@ public:
                                const std::vector<std::string>& priority);
    //TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
-
-    static void updateSelectedTypeStr(std::string& implString, const ov::AnyMap& config);
-    void updateSelectedType(const ov::element::Type netType, const ov::AnyMap& config);
+    void updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,

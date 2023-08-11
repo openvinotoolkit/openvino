@@ -114,7 +114,7 @@ void MvnLayerCPUTest::SetUp() {
         rel_threshold = 250.f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(netPrecision, configuration);
+    updateSelectedType(getPrimitiveType(), netPrecision, configuration);
 
     function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
 }

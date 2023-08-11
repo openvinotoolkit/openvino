@@ -90,7 +90,7 @@ void ReduceCPULayerTest::SetUp() {
     }
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
+    updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
 
     init_input_shapes(inputShapes);
 

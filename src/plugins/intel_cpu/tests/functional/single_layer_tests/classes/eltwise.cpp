@@ -4,6 +4,8 @@
 
 #include "eltwise.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -83,6 +85,11 @@ void EltwiseLayerCPUTest::SetUp() {
     ov::test::utils::OpType opType;
     ov::AnyMap additionalConfig;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additionalConfig) = basicParamsSet;
+    // we have to change model precision as well, otherwise inference precision won't affect single-node graph
+    // due to enforce inference precision optimization for the eltwise as first node of the model
+    if (ov::element::Type(netType).is_real() && additionalConfig.count(ov::hint::inference_precision.name())) {
+        netType = additionalConfig[ov::hint::inference_precision.name()].as<ov::element::Type>();
+    }
 
     if (ElementType::bf16 == netType) {
         rel_threshold = 2e-2f;
@@ -110,9 +117,8 @@ void EltwiseLayerCPUTest::SetUp() {
     }
 
     init_input_shapes(shapes);
-
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-    updateSelectedType(netType, configuration);
+    updateSelectedType(getPrimitiveType(), netType, configuration);
     // selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (eltwiseType == POWER) {
