@@ -136,7 +136,7 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
