@@ -64,8 +64,10 @@ void parse_processor_info_win(const char* base_ptr,
     int group_id = 0;
     int group_type = 0;
 
+    int num_package = 0;
+
     _processors = 0;
-    _sockets = -1;
+    _sockets = 0;
     _cores = 0;
 
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info = NULL;
@@ -87,18 +89,19 @@ void parse_processor_info_win(const char* base_ptr,
         return;
     };
 
+    _proc_type_table.push_back(proc_init_line);
+
     for (; info_ptr < base_ptr + len; info_ptr += (DWORD)info->Size) {
         info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)info_ptr;
 
         if (info->Relationship == RelationProcessorPackage) {
-            _sockets++;
             MaskToList(info->Processor.GroupMask->Mask);
-            if (0 == _sockets) {
-                _proc_type_table.push_back(proc_init_line);
-            } else {
+            if (num_package > 0) {
+                _sockets++;
                 _proc_type_table.push_back(_proc_type_table[0]);
                 _proc_type_table[0] = proc_init_line;
             }
+            num_package++;
         } else if (info->Relationship == RelationProcessorCore) {
             MaskToList(info->Processor.GroupMask->Mask);
 
