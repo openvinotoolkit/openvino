@@ -7,7 +7,7 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny
-from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map
+from openvino.frontend.pytorch.utils import ivalue_to_constant, get_value_from_getattr, pt_to_ov_type_map, torch_tensor_to_ov_const
 from openvino.runtime import opset11 as ops
 
 import typing
@@ -29,11 +29,12 @@ class ModelWrapper(torch.nn.Module):
 
 
 class TorchScriptPythonDecoder (Decoder):
-    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None):
+    def __init__(self, pt_module, graph_element=None, example_input=None, alias_db=None, shared_memory=True):
         Decoder.__init__(self)
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self._input_signature = None
+        self._shared_memory = shared_memory
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(pt_module, example_input)
@@ -43,10 +44,9 @@ class TorchScriptPythonDecoder (Decoder):
                     help_msg = ""
                 else:
                     msg = "scripting"
-                    help_msg = "Tracing sometimes provide better results, "
-                    "please provide valid 'example_input' argument. "
+                    help_msg = "\nTracing sometimes provide better results, please provide valid 'example_input' argument. "
                 raise RuntimeError(
-                    f"Couldn't get TorchScript module by {msg}. {help_msg}"
+                    f"Couldn't get TorchScript module by {msg}. With exception:\n{e}\n {help_msg}"
                     "You can also provide TorchScript module that you obtained"
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
@@ -58,8 +58,15 @@ class TorchScriptPythonDecoder (Decoder):
         self.pt_module = pt_module
         self.raw_inputs = list(self.graph_element.inputs())
         self.raw_outputs = list(self.graph_element.outputs())
-        if self._input_signature is not None and "self" in self.raw_inputs[0].debugName():
-            self._input_signature.insert(0, "self")
+        if self._input_signature is not None:
+            if "self" in self.raw_inputs[0].debugName():
+                self._input_signature.insert(0, "self")
+            if 0 < len(self._input_signature) < len(self.raw_inputs):
+                # last input is args input, we need to multiply that name by number of extra inputs
+                self._input_signature = self._input_signature[:-1]
+                n = len(self._input_signature)
+                for i in range(len(self.raw_inputs) - n):
+                    self._input_signature.append(self.raw_inputs[i + n].debugName())
 
         if isinstance(self.graph_element, torch.Graph):
             self._transform_tensor_list_constants_to_listconstruct(self.graph_element)
@@ -153,8 +160,11 @@ class TorchScriptPythonDecoder (Decoder):
                 except Exception:
                     try:
                         scripted = torch.jit.script(pt_module)
-                    except Exception:
-                        scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
+                    except Exception as se:
+                        try:
+                            scripted = torch.jit.trace(pt_module, **input_parameters, strict=False)
+                        except Exception as te:
+                            raise f"Tracing failed with exception {te}\nScripting failed with exception: {se}"
             skip_freeze = False
             for n in scripted.inlined_graph.nodes():
                 # TODO: switch off freezing for all traced models
@@ -276,7 +286,7 @@ class TorchScriptPythonDecoder (Decoder):
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
         for node in self.graph_element.nodes():
-            decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db)
+            decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db, shared_memory=self._shared_memory)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -292,7 +302,7 @@ class TorchScriptPythonDecoder (Decoder):
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
-        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index], alias_db=self.alias_db)
+        decoder = TorchScriptPythonDecoder(self.pt_module, self.get_subgraphs()[index], alias_db=self.alias_db, shared_memory=self._shared_memory)
         self.m_decoders.append(decoder)
         return decoder
 
@@ -329,7 +339,7 @@ class TorchScriptPythonDecoder (Decoder):
         return node
 
     @staticmethod
-    def convert_quantized_tensor(qtensor: torch.Tensor):
+    def convert_quantized_tensor(qtensor: torch.Tensor, shared_memory: bool):
         # need to represent as Constant(u8) -> Convert(f32) -> Subtract(zero_point) -> Multiply (scale)
         qscheme = qtensor.qscheme()  # torch.per_channel_affine (per_tensor)
         if qscheme == torch.per_channel_affine:
@@ -342,8 +352,8 @@ class TorchScriptPythonDecoder (Decoder):
             new_shape[axis] = -1
             zero_point_bc = np.reshape(zero_point, new_shape)
             scale_bc = np.reshape(scale, new_shape)
-
-            int8_const = op.Constant(int8_tensor.numpy())
+            
+            int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point_bc)
             return ops.multiply(sub, scale_bc).outputs()
@@ -352,7 +362,7 @@ class TorchScriptPythonDecoder (Decoder):
             scale = np.float32(qtensor.q_scale())
             zero_point = np.float32(qtensor.q_zero_point())
 
-            int8_const = op.Constant(int8_tensor.numpy())
+            int8_const = torch_tensor_to_ov_const(int8_tensor, shared_memory=shared_memory)
             convert = ops.convert(int8_const, np.float32)
             sub = ops.subtract(convert, zero_point)
             return ops.multiply(sub, scale).outputs()
@@ -365,7 +375,7 @@ class TorchScriptPythonDecoder (Decoder):
             # We assume this is __torch__.torch.classes.quantized.Conv2dPackedParamsBase or __torch__.torch.classes.quantized.LinearPackedParamsBase
             # TODO: but can be anything. Figure a better way to distinguish
             weight, bias = pt_value.unpack()
-            res = self.convert_quantized_tensor(weight)
+            res = self.convert_quantized_tensor(weight, self._shared_memory)
             if isinstance(bias, torch.Tensor):
                 res += ivalue_to_constant(bias)
             else:
@@ -376,12 +386,15 @@ class TorchScriptPythonDecoder (Decoder):
                 padding = pt_value.padding()
                 dilation = pt_value.dilation()
                 groups = pt_value.groups()
-                res += ivalue_to_constant(stride) + ivalue_to_constant(padding) + ivalue_to_constant(dilation) + ivalue_to_constant(groups)
+                res += ivalue_to_constant(stride, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(padding, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(dilation, shared_memory=self._shared_memory)
+                res += ivalue_to_constant(groups, shared_memory=self._shared_memory)
             except:
                 pass
             return res
         elif not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
-            return ivalue_to_constant(pt_value)
+            return ivalue_to_constant(pt_value, shared_memory=self._shared_memory)
         else:
             return []
 
@@ -393,10 +406,10 @@ class TorchScriptPythonDecoder (Decoder):
         pt_value = self._raw_output(0)
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return ivalue_to_constant(pt_value.toIValue())
+            return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
-        return ivalue_to_constant(pt_value.toIValue())
+        return ivalue_to_constant(pt_value.toIValue(), shared_memory=self._shared_memory)
 
     def as_string(self):
         if self.get_op_type() == "prim::Constant":
