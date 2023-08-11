@@ -254,7 +254,8 @@ OutputVector translate_randn_like(const NodeContext& context) {
 };
 
 OutputVector translate_randint(const NodeContext& context) {
-    // aten::randint.low(int low, int high, SymInt[] size, *, ScalarType? dtype=4, Layout? layout=None, Device? device=None, bool? pin_memory=None) -> Tensor
+    // aten::randint.low(int low, int high, SymInt[] size, *, ScalarType? dtype=4, Layout? layout=None, Device?
+    // device=None, bool? pin_memory=None) -> Tensor
     num_inputs_check(context, 7, 7);
     auto low = context.get_input(0);
     auto high = context.get_input(1);
@@ -265,7 +266,8 @@ OutputVector translate_randint(const NodeContext& context) {
     if (!context.input_is_none(3)) {
         if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(3));
-        } else if (const auto& fw_node = cast_fw_node(context.get_input(static_cast<int>(3)).get_node_shared_ptr(), "prim::dtype")) {
+        } else if (const auto& fw_node =
+                       cast_fw_node(context.get_input(static_cast<int>(3)).get_node_shared_ptr(), "prim::dtype")) {
             convert_like_out = fw_node->input_value(0);
             dtype_applied = false;
         } else {
