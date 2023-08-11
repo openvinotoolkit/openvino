@@ -248,6 +248,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
         {"aten::cat", op::translate_cat},
+        {"aten::concat", op::translate_cat},
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
