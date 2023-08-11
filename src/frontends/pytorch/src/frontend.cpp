@@ -111,12 +111,6 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 }  // namespace
 
 FrontEnd::FrontEnd() {
-    const char* torch_tracing_mode = std::getenv("PYTORCH_TRACING_MODE");
-    if ((torch_tracing_mode != nullptr) && std::strcmp(torch_tracing_mode, "TORCHFX") == 0) {
-        m_op_translators = get_supported_ops_fx();
-    } else {
-        m_op_translators = get_supported_ops_ts();
-    }
 }
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
@@ -145,9 +139,17 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
+    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
+        supported_ops = get_supported_ops_fx();
+    else
+        supported_ops = get_supported_ops_ts();
+    for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
+        supported_ops[i->first] = i->second;
+
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     try {
-        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        TranslateSession translate_session(model, supported_ops, m_telemetry);
         return translate_session.get_converted_model();
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
@@ -221,12 +223,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
-        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+        m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
     } else if (auto conv_ext = std::dynamic_pointer_cast<ov::frontend::pytorch::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(conv_ext);
-        m_op_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
+        m_op_extension_translators[conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return conv_ext->get_converter()(context);
         };
     } else if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {

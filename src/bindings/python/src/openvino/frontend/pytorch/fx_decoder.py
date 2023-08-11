@@ -181,6 +181,9 @@ class TorchFXPythonDecoder (Decoder):
             return 0
         return len(self.get_subgraphs()) if hasattr(self.pt_module, 'blocks') else 1
 
+    def decoder_type_name(self) -> str:
+        return "fx"
+
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
         for node in self._nodes:

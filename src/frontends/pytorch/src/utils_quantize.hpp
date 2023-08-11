@@ -29,6 +29,9 @@ public:
     virtual size_t get_subgraph_size() const override {
         return 0;
     }
+    virtual const std::string& decoder_type_name() const override {
+        return "qt";
+    }
 
 private:
     const Output<Node> m_qinput;
