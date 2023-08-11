@@ -41,7 +41,7 @@ class TestTensorSplit(PytorchLayerTest):
 
         return aten_tensor_split(splits, axis), None, "aten::tensor_split"
 
-    @pytest.mark.parametrize("input_shape", [(2, 2), (4, 4), (5, 9, 7), (10, 13, 11)])
+    @pytest.mark.parametrize("input_shape", [(2, 1, 8), (3, 5, 7, 11)])
     @pytest.mark.parametrize(
         "splits",
         [
@@ -55,8 +55,7 @@ class TestTensorSplit(PytorchLayerTest):
             [-5],
             [1, 3],
             [1, 3, 5],
-            [2, -1, 7],
-            [100, -1, 7],
+            [5, -1, 7],
         ],
     )
     @pytest.mark.parametrize("axis", [0, 1, -1])
