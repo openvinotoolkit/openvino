@@ -19,11 +19,13 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 
+namespace {
 void label_shape(ov::PartialShape& shape, size_t start_label = 42) {
     auto table = std::make_shared<ov::TableOfEquivalence>(start_label);
     auto tracker = ov::DimensionTracker(table);
     tracker.set_up_for_tracking(shape);
 }
+}  // namespace
 
 TEST_F(TransformationTestsF, ChainedMaximumAC) {
     // A == C

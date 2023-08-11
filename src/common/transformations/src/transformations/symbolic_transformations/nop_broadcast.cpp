@@ -10,49 +10,52 @@
 #include <openvino/op/shape_of.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 
+#include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
+#include "transformations/utils/utils.hpp"
+
+using namespace std;
+using namespace ov;
+using namespace ov::op;
+
+namespace {
+auto bc_predicate = [](Output<Node> output) {
+    const auto& op = output.get_node_shared_ptr();
+    auto data_rank = op->get_input_partial_shape(0).rank();
+    auto new_shape_shape = op->get_input_partial_shape(1);
+    return data_rank.is_static() && new_shape_shape.is_static() && data_rank == new_shape_shape[0];
+};
+}
 
 ov::pass::NopBroadcast::NopBroadcast() {
     MATCHER_SCOPE(NopBroadcast);
     auto input_label = pattern::any_input(pattern::has_static_rank());
     auto shape_of = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>();
-    auto ones = pattern::wrap_type<op::v0::Constant>();
+    auto ones = INT_CONSTANT_WITH_PREDICATE(std::all_of(value.begin(), value.end(), cmp::Equal<int64_t>(1)));
     auto maximum = pattern::wrap_type<op::v1::Maximum>({shape_of, ones});
-    auto broadcast = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>({input_label, maximum});
+    auto broadcast_three_inputs =
+        pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>({input_label, maximum, pattern::any_input()},
+                                                                 bc_predicate);
+    auto broadcast_two_inputs =
+        pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>({input_label, maximum}, bc_predicate);
+    auto or_label = make_shared<pattern::op::Or>(OutputVector{broadcast_two_inputs, broadcast_three_inputs});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
-        auto constant = ov::as_type_ptr<op::v0::Constant>(pattern_to_output.at(ones).get_node_shared_ptr());
-        if (!constant)
+        const auto& vm = m.get_pattern_value_map();
+        auto data = vm.at(input_label);
+        auto shape = vm.at(shape_of);
+
+        ov::TensorLabel data_labels, shape_labels;
+        if (!get_labels(data.get_partial_shape(), data_labels) || !get_labels(shape, shape_labels))
             return false;
-        auto valid_labels = [](const ov::TensorLabel& labels) {
-            return !labels.empty() && std::all_of(labels.begin(), labels.end(), [](const label_t& l) {
-                return l != 0;
-            });
-        };
-        auto shape_of_labels = pattern_to_output.at(shape_of).get_tensor().get_value_label();
-        if (!valid_labels(shape_of_labels))
+
+        if (!are_unique_and_equal_labels(data_labels, shape_labels))
             return false;
-        auto input = pattern_to_output.at(input_label);
-        ov::TensorLabel input_labels;
-        for (const auto& dim : input.get_partial_shape()) {
-            if (dim.get_max_length() == 0)
-                return false;
-            input_labels.push_back(ov::DimensionTracker::get_label(dim));
-        }
-        if (!valid_labels(input_labels))
-            return false;
-        auto constant_content = constant->cast_vector<int64_t>();
-        bool all_ones = std::all_of(constant_content.begin(), constant_content.end(), [](const int64_t& i) {
-            return i == 1;
-        });
-        if (constant_content.size() > input.get_partial_shape().size() || !all_ones)
-            return false;
-        auto output = pattern_to_output.at(broadcast);
-        output.replace(input);
-        return true;
+        return ov::replace_output_update_name(m.get_match_root(), data);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(or_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

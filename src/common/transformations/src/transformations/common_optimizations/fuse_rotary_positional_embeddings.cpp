@@ -15,22 +15,7 @@
 #include <ov_ops/rotary_positional_embeddings.hpp>
 
 #include "itt.hpp"
-
-ov::pass::pattern::op::ValuePredicate constant_predicate(
-    const std::function<bool(const std::vector<int64_t>&)>& predicate) {
-    return ov::pass::pattern::op::as_value_predicate([&](std::shared_ptr<ov::Node> n) -> bool {
-        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(n)) {
-            auto values = constant->cast_vector<int64_t>();
-            return predicate(values);
-        }
-        return false;
-    });
-}
-
-#define CONSTANT_WITH_PREDICATE(expression)                                                                 \
-    pattern::wrap_type<op::v0::Constant>(constant_predicate([](const std::vector<int64_t>& value) -> bool { \
-        return expression;                                                                                  \
-    }))
+#include "transformations/utils/utils.hpp"
 
 ov::pass::RPE_Fusion::RPE_Fusion() {
     MATCHER_SCOPE(RPE_Fusion);
@@ -45,12 +30,12 @@ ov::pass::RPE_Fusion::RPE_Fusion() {
 
     // Variadic Split into two equal parts
     auto axis = pattern::any_input();
-    auto split_length = CONSTANT_WITH_PREDICATE(value.size() == 2 && value[0] == value[1]);
+    auto split_length = INT_CONSTANT_WITH_PREDICATE(value.size() == 2 && value[0] == value[1]);
     auto vsplit = pattern::wrap_type<op::v1::VariadicSplit>({source, axis, split_length});
     vsplit->set_output_size(2);
 
     // Negate
-    auto minus_1 = CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
+    auto minus_1 = FLOAT_CONSTANT_WITH_PREDICATE(value.size() == 1 && value[0] == -1);
     auto neg = pattern::wrap_type<op::v1::Multiply>({vsplit->output(1), minus_1});
 
     // Concat two splitted parts in the opposite order, first of them is negated
