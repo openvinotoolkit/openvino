@@ -439,7 +439,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
 
-                example_outputs = None
+                outputs = None
                 if 'output' in args and args['output'] is not None:
                     outputs = args['output']
                 paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs,
