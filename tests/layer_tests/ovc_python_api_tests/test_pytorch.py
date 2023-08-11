@@ -176,7 +176,7 @@ def create_pytorch_nn_module_with_scalar_input(tmp_dir):
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = sample_input1, sample_input2
 
-    return pt_model, ref_model, {'input_shape': [PartialShape("[]"), PartialShape([-1, 3, -1, -1])],
+    return pt_model, ref_model, {'input': ["[]", PartialShape([-1, 3, -1, -1])],
                                  'example_input': sample_input}
 
 
@@ -188,7 +188,7 @@ def create_pytorch_nn_module_case3(tmp_dir):
     sample_input2 = torch.zeros(1, 3, 10, 10)
     sample_input = tuple([sample_input1, sample_input2])
 
-    return pt_model, ref_model, {'input_shape': "[?,3,?,?],[?,3,?,?]",
+    return pt_model, ref_model, {'input': "[?,3,?,?],[?,3,?,?]",
                                  'example_input': sample_input}
 
 
@@ -530,7 +530,7 @@ def create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input(tmp_dir)
     pt_model = make_pt_model_one_input()
     inp_shapes = [Dimension(-1), 3, 20, Dimension(20, -1)]
     ref_model = make_ref_pt_model_one_input(inp_shapes)
-    return pt_model, ref_model, {'input': InputCutInfo(shape=inp_shapes, type=np.float32)}
+    return pt_model, ref_model, {'input': (inp_shapes, np.float32)}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
@@ -559,7 +559,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10)),
-        'input': [InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
+        'input': [([-1, -1, -1, -1], np.float32)]
     }
 
 
@@ -576,7 +576,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend2(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": torch.zeros((1, 3, 10, 10), dtype=torch.int32),
-        'input': [InputCutInfo(shape=[-1, -1, -1, -1], type="i32")]
+        'input': [([-1, -1, -1, -1], np.int32)]
     }
 
 
@@ -594,7 +594,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
     return pt_model, ref_model, {
         "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))],
-        'input': [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
+        'input': [([-1, -1, -1, -1], np.float32), ([-1, -1, -1, -1], np.float32)]
     }
 
 
@@ -613,7 +613,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     return pt_model, ref_model, {
         "example_input": {"x": torch.zeros((1, 3, 10, 10), dtype=torch.float32),
                           "y": torch.ones((1, 3, 10, 10), dtype=torch.float32)},
-        'input': [InputCutInfo(shape=[-1, -1, -1, -1], type="f32"), InputCutInfo(shape=[-1, -1, -1, -1], type="f32")]
+        'input': [([-1, -1, -1, -1], np.float32), ([-1, -1, -1, -1], np.float32)]
     }
 
 
@@ -668,8 +668,9 @@ def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
     net = ConvModel()
     shape = PartialShape([-1, 3, -1, -1])
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    weights = ov.opset10.constant(net.weights.numpy(force=True), dtype=np.float32)
-    conv = ov.opset10.convolution(param1, weights, strides=[1, 1],
+    weights = ov.opset10.constant(net.weights.numpy(force=True), dtype=np.float16)
+    decompress_weights = ov.opset10.convert(weights, np.float32)
+    conv = ov.opset10.convolution(param1, decompress_weights, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
     parameter_list = [param1]
@@ -727,10 +728,12 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
     cast1 = ov.opset10.convert(weights, np.float32)
-    sub1_const = np.float32(0.5).reshape(1, 1, 1, 1)
-    mul1_const = np.float32(0.02).reshape(1, 1, 1, 1)
-    sub1 = ov.opset10.subtract(cast1, sub1_const)
-    mul1 = ov.opset10.multiply(sub1, mul1_const)
+    sub1_const = np.float16(0.5).reshape(1, 1, 1, 1)
+    mul1_const = np.float16(0.02).reshape(1, 1, 1, 1)
+    sub1_const_decompress = ov.opset10.convert(sub1_const, np.float32)
+    mul1_const_decompress = ov.opset10.convert(mul1_const, np.float32)
+    sub1 = ov.opset10.subtract(cast1, sub1_const_decompress)
+    mul1 = ov.opset10.multiply(sub1, mul1_const_decompress)
     conv = ov.opset10.convolution(param1, mul1, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
                                   dilations=[1, 1])
@@ -1014,69 +1017,10 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
         test_params = {'input_model': fw_model}
-        test_params.update({'use_convert_model_from_mo': True})
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params,
                                 graph_ref, compare_tensor_names=False)
-
-    @ pytest.mark.precommit
-    def test_sharing_memory_switched_off(self, ie_device, precision, ir_version, temp_dir):
-        from openvino.tools.ovc import convert_model
-        from openvino.runtime import Core
-        
-        class DataModel(torch.nn.Module):
-            def __init__(self):
-                super(DataModel, self).__init__()
-                self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
-                return self.data, x
-
-        data_model = DataModel()
-        test_input = np.array([0, 0, 0, 0])
-
-        # Convert model to OV
-        ov_model = convert_model(data_model, input=([4], Type.i32), share_weights=False)
-
-        # Change value of variables in original model
-        data_model.data[0] *= 2
-
-        # Check model inference
-        core = Core()
-        cmp_model = core.compile_model(ov_model, ie_device)
-        ov_infer1 = cmp_model(test_input)
-
-        assert np.array_equal(ov_infer1[0], [1, 2, 3, 4])
-
-    @ pytest.mark.precommit
-    def test_sharing_memory_switched_on(self, ie_device, precision, ir_version, temp_dir):
-        from openvino.tools.ovc import convert_model
-        from openvino.runtime import Core
-        
-        class DataModel(torch.nn.Module):
-            def __init__(self):
-                super(DataModel, self).__init__()
-                self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
-                return self.data, x
-
-        data_model = DataModel()
-        test_input = np.array([0, 0, 0, 0])
-
-        # Convert model to OV
-        ov_model = convert_model(data_model, input=([4], Type.i32), share_weights=True)
-
-        # Change value of variables in original model
-        data_model.data[0] *= 2
-
-        # Check model inference
-        core = Core()
-        cmp_model = core.compile_model(ov_model, ie_device)
-        ov_infer1 = cmp_model(test_input)
-
-        assert np.array_equal(ov_infer1[0], [2, 2, 3, 4])
 
 
 def create_pt_model_with_custom_op():
@@ -1098,15 +1042,15 @@ def create_pt_model_with_custom_op():
 
 class ConvertRaises(unittest.TestCase):
     def test_example_inputs(self):
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         pytorch_model = create_pt_model_with_custom_op()
 
         # Check that mo raises error message of wrong argument.
-        with self.assertRaisesRegex(AssertionError, ".*'example_inputs' argument is not recognized.*"):
+        with self.assertRaisesRegex(TypeError, ".*got an unexpected keyword argument 'example_inputs'.*"):
             convert_model(pytorch_model, example_inputs=(torch.tensor(1),))
 
     def test_failed_extension(self):
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         from openvino.frontend.pytorch import ConversionExtension
 
         inp_shapes = [1, 3, 20, 20]
@@ -1122,8 +1066,8 @@ class ConvertRaises(unittest.TestCase):
 
     def test_failed_extension(self):
         import tempfile
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
 
-        with self.assertRaisesRegex(Exception, ".*PyTorch Frontend doesn't support provided model type.*"):
+        with self.assertRaisesRegex(Exception, ".*Cannot recognize input model.*"):
             with tempfile.NamedTemporaryFile() as tmpfile:
-                convert_model(tmpfile.name, framework="pytorch")
+                convert_model(tmpfile.name)
