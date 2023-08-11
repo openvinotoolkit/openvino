@@ -227,7 +227,7 @@ TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>
 TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
 
 template <typename T>
-ov::pass::pattern::op::ValuePredicate constant_predicate(const std::function<bool(const std::vector<T>&)>& predicate) {
+ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
     return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
         if (auto constant = as_type_ptr<v0::Constant>(n)) {
             auto values = constant->cast_vector<T>();
