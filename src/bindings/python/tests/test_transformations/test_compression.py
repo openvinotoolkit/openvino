@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import tempfile
 from typing import List
 
@@ -10,6 +14,7 @@ import openvino as ov
 
 def make_constant(values, transposed):
     return Constant(ov.Type.f32, ov.Shape([1, len(values)] if transposed else [len(values), 1]), values)
+
 
 # keep fp16 denormals, flush fp32 denormals to zero
 in_range = [-65504.0, -2.0, 1.00097656, -1.0, -0.99951172, -0.00006103515625, -0.000000059604645, 0.0,
