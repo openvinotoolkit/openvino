@@ -44,6 +44,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
             node,
             static_cast<int64_t>(mapped_memory->size()) >= entry.offset() + entry.size(),
             "[TensorFlow Frontend] Internal error: Variable entry size is out of bounds of mapped memory size.");
+        OPENVINO_SUPPRESS_DEPRECATED_START
         return std::make_shared<Constant>(
             ov_type,
             shape,
@@ -51,6 +52,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> v
                 mapped_memory->data() + entry.offset(),
                 entry.size(),
                 mapped_memory));
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         std::vector<T> var_data;
         var_data.resize(size);
