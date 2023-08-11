@@ -120,7 +120,8 @@ FrontEnd::FrontEnd() {
 }
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
+    TranslateSession translate_session(model, m_op_translators, m_telemetry);
+    auto converted_model = translate_session.get_converted_model();
 
     std::string norm_err;
     try {
@@ -148,7 +149,13 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     try {
         TranslateSession translate_session(model, m_op_translators, m_telemetry);
-        return translate_session.get_converted_model();
+        auto partial_model = translate_session.get_converted_model();
+        try {
+            normalize(partial_model);
+        } catch (...) {
+            // normalize can fail on partially converted model. Suppress any exception.
+        }
+        return partial_model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
         std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
