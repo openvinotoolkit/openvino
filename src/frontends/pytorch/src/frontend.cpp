@@ -119,9 +119,20 @@ FrontEnd::FrontEnd() {
     }
 }
 
+std::shared_ptr<Model> FrontEnd::convert_denormalized(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    try {
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        return translate_session.get_converted_model();
+    } catch (const std::runtime_error& e) {
+        std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
+        std::cerr << "Rethrowing.\n";
+        throw;
+    }
+}
+
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    TranslateSession translate_session(model, m_op_translators, m_telemetry);
-    auto converted_model = translate_session.get_converted_model();
+    auto converted_model = convert_denormalized(model);
 
     std::string norm_err;
     try {
@@ -146,21 +157,13 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
-    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    auto partial_model = convert_denormalized(model);
     try {
-        TranslateSession translate_session(model, m_op_translators, m_telemetry);
-        auto partial_model = translate_session.get_converted_model();
-        try {
-            normalize(partial_model);
-        } catch (...) {
-            // normalize can fail on partially converted model. Suppress any exception.
-        }
-        return partial_model;
-    } catch (const std::runtime_error& e) {
-        std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
-        std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
-        throw;
+        normalize(partial_model);
+    } catch (...) {
+        // normalize can fail on partially converted model. Suppress any exception.
     }
+    return partial_model;
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {

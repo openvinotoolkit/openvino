@@ -61,6 +61,7 @@ public:
 protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
+    std::shared_ptr<Model> convert_denormalized(const InputModel::Ptr& mode) const;
 
     std::map<std::string, CreatorFunction> m_op_translators;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
