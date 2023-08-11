@@ -81,7 +81,6 @@ class PytorchLayerTest:
                 trace_model = kwargs.get('trace_model', False)
                 freeze_model = kwargs.get('freeze_model', True)
                 model, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
-                openvino.runtime.save_model(converted_model, "out.xml")
                 graph = model.inlined_graph
 
                 if kind is not None and not isinstance(kind, (tuple, list)):
