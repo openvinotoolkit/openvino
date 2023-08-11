@@ -66,7 +66,7 @@ For example:
 +====================================+===============================================================================================================================================================================================================================================================================+
 | Host Machine                       | Physical hardware on which the KVM and Guest VM share set up.                                                                                                                                                                                                                 |
 | Kernel-based Virtual Machine (KVM) | The OpenVINO™ Security Add-on runs in this virtual machine because it provides an isolated environment for security sensitive operations.                                                                                                                                     |
-| Guest VM                           | The Model Developer uses the Guest VM to enable access control to the completed model. <br>The Independent Software Provider uses the Guest VM to host the License Service.<br>The User uses the Guest VM to contact the License Service and run the access controlled model. |
+| Guest VM                           | The Model Developer uses the Guest VM to enable access control to the completed model. The Independent Software Provider uses the Guest VM to host the License Service. The User uses the Guest VM to contact the License Service and run the access controlled model. |
 +------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. _prerequisites_ovsa:
@@ -76,13 +76,13 @@ Prerequisites
 
 **Hardware**
 
-* Intel® Core™ or Xeon® processor<br>
+* Intel® Core™ or Xeon® processor
 
 **Operating system, firmware, and software**
 
-* Ubuntu* Linux* 18.04 on the Host Machine.<br>
+* Ubuntu* Linux* 18.04 on the Host Machine.
 * TPM version 2.0-conformant Discrete Trusted Platform Module (dTPM) or Firmware Trusted Platform Module (fTPM)
-* Secure boot is enabled.<br>
+* Secure boot is enabled.
 
 **Other**
 
@@ -126,8 +126,8 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
       
       kvm-ok 
    
-   The output should show: <br>
-   ``INFO: /dev/kvm exists`` <br>
+   The output should show:
+   ``INFO: /dev/kvm exists`` 
    ``KVM acceleration can be used``
 	
    If your output is different, modify your BIOS settings to enable hardware virtualization.
@@ -171,7 +171,7 @@ The following are installed and ready to use:
 * QEMU
 * SW-TPM
 * HW-TPM support
-* Docker<br>
+* Docker
 	
 You're ready to configure the Host Machine for networking. 
 
@@ -243,7 +243,7 @@ This example in this step uses the following names. Your configuration might use
 
    .. code-block:: sh
       
-      4: br0:<br><BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000<br>inet 123.123.123.123/<mask> brd 321.321.321.321 scope global dynamic br0
+      4: br0:<BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000inet 123.123.123.123/<mask> brd 321.321.321.321 scope global dynamic br0
    
 7. Create a script named ``br0-qemu-ifup`` to bring up the ``br0`` interface. Add the following script contents:
 
@@ -357,7 +357,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
    * **Option 1**: Use a script to install additional software
       1. Copy the script ``install_guest_deps.sh`` from the ``Scripts/reference directory`` of the OVSA repository to the Guest VM
       2. Run the script.
-      3. Shut down the Guest VM.<br>
+      3. Shut down the Guest VM.
 
    * **Option 2** : Manually install additional software
       1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__. 
@@ -367,7 +367,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
       3. Install the `tpm2-tools <https://github.com/tpm2-software/tpm2-tools/releases/download/4.3.0/tpm2-tools-4.3.0.tar.gz>`__. 
       For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
       4. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__
-      5. Shut down the Guest VM.<br>
+      5. Shut down the Guest VM.
 
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only ``root`` should have read/write permission to this directory:
    
@@ -431,7 +431,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 Step 5: Set Up one Guest VM for the User role
 +++++++++++++++++++++++++++++++++++++++++++++
 
-1. Choose **ONE** of these options to create a Guest VM for the User role:<br>
+1. Choose **ONE** of these options to create a Guest VM for the User role:
 
    **Option 1: Copy and Rename the ovsa_isv_dev_vm_disk.qcow2 disk image**
 
@@ -456,7 +456,7 @@ Step 5: Set Up one Guest VM for the User role
       sudo rm /etc/machine-id
       systemd-machine-id-setup
    
-   6. Shut down the Guest VM.<br><br>
+   6. Shut down the Guest VM.
 
    **Option 2: Manually create the Guest VM**
 
@@ -497,7 +497,7 @@ Step 5: Set Up one Guest VM for the User role
       **Option 1: Use a script to install additional software**
       1. Copy the script ``install_guest_deps.sh`` from the ``Scripts/reference`` directory of the OVSA repository to the Guest VM
       2. Run the script.
-      3. Shut down the Guest VM.<br><br>
+      3. Shut down the Guest VM.
 	        
       **Option 2: Manually install additional software**
       1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__ For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
