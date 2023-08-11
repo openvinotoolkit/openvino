@@ -122,7 +122,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto const_1 = opset10::Constant::create(element::i32, Shape{1}, {1});
             auto const_0_scalar = opset10::Constant::create(element::i32, Shape{}, {0});
             auto const_1_scalar = opset10::Constant::create(element::i32, Shape{}, {1});
-            auto const_max = opset10::Constant::create(element::i32, Shape{1}, {INT32_MAX});
+            auto const_max = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
             auto const_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
 
             auto input = tensor_split->get_input_source_output(0);
