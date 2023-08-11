@@ -365,7 +365,7 @@ private:
 }  // namespace ov
 
 
-// vpu repo uses CommonTestUtils::
+// NPU repo uses CommonTestUtils::
 // so we need to add these names to CommonTestUtils namespace
 namespace CommonTestUtils {
 using ov::test::utils::fileExists;

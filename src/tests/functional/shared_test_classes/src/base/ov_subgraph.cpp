@@ -261,14 +261,12 @@ void SubgraphBaseTest::infer() {
     inferRequest.infer();
 }
 
-std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
-
-    auto functionToProcess = functionRefs->clone();
+precisions_map SubgraphBaseTest::get_ref_precisions_convert_map() {
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     precisions_map precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
     };
+
     auto convert_added = false;
     for (const auto &param : function->get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); i++) {
@@ -281,11 +279,21 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
             }
         }
     }
+
     if (!convert_added) {
         precisions.insert({ ngraph::element::f16, ngraph::element::f32});
     }
+
+    return precisions;
+}
+
+std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
+
+    auto functionToProcess = functionRefs->clone();
+    precisions_map convert_precisions = get_ref_precisions_convert_map();
     pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precisions);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 

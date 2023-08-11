@@ -84,6 +84,7 @@ OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_log);
@@ -92,6 +93,7 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
+OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
@@ -331,6 +333,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
         {"aten::linalg_vector_norm", op::translate_linalg_vector_norm},
         {"aten::linear", op::translate_linear},
+        {"aten::linspace", op::translate_linspace},
         {"aten::log", op::translate_log},
         {"aten::log_", op::inplace_op<op::translate_log>},
         {"aten::log_softmax", op::translate_log_softmax},
@@ -339,6 +342,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
+        {"aten::masked_scatter", op::translate_masked_scatter},
+        {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
