@@ -59,16 +59,23 @@ bool IsSpecialPRelu(NodePtr node) {
     if (!prelu)
         return false;
 
-    const auto slope_shape = prelu->get_input_partial_shape(1);
-    if (slope_shape.is_dynamic() || slope_shape.size() != 1)
+    const auto& slope_shape = prelu->get_input_partial_shape(1);
+    if (slope_shape.size() != 1)
+        return false;
+    const auto& slope_channel_dim = slope_shape[0];
+    if (slope_channel_dim.is_dynamic())
         return false;
 
-    const auto arg_shape = prelu->get_input_partial_shape(0);
+    const auto& arg_shape = prelu->get_input_partial_shape(0);
     if (arg_shape.rank().is_dynamic())
         return false;
 
-    const auto channel_dim_idx = arg_shape.size() > 1 ? 1 : 0;
-    return arg_shape.get_shape()[channel_dim_idx] == slope_shape.get_shape()[0];
+    const auto& channel_dim_idx = arg_shape.size() > 1 ? 1 : 0;
+    const auto& arg_channel_dim = arg_shape[channel_dim_idx];
+    if (arg_channel_dim.is_dynamic())
+        return false;
+
+    return arg_channel_dim == slope_channel_dim;
 }
 }  // namespace
 
