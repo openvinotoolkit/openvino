@@ -200,9 +200,9 @@ public:
     };
 
     Attribute() = delete;
-    explicit Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto,
-                       const std::string& model_dir,
-                       detail::MappedMemoryHandles mmap_cache)
+    Attribute(const ONNX_NAMESPACE::AttributeProto& attribute_proto,
+              const std::string& model_dir,
+              detail::MappedMemoryHandles mmap_cache)
         : m_attribute_proto{&attribute_proto},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {}

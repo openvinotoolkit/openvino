@@ -57,7 +57,7 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
     }
     return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data() + m_offset,
-        m_data_length,
+        m_data_length == 0 ? file_size : m_data_length,
         mapped_memory);
 }
 

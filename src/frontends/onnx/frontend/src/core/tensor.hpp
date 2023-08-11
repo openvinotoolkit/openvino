@@ -108,9 +108,9 @@ public:
     };
 
     Tensor() = delete;
-    explicit Tensor(const ONNX_NAMESPACE::TensorProto& tensor,
-                    const std::string& model_dir,
-                    detail::MappedMemoryHandles mmap_cache)
+    Tensor(const ONNX_NAMESPACE::TensorProto& tensor,
+           const std::string& model_dir,
+           detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
