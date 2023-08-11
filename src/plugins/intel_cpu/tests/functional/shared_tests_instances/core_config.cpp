@@ -36,8 +36,7 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
     #endif
     #if defined(OV_CPU_ARM_ENABLE_FP16)
         if (!test->configuration.count(ov::hint::inference_precision.name())) {
-            auto function = test->compiledModel.get_runtime_model();
-            ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::getModelType(function);
+            ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::getModelType(test->function);
             if (modelType != ov::intel_cpu::Config::ModelType::CNN) {
                 test->configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
             }
