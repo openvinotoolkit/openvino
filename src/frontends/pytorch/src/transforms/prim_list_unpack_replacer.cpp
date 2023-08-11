@@ -124,7 +124,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             auto const_1_scalar = opset10::Constant::create(element::i32, Shape{}, {1});
             auto const_max = opset10::Constant::create(element::i32, Shape{1}, {INT32_MAX});
             auto const_neg_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
-            
+
             auto input = tensor_split->get_input_source_output(0);
             auto indices_or_sections = tensor_split->get_input_source_output(1);
             auto dim = rg.make<opset10::Unsqueeze>(tensor_split->get_input_source_output(2), const_0);
