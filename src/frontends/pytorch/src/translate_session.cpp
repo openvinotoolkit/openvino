@@ -118,20 +118,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->push_back(parameter);
                 input_node = parameter;
-                auto order = pytorch_model->get_input_transpose_order(i);
-                if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
-                    FRONT_END_GENERAL_CHECK(pshape.is_static(), "Shape must be static.");  // TODO: make dynamic
-                    auto sh = pshape.get_shape();
-                    Shape new_shape(sh.size());
-                    for (size_t i = 0; i < sh.size(); i++) {
-                        new_shape[order[i]] = sh[i];
-                    }
-                    auto shape_const = v0::Constant::create(element::i32, {new_shape.size()}, new_shape);
-                    auto reshape = std::make_shared<v1::Reshape>(parameter, shape_const, false);
-                    auto order_const = v0::Constant::create(element::i32, {order.size()}, order);
-                    auto transpose = std::make_shared<v1::Transpose>(reshape, order_const);
-                    input_node = transpose;
-                }
             }
             (*tensor_map)[inputs.at(i)] = input_node;
         }
@@ -167,7 +153,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         dtype = type.as<element::Type>();
                     }
                     auto parameter = std::make_shared<v0::Parameter>(dtype, ps);
-                    // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
@@ -240,9 +225,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 (*tensor_map)[id] = parameter;
             }
             auto ov_output = tensor_map->at(id);
-            auto order = pytorch_model->get_output_transpose_order(i);
-            FRONT_END_GENERAL_CHECK(order.size() == 0 || std::is_sorted(order.begin(), order.end()),
-                                    "Output strides have wrong order.");
             FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
                                     "Tensor doesn't have name, while it should have name: ",
                                     id);

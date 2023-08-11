@@ -261,22 +261,6 @@ class TorchScriptPythonDecoder (Decoder):
         full_type = self._get_known_type_for_value(value.type())
         return full_type
 
-    def get_input_transpose_order(self, index: int) -> list:
-        raw_input = self._raw_input(index)
-        if raw_input.type() is not None and raw_input.type().kind() == "TensorType":
-            strides = raw_input.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
-    def get_output_transpose_order(self, index: int) -> list:
-        output = self._raw_output(index)
-        if output.type() is not None and output.type().kind() == "TensorType":
-            strides = output.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
             return len(self.get_subgraphs())

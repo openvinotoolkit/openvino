@@ -41,7 +41,7 @@ class TestQuantizedConv2D(PytorchLayerTest):
                 x_quantized = torch.quantize_per_tensor(
                     x, 1.0, 0, torch.quint8)
                 conv = self.conv(x_quantized)
-                return torch.dequantize(conv).contiguous()
+                return torch.dequantize(conv)
 
         ref_net = None
         if not relu:
@@ -54,13 +54,8 @@ class TestQuantizedConv2D(PytorchLayerTest):
     @pytest.mark.parametrize(
         "params",
         [
-            pytest.param(
-                {"weights_shape": [1, 3, 3, 3], "strides": 1,
-                    "pads": 0, "dilations": 1, "groups": 1},
-                marks=pytest.mark.xfail(
-                    reason="Output channels equal to 1 creates output that fails to cast to contiguous."
-                ),
-            ),
+            {"weights_shape": [1, 3, 3, 3], "strides": 1,
+                "pads": 0, "dilations": 1, "groups": 1},
             {"weights_shape": [2, 3, 3, 3], "strides": 1,
                 "pads": 0, "dilations": 1, "groups": 1},
             {"weights_shape": [2, 3, 3, 3], "strides": 2,
