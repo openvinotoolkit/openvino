@@ -1435,7 +1435,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -------------------------------------------------------------
-22.DevZH.FlatBuffers(https://www.nuget.org/packages/DevZH.FlatBuffers), OpenCV(https://github.com/opencv/opencv/), OpenVINO toolkit(https://github.com/openvinotoolkit/openvino)
+22.flatbuffers(https://github.com/google/flatbuffers), OpenCV(https://github.com/opencv/opencv/), OpenVINO toolkit(https://github.com/openvinotoolkit/openvino)
 
  Apache License
                            Version 2.0, January 2004
