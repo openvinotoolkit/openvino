@@ -357,19 +357,19 @@ void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float
 }
 
 template<ov::element::Type_t DT>
-void fill_tensor_random(ov::Tensor& tensor, double range = 10, double start_from = 0, const int32_t k = 1, int seed = 1) {
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range, const int32_t start_from, const int32_t k, const int seed) {
     using T = typename ov::element_type_traits<DT>::value_type;
     auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
     if (DT == ov::element::u4 || DT == ov::element::i4 ||
         DT == ov::element::u1) {
-        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), static_cast<uint32_t>(range), static_cast<int32_t>(start_from), k, seed);
+        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
     } else {
-        fill_data_random(rawBlobDataPtr, tensor.get_size(), static_cast<uint32_t>(range), static_cast<int32_t>(start_from), k, seed);
+        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
     }
 }
 
 template<ov::element::Type_t DT>
-void fill_tensor_random_float(ov::Tensor& tensor, double range, double start_from, int32_t k, int seed = 1) {
+void fill_tensor_random_float(ov::Tensor& tensor, const double range, const double start_from, const int32_t k, const int seed) {
     using T = typename ov::element_type_traits<DT>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
@@ -389,10 +389,10 @@ void fill_tensor_random_float(ov::Tensor& tensor, double range, double start_fro
     }
 }
 
-void fill_tensor_random(ov::Tensor& tensor, double range, double start_from, int32_t k, int seed) {
+void fill_tensor_random(ov::Tensor& tensor, const double range, const double start_from, const int32_t k, const int seed) {
     auto element_type = tensor.get_element_type();
 
-#define CASE(X) case X: fill_tensor_random<X>(tensor, range, start_from, k, seed); break;
+#define CASE(X) case X: fill_tensor_random<X>(tensor, static_cast<uint32_t>(range), static_cast<int32_t>(start_from), k, seed); break;
 #define CASE_FLOAT(X) case X: fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
 
     switch (element_type) {

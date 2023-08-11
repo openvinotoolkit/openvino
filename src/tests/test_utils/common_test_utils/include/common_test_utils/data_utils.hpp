@@ -266,7 +266,7 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
  * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
-void fill_tensor_random(ov::Tensor& tensor, double range = 10, double start_from = 0, int32_t k = 1, int seed = 1);
+void fill_tensor_random(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int32_t k = 1, const int seed = 1);
 
 /** @brief Fill blob with random data.
  *
