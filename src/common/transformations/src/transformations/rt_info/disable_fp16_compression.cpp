@@ -18,3 +18,15 @@ bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
     const auto& rt_info = node->get_rt_info();
     return rt_info.count(DisableFP16Compression::get_type_info_static());
 }
+
+void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
+    rt_info[PostponedFP16Compression::get_type_info_static()] = PostponedFP16Compression{};
+}
+
+bool ov::is_fp16_compression_postponed(const ov::RTMap& rt_info) {
+    return rt_info.count(PostponedFP16Compression::get_type_info_static());
+}
+
+void ov::do_not_postpone_fp16_compression(ov::RTMap& rt_info) {
+    rt_info.erase(PostponedFP16Compression::get_type_info_static());
+}
