@@ -458,6 +458,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
+    OPENVINO_THROW("FOR ARTANOKHOV WITH LOVE");
+
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
         auto input_precision = ii.second->getPrecision();
