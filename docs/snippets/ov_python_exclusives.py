@@ -6,16 +6,16 @@ import numpy as np
 #! [auto_compilation]
 import openvino as ov
 
-compiled_model = ov.compile_model("model.xml")
+compiled_model = ov.core().compile_model("model.xml")
 #! [auto_compilation]
 
 #! [properties_example]
 core = ov.Core()
 
-input_a = ov.opset11.parameter([8], name="input_a")
-res = ov.opset11.absolute(input_a)
+input_a = ov.runtime.opset11.parameter([8], name="input_a")
+res = ov.runtime.opset11.absolute(input_a)
 model = ov.Model(res, [input_a])
-compiled = ov.compile_model(model, "CPU")
+compiled = core.compile_model(model, "CPU")
 model.outputs[0].tensor.set_names({"result_0"})  # Add name for Output
 
 print(model.inputs)
@@ -98,11 +98,11 @@ _ = next(iter(results.values()))
 core = ov.Core()
 
 # Simple model that adds two inputs together
-input_a = ov.opset8.parameter([8])
-input_b = ov.opset8.parameter([8])
-res = ov.opset8.add(input_a, input_b)
+input_a = ov.runtime.opset8.parameter([8])
+input_b = ov.runtime.opset8.parameter([8])
+res = ov.runtime.opset8.add(input_a, input_b)
 model = ov.Model(res, [input_a, input_b])
-compiled = ov.compile_model(model, "CPU")
+compiled = core.compile_model(model, "CPU")
 
 # Number of InferRequests that AsyncInferQueue holds
 jobs = 4
@@ -176,7 +176,7 @@ thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,
 # while main thread is running in the background.
-compiled = ov.compile_model(model, "GPU")
+compiled = core.compile_model(model, "GPU")
 # After returning from compile_model, the main thread acquires the GIL
 # and starts create_infer_request which releases it once again.
 request = compiled.create_infer_request()

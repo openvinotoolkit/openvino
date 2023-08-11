@@ -11,11 +11,11 @@ from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
 
 def state_network_example():
     #! [ov:state_network]
-    input = ov.opset10.parameter([1, 1], dtype=np.float32)
-    read = ov.opset10.read_value(input, "variable0")
-    add = ov.opset10.add(read, input)
-    save = ov.opset10.assign(add, "variable0")
-    result = ov.opset10.result(add)
+    input = ov.runtime.opset10.parameter([1, 1], dtype=np.float32)
+    read = ov.runtime.opset10.read_value(input, "variable0")
+    add = ov.runtime.opset10.add(read, input)
+    save = ov.runtime.opset10.assign(add, "variable0")
+    result = ov.runtime.opset10.result(add)
     model = ov.Model(results=[result], sinks=[save], parameters=[input])
     #! [ov:state_network]
 
@@ -47,7 +47,7 @@ def low_latency_2_example():
     manager.register_pass(LowLatency2())
     manager.run_passes(ov_model)
     #! [ov:apply_low_latency_2]
-    hd_specific_model = ov.compile_model(ov_model)
+    hd_specific_model = core.compile_model(ov_model)
     # Try to find the Variable by name
     infer_request = hd_specific_model.create_infer_request()
     states = infer_request.query_state()
@@ -79,7 +79,7 @@ def apply_make_stateful_ov_nodes():
     core = ov.Core()
     ov_model = core.read_model("path_to_the_model")
     # Parameter_1, Result_1, Parameter_3, Result_3 are 
-    # ov.opset10.parameter/ov.opset10.result in the ov_model
+    # ov.runtime.opset10.parameter/ov.runtime.opset10.result in the ov_model
     pairs = ["""(Parameter_1, Result_1), (Parameter_3, Result_3)"""]
     manager = Manager()
     manager.register_pass(MakeStateful(pairs))
@@ -99,7 +99,7 @@ def main():
     
 
     # 3. Load network to CPU
-    hw_specific_model = ov.compile_model(model, "CPU")
+    hw_specific_model = core.compile_model(model, "CPU")
 
     # 4. Create Infer Request
     infer_request = hw_specific_model.create_infer_request()

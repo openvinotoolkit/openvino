@@ -12,13 +12,13 @@ def MULTI_0():
     # Pre-configure MULTI globally with explicitly defined devices,
     # and compile the model on MULTI using the newly specified default device list.
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
-    compiled_model = ov.compile_model(model=model, device_name="MULTI")
+    compiled_model = core.compile_model(model=model, device_name="MULTI")
 
     # Option 2
     # Specify the devices to be used by MULTI explicitly at compilation.
     # The following lines are equivalent:
-    compiled_model = ov.compile_model(model=model, device_name="MULTI:GPU,CPU")
-    compiled_model = ov.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
+    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU")
+    compiled_model = core.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
 
 #! [MULTI_0]
 
@@ -55,7 +55,7 @@ def available_devices_1():
     core = ov.Core()
     model = core.read_model(model_path)
     all_devices += ",".join(core.available_devices)
-    compiled_model = ov.compile_model(model=model, device_name=all_devices)
+    compiled_model = core.compile_model(model=model, device_name=all_devices)
 #! [available_devices_1]
 
 def available_devices_2():
@@ -69,7 +69,7 @@ def available_devices_2():
         if dev_match_str in d:
             match_list.append(d)
     all_devices += ",".join(match_list)
-    compiled_model = ov.compile_model(model=model, device_name=all_devices)
+    compiled_model = core.compile_model(model=model, device_name=all_devices)
 #! [available_devices_2]
 
 
@@ -90,7 +90,7 @@ def MULTI_4():
 
     # When compiling the model on MULTI, configure CPU and GPU 
     # (devices, priorities, and device configurations; gpu_config and cpu_config will load during compile_model() ):
-    compiled_model = ov.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
+    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
 
     # Optionally, query the optimal number of requests:
     nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")

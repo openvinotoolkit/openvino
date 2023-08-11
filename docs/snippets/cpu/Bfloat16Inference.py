@@ -13,7 +13,7 @@ cpu_optimization_capabilities = core.get_property("CPU", "OPTIMIZATION_CAPABILIT
 #! [part1]
 core = ov.Core()
 model = core.read_model("model.xml")
-compiled_model = ov.compile_model(model, "CPU")
+compiled_model = core.compile_model(model, "CPU")
 inference_precision = core.get_property("CPU", "INFERENCE_PRECISION_HINT")
 #! [part1]
 

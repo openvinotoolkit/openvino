@@ -10,13 +10,13 @@ xml_path = '/tmp/myModel.xml'
 core = ov.Core()
 core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
 model = core.read_model(model=xml_path)
-compiled_model = ov.compile_model(model=model, device_name=device_name)
+compiled_model = core.compile_model(model=model, device_name=device_name)
 # ! [ov:caching:part0]
 
 assert compiled_model
 
 # ! [ov:caching:part1]
-compiled_model = ov.compile_model(model_path=xml_path, device_name=device_name)
+compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
 # ! [ov:caching:part1]
 
 assert compiled_model
@@ -24,7 +24,7 @@ assert compiled_model
 # ! [ov:caching:part2]
 core = ov.Core()
 core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
-compiled_model = ov.compile_model(model_path=xml_path, device_name=device_name)
+compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
 # ! [ov:caching:part2]
 
 assert compiled_model

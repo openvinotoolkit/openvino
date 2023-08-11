@@ -6,15 +6,15 @@ import openvino as ov
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 
-input_0 = ov.opset11.parameter([INPUT_SIZE], name="input_0")
-input_1 = ov.opset11.parameter([INPUT_SIZE], name="input_1")
-add_inputs = ov.opset11.add(input_0, input_1)
-res = ov.opset11.reduce_sum(add_inputs, reduction_axes=0, name="reduced")
+input_0 = ov.runtime.opset11.parameter([INPUT_SIZE], name="input_0")
+input_1 = ov.runtime.opset11.parameter([INPUT_SIZE], name="input_1")
+add_inputs = ov.runtime.opset11.add(input_0, input_1)
+res = ov.runtime.opset11.reduce_sum(add_inputs, reduction_axes=0, name="reduced")
 model = ov.Model(res, [input_0, input_1], name="my_model")
 model.outputs[0].tensor.set_names({"reduced_result"})  # Add name for Output
 
 core = ov.Core()
-compiled_model = ov.compile_model(model, device_name="CPU")
+compiled_model = core.compile_model(model, device_name="CPU")
 
 data_0 = np.array([0.1] * INPUT_SIZE, dtype=np.float32)
 data_1 = np.array([-0.1] * INPUT_SIZE, dtype=np.float32)

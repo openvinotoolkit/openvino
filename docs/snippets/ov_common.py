@@ -15,7 +15,7 @@ model = core.read_model("model.xml")
 #! [ov_api_2_0:read_model]
 
 #! [ov_api_2_0:compile_model]
-compiled_model = ov.compile_model(model, "CPU")
+compiled_model = core.compile_model(model, "CPU")
 #! [ov_api_2_0:compile_model]
 
 #! [ov_api_2_0:create_infer_request]

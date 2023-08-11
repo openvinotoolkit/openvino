@@ -10,6 +10,6 @@ xml_path = 'model.xml'
 core = ov.Core()
 core.set_property("CPU", ov.properties.intel_cpu.sparse_weights_decompression_rate(0.8))
 model = core.read_model(model=xml_path)
-compiled_model = ov.compile_model(model=model, device_name=device_name)
+compiled_model = core.compile_model(model=model, device_name=device_name)
 # ! [ov:intel_cpu:sparse_weights_decompression:part0]
 assert compiled_model

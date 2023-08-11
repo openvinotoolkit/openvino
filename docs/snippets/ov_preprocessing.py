@@ -134,7 +134,7 @@ from openvino.runtime.utils.decorators import custom_preprocess_function
 @custom_preprocess_function
 def custom_abs(output: Output):
     # Custom nodes can be inserted as Preprocessing steps
-    return ov.opset8.abs(output)
+    return ov.runtime.opset8.abs(output)
 
 ppp.input("input_image").preprocess() \
     .custom(custom_abs)
@@ -157,7 +157,7 @@ from openvino.runtime.utils.decorators import custom_preprocess_function
 @custom_preprocess_function
 def custom_abs(output: Output):
     # Custom nodes can be inserted as Post-processing steps
-    return ov.opset8.abs(output)
+    return ov.runtime.opset8.abs(output)
 
 ppp.output("result_image").postprocess()\
     .custom(custom_abs)
@@ -218,5 +218,5 @@ core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
 
 # In case that no preprocessing is needed anymore, we can load model on target device directly
 # With cached model available, it will also save some time on reading original model
-compiled_model = ov.compile_model('/path/to/some_model_saved.xml', 'CPU')
+compiled_model = core.compile_model('/path/to/some_model_saved.xml', 'CPU')
 # ! [ov:preprocess:save_load]

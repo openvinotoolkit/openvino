@@ -21,7 +21,7 @@ import torch
 import openvino as ov
 from sklearn.metrics import accuracy_score
 
-def validate(model: ov.runtime.CompiledModel, 
+def validate(model: ov.CompiledModel, 
              validation_loader: torch.utils.data.DataLoader) -> float:
     predictions = []
     references = []

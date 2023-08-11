@@ -8,7 +8,7 @@ import openvino as ov
 
 core = ov.Core()
 model = core.read_model("model.xml")
-compiled_model = ov.compile_model(model, "AUTO")
+compiled_model = core.compile_model(model, "AUTO")
 
 #! [create_infer_request]
 infer_request = compiled_model.create_infer_request()

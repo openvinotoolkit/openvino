@@ -51,7 +51,7 @@ if model.output(0).partial_shape[1].is_dynamic():
     pass
 #! [detect_dynamic]
 
-executable = ov.compile_model(model)
+executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
 
 #! [set_input_tensor]

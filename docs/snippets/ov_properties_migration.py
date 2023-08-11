@@ -14,7 +14,7 @@ core.set_property(device_name="CPU", properties={"PERF_COUNT": "YES"})
 model = core.read_model("sample.xml")
 
 # ! [core_compile_model]
-compiled_model = ov.compile_model(model=model, device_name="MULTI", config=
+compiled_model = core.compile_model(model=model, device_name="MULTI", config=
     {
         "MULTI_DEVICE_PRIORITIES": "GPU,CPU",
         "PERFORMANCE_HINT": "THROUGHPUT",

@@ -11,7 +11,7 @@ blob_path = "compiled_model.blob"
 
 core = ov.Core()
 model = core.read_model(model=model_path)
-compiled_model = ov.compile_model(model, device_name="GNA")
+compiled_model = core.compile_model(model, device_name="GNA")
 
 #! [ov_gna_export]
 user_stream = compiled_model.export_model()

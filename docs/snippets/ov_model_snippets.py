@@ -14,12 +14,12 @@ def create_simple_model():
     # Parameter--->Multiply--->Add--->Result
     #    Constant---'          /
     #              Constant---'
-    data = ov.opset8.parameter([3, 1, 2], ov.Type.f32)
-    mul_constant = ov.opset8.constant([1.5], ov.Type.f32)
-    mul = ov.opset8.multiply(data, mul_constant)
-    add_constant = ov.opset8.constant([0.5], ov.Type.f32)
-    add = ov.opset8.add(mul, add_constant)
-    res = ov.opset8.result(add)
+    data = ov.runtime.opset8.parameter([3, 1, 2], ov.Type.f32)
+    mul_constant = ov.runtime.opset8.constant([1.5], ov.Type.f32)
+    mul = ov.runtime.opset8.multiply(data, mul_constant)
+    add_constant = ov.runtime.opset8.constant([0.5], ov.Type.f32)
+    add = ov.runtime.opset8.add(mul, add_constant)
+    res = ov.runtime.opset8.result(add)
     return ov.Model([res], [data], "model")
 # ! [ov:create_simple_model]
 
@@ -30,15 +30,15 @@ def create_advanced_model():
     # Parameter->Split---0-->Result
     #               | `--1-->Relu-->Result
     #               `----2-->Result
-    data = ov.opset8.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32)
+    data = ov.runtime.opset8.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32)
     # Create Constant for axis value
-    axis_const = ov.opset8.constant(ov.Type.i64, ov.Shape({}), [1])
+    axis_const = ov.runtime.opset8.constant(ov.Type.i64, ov.Shape({}), [1])
 
     # Create opset8::Split operation that splits input to three slices across 1st dimension
-    split = ov.opset8.split(data, axis_const, 3)
+    split = ov.runtime.opset8.split(data, axis_const, 3)
 
     # Create opset8::Relu operation that takes 1st Split output as input
-    relu = ov.opset8.relu(split.output(1))
+    relu = ov.runtime.opset8.relu(split.output(1))
 
     # Results operations will be created automatically based on provided OutputVector
     return ov.Model([split.output(0), relu, split.output[2]], [data], "model")
@@ -46,8 +46,8 @@ def create_advanced_model():
 
 def ov_api_examples():
     # Doesn't work
-    # node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), 3, 64, 64]), np.float32)
-    node = ov.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
+    # node = ov.runtime.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), 3, 64, 64]), np.float32)
+    node = ov.runtime.opset8.parameter(ov.PartialShape([ov.Dimension.dynamic(), ov.Dimension(3), ov.Dimension(64), ov.Dimension(64)]), np.float32)
 
     # it doesn't work:
     # static_shape = ov.Shape()

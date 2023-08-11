@@ -15,7 +15,7 @@ model = core.read_model("model.xml")
 model.reshape([(1, 10), C, H, W])
 
 # compile model and create infer request
-compiled_model = ov.compile_model(model, "GPU")
+compiled_model = core.compile_model(model, "GPU")
 infer_request = compiled_model.create_infer_request()
 
 # create input tensor with specific batch size
