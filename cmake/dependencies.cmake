@@ -101,10 +101,10 @@ function(ov_download_tbb)
         # TODO: add target_path to be platform specific as well, to avoid following if
         # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.2-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.2-pr1161-win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "103b19a8af288c6a7d83ed3f0d2239c4afd0dd189fc12aad1d34b3c9e78df94b"
+                SHA256 "45b4db14716ca25f73436131df0d199c609df0103486f25f79a340d775e6db5b"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -116,10 +116,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-canary.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.2-pr1161-lin.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3a2c2ec79b3cce7e6a2484754ba6f029fa968db2eefc6659540792b7db8fea0c"
+                SHA256 "fd222e2e8173f46dd245beabcd9bcf032680d0ae7a7b9aaf3f14a1afcab698e7"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
