@@ -134,9 +134,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int core_type,
                                    const int numa_node_id,
                                    const int max_threads_per_core) {
-            _numaNodeId = (_impl->_usedNumaNodes.size() == 1 && _impl->_usedNumaNodes.at(0) == -1)
-                              ? -1  // macOS
-                              : std::max(0, numa_node_id);
+            _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}

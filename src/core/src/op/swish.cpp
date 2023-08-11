@@ -71,6 +71,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace swish {
 namespace {
 template <element::Type_t ET>

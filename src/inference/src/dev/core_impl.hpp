@@ -52,7 +52,7 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
-std::string findPluginXML(const std::string& xmlFile);
+std::string find_plugins_xml(const std::string& xmlFile);
 
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:

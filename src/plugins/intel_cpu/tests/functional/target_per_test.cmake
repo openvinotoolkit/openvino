@@ -87,7 +87,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
 endfunction()
 
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
-  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm ov_cpu_func_subgraph)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src ov_cpu_func_subgraph)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests ov_cpu_func_slt)
 endif()
 
