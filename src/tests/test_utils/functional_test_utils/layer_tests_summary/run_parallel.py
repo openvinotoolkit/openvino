@@ -276,7 +276,7 @@ class TestParallelRunner:
             input_string = input_string.replace(symbol, '*')
         return input_string
 
-    def __get_test_list_by_runtime(self):
+    def __get_test_list_by_runtime(self, test_unit = "test"):
         self._total_test_cnt = 0
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         if os.path.isfile(test_list_file_name):
@@ -303,23 +303,20 @@ class TestParallelRunner:
                     continue
                 if not ' ' in test_name:
                     test_suite = test_name.replace(".", "")
-                    # fixed_suite_name = f'{self.__replace_restricted_symbols(test_suite)}'.replace(".", "")
-                    if (self._split_unit == "suite") :
+                    if (test_unit == "suite") :
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
-                        elif (test_suite) :
-                            tests_dict[test_suite] = 0
                     continue
                 pos = test_name.find('#')
                 if pos > 0 or test_suite != "" :
                     real_test_name = test_suite + "." + (test_name[2:pos-2] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
-                    elif (self._split_unit == "test") :
+                    elif (test_unit == "test") :
                         tests_dict[real_test_name] = -1
-                    elif (self._split_unit == "suite") :
+                        self._total_test_cnt += 1
+                    elif (test_unit == "suite") :
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
-                        # count all test cases
                         self._total_test_cnt += 1
             test_list_file.close()
         os.remove(test_list_file_name)
@@ -433,7 +430,7 @@ class TestParallelRunner:
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
 
-        test_dict_runtime = self.__get_test_list_by_runtime()
+        test_dict_runtime = self.__get_test_list_by_runtime(self._split_unit)
         test_dict_cache = self.__get_test_list_by_cache()
 
         cached_test_dict, runtime_test_dist = self.__generate_test_lists(test_dict_cache, test_dict_runtime)
@@ -489,8 +486,8 @@ class TestParallelRunner:
                 if not has_status:
                     interapted_tests.append(test_name)
                 log_file.close()
-        split_unit_tmp = self._split_unit
-        self._split_unit = "test"
+        # split_unit_tmp = self._split_unit
+        # self._split_unit = "test"
         test_list_runtime = set(self.__get_test_list_by_runtime())
         not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
         interapted_tests = set(interapted_tests).difference(self._excluded_tests_re)
