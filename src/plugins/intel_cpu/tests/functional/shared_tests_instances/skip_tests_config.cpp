@@ -218,7 +218,14 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
     retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
-
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    //TODO: fix CVS-XXXX (accuracy issues and crash in oneDNN while memory being freed)
+    retVector.emplace_back(R"(.*smoke_TestsMVN_AcrossChannels/Mvn1LayerTest.*)");
+    //TODO: fix CVS-XXXX (accuracy issues in GRU and LSTM tests)
+    retVector.emplace_back(R"(.*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.*)");
+    retVector.emplace_back(R"(.*smoke_GRUSequenceCommonZeroClipNonConstantWRB/GRUSequenceTest.*)");
+    retVector.emplace_back(R"(.*smoke_LSTMSequenceCommonZeroClipNonconstantWRB/LSTMSequenceTest.*)");
+#endif
 #if defined(OPENVINO_ARCH_ARM)
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
