@@ -189,7 +189,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     // Last boolean flag in `variants` (if presented) is reserved for FE configuration
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
-    bool mmap_enabled = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;
+    // Enable mmap by default
+    bool mmap_enabled = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : true;
 
     // For TF1 models it can be a case of two input variants: input model and v1 checkpoints
     FRONT_END_GENERAL_CHECK(

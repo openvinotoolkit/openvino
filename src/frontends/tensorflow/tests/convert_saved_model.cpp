@@ -157,3 +157,8 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) 
         model_ref = make_shared<Model>(OutputVector{result1, result2}, ParameterVector{input1, input2});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMMAPCompare) {
+    { model = convert_model("saved_model_variables"); }
+    { model_ref = convert_model("saved_model_variables", nullptr, {}, {}, {}, {}, {}, true); }
+}
