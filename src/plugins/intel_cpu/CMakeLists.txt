@@ -22,7 +22,7 @@ endif()
 
 if(ARM)
     set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
-else()
+elseif(AARCH64)
     if(APPLE)
         # Apple M1 / M2 is assumed
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
