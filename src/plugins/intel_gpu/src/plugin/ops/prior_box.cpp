@@ -111,18 +111,30 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
 
     if (!output_pshape.is_dynamic()) {
-        auto img_shape = img_pshape.to_shape();
+        const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
 
+        // output_size should be constant to be static output shape
+        OPENVINO_ASSERT(output_size_constant,
+                        "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
-        auto wdim = img_shape.back();
-        auto hdim = img_shape.at(img_shape.size()-2);
+        const auto output_size = output_size_constant->cast_vector<int64_t>();
+        const auto width = output_size[0];
+        const auto height = output_size[1];
+        const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
-        cldnn::tensor output_size{};
-        cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(wdim), TensorValue(hdim));
+        cldnn::tensor img_size_tensor{};
+        if (image_size_constant) {
+        const auto image_size = image_size_constant->cast_vector<int64_t>();
+        const auto image_width = image_size[0];
+        const auto image_height = image_size[1];
+        img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+        }
+
         auto priorBoxPrim = cldnn::prior_box(layerName,
                                              inputs,
-                                             output_size,
-                                             img_size,
+                                             output_size_tensor,
+                                             img_size_tensor,
                                              min_size,
                                              max_size,
                                              aspect_ratio,
@@ -172,7 +184,9 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
     if (!output_pshape.is_dynamic()) {
         const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
         const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
-        OPENVINO_ASSERT(output_size_constant && image_size_constant,
+
+        // output_size should be constant to be static output shape
+        OPENVINO_ASSERT(output_size_constant,
                         "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         const auto output_size = output_size_constant->cast_vector<int64_t>();
@@ -180,10 +194,13 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
         const auto height = output_size[1];
         const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
+        cldnn::tensor img_size_tensor{};
+        if (image_size_constant) {
         const auto image_size = image_size_constant->cast_vector<int64_t>();
         const auto image_width = image_size[0];
         const auto image_height = image_size[1];
-        const cldnn::tensor img_size_tensor{cldnn::spatial(image_width, image_height)};
+        img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+        }
 
         const cldnn::prior_box prior_box{layer_name,
                                          inputs,
