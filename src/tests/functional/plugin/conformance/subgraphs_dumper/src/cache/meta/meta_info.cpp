@@ -46,7 +46,7 @@ double MetaInfo::get_graph_priority() {
     return diff / delta;
 }
 
-MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
+MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, size_t model_priority) {
     pugi::xml_document doc;
     doc.load_file(meta_path.c_str());
     std::map<std::string, ModelInfo> model_info;
@@ -56,6 +56,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
             ModelInfo tmp_model_info;
             tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
             tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
+            tmp_model_info.model_priority = model_priority;
             for (const auto& path : model_child.child("path")) {
                 tmp_model_info.model_paths.insert(std::string(path.attribute("path").value()));
             }
@@ -160,7 +161,7 @@ void MetaInfo::update(const std::string& _model_path,
         if (input_info.find(in.first) == input_info.end()) {
             throw std::runtime_error("Incorrect Input Info!");
         } else if (input_info[in.first].is_const != in.second.is_const) {
-            throw std::runtime_error("Try to cast parameter ro constant!");
+            throw std::runtime_error("Try to cast parameter to constant!");
         } else {
             input_info[in.first] = in.second;
         }

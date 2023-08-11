@@ -28,7 +28,7 @@ public:
     std::map<std::string, ModelInfo> get_model_info() const;
     std::string get_any_extractor() const { return *extractors.begin(); }
 
-    static MetaInfo read_meta_from_file(const std::string& meta_path);
+    static MetaInfo read_meta_from_file(const std::string& meta_path, size_t model_priority = 1);
 
 protected:
     // { input_node_name: input_info }

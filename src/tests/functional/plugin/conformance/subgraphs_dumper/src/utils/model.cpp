@@ -75,7 +75,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     std::vector<std::shared_ptr<ICache>>& caches,
     const std::vector<std::string>& models,
-    bool extract_body) {
+    bool extract_body, bool from_cache) {
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
         { ModelCacheStatus::SUCCEED, {} },
         { ModelCacheStatus::NOT_FULLY_CACHED, {} },
@@ -93,7 +93,7 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                 try {
                     std::shared_ptr<ov::Model> function = core->read_model(model);
                     try {
-                        cache->update_cache(function, model, extract_body);
+                        cache->update_cache(function, model, extract_body, from_cache);
                     } catch (std::exception &e) {
                         std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
                         model_status = ModelCacheStatus::NOT_FULLY_CACHED;
@@ -105,8 +105,6 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                 cache_status[model_status].push_back(model);
             }
         }
-        cache->serialize_cache();
-        cache->reset_cache();
     }
     return cache_status;
 }

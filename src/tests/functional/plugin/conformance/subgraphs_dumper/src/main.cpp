@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     if (!FLAGS_local_cache.empty()) {
         auto cached_ops = find_models(local_cache_dirs);
         // todo: add normal caching with meta info reading
-        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body);
+        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body, true);
         auto not_read_model = cached_ops.second;
         for (auto& model_status : cache_model_status) {
             auto& key = model_status.first;
@@ -65,7 +65,8 @@ int main(int argc, char *argv[]) {
                 value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
             }
         }
-    } else {
+    }
+    {
         auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
         for (auto& model_status : cache_model_status) {
             auto& key = model_status.first;
@@ -75,6 +76,12 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    for (auto& cache : caches) {
+        cache->serialize_cache();
+        cache->reset_cache();
+    }
+
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
 }
