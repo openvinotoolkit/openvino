@@ -274,6 +274,9 @@ class TorchScriptPythonDecoder (Decoder):
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
+    def decoder_type_name(self) -> str:
+        return "ts"
+
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
             if "Subgraph" in self.graph_element.attributeNames():
