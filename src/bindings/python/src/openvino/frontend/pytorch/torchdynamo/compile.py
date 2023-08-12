@@ -9,6 +9,7 @@ import os
 import torch
 import torch.overrides
 
+from hashlib import sha256
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
@@ -31,13 +32,14 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         return None
 
     inputs_str = ""
-    for idx, input_data in enumerate(args):  # subgraph.example_inputs):
+    for idx, input_data in enumerate(args):  
         if reversed:
             inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
         else:
             inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
+    inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
     file_name += inputs_str
-
+    
     return file_name
 
 def cache_root_path():
@@ -96,7 +98,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None):
 
         input_shapes = []
         input_types = []
-        for idx, input_data in enumerate(args):  # subgraph.example_inputs):
+        for idx, input_data in enumerate(args):  
             input_types.append(input_data.type())
             input_shapes.append(input_data.size())
 

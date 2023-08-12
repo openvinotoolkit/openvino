@@ -27,7 +27,7 @@ from openvino.runtime import Core, Type, PartialShape
 log = logging.getLogger(__name__)
 
 """
-    This is a preview feature in OpenVINO. Torchscript backend
+    This is a preview feature in OpenVINO. This feature
     enables users to compile PyTorch models using torch.compile
     with OpenVINO as a target backend in PyTorch applications
 
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
     We can then use this model for inference. We only need to add two lines of code to
     the Pytorch applications which are marked in the code below
 
-    1) import openvino.frontend.pytorch.torchdynamo.backend
+    1) import openvino
     model = torchvision.models.resnet50()
     2) model = torch.compile(model, backend="openvino")
 """
