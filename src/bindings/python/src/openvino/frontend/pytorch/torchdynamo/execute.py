@@ -42,7 +42,7 @@ partitioned_modules = {}
 def execute(
     gm: GraphModule,
     *args,
-    executor: str = "aten",
+    executor: str = "openvino",
     executor_parameters: Optional[dict] = None,
 ):
     if executor == "openvino":
