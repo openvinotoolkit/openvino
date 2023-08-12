@@ -1181,6 +1181,18 @@ StreamsCalculationTestCase _1sockets_14cores_tput_16 = {
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {1, HYPER_THREADING_PROC, 1, 0, 0}},
 };
 
+StreamsCalculationTestCase _1sockets_14cores_tput_17 = {
+    1,
+    true,
+    14,
+    0,
+    6,
+    "LATENCY",
+    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    {{20, 6, 8, 6, 0, 0}},
+    {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
+};
+
 StreamsCalculationTestCase _1sockets_10cores_latency_1 = {
     1,
     false,
@@ -1823,6 +1835,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_14cores_tput_14,
                                          _1sockets_14cores_tput_15,
                                          _1sockets_14cores_tput_16,
+                                         _1sockets_14cores_tput_17,
                                          _1sockets_10cores_latency_1,
                                          _1sockets_10cores_latency_2,
                                          _1sockets_10cores_latency_3,
