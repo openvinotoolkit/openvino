@@ -208,7 +208,8 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
         out_cord.at(axis) = normalize_index(indices[indices_offset], data_shape[axis]);
-        const auto out_offset = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
+        const size_t out_offset =
+            std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
 
         idx_to_output_element.push_back({indices_offset, out_offset});
     }

@@ -44,9 +44,6 @@ public:
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
 
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
-
     // Return debug name of the input tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
@@ -56,9 +53,6 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
-
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?

@@ -202,11 +202,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
     int streamId = 0;
-    int numaNodeId = 0;
+    int socketId = 0;
     auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(m_task_executor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        numaNodeId = streamsExecutor->get_numa_node_id();
+        socketId = streamsExecutor->get_socket_id();
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -217,8 +217,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache =
-                        m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[numaNodeId] : nullptr;
+                    auto weightsCache = m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[socketId] : nullptr;
 
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
