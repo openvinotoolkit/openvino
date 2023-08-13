@@ -272,6 +272,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Transpose", CreatorFunction(translate_transpose_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
+        {"UnsortedSegmentSum", CreatorFunction(translate_unsorted_segment_sum_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
