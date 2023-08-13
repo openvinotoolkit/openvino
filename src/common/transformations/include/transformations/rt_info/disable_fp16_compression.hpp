@@ -38,20 +38,4 @@ public:
     }
 };
 
-/**
- * @ingroup ie_runtime_attr_api
- * @brief PostponedFP16Compression class represents runtime info attribute that marks operation
- * as prohibitted to convert to FP16 as part of Compressed Only format.
- */
-class TRANSFORMATIONS_API PostponedFP16Compression : public RuntimeAttribute {
-public:
-    OPENVINO_RTTI("postponed_fp16_compression", "0");
-
-    PostponedFP16Compression() = default;
-
-    bool is_copyable() const override {
-        return false;
-    }
-};
-
 }  // namespace ov

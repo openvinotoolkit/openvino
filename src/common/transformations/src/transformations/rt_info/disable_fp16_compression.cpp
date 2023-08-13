@@ -4,6 +4,10 @@
 
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
+namespace {
+const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
+}
+
 void ov::disable_fp16_compression(const std::shared_ptr<Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info[DisableFP16Compression::get_type_info_static()] = DisableFP16Compression{};
@@ -20,13 +24,13 @@ bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
 }
 
 void ov::postpone_fp16_compression(ov::RTMap& rt_info) {
-    rt_info[PostponedFP16Compression::get_type_info_static()] = PostponedFP16Compression{};
+    rt_info[postponed_fp16_compression_tag] = true;
 }
 
 bool ov::is_fp16_compression_postponed(const ov::RTMap& rt_info) {
-    return rt_info.count(PostponedFP16Compression::get_type_info_static());
+    return rt_info.count(postponed_fp16_compression_tag);
 }
 
 void ov::do_not_postpone_fp16_compression(ov::RTMap& rt_info) {
-    rt_info.erase(PostponedFP16Compression::get_type_info_static());
+    rt_info.erase(postponed_fp16_compression_tag);
 }
