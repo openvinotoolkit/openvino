@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "ngraph_builders")
+set(TARGET_NAME "openvino_builders")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -18,6 +18,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+add_library(openvino::builders ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME builders)
+
 ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp")
@@ -32,11 +35,8 @@ endif()
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
-# Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(ngraph::builder ALIAS ${TARGET_NAME})
-
-ov_install_static_lib(ngraph_builders ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(openvino_builders ${OV_CPACK_COMP_CORE})
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT core TARGETS ngraph::builder)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::builders)

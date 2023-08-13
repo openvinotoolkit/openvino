@@ -86,8 +86,8 @@ ie_faster_build(ngraph_obj
 
 ov_add_version_defines(src/version.cpp ngraph_obj)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         openvino::pugixml ov_shape_inference openvino::core::dev)
+target_link_libraries(ngraph_obj PRIVATE openvino::builders openvino::reference openvino::util
+                                         openvino::pugixml openvino::shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
 
@@ -104,12 +104,12 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
+    # ngraph is linked against openvino::builders, openvino::reference, openvino::shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
     #
-    # The possible way is to use object libraries for ngraph_builders, ngraph_reference
+    # The possible way is to use object libraries for openvino::builders, openvino::reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
     if(BUILD_SHARED_LIBS)

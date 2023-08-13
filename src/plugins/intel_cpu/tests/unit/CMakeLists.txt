@@ -42,7 +42,7 @@ addIeTargetTest(
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
-                $<TARGET_PROPERTY:inference_engine_snippets,SOURCE_DIR>/include
+                $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
         EXCLUDED_SOURCE_PATHS
             ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
@@ -54,7 +54,7 @@ addIeTargetTest(
             dnnl
             inference_engine_transformations
             inference_engine_lp_transformations
-            ov_shape_inference
+            openvino::shape_inference
             inference_engine_s
             unit_test_utils
             ngraphFunctions

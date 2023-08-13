@@ -25,7 +25,7 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ngraph_reference openvino::itt ngraph::builder openvino::core::dev ov_shape_inference)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::builders openvino::core::dev openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                                      "${CMAKE_CURRENT_SOURCE_DIR}/src")

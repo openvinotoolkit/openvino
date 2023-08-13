@@ -39,10 +39,10 @@ ov_add_test_target(
             test_model_zoo
         LINK_LIBRARIES
             common_test_utils
-            ngraph_reference
-            ngraph::builder
+            openvino::reference
+            openvino::builders
             openvino::util
-            ov_shape_inference
+            openvino::shape_inference
             ${CMAKE_DL_LIBS}
             Threads::Threads
             openvino::conditional_compilation
