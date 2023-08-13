@@ -157,3 +157,19 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) 
         model_ref = make_shared<Model>(OutputVector{result1, result2}, ParameterVector{input1, input2});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
+    // The test aims to check that model with only numerical names for operation
+    // is successfully converted
+    // it is a tricky case because colision between naming input and output ports may occur
+    { model = convert_model("saved_model_with_numerical_names"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{1});
+        auto y = make_shared<Parameter>(element::f32, Shape{1});
+        auto z = make_shared<Parameter>(element::f32, Shape{1});
+        auto add = make_shared<Add>(x, y);
+        auto sub = make_shared<Subtract>(add, z);
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y, z});
+    }
+}
