@@ -615,6 +615,8 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
+Path(PACKAGE_DIR).mkdir(exist_ok=True)
+
 packages = find_namespace_packages(PACKAGE_DIR)
 package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
