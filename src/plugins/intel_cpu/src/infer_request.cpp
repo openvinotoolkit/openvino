@@ -270,14 +270,13 @@ void SyncInferRequest::change_default_ptr() {
                 canBeInPlace = false;
                 break;
             }
-            if (canBeInPlace) {
-                for (auto& edge : childEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
-
-                    change_edge_ptr(e, it.second);
-                }
+        }
+        if (canBeInPlace) {
+            for (auto& edge : childEdges) {
+                auto e = edge.lock();
+                if (!e)
+                    OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
+                change_edge_ptr(e, it.second);
             }
         }
     }
