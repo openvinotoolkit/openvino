@@ -39,14 +39,10 @@ def make_model(add_consts, mul_consts):
 
 def get_constants(model) -> List[Constant]:
     from pathlib import Path
-    restored_model = None
-    with tempfile.TemporaryDirectory() as tmp:
-        model_name = Path(tmp) / "f32_partially_compressed.xml"
-        ov.save_model(model, model_name)
-        core = ov.Core()
-        restored_model = core.read_model(model_name)
-
-    assert restored_model is not None
+    model_name = Path(tempfile.gettempdir()) / "f32_partially_compressed.xml"
+    ov.save_model(model, model_name)
+    core = ov.Core()
+    restored_model = core.read_model(model_name)
 
     op_ind_map = {"Add": 0, "Multiply": 1}
     constants_list = [[]] * len(op_ind_map)
