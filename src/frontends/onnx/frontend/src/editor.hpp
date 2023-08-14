@@ -18,6 +18,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "utils/tensor_external_data.hpp"
 
 namespace ov {
 namespace onnx_editor {
@@ -305,7 +306,7 @@ private:
     void update_mapper_if_needed() const;
 
     const std::string m_model_path;
-    const bool m_enable_mmap;
+    ngraph::onnx_import::detail::MappedMemoryHandles m_mmap_cache;
     frontend::ExtensionHolder m_extensions;
 
     struct Impl;
