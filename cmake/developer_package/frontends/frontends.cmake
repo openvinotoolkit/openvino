@@ -173,7 +173,7 @@ macro(ov_add_frontend)
 
     # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
-        target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::protobuf_shutdown)
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
@@ -199,6 +199,10 @@ macro(ov_add_frontend)
     # WA for TF frontends which always require protobuf (not protobuf-lite)
     # if TF FE is built in static mode, use protobuf for all other FEs
     if(FORCE_FRONTENDS_USE_PROTOBUF)
+        set(OV_FRONTEND_PROTOBUF_LITE OFF)
+    endif()
+    # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
+    if(NOT TARGET protobuf::libprotobuf-lite)
         set(OV_FRONTEND_PROTOBUF_LITE OFF)
     endif()
 
