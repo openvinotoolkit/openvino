@@ -347,6 +347,13 @@ shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const vector<int64_t>&
     return reshape;
 }
 
+Output<Node> get_data_slice(const Output<Node>& data, const int64_t& start, const int64_t& stop, const int64_t& step) {
+    auto start_const = make_shared<Constant>(element::i64, Shape{1}, start);
+    auto stop_const = make_shared<Constant>(element::i64, Shape{1}, stop);
+    auto step_const = make_shared<Constant>(element::i64, Shape{1}, step);
+    return make_shared<Slice>(data, start_const, stop_const, step_const)->output(0);
+}
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov
