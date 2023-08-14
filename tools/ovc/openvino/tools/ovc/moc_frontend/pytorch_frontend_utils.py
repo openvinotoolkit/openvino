@@ -26,7 +26,7 @@ def get_pytorch_decoder(model, example_inputs, args):
             if isinstance(model, NNCFNetwork):
                 if version.parse(nncf.__version__) <= version.parse("2.6"):
                     raise RuntimeError(
-                        "NNCF models produced by nncf<2.6 are not supported directly. Please export to ONNX first.")
+                        "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     except:
         pass
     inputs = prepare_torch_inputs(example_inputs)
