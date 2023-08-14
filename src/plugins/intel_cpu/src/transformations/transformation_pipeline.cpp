@@ -256,7 +256,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::i4,      ov::element::i8},
             {ov::element::u4,      ov::element::u8}
         };
-
+        // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             map.insert({ov::element::bf16, ov::element::f32});
 

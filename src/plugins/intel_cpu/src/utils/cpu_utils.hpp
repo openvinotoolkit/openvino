@@ -11,6 +11,7 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "general_utils.h"
+#include "precision_support.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -98,10 +99,14 @@ inline bool isEmptyTensorDesc(const InferenceEngine::TensorDesc &td) {
 */
 inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine::Precision precision) {
     switch (precision) {
+        case InferenceEngine::Precision::BF16:
+        case InferenceEngine::Precision::FP16: {
+            if (!hasHardwareSupport(precision))
+                precision = InferenceEngine::Precision::FP32;
+        }
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::I32:
-        case InferenceEngine::Precision::BF16:
         case InferenceEngine::Precision::FP32: {
             break;
         }
@@ -121,14 +126,11 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
             precision = InferenceEngine::Precision::I32;
             break;
         }
-        case InferenceEngine::Precision::FP16: {
-            precision = InferenceEngine::Precision::FP32;
-            break;
-        }
         default: {
             precision = InferenceEngine::Precision::UNSPECIFIED;
         }
     }
+
     return precision;
 }
 
@@ -161,6 +163,5 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
     }
     return alignedBuffer;
 }
-
 }   // namespace intel_cpu
 }   // namespace ov
