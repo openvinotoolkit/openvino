@@ -31,7 +31,7 @@ FusedNamesExtractor::FusedNamesExtractor() {
     device = *(core->get_available_devices().begin());
 }
 
-FusedNamesExtractor::FusedNamesExtractor() {
+FusedNamesExtractor::~FusedNamesExtractor() {
     core.reset();
 }
 

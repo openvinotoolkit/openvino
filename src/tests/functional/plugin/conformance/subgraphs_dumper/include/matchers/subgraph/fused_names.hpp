@@ -12,7 +12,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class FusedNamesExtractor : public SubgraphExtractor {
+class FusedNamesExtractor final : public SubgraphExtractor {
 public:
     FusedNamesExtractor();
     ~FusedNamesExtractor();
