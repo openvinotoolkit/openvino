@@ -162,6 +162,16 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         return surface_input_found;
     };
 
+    std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
+        [&](const std::shared_ptr<ov::Node> &node) -> bool {
+        bool connected_to_quantize = false;
+        for (auto& user : node->get_users()) {
+            if (ngraph::is_type<ngraph::op::v0::FakeQuantize>(user))
+                return true;
+        }
+        return connected_to_quantize;
+    };
+
     size_t search_depth = 3;
     bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
     bool is_surface_input = has_surface_input(op);
@@ -215,7 +225,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         switch (preProcess.getMeanVariant()) {
         case NONE: {
             // If mean value is not specified and the data type does not change, do not add post reorder
-            if (network_input_data_type != networkInputLayout.data_type) {
+            if (network_input_data_type != networkInputLayout.data_type || connected_to_quantize(op)) {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
                                                     cldnn::input_info(inputName),
                                                     networkInputLayout,
