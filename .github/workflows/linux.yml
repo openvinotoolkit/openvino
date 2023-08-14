@@ -56,7 +56,7 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
-          path: ${OPENVINO_REPO}
+          path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
