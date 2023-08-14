@@ -17,10 +17,26 @@
    For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
 
-After you have installed OpenVINO™ Runtime, you may also need do some additional configurations for your device to work with OpenVINO™. See the following pages:
+For certain use cases, you may need to instal additional software, to get the full 
+potential of OpenVINO™. Check the following list for components pertaining to your 
+workflow:
 
-* :doc:`Configurations for GPU <openvino_docs_install_guides_configurations_for_intel_gpu>`
-* :doc:`Configurations for GNA <openvino_docs_install_guides_configurations_for_intel_gna>`
+| **Open Computer Vision Library**
+|   OpenCV is used to extend the capabilities of some models, for example enhance some of
+    OpenVINO samples, when used as a dependency in compilation. To install OpenCV for OpenVINO, see the 
+    `instructions on GtHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__.
+
+| **GPU drivers**
+|   If you want to run inference on a GPU, make sure your GPU's drivers are properly installed.
+    See the :doc:`guide on GPU configuration <openvino_docs_install_guides_configurations_for_intel_gpu>`
+    for details.
+
+| **GNA drivers**
+|   If you want to run inference on a GNA (note that it is currently being deprecated and will no longer
+    be supported beyond 2023.2), make sure your GPU's drivers are properly installed. See the 
+    :doc:`guide on GNA configuration <openvino_docs_install_guides_configurations_for_intel_gna>`
+    for details.
+
 
 @endsphinxdirective
 

@@ -3,9 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: You can choose to install OpenVINO Runtime package - a core set 
-                 of libraries or OpenVINO Development Tools - a set of utilities 
-                 for working with OpenVINO.
+   :description: install OpenVINO Runtime package, using the distribution channel 
+                 of your choice.
 
 
 .. toctree::
@@ -14,8 +13,8 @@
 
    OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
    OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>  
-   OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
+   OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header> 
+   OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools> 
    Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
 
 
@@ -25,31 +24,68 @@
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="_static/selector-tool/selector-136759b.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
+.. warning::
+   
+   The OpenVINO Development Tools package has been deprecated and removed from the default
+   installation options. For new projects, the OpenVINO runtime package now includes
+   all necessary components.
 
-Different OpenVINO distributions may differ with regard to supported hardware or available APIs.
-Read installation guides for particular distributions for more details. 
+   The OpenVINO Development Tools is still available for older versions of OpenVINO,
+   as well as the current one, from the GitHub repository.
 
-| **OpenVINO Runtime:** 
-|    contains the core set of libraries for running inference on various processing units. It is recommended for users who already have an optimized model 
-     and want to deploy it in an application using OpenVINO for inference on their devices.
 
-| **OpenVINO Development Tools:** 
-|    includes the OpenVINO Runtime for Python, as well as a set of utilities for optimizing models and validating performance. 
-     It is recommended for users who want to optimize and verify their models before applying them in their applications.
-     For Python developers it is ready out-of-the-box, while for C++ development you need to install OpenVINO Runtime libraries separately.
-|    See the :ref:`For C++ Developers <cpp_developers>` section of the install guide for detailed instructions.
-|    Development Tools provides:
-     * Model conversion API
-     * Benchmark Tool
-     * Accuracy Checker and Annotation Converter
-     * Post-Training Optimization Tool
-     * Model Downloader and other Open Model Zoo tools
+.. tip::
+   
+   OpenVINO 2023.1, described here, is not a Long-Term-Support version!
+   All currently supported versions are:
+
+   * 2023.1 (development)
+   * 2022.3 (LTS)
+   * 2021.4 (LTS) 
+
+   Moreover, different OpenVINO distributions may support slightly different sets of features.
+   Read installation guides for particular distributions for more details. 
+
+   .. dropdown:: Distribution Comparison for OpenVINO 2023.1
+   
+      ===============  ==========  ======  =========  ========  ============ ==========
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     VCPKG
+      ===============  ==========  ======  =========  ========  ============ ==========
+       CPU              V           V        V         V          V           V
+       GPU              V           V        V         V          V           V
+       GNA              V           V        V         V          V           V
+       NPU              V           V        V         V          V           V
+       Auto             V           V        V         V          V           V
+       Auto-Batch       V           V        V         V          V           V
+       Hetero           V           n/a      n/a       n/a        n/a         n/a
+       Multi            V           n/a      n/a       n/a        n/a         n/a
+      ===============  ==========  ======  =========  ========  ============ ==========
+
+
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a 
+       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a 
+       CentOS7 x86_64        V      V      V     n/a     V            V            V         V  
+       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V  
+       Ubuntu20 x86_64       V      V      V      V      V            V            V         V  
+       Ubuntu22 x86_64       V      V      V      V      V            V            V         V  
+       RHEL8 x86_64          V      V      V     n/a     V            V            V         V  
+       Windows x86_64        V      V      V      V      V            V            V         V  
+       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a 
+       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a 
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+
+
+
+
+
 
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform, 
      follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__ .
-
 
 
 
