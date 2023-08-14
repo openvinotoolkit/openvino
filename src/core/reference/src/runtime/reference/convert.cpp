@@ -283,11 +283,12 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
+#    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-    #    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     convert_impl<float, float16, true>(arg, out, count);
-    #    else
-    // FIXME: dublicate and stub for ARM, provide more optimized solution
+}
+#    else  // FIXME: dublicate and stub for ARM, provide more optimized solution
+void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         if (arg[i] > std::numeric_limits<ov::float16>::max()) {
             out[i] = std::numeric_limits<ov::float16>::max();
@@ -298,6 +299,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
         }
     }
 }
+#    endif
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #    if 0
