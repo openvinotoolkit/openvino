@@ -90,7 +90,7 @@ Output<Node> quantize(const NodeContext& context,
         const auto rank = std::get<1>(get_shape_rank(context, input_convert, false, element::i32));
         const auto ones = context.mark_node(std::make_shared<v3::Broadcast>(one, rank));
 
-        const auto normalized_axis = normalize_axis(context, axis_convert, input_convert);
+        const auto normalized_axis = normalize_axis(context, axis_convert, rank);
         const auto new_shape =
             context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(ones, normalized_axis, neg_one, zero));
 

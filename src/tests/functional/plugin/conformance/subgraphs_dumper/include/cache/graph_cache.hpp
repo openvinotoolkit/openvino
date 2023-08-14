@@ -19,7 +19,7 @@ class GraphCache : public ICache {
 public:
     void update_cache(const std::shared_ptr<ov::Model>& model,
                       const std::string& model_meta_data,
-                      bool extract_body = true) override;
+                      bool extract_body) override;
     void serialize_cache() override;
 
     static std::shared_ptr<GraphCache>& get() {
@@ -35,6 +35,7 @@ public:
     }
 
     void reset_cache() override {
+        m_graph_cache.clear();
         reset();
     };
 
@@ -42,17 +43,21 @@ protected:
     std::map<std::shared_ptr<ov::Model>, MetaInfo> m_graph_cache;
     ExtractorsManager m_manager = ExtractorsManager();
     static std::shared_ptr<GraphCache> m_cache_instance;
+    // cache byte size
+    size_t m_graph_cache_bytesize = 0;
 
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
-            { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
-            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            // temporary disabling according mem leaks in CI and not using swap mem
+            // { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
+            // { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
     }
 
     void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
-                      const std::map<std::string, InputInfo>& input_info, size_t model_op_cnt);
+                      std::map<std::string, InputInfo>& input_info, const std::string& extractor_name,
+                      size_t model_op_cnt);
 };
 
 }  // namespace subgraph_dumper

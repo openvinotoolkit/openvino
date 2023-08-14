@@ -155,7 +155,7 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 
 See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`.
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ .
 
 .. _optional-steps-windows:
 

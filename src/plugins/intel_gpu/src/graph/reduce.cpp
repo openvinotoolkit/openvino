@@ -107,8 +107,8 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     std::vector<ShapeType> output_shapes = {ShapeType()};
 
     auto axes = desc->axes;
-    auto axes_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{axes.size()}, axes.data());
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {{1, axes_tensor}};
+    auto axes_tensor = ov::Tensor(ov::element::i64, ov::Shape{axes.size()}, axes.data());
+    std::unordered_map<size_t, ov::Tensor> const_data = {{1, axes_tensor}};
     auto ta = ov::make_tensor_accessor(const_data);
 
     // shape infer by mode
