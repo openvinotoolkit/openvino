@@ -256,7 +256,7 @@ class CustomBuild(build):
         build.run(self)
         # Copy extra package_data content filtered by find_packages
         dst = Path(self.build_lib)
-        src = Path(get_package_dir(PY_INSTALL_CFG))
+        src = Path(PACKAGE_DIR)
         exclude = ignore_patterns("*ez_setup*", "*__pycache__*", "*.egg-info*")
         for path in src.glob("**/*"):
             if path.is_dir() or exclude(str(path)):
@@ -315,7 +315,7 @@ class PrepareLibs(build_clib):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
         blacklist_patterns = ["^.*\\.lib$", "^.*\\.pdb$", "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$", "^.*\\.la$"]
-        package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+        package_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
@@ -394,7 +394,7 @@ class CopyExt(build_ext):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative path to find dlls
             if sys.platform != "win32":
-                rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
+                rpath = os.path.relpath(PACKAGE_DIR, os.path.dirname(src))
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
 
@@ -564,18 +564,18 @@ def concat_files(output_file, input_files):
                 outfile.write(content)
     return output_file
 
-
-platforms = ["linux", "win32", "darwin"]
-if not any(pl in sys.platform for pl in platforms):
-    sys.exit(f"Unsupported platform: {sys.platform}, expected: linux, win32, darwin")
-
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 # copy license file into the build directory
 package_license = os.getenv("WHEEL_LICENSE", SCRIPT_DIR.parents[3] / "LICENSE")
 if os.path.exists(package_license):
     copyfile(package_license, "LICENSE")
 
-packages = find_namespace_packages(get_package_dir(PY_INSTALL_CFG))
+PACKAGE_DIR=get_package_dir(PY_INSTALL_CFG)
+# need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
+# egg_info command works in this folder, because it's being created automatically
+os.makedirs(PACKAGE_DIR, exist_ok=True)
+
+packages = find_namespace_packages(PACKAGE_DIR)
 package_data: typing.Dict[str, list] = {}
 pkg_name = os.getenv("WHEEL_PACKAGE_NAME", "openvino")
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG)) if pkg_name == "openvino" else []
@@ -613,7 +613,7 @@ setup(
     },
     ext_modules=ext_modules,
     packages=packages,
-    package_dir={"": get_package_dir(PY_INSTALL_CFG)},
+    package_dir={"": PACKAGE_DIR,
     package_data=package_data,
     zip_safe=False,
 )
