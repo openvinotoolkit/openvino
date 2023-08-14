@@ -30,13 +30,14 @@ public:
         return 0;
     }
     virtual const std::string& decoder_type_name() const override {
-        return "qt";
+        return m_decoder_type;
     }
 
 private:
     const Output<Node> m_qinput;
     const std::string m_op_type = "QuantizedPtNode";
     const std::string m_schema = "NONE";
+    const std::string m_decoder_type = "qt";
 };
 
 enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL };
