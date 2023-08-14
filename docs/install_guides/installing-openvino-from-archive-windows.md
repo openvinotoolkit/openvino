@@ -4,20 +4,36 @@
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Windows operating 
-                 system, using an archive file, which is a recommended 
-                 installation method for C++ developers.
+                 system, using an archive file.
 
-
-With the OpenVINO™ 2023.0 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples.
-
-Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 .. note::
+   
+   Note that the Archive distribution:
+   
+   * offers both C++ and Python APIs
+   * additionally includes code samples 
+   * is dedicated to users of all major OSs: Windows, Linux, macOS
+   * may offer different hardware support under different operating systems
+     (see the drop-down below for more details)
+     
+   .. dropdown:: Inference Options
 
-   Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via `pypi.org <https://pypi.org/project/openvino-dev/>`__ only.
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+       Operating System     CPU    GPU    GNA    NPU    AUTO      Auto-batch     HETERO    MULTI  
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
+       Debian9 armhf         V     n/a    n/a    n/a     V            V            V        n/a   
+       Debian9 arm64         V     n/a    n/a    n/a     V            V            V        n/a   
+       CentOS7 x86_64        V      V      V     n/a     V            V            V         V    
+       Ubuntu18 x86_64       V      V      V     n/a     V            V            V         V    
+       Ubuntu20 x86_64       V      V      V      V      V            V            V         V    
+       Ubuntu22 x86_64       V      V      V      V      V            V            V         V    
+       RHEL8 x86_64          V      V      V     n/a     V            V            V         V    
+       Windows x86_64        V      V      V      V      V            V            V         V    
+       MacOS x86_64          V     n/a    n/a    n/a     V            V            V        n/a   
+       MacOS arm64           V     n/a    n/a    n/a     V            V            V        n/a   
+      ===================  =====  =====  =====  =====  ========  =============  ========  ========
 
-
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ for more information on updates in the latest release.
 
 System Requirements
 ####################
@@ -26,28 +42,26 @@ System Requirements
 
    .. tab-item:: System Requirements
       :sync: system-requirements
-   
+
       | Full requirement listing is available in:
-      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
    
    .. tab-item:: Processor Notes
       :sync: processor-notes
    
-      Processor graphics are not included in all processors.
-      See `Product Specifications`_ for information about your processor.
-   
-      .. _Product Specifications: https://ark.intel.com/
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/>`__
    
    .. tab-item:: Software
       :sync: software
    
-      * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`_
-      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`_
+      * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`__ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`__
+      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`__
    
       .. note::
    
-         To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+         To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
    
       .. note::
    
@@ -55,7 +69,7 @@ System Requirements
    
       .. important::
    
-          When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`_ to your `PATH` environment variable.
+          When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
    
 
 
@@ -141,43 +155,11 @@ You must update several environment variables before you can compile and run Ope
 
 .. note::
 
-   If you see an error indicating Python is not installed, Python may not be added to the PATH environment variable (as described `here <https://docs.python.org/3/using/windows.html#finding-the-python-executable>`__). Check your system environment variables, and add Python if necessary.
+   If you see an error indicating Python is not installed, Python may not be added to the PATH environment variable 
+   (as described `here <https://docs.python.org/3/using/windows.html#finding-the-python-executable>`__). 
+   Check your system environment variables, and add Python if necessary.
 
 
-The environment variables are set. Continue to the next section if you want to download any additional components.
-
-.. _model-optimizer-windows:
-
-Step 3 (Optional): Install Additional Components
-++++++++++++++++++++++++++++++++++++++++++++++++
-
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
-
-See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
-
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ .
-
-.. _optional-steps-windows:
-
-Step 4 (Optional): Configure Inference on non-CPU Devices
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
-
-.. tab-set::
-
-   .. tab-item:: GPU
-      :sync: gpu
-   
-      To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
-   
-   .. tab-item:: GNA
-      :sync: gna
-   
-      To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.
-   
-
-.. _get-started-windows:
 
 What's Next?
 ####################

@@ -35,6 +35,8 @@ To use sample applications, install OpenVINO Runtime via one of the following di
 
 Make sure that you also `install OpenCV <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ , as it's required for running sample applications.
 
+
+
 Install OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++++
 
@@ -47,6 +49,10 @@ To install OpenVINO Development Tools, follow the :doc:`instructions for C++ dev
 .. code-block:: sh
 
    pip install openvino-dev[caffe]
+
+
+
+
 
 
 Build Samples
