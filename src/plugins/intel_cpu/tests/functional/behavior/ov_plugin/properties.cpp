@@ -196,10 +196,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
     const auto expected_precision_for_performance_mode = ov::element::f16;
-    const auto expected_precision_for_accuracy_mode = ov::element::f16;
 #else
     const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-    const auto expected_precision_for_accuracy_mode = ov::element::f32;
 #endif
 
 const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
@@ -209,7 +207,7 @@ const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> exectedTypeByMode {
     {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
                                             expected_precision_for_performance_mode}},
     {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
-                                            expected_precision_for_accuracy_mode}},
+                                            ov::element::f32}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {

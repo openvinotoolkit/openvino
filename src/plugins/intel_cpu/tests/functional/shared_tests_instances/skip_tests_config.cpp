@@ -218,6 +218,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
     retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
+
 #if defined(OPENVINO_ARCH_ARM)
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
