@@ -164,12 +164,11 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
 
     std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
         [&](const std::shared_ptr<ov::Node> &node) -> bool {
-        bool connected_to_quantize = false;
         for (auto& user : node->get_users()) {
             if (ngraph::is_type<ngraph::op::v0::FakeQuantize>(user))
                 return true;
         }
-        return connected_to_quantize;
+        return false;
     };
 
     size_t search_depth = 3;
