@@ -119,10 +119,13 @@ FrontEnd::FrontEnd() {
     }
 }
 
-std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
+std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    TranslateSession translate_session(model, m_op_translators, m_telemetry);
-    auto converted_model = translate_session.get_converted_model();
+    std::shared_ptr<Model> converted_model;
+    {
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        converted_model = translate_session.get_converted_model();
+    }
 
     std::string norm_err;
     try {
@@ -148,8 +151,11 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    TranslateSession translate_session(model, m_op_translators, m_telemetry);
-    auto partial_model = translate_session.get_converted_model();
+    std::shared_ptr<Model> partial_model;
+    {
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        partial_model = translate_session.get_converted_model();
+    }
     try {
         normalize(partial_model);
     } catch (...) {
