@@ -170,8 +170,6 @@ OutputVector translate_randn(const NodeContext& context) {
         sizes = concat_list_construct(sizes);
     }
     sizes = context.mark_node(std::make_shared<v0::Convert>(sizes, element::i32));
-    auto low = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {0}));
-    auto high = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {1}));
     auto dtype = element::f32;
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
@@ -202,8 +200,6 @@ OutputVector translate_randn(const NodeContext& context) {
         if (std::dynamic_pointer_cast<v0::Constant>(
                 context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
             dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
-            low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
-            high = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
         } else if (const auto& fw_node =
                        cast_fw_node(context.get_input(static_cast<int>(dtype_id)).get_node_shared_ptr(),
                                     "prim::dtype")) {
@@ -228,8 +224,6 @@ OutputVector translate_randn_like(const NodeContext& context) {
     num_inputs_check(context, 3, 6);
     auto inp_tensor = context.get_input(0);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(inp_tensor, element::i32));
-    auto low = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {0}));
-    auto high = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {1}));
     auto dtype = element::f32;
     if (context.get_input_size() == 3) {
         auto res = make_random_normal(context, sizes, dtype);
@@ -257,6 +251,36 @@ OutputVector translate_randn_like(const NodeContext& context) {
         res[0] = context.mark_node(std::make_shared<v1::ConvertLike>(res[0], convert_like_out));
     }
     return res;
+};
+
+OutputVector translate_randint(const NodeContext& context) {
+    // aten::randint.low(int low, int high, SymInt[] size, *, ScalarType? dtype=4, Layout? layout=None, Device?
+    // device=None, bool? pin_memory=None) -> Tensor
+    num_inputs_check(context, 7, 7);
+    auto low = context.get_input(0);
+    auto high = context.get_input(1);
+    auto sizes = context.get_input(2);
+    auto dtype = element::i64;
+    bool dtype_applied = true;
+    Output<Node> convert_like_out;
+    if (!context.input_is_none(3)) {
+        if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(3).get_node_shared_ptr())) {
+            dtype = convert_dtype(context.const_input<int64_t>(3));
+        } else if (const auto& fw_node =
+                       cast_fw_node(context.get_input(static_cast<int>(3)).get_node_shared_ptr(), "prim::dtype")) {
+            convert_like_out = fw_node->input_value(0);
+            dtype_applied = false;
+        } else {
+            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+        }
+    }
+    low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
+    high = context.mark_node(std::make_shared<v0::Convert>(high, dtype));
+    auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
+    if (!dtype_applied) {
+        res = context.mark_node(std::make_shared<v1::ConvertLike>(res, convert_like_out));
+    }
+    return {res};
 };
 
 }  // namespace op

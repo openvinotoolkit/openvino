@@ -13,10 +13,12 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/mod.hpp"
+#include "openvino/op/non_zero.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -123,14 +125,32 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             index = rg.make<v0::Concat>(indices_list, -1);
         } else {
             index = indices_inputs[0];
-            // change negative indices to positive indices
-            auto dim_0 = (rg.make<v8::Gather>(input_shape, const_0, const_0));
-            auto dim_0_correct_type = (rg.make<v1::ConvertLike>(dim_0, index));
-            index = rg.make<v1::Add>(index, dim_0_correct_type);
-            index = rg.make<v1::Mod>(index, dim_0_correct_type);
+            auto index_dtype = index.get_element_type();
+            // Do we need to also check u8?
+            if (index_dtype == element::boolean) {
+                auto nonzero = rg.make<v3::NonZero>(index, element::i32);
+                auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
+                index = rg.make<v1::Transpose>(nonzero, input_order);
+                broadcast_index_shape = rg.make<v3::ShapeOf>(index, element::i32);
+                auto start_0 = v0::Constant::create(element::i32, Shape{1}, {0});
+                auto end_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
+                auto values_shape = rg.make<v8::Slice>(broadcast_index_shape, start_0, end_neg_1, const_1);
+                values = rg.make<v3::Broadcast>(values, values_shape);
+                values = rg.make<v1::ConvertLike>(values, input);
+                auto result = rg.make<v3::ScatterNDUpdate>(input, index, values);
+                copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
+                replace_node(index_op, result);
+                return true;
+            } else {
+                // change negative indices to positive indices
+                auto dim_0 = (rg.make<v8::Gather>(input_shape, const_0, const_0));
+                auto dim_0_correct_type = (rg.make<v1::ConvertLike>(dim_0, index));
+                index = rg.make<v1::Add>(index, dim_0_correct_type);
+                index = rg.make<v1::Mod>(index, dim_0_correct_type);
 
-            broadcast_index_shape = rg.make<v3::ShapeOf>(index, element::i32);
-            index = rg.make<v0::Unsqueeze>(index, const_neg_1);
+                broadcast_index_shape = rg.make<v3::ShapeOf>(index, element::i32);
+                index = rg.make<v0::Unsqueeze>(index, const_neg_1);
+            }
         }
 
         auto sub_data_shape = rg.make<v8::Slice>(input_shape, const_indices_list_len, const_max_int, const_1);
