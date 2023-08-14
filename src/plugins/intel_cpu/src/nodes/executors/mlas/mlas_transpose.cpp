@@ -3,6 +3,7 @@
 //
 
 #include "mlas_transpose.hpp"
+#include <vector>
 #include "ie_parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
 #include "mlas.h"
@@ -294,6 +295,16 @@ bool MlasTransposeExecutor::init(const TransposeParams &transposeParams,
 bool MlasTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs) const {
+    // mlas shows worse performance then cpu reference for these orders
+    static const std::vector<std::vector<size_t>> layoutReorders {
+        {0, 3, 1, 2},
+        {0, 2, 3, 1},
+        {0, 2, 1},
+    };
+
+    if (layoutReorders.end() != std::find(layoutReorders.begin(), layoutReorders.end(), transposeParams.permuteParams.order)) {
+        return false;
+    }
     if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) ||
         !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
