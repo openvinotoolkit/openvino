@@ -78,7 +78,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, size_t mode
             if (std::string(input.attribute("max").value()) != "undefined") {
                 in_info.ranges.max = input.attribute("max").as_double();
             } else {
-                in_info.ranges.min = DEFAULT_MAX_VALUE;
+                in_info.ranges.max = DEFAULT_MAX_VALUE;
             }
             input_info.insert({in_name, in_info});
         }

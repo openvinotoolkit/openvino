@@ -105,6 +105,8 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
                 cache_status[model_status].push_back(model);
             }
         }
+        cache->serialize_cache();
+        cache->reset_cache();
     }
     return cache_status;
 }

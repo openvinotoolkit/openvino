@@ -77,10 +77,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (auto& cache : caches) {
-        cache->serialize_cache();
-        cache->reset_cache();
-    }
+    // for (auto& cache : caches) {
+    //     cache->serialize_cache();
+    //     cache->reset_cache();
+    // }
 
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
