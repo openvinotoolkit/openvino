@@ -37,14 +37,17 @@ void extract_operation_name_and_port(const std::string& port_name,
     auto left_part = port_name.substr(0, pos);
     auto right_part = port_name.substr(pos + 1, port_name.length() - pos);
 
-    if (left_part.find_first_not_of("0123456789") == std::string::npos) {
-        port_type = "in";
-        operation_name = right_part;
-        port_index = std::atoi(left_part.c_str());
-    } else if (right_part.find_first_not_of("0123456789") == std::string::npos) {
+    // it gives priority to parsing output ports
+    // because pruning is less important than out-of-the-box conversion
+    // for OOB conversion, the model refers only output ports
+    if (right_part.find_first_not_of("0123456789") == std::string::npos) {
         port_type = "out";
         operation_name = left_part;
         port_index = std::atoi(right_part.c_str());
+    } else if (left_part.find_first_not_of("0123456789") == std::string::npos) {
+        port_type = "in";
+        operation_name = right_part;
+        port_index = std::atoi(left_part.c_str());
     } else {
         FRONT_END_GENERAL_CHECK(false, "Incorrect port name specified: " + port_name);
     }
