@@ -771,23 +771,19 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     }
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-
     // if input is reusing prev output
     // the user node which uses this input data should use new output memory
     std::function<void(cldnn::primitive_inst*)> force_users_realloc_mem = [&](cldnn::primitive_inst* user) {
         if (user->is_output()) {
+            GPU_DEBUG_TRACE_DETAIL << user->id() << " is output => force realloc mem" << std::endl;
             user->force_realloc_mem();
             return;
         }
-        if (user->can_be_optimized()) {
-            auto users_of_user = user->get_user_insts();
-            for (auto u : users_of_user) {
-                if (u->is_output())
-                    u->force_realloc_mem();
-                else if (u->can_be_optimized())
-                    force_users_realloc_mem(u.get());
-                else
-                    continue;
+        auto users_of_user = user->get_user_insts();
+        for (auto u : users_of_user) {
+            if (u->can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << user->id() << " has optimized user " << u->id() << " => check whether its user is output" << std::endl;
+                force_users_realloc_mem(u.get());
             }
         }
         return;
@@ -795,6 +791,8 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     if (reuse_prev_output) {
         auto users = input->get_user_insts();
         for (auto u : users) {
+            // if inputs user is output, its memory should be reallocated to prevent data corruption
+            // Also the memory should not be limited to use lockable memory for better performance
             force_users_realloc_mem(u.get());
         }
     }
@@ -1213,7 +1211,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     }
-
     std::vector<memory::ptr> in_out_mem;
     auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
         return shared_mem_type == shared_mem_type::shared_mem_vasurface ||

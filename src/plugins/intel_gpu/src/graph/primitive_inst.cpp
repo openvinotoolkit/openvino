@@ -386,7 +386,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-//    if (id() == "concat:present.0.value")
+    //if (id() == "concat:present.0.value" || id() == "concat:present.0.key")
 //        std::cout << "here" << std::endl;
     event::ptr ev = nullptr;
     if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
@@ -420,7 +420,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size && !force_realloc;
+    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size && !_impl_params->force_realloc;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -1264,11 +1264,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     if (total_device_input_mem_size > _engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
-    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout()) ? !reset : !user_requesting_mem_reuse_false(_node);
+    bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
+                                       ? (!reset && !impl_params.force_realloc)
+                                       : !user_requesting_mem_reuse_false(_node);
 
-    // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
-    // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
-    // execution with other nodes) at the cost of tiny increase in memory consumption.
+    // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be
+    // executed in parallel with predecessors GPU kernels and cause accuracy problems. This significantly improves
+    // performance (because provides an ability not to synchronize shape_of subgraphs execution with other nodes) at the
+    // cost of tiny increase in memory consumption.
     if (_node.is_in_shape_of_subgraph())
         reusable_across_network = false;
 

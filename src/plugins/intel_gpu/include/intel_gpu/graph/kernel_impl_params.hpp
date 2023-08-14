@@ -38,6 +38,7 @@ struct kernel_impl_params {
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     bool _can_be_optimized = false;
+    bool force_realloc = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;

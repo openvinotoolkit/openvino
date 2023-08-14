@@ -213,10 +213,10 @@ public:
     void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
     void force_realloc_mem() {
-        force_realloc = true;
+        _impl_params->force_realloc = true;
     }
     bool is_forced_realloc_mem() const {
-        return force_realloc;
+        return _impl_params->force_realloc;
     }
     void configure_shape_of_dependencies();
 
@@ -283,7 +283,6 @@ protected:
 
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
-    bool force_realloc = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::unique_ptr<primitive_impl> _impl;
     std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
