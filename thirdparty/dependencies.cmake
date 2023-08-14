@@ -435,7 +435,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
     set(Protobuf_IN_FRONTEND ON)
 
     # set public / interface compile options
-    foreach(target_name protobuf::libprotobuf protobuf::libprotobuf-lite)
+    function(_ov_fix_protobuf_warnings target_name)
         set(link_type PUBLIC)
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
@@ -448,7 +448,12 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             endif()
             target_compile_options(${target_name} ${link_type} -Wno-undef)
         endif()
-    endforeach()
+    endfunction()
+
+    _ov_fix_protobuf_warnings(protobuf::libprotobuf)
+    if(TARGET protobuf::libprotobuf-lite)
+        _ov_fix_protobuf_warnings(protobuf::libprotobuf-lite)
+    endif()
 endif()
 
 #

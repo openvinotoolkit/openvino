@@ -201,6 +201,10 @@ macro(ov_add_frontend)
     if(FORCE_FRONTENDS_USE_PROTOBUF)
         set(OV_FRONTEND_PROTOBUF_LITE OFF)
     endif()
+    # if protobuf::libprotobuf-lite is not available, use protobuf::libprotobuf
+    if(NOT TARGET protobuf::libprotobuf-lite)
+        set(OV_FRONTEND_PROTOBUF_LITE OFF)
+    endif()
 
     if(proto_files)
         if(OV_FRONTEND_PROTOBUF_LITE)
