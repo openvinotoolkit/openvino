@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestQuantizedLinear(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2, 2)):
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        return (np.round(np.random.rand(*input_shape).astype(np.float32), 4),)
 
     def create_model(self, weight_shape, is_bias, scale, zero_point):
 
@@ -27,7 +27,7 @@ class TestQuantizedLinear(PytorchLayerTest):
                 self.linear.zero_point = int(zero_point)
 
             def forward(self, inp):
-                inp_q = torch.quantize_per_tensor(inp, 1., 0, torch.quint8)
+                inp_q = torch.quantize_per_tensor(inp, 1.0, 0, torch.quint8)
                 return torch.dequantize(self.linear(inp_q))
 
         ref_net = None

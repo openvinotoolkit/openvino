@@ -15,8 +15,8 @@ class aten_quantized_cat(torch.nn.Module):
         self.dtype = dtype
 
     def forward(self, inp):
-        x = torch.quantize_per_tensor(inp, 1.3, 0, self.dtype)
-        y = torch.quantize_per_tensor(inp, 1.0, 1, self.dtype)
+        x = torch.quantize_per_tensor(inp, 1.0, 0, self.dtype)
+        y = torch.quantize_per_tensor(inp, 1.0, 0, self.dtype)
         return torch.dequantize(torch.ops.quantized.cat([x, y], 1, self.scale, self.zero_point))
 
 
@@ -66,7 +66,7 @@ class aten_add_quantized_cat(torch.nn.Module):
 
 class TestQuantizedCat(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.rand(2, 1, 3).astype(np.float32),)
+        return (np.round(np.random.rand(2, 1, 3).astype(np.float32), 4),)
 
     @pytest.mark.parametrize("scale", [1.0, 0.3, 1.3])
     @pytest.mark.parametrize("zero_point", [0, 1])

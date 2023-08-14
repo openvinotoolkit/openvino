@@ -155,8 +155,8 @@ class PytorchLayerTest:
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(
-                        fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
