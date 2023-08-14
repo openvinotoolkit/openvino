@@ -2171,15 +2171,15 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
 #if defined (OV_CPU_WITH_ACL)
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
+    auto planarDesc = initDesc(Planar, true);
+    if (planarDesc.getExecutorFactory())
+        supportedPrimitiveDescriptors.emplace_back(planarDesc);
+
     if (isChannelsFirstApplicable) {
         auto channelFirstDesc = initDesc(ChannelsFirst, true);
         if (channelFirstDesc.getExecutorFactory())
             supportedPrimitiveDescriptors.emplace_back(channelFirstDesc);
     }
-
-    auto planarDesc = initDesc(Planar, true);
-    if (planarDesc.getExecutorFactory())
-        supportedPrimitiveDescriptors.emplace_back(planarDesc);
 
     canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     if (canUseAclExecutor)
