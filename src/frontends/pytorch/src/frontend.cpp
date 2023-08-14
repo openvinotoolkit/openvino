@@ -146,7 +146,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
 
-std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {    
+std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     TranslateSession translate_session(model, m_op_translators, m_telemetry);
     auto partial_model = translate_session.get_converted_model();
