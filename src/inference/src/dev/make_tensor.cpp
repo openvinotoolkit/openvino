@@ -516,6 +516,10 @@ public:
     void setShape(const ie::SizeVector& dims) override {
         tensor->set_shape(dims);
         ie::TBlob<T>::getTensorDesc().setDims(dims);
+        allocate();
+    }
+
+    void allocate() noexcept override {
         if (ie::TBlob<T>::buffer() != tensor->data()) {
             ie::TBlob<T>::_allocator =
                 ie::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
