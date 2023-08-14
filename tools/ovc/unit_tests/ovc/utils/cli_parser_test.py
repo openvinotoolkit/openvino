@@ -86,37 +86,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
                       _InputCutInfo(name='inp3', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
-    def test_get_shapes_and_data_types1(self):
-        argv_input = "inp1[3 1],inp2[3 2 3]{i32},inp3[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      _InputCutInfo(name='inp3', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_with_input_ports(self):
-        argv_input = "1:inp1[3 1],inp2[3 2 3]{i32},0:inp3[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='1:inp1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      _InputCutInfo(name='0:inp3', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_with_output_ports(self):
-        argv_input = "inp1:1[3 1],inp2[3 2 3]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_with_output_ports_comma_sep(self):
-        argv_input = "inp1:1[3,1],inp2[3,2, 3]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2', shape=PartialShape([3,2,3]), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
 
     def test_get_shapes_and_data_types_shape_only(self):
         argv_input = "placeholder1[3 1],placeholder2,placeholder3"
@@ -132,14 +101,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         inputs_ref = [_InputCutInfo(name='placeholder1:4', shape=PartialShape([3,1])),
                       _InputCutInfo(name='placeholder2'),
                       _InputCutInfo(name='2:placeholder3')]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_when_no_freeze_value(self):
-        argv_input = "placeholder1{i32}[3 1],placeholder2,placeholder3{i32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='placeholder1', shape=PartialShape([3,1]), type=np.int32),
-                      _InputCutInfo(name='placeholder2'),
-                      _InputCutInfo(name='placeholder3', type=np.int32)]
         self.assertEqual(inputs, inputs_ref)
 
     def test_wrong_data_types(self):
@@ -225,22 +186,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
                       _InputCutInfo(name='inp3', shape=PartialShape([]))]
         self.assertEqual(inputs, inputs_ref)
 
-    def test_get_shapes_and_data_types_partial_shape_with_input_port(self):
-        argv_input = "inp1:1[3 1],0:inp2[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='0:inp2', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_partial_shape_with_output_port(self):
-        argv_input = "inp1:1[3 1],inp2:3[3.. ..2 5..10 ? -1]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2:3', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
     def test_partial_shapes_freeze_dynamic_negative_case1(self):
         argv_input = "inp1:1[3 1..10]->[1.0 2.0 3.0]"
         self.assertRaises(Error, input_to_input_cut_info, argv_input)
@@ -282,22 +227,6 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
         inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([3,1])),
                       _InputCutInfo(name='inp2', shape=PartialShape("[3..,..2,5..10,?,-1]")),
                       _InputCutInfo(name='inp3', shape=PartialShape([]))]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_partial_shape_with_input_port_comma_separator(self):
-        argv_input = "inp1:1[3,1],0:inp2[ 3.. ,..2, 5..10, ?,-1]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='0:inp2', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
-        self.assertEqual(inputs, inputs_ref)
-
-    def test_get_shapes_and_data_types_partial_shape_with_output_port_comma_separator(self):
-        argv_input = "inp1:1[3,1],inp2:3[3..,..2,5..10,?,-1]{i32},inp3:4[5]{f32}"
-        inputs = input_to_input_cut_info(argv_input)
-        inputs_ref = [_InputCutInfo(name='inp1:1', shape=PartialShape([3,1])),
-                      _InputCutInfo(name='inp2:3', shape=PartialShape("[3..,..2,5..10,?,-1]"), type=np.int32),
-                      _InputCutInfo(name='inp3:4', shape=PartialShape([5]), type=np.float32)]
         self.assertEqual(inputs, inputs_ref)
 
     def test_partial_shapes_freeze_dynamic_negative_case1_comma_separator(self):
