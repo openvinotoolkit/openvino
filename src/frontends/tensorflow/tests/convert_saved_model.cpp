@@ -159,6 +159,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) 
 }
 
 TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
+    comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
     // The test aims to check that model with only numerical names for operation
     // is successfully converted
     // it is a tricky case because colision between naming input and output ports may occur
@@ -166,10 +167,17 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     {
         // create a reference graph
         auto x = make_shared<Parameter>(element::f32, Shape{1});
+        x->output(0).set_names({"0"});
         auto y = make_shared<Parameter>(element::f32, Shape{1});
+        y->output(0).set_names({"1"});
         auto z = make_shared<Parameter>(element::f32, Shape{1});
+        z->output(0).set_names({"2"});
         auto add = make_shared<Add>(x, y);
+        add->output(0).set_names({"3", "3:0"});
         auto sub = make_shared<Subtract>(add, z);
-        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y, z});
+        sub->output(0).set_names({"4"});
+        auto result = make_shared<Result>(sub);
+        result->output(0).set_names({"4"});
+        model_ref = make_shared<Model>(ResultVector{result}, ParameterVector{x, y, z});
     }
 }
