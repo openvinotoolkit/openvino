@@ -871,7 +871,13 @@ def get_model_name_from_args(argv: argparse.Namespace):
     if not isinstance(input_model, (str, pathlib.Path)):
         return output_dir
 
-    input_model_name = os.path.splitext(os.path.split(input_model)[1])[0]
+    input_model_split = os.path.split(input_model)
+    while len(input_model_split[0]) > 0 and len(input_model_split) > 1 and (input_model_split[1] == '' or input_model_split[1] == '.'):
+        input_model_split = os.path.split(input_model_split[0])
+
+    input_model_name = os.path.splitext(input_model_split[1])[0]
+    if input_model_name == '.' or input_model_name == '':
+        input_model_name = "model"
     return os.path.join(output_dir, input_model_name + ".xml")
 
 
