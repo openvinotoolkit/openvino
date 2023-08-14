@@ -954,10 +954,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_1, GatherInPlaceLayerTestCPU,
 INSTANTIATE_TEST_SUITE_P(smoke_4D_out_of_range, GatherInPlaceLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(shapesInPlace4D_1),
-                    ::testing::Values(std::vector<int64_t>{ 10 }), //std::vector<int64_t>{ -15 },
+                    ::testing::Values(std::vector<int64_t>{ 10 }, std::vector<int64_t>{ -15 }),
                     ::testing::Values(1),
                     ::testing::Values(ElementType::f32),
-                    ::testing::Values(cpuParamsRef)),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"})),
                 GatherInPlaceLayerTestCPU::getTestCaseName);
 
 } // namespace

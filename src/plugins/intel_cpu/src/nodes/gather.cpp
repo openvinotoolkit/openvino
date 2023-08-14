@@ -158,7 +158,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    if (constIndices.front() < 0 || constIndices.front() > static_cast<int64_t>(axisDim)) {
+    const auto indx = constIndices.front();
+    const auto normIndex = indx < 0 ? static_cast<int64_t>(axisDim) + indx : indx;
+
+    if (normIndex < 0 || normIndex >= static_cast<int64_t>(axisDim)) {
         return;
     }
 
@@ -555,10 +558,11 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto& config = selected_pd->getConfig();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
-    auto baseDim = inputShapes.front().getDims()[axis];
+    const auto baseDim = inputShapes.front().getDims()[axis];
     IE_ASSERT(baseDim != Shape::UNDEFINED_DIM) << "Gather node: " << getName() << " can not use inPlace memory with splitting on dynamic dimention";
     auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
-    ptrdiff_t offset = constIndices.at(0);
+    const auto index = constIndices.front();
+    const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (auto& childEdge : childEdges) {
         IE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated) << " Unexpected edge status in node: " <<
