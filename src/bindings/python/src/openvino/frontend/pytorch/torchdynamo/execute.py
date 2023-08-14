@@ -56,12 +56,14 @@ def execute(
 
 import numpy as np
 
+
 def execute_cached(compiled_model, *args):
     ov_inputs = [a.detach().cpu().numpy() for a in args]
     ov_inputs.reverse()
     res = compiled_model(ov_inputs)
     result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
     return result
+
 
 def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id):
 

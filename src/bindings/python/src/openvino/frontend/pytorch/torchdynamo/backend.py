@@ -49,7 +49,7 @@ def openvino(subgraph, example_inputs):
 
 @register_backend
 @fake_tensor_unsupported
-def ts_openvino(subgraph, example_inputs):
+def openvino_ts(subgraph, example_inputs):
     return ts_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):

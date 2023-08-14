@@ -110,8 +110,7 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 }
 }  // namespace
 
-FrontEnd::FrontEnd() {
-}
+FrontEnd::FrontEnd() {}
 
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);

@@ -30,7 +30,7 @@ class Partitioner:
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         fx_gm = make_fx(graph_module)(*args)
-        return fx_gm  
+        return fx_gm
 
     def add_get_attr_inputs(self, partitions: t.List[Partition]):
         # TODO: Find a more efficient way to include input
