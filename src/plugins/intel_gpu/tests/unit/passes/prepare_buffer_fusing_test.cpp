@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -22,6 +23,8 @@
 #include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
+#include "resample_inst.h"
+#include "openvino/op/interpolate.hpp"
 
 #include "program_wrapper.h"
 
@@ -850,6 +853,37 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
 
     auto crop_prim = network.get_primitive("crop_input");
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
+}
+
+TEST(prepare_buffer_fusing, test_checking_padding_supported) {
+    auto& engine = get_test_engine();
+    auto in_layout1 = layout{ ov::PartialShape{2, 36, 57, 57}, data_types::f16, format::fs_b_yx_fsv32};
+    auto in_layout2 = layout{ ov::PartialShape{2, 72, 57, 57}, data_types::f16, format::fs_b_yx_fsv32};
+    auto in_layout3 = layout{ ov::PartialShape{2, 144, 57, 57}, data_types::f16, format::fs_b_yx_fsv32};
+
+    auto padding1 = padding({0,18,1,1}, {0,0,0,0});
+    auto padding2 = padding({0,0,0,0}, {0,0,0,0});
+    auto padding3 = padding({0,0,0,0}, {0,0,0,0});
+
+    topology topology(
+        input_layout("input1", in_layout1),
+        input_layout("input2", in_layout2),
+        input_layout("input3", in_layout3),
+        resample("interp1", input_info("input1"), in_layout1.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding1),
+        resample("interp2", input_info("input2"), in_layout2.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding2),
+        resample("interp3", input_info("input3"), in_layout3.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding3),
+        concatenation("concat", {input_info("interp1"), input_info("interp2"), input_info("interp3")}, 1),
+        reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*program);
+    ASSERT_NE(program, nullptr);
+
+    auto& concat = program->get_node("concat");
+    ASSERT_EQ(concat.can_be_optimized(), false);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
