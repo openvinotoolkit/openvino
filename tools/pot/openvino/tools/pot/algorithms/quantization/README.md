@@ -2,9 +2,9 @@
 
 ## Introduction
 
-The primary optimization feature of the Post-training Optimization Tool (POT) is the uniform integer quantization which allows substantially increasing inference performance and reducing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example, 8-bit for CPU, GPU, VPU, 16-bit for GNA. Moreover, POT makes the specification of HW settings transparent for the user by introducing a concept of the `target_device` parameter.
+The primary optimization feature of the Post-training Optimization Tool (POT) is the uniform integer quantization which allows substantially increasing inference performance and reducing the model size. Different HW platforms can support different integer precisions and POT is designed to support all of them, for example, 8-bit for CPU, GPU, NPU, 16-bit for GNA. Moreover, POT makes the specification of HW settings transparent for the user by introducing a concept of the `target_device` parameter.
 
-> **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and VPU devices. GNA-quantized models are compatible only with CPU.
+> **NOTE**: There is a special `target_device: "ANY"` which leads to portable quantized models compatible with CPU, GPU, and NPU devices. GNA-quantized models are compatible only with CPU.
 
 During the quantization process, the POT tool runs inference of the optimizing model to estimate quantization parameters for input activations of the quantizable operation. It means that a calibration dataset is required to perform quantization. This dataset may have or not have annotation depending on the quantization algorithm that is used.
 
