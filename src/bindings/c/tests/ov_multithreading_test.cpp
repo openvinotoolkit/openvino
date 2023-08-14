@@ -100,7 +100,7 @@ TEST_P(ov_multithreading_test, compile_model) {
     });
 }
 
-TEST_P(ov_multithreading_test, create_infer_request) {
+TEST_P(ov_multithreading_test, infer) {
     auto device_name = GetParam();
 
     std::atomic<unsigned int> counter{0u};
@@ -120,7 +120,7 @@ TEST_P(ov_multithreading_test, create_infer_request) {
         EXPECT_NE(nullptr, compiled_model);
         ov_infer_request_t* infer_request = nullptr;
         OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
-        EXPECT_NE(nullptr, infer_request);
+        OV_EXPECT_OK(ov_infer_request_infer(infer_request));
 
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
