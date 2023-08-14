@@ -56,7 +56,7 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
-          path: ${{ env.OPENVINO_REPO }}
+          path: ${OPENVINO_REPO}
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
@@ -80,14 +80,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          echo ${GITHUB_WORKSPACE}
-          ls -la ${GITHUB_WORKSPACE}
-          echo ${OPENVINO_REPO}
-          ls -la ${OPENVINO_REPO}
-          echo ${OPENVINO_CONTRIB_REPO}
-          ls -la ${OPENVINO_CONTRIB_REPO}
-          chmod +x ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
-          bash ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
+          ${OPENVINO_REPO}/install_build_dependencies.sh
           apt update
           apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
 
@@ -104,30 +97,30 @@ jobs:
           # For Python API
           python3 -m pip install --upgrade pip
           python3 -m pip install Scons
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements_test.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements_test.txt
 
           # For running Python API tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       - name: Install MO dependencies
         run: |
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
       #
       # Build
@@ -186,7 +179,7 @@ jobs:
             -DENABLE_DEBUG_CAPS=ON \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
-            -S ${{ env.OPENVINO_REPO }} \
+            -S ${OPENVINO_REPO} \
             -B ${{ env.BUILD_DIR }}
 
       - name: Clean ccache stats
@@ -199,7 +192,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Cmake Layer Tests
-        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
+        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
 
       - name: Build Layer Tests
         run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
@@ -220,7 +213,7 @@ jobs:
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: CMake Samples Tests
-        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
+        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
 
       - name: Build Samples Tests
         run: cmake --build ${{ env.BUILD_DIR }}/samples_tests --config Release
@@ -542,32 +535,32 @@ jobs:
         run: |
           # For Python API
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/requirements.txt
 
           # For running Python API tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running Paddle frontend unit tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
           # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/openvino/preprocess/torchvision/requirements.txt
 
       - name: Install MO dependencies
         run: |
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
@@ -619,15 +612,15 @@ jobs:
       - name: Model Optimizer UT
         run: |
 
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:${{ env.INSTALL_TEST_DIR }}:${{ env.INSTALL_DIR }}/python/python3.11:$PYTHONPATH
 
           # TODO: figure out why they need to be reinstalled
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_mxnet.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/tools/mo/requirements_dev.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_mxnet.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_caffe.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_kaldi.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_onnx.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_tf2.txt
+          python3 -m pip install -r ${OPENVINO_REPO}/tools/mo/requirements_dev.txt
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
@@ -637,7 +630,7 @@ jobs:
       - name: PyTorch Layer Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
@@ -648,7 +641,7 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
@@ -659,7 +652,7 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
@@ -670,7 +663,7 @@ jobs:
       - name: TensorFlow 1 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
@@ -678,7 +671,7 @@ jobs:
       - name: TensorFlow 2 Layer Tests - Legacy FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py \
@@ -689,7 +682,7 @@ jobs:
       - name: TensorFlow Lite Layer Tests - TFL FE
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
@@ -699,7 +692,7 @@ jobs:
       - name: MO Python API Tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
@@ -709,7 +702,7 @@ jobs:
       - name: Python Frontend tests
         run: |
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-          export PYTHONPATH=${{ env.OPENVINO_REPO }}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${OPENVINO_REPO}/tools/mo/:${{ env.LAYER_TESTS_INSTALL_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
@@ -720,7 +713,7 @@ jobs:
           export PYTHONPATH=${{ env.INSTALL_TEST_DIR }}:$PYTHONPATH
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest -s ${{ env.OPENVINO_REPO }}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+          python3 -m pytest -s ${OPENVINO_REPO}/tools/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
