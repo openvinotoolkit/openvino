@@ -121,11 +121,10 @@ TEST_P(ov_multithreading_test, create_infer_request) {
         ov_infer_request_t* infer_request = nullptr;
         OV_EXPECT_OK(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
         EXPECT_NE(nullptr, infer_request);
-        
+
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
         ov_model_free(model);
         ov_core_free(core);
-
     });
 }
