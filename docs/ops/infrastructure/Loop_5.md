@@ -11,7 +11,7 @@
 **Category**: *Infrastructure*
 
 **Short description**: *Loop* operation performs recurrent execution of the network, which is described in the ``body``, iterating through the data.
-The operation has similar semantic to the ONNX* Loop `operation <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__.
+The operation has similar semantic to the ONNX Loop `operation <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__.
 
 **Detailed description**
 

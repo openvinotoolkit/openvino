@@ -14,7 +14,7 @@
 
 **Attributes**:
 
-    No attributes available.
+No attributes available.
 
 **Inputs**
 

@@ -7,7 +7,7 @@
                  of Intel® Distribution of OpenVINO™ toolkit.
 
 
-Performance varies by use, configuration and other factors. Learn more at [www.intel.com/PerformanceIndex](https://www.intel.com/PerformanceIndex).
+Performance varies by use, configuration and other factors. Learn more at `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
  
 Performance results are based on testing as of dates shown in configurations and may not reflect all publicly available updates. See backup for configuration details.  No product or component can be absolutely secure.
  

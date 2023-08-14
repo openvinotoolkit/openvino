@@ -60,71 +60,70 @@ second input:
 
 * *score_threshold*
 
-    * **Description**: The *score_threshold* attribute specifies a threshold to consider only detections whose score are
-    larger than the threshold.
-    * **Range of values**: non-negative floating-point number
-    * **Type**: ``float``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *score_threshold* attribute specifies a threshold to consider only detections whose score are larger than the threshold.
+  * **Range of values**: non-negative floating-point number
+  * **Type**: ``float``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *nms_threshold*
 
-    * **Description**: The *nms_threshold* attribute specifies a threshold to be used in the NMS stage.
-    * **Range of values**: non-negative floating-point number
-    * **Type**: ``float``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *nms_threshold* attribute specifies a threshold to be used in the NMS stage.
+  * **Range of values**: non-negative floating-point number
+  * **Type**: ``float``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *num_classes*
 
-    * **Description**: The *num_classes* attribute specifies the number of detected classes.
-    * **Range of values**: non-negative integer number
-    * **Type**: ``int``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *num_classes* attribute specifies the number of detected classes.
+  * **Range of values**: non-negative integer number
+  * **Type**: ``int``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *post_nms_count*
 
-    * **Description**: The *post_nms_count* attribute specifies the maximal number of detections per class.
-    * **Range of values**: non-negative integer number
-    * **Type**: ``int``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *post_nms_count* attribute specifies the maximal number of detections per class.
+  * **Range of values**: non-negative integer number
+  * **Type**: ``int``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *max_detections_per_image*
 
-    * **Description**: The *max_detections_per_image* attribute specifies maximal number of detections per image.
-    * **Range of values**: non-negative integer number
-    * **Type**: ``int``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *max_detections_per_image* attribute specifies maximal number of detections per image.
+  * **Range of values**: non-negative integer number
+  * **Type**: ``int``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *class_agnostic_box_regression*
 
-    * **Description**: *class_agnostic_box_regression* attribute is a flag that specifies whether to delete background classes or not.
-    * **Range of values**:
-
-      * ``true`` means background classes should be deleted
-      * ``false`` means background classes should not be deleted
-    * **Type**: ``boolean``
-    * **Default value**: false
-    * **Required**: *no*
+  * **Description**: *class_agnostic_box_regression* attribute is a flag that specifies whether to delete background classes or not.
+  * **Range of values**:
+  
+    * ``true`` means background classes should be deleted
+    * ``false`` means background classes should not be deleted
+  * **Type**: ``boolean``
+  * **Default value**: false
+  * **Required**: *no*
 
 * *max_delta_log_wh*
 
-    * **Description**: The *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height.
-    * **Range of values**: floating-point number
-    * **Type**: ``float``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *max_delta_log_wh* attribute specifies maximal delta of logarithms for width and height.
+  * **Range of values**: floating-point number
+  * **Type**: ``float``
+  * **Default value**: None
+  * **Required**: *yes*
 
 * *deltas_weights*
 
-    * **Description**: The *deltas_weights* attribute specifies weights for bounding boxes sizes deltas.
-    * **Range of values**: a list of non-negative floating-point numbers
-    * **Type**: ``float[]``
-    * **Default value**: None
-    * **Required**: *yes*
+  * **Description**: The *deltas_weights* attribute specifies weights for bounding boxes sizes deltas.
+  * **Range of values**: a list of non-negative floating-point numbers
+  * **Type**: ``float[]``
+  * **Default value**: None
+  * **Required**: *yes*
 
 **Inputs**
 
