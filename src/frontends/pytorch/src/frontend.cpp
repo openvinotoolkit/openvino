@@ -153,7 +153,9 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
     try {
         normalize(partial_model);
     } catch (...) {
-        // normalize can fail on partially converted model. Suppress any exception.
+        // normalize can fail on transformation, but the model is still valid. We can return such model.
+        // If model can be validated we suppress normalize exception.
+        partial_model->validate_nodes_and_infer_types();
     }
     return partial_model;
 }
