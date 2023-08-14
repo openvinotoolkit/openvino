@@ -288,8 +288,8 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
-    auto new_layout = calc_output_layout();
-    set_output_layout(new_layout, invalidate_users_if_changed, idx);
+    auto new_layouts = calc_output_layouts();
+    set_output_layouts(new_layouts, invalidate_users_if_changed);
     return output_layouts[idx];
 }
 

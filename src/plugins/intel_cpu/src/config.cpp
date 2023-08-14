@@ -70,7 +70,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const ov::AnyMap& prop) {
+void Config::readProperties(const ov::AnyMap& prop, ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
@@ -261,6 +261,13 @@ void Config::readProperties(const ov::AnyMap& prop) {
         } else {
             inferencePrecision = ov::element::f32;
         }
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+        //fp16 precision is used as default precision on ARM for non-convolution networks
+        //fp16 ACL convolution is slower than fp32
+        if (modelType != ModelType::CNN) {
+            inferencePrecision = ov::element::f16;
+        }
+#endif
     }
 
     if (!prop.empty())

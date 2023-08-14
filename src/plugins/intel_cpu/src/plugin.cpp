@@ -435,10 +435,18 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
         OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
 }
 
-static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig, const Config& engineConfig) {
+static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
+                                               const Config& engineConfig,
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -503,7 +511,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
+    Config::ModelType modelType = getModelType(model);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
@@ -516,7 +525,7 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    conf.readProperties(config);
+    conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
     Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
@@ -785,8 +794,13 @@ ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) c
 ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT =
@@ -837,6 +851,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
     deserializer >> model;
 
     Config conf = engConfig;
+    Config::ModelType modelType = getModelType(model);
     conf.readProperties(config);
 
     // import config props from caching model
