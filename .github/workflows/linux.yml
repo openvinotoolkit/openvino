@@ -80,8 +80,11 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          echo ${GITHUB_WORKSPACE}
           ls -la ${GITHUB_WORKSPACE}
+          echo ${OPENVINO_REPO}
           ls -la ${OPENVINO_REPO}
+          echo ${OPENVINO_CONTRIB_REPO}
           ls -la ${OPENVINO_CONTRIB_REPO}
           chmod +x ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
           ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
