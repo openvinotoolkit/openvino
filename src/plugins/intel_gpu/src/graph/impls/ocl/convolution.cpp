@@ -195,10 +195,12 @@ public:
         }
 
         auto format = impl_param.get_output_layout().format;
-        if (format == format::b_fs_zyx_fsv16 ||
-            format == format::bs_fs_zyx_bsv16_fsv16 ||
-            format == format::bs_fs_yx_bsv16_fsv16 ||
-            format == format::b_fs_zyx_fsv32)
+        if ((format == format::b_fs_zyx_fsv16 ||
+             format == format::bs_fs_zyx_bsv16_fsv16 ||
+             format == format::bs_fs_yx_bsv16_fsv16 ||
+             format == format::b_fs_zyx_fsv32) &&
+            (input_layout.data_type == data_types::f16 ||
+             input_layout.data_type == data_types::f32))
             conv_optional_params.allowInputReordering = true;
 
         conv_params.set_dynamic_shape_offsets();
