@@ -1065,16 +1065,20 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
+    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32 &&
+                            node.get_preferred_output_fmt() != format::any;
 
-    if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
+    if (use_onednn_impls && onednn_valid_post_ops) {
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
         if (use_onednn_impls && i8_u8_input) {
             // It is here because of post operation condition for onednn.
-            // Use fsv32 for onednn friendliness.
-            expected_format = cldnn::format::b_fs_yx_fsv32;
+            // Use fsv32 for onednn friendliness. At least check convolution dimensions in network.
+            if (_optimization_attributes.b_fs_yx_fsv16_network)
+                expected_format = cldnn::format::b_fs_yx_fsv32;
+            else
+                expected_format = cldnn::format::b_fs_zyx_fsv32;
         } else if (i8_u8_input) {
             if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
