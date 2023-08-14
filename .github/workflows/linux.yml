@@ -83,6 +83,7 @@ jobs:
           ls -la ${GITHUB_WORKSPACE}
           ls -la ${OPENVINO_REPO}
           ls -la ${OPENVINO_CONTRIB_REPO}
+          chmod +x ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
           ${{ env.OPENVINO_REPO }}/install_build_dependencies.sh
           apt update
           apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
