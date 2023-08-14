@@ -9,12 +9,10 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(Mvn1LayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 };
 
 TEST_P(Mvn6LayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
 };
 

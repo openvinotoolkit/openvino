@@ -28,7 +28,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
-#include "utils/cpu_utils.hpp"
 
 #if defined(__linux__)
 # include <sys/auxv.h>
@@ -440,6 +439,12 @@ static ov::element::Type getInferencePrecision(const std::map<std::string, std::
     Config tempConf = engineConfig;
     tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {

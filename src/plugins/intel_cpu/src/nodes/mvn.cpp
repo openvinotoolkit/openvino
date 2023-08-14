@@ -1905,6 +1905,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        else
+            outputPrecision = Precision::FP32;
 #endif // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type;
