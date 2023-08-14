@@ -8,11 +8,11 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
+#include <ngraph/runtime/reference/convert.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
@@ -24,6 +24,7 @@
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -904,9 +905,6 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
     }
 }
 
-// TODO: Make this definitiion unuque, now it is duplicated between this file and compress_float_constants.cpp
-const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
-
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ov::Model& model,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
@@ -1010,8 +1008,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
 
                 auto rt_info = i.get_tensor().get_rt_info();
-                bool compress_to_fp16 = rt_info.find(postponed_fp16_compression_tag) != rt_info.end();
-                auto port_element_type = compress_to_fp16 ? ov::element::f16 : i.get_element_type();
+                auto port_element_type =
+                    is_fp16_compression_postponed(rt_info) ? ov::element::f16 : i.get_element_type();
 
                 port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
                 for (auto d : i.get_partial_shape()) {
@@ -1039,8 +1037,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
 
                 auto rt_info = o.get_tensor().get_rt_info();
-                bool compress_to_fp16 = rt_info.find(postponed_fp16_compression_tag) != rt_info.end();
-                auto port_element_type = compress_to_fp16 ? ov::element::f16 : o.get_element_type();
+                auto port_element_type =
+                    is_fp16_compression_postponed(rt_info) ? ov::element::f16 : o.get_element_type();
 
                 port.append_attribute("precision").set_value(get_precision_name(port_element_type).c_str());
 
@@ -1080,7 +1078,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         {
             bool compress_to_fp16 = false;
             ov::element::Type output_element_type = ov::element::dynamic;
-            if (node->get_rt_info().find(postponed_fp16_compression_tag) != node->get_rt_info().end()) {
+            if (is_fp16_compression_postponed(node->get_rt_info())) {
                 compress_to_fp16 = true;
                 output_element_type = node->get_output_element_type(0);
             }

@@ -4,8 +4,9 @@
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
+#include <ngraph/runtime/reference/convert.hpp>
+
 #include "itt.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -16,11 +17,6 @@
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
 #define POSTPONED_FP16_COMPRESSION 1
-
-namespace {
-// TODO: Make this definitiion unique, now it is duplicated between this file and serialize.cpp
-const std::string& postponed_fp16_compression_tag = "postponed_fp16_compression";
-}  // namespace
 
 namespace {
 template <ov::element::Type_t PREC_FROM>
@@ -125,10 +121,9 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         ov::copy_runtime_info(const_node, convert);
         ov::mark_as_decompression(convert);
         if (postponed) {
-            // Value of postponed_fp16_compression_tag rt_info entry always should be true, value itself is ignored
-            // TODO: choose another type for that
-            new_const->get_rt_info()[postponed_fp16_compression_tag] = true;
-            new_const->get_output_tensor(0).get_rt_info()[postponed_fp16_compression_tag] = true;
+            postpone_fp16_compression(new_const->get_rt_info());
+            postpone_fp16_compression(new_const->get_output_tensor(0).get_rt_info());
+
             for (const auto& target_input : constant_target_inputs) {
                 target_input.replace_source_output(convert);
             }
