@@ -423,7 +423,16 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        find_package(Protobuf 3.20.3 REQUIRED)
+        # Note: we also specify 'protobuf' in NAMES because of vcpkg
+        set(find_package_protobuf_names Protobuf protobuf)
+        # try to find newer version first (major is changed)
+        # see https://protobuf.dev/support/version-support/ and
+        # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
+        find_package(Protobuf 4.22.0 QUIET NAMES ${find_package_protobuf_names})
+        if(NOT Protobuf_FOUND)
+            # otherwise, fallback to existing default
+            find_package(Protobuf 3.20.3 REQUIRED NAMES ${find_package_protobuf_names})
+        endif()
         set(PROTOC_EXECUTABLE protobuf::protoc)
 
         # in case of system protobuf, we have to add version to OpenVINOConfig.cmake for static build
@@ -591,7 +600,7 @@ endif()
 #
 
 if(ENABLE_SAMPLES)
-    # Note: VPUX requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+    # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
     find_package(nlohmann_json 3.9.0 QUIET)
     if(nlohmann_json_FOUND)
         # conan creates imported target nlohmann_json::nlohmann_json
@@ -601,7 +610,7 @@ if(ENABLE_SAMPLES)
     else()
         add_subdirectory(json)
 
-        # this is required only because of VPUX plugin reused this
+        # this is required only because of NPU plugin reused this
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS nlohmann_json)
 
         # for nlohmann library versions older than v3.0.0

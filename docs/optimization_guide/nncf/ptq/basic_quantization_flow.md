@@ -69,7 +69,8 @@ If there is no framework dataset object, you can create your own entity that imp
 Quantize a Model
 #####################
 
-Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
+Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it.
+See the `example section <#examples-of-how-to-apply-nncf-post-training-quantization>`__ at the end of this document for examples for each framework.
 
 .. tab-set::
 
@@ -102,7 +103,8 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
          :fragment: [quantization]
          
 
-After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO:
+After that the model can be converted into the OpenVINO Intermediate Representation (IR) if needed, compiled and run with OpenVINO.
+If you have not already installed OpenVINO developer tools, install it with ``pip install openvino-dev``.
 
 .. tab-set::
 
@@ -189,7 +191,7 @@ Tune quantization parameters
        regex = '.*layer_.*'
        nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
 
-* ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``VPU``.
+* ``target_device`` - defines the target device, the specificity of which will be taken into account during optimization. The following values are supported: ``ANY`` (default), ``CPU``, ``CPU_SPR``, ``GPU``, and ``NPU``.
 
   .. code-block:: sh
 

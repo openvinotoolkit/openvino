@@ -43,27 +43,27 @@ public:
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkGPU_0;
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkGPU_1;
-    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkVPUX;
+    ov::SoPtr<IExecutableNetworkInternal>  mockExeNetworkNPU;
 
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternal;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalGPU_0;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalGPU_1;
-    std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalVPUX;
+    std::shared_ptr<NiceMock<MockIInferRequestInternal>>     inferReqInternalNPU;
 
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNet;
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetGPU_0;
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetGPU_1;
-    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetVPUX;
+    std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>>     mockIExeNetNPU;
 
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequest;
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestGPU_0;
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestGPU_1;
-    std::shared_ptr<mockAsyncInferRequest>     mockInferrequestVPUX;
+    std::shared_ptr<mockAsyncInferRequest>     mockInferrequestNPU;
 
     std::shared_ptr<ImmediateExecutor>     mockExecutor;
     std::shared_ptr<ImmediateExecutor>     mockExecutorGPU_0;
     std::shared_ptr<ImmediateExecutor>     mockExecutorGPU_1;
-    std::shared_ptr<ImmediateExecutor>     mockExecutorVPUX;
+    std::shared_ptr<ImmediateExecutor>     mockExecutorNPU;
 
     size_t optimalNum;
 
@@ -110,19 +110,19 @@ public:
         inferReqInternal.reset();
         inferReqInternalGPU_0.reset();
         inferReqInternalGPU_1.reset();
-        inferReqInternalVPUX.reset();
+        inferReqInternalNPU.reset();
         mockIExeNet.reset();
         mockIExeNetGPU_0.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPUX.reset();
+        mockIExeNetNPU.reset();
         mockIExeNet.reset();
         mockIExeNetGPU_0.reset();
         mockIExeNetGPU_1.reset();
-        mockIExeNetVPUX.reset();
+        mockIExeNetNPU.reset();
         mockExecutor.reset();
         mockExecutorGPU_0.reset();
         mockExecutorGPU_1.reset();
-        mockExecutorVPUX.reset();
+        mockExecutorNPU.reset();
     }
 
     void SetUp() override {
@@ -136,8 +136,8 @@ public:
         mockIExeNetGPU_1 = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         mockExeNetworkGPU_1 = {mockIExeNetGPU_1, {}};
 
-        mockIExeNetVPUX = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
-        mockExeNetworkVPUX = {mockIExeNetVPUX, {}};
+        mockIExeNetNPU = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
+        mockExeNetworkNPU = {mockIExeNetNPU, {}};
 
         // prepare mockicore and cnnNetwork for loading
         core = std::make_shared<NiceMock<MockICore>>();
@@ -150,7 +150,7 @@ public:
         IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(supportConfigs));
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
-        std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
+        std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1", "NPU"};
         ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
 
         std::vector<std::string> metrics = {METRIC_KEY(SUPPORTED_CONFIG_KEYS)};
@@ -173,7 +173,7 @@ public:
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_KEEMBAY)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                        return mockExeNetworkVPUX; }));
+                        return mockExeNetworkNPU; }));
 
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
@@ -224,9 +224,9 @@ public:
         ON_CALL(*mockIExeNetGPU_1.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
 
-        inferReqInternalVPUX = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        mockExecutorVPUX = std::make_shared<ImmediateExecutor>();
-        ON_CALL(*mockIExeNetVPUX.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+        inferReqInternalNPU = std::make_shared<NiceMock<MockIInferRequestInternal>>();
+        mockExecutorNPU = std::make_shared<ImmediateExecutor>();
+        ON_CALL(*mockIExeNetNPU.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
     }
 };
@@ -275,12 +275,12 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                             std::this_thread::sleep_for(std::chrono::milliseconds(0));
                             return mockInferrequestGPU_1; }));
             }
-        } else if (deviceName == "VPUX") {
-            mockInferrequestVPUX = std::make_shared<mockAsyncInferRequest>(
-                inferReqInternalVPUX, mockExecutorVPUX, nullptr, ifThrow);
-            ON_CALL(*mockIExeNetVPUX.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
+        } else if (deviceName == "NPU") {
+            mockInferrequestNPU = std::make_shared<mockAsyncInferRequest>(
+                inferReqInternalNPU, mockExecutorNPU, nullptr, ifThrow);
+            ON_CALL(*mockIExeNetNPU.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                        return mockInferrequestVPUX; }));
+                        return mockInferrequestNPU; }));
         } else {
             return;
         }
@@ -321,10 +321,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 2, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 3, true, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 3, true, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"NPU", false}}, 1, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 2, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", false}}, 3, true, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", true}}, 3, true, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true, false, false, false},
@@ -345,10 +345,10 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false, true, false, false},
     // 3 devices
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, false, false, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 1, false, true, false, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"NPU", false}}, 1, false, false, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", false}}, 1, false, true, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"NPU", true}}, 1, false, true, false, false},
     //CPU_HELP does not throw
     ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false, false, false, false},
@@ -358,8 +358,8 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false, true, false, false},
     ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false, true, false, false},
     // loadFail and CreateInferRequestFail
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 3, true, false, true, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 3, true, false, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 3, true, false, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"NPU", false}}, 3, true, false, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoRuntimeFallback, AutoRuntimeFallback,

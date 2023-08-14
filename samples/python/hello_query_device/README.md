@@ -1,4 +1,4 @@
-# Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
+# Hello Query Device Python Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
 @sphinxdirective
 
@@ -10,25 +10,36 @@
 
 This sample demonstrates how to show OpenVINO™ Runtime devices and prints their metrics and default configuration values using :doc:`Query Device API feature <openvino_docs_OV_UG_query_api>`.
 
-The following Python API is used in the application:
+.. tab-set::
 
-+---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
-| Feature                               | API                                                                                                                                                                                        | Description                            |
-+=======================================+============================================================================================================================================================================================+========================================+
-| Basic                                 | `openvino.runtime.Core <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__                                                                      | Common API                             |
-+---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
-| Query Device                          | `openvino.runtime.Core.available_devices <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices>`__ ,          | Get device properties                  |
-|                                       | `openvino.runtime.Core.get_metric <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric>`__ ,  |                                        |
-|                                       | `openvino.runtime.Core.get_config <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config>`__    |                                        |
-+---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
+   .. tab-item:: Requirements 
 
-+-------------------------------------------------------+--------------------------------------------------------------------------+
-| Options                                               | Values                                                                   |
-+=======================================================+==========================================================================+
-| Supported devices                                     | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`     |
-+-------------------------------------------------------+--------------------------------------------------------------------------+
-| Other language realization                            | :doc:`C++ <openvino_inference_engine_samples_hello_query_device_README>` |
-+-------------------------------------------------------+--------------------------------------------------------------------------+
+      +-------------------------------------------------------+--------------------------------------------------------------------------+
+      | Options                                               | Values                                                                   |
+      +=======================================================+==========================================================================+
+      | Supported devices                                     | :doc:`All <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`     |
+      +-------------------------------------------------------+--------------------------------------------------------------------------+
+      | Other language realization                            | :doc:`C++ <openvino_inference_engine_samples_hello_query_device_README>` |
+      +-------------------------------------------------------+--------------------------------------------------------------------------+
+
+   .. tab-item:: Python API 
+
+      The following Python API is used in the application:
+
+      +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
+      | Feature                               | API                                                                                                                                                                                        | Description                            |
+      +=======================================+============================================================================================================================================================================================+========================================+
+      | Basic                                 | `openvino.runtime.Core <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__                                                                      | Common API                             |
+      +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
+      | Query Device                          | `openvino.runtime.Core.available_devices <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices>`__ ,          | Get device properties                  |
+      |                                       | `openvino.runtime.Core.get_metric <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric>`__ ,  |                                        |
+      |                                       | `openvino.runtime.Core.get_config <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config>`__    |                                        |
+      +---------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------+
+
+   .. tab-item:: Sample Code
+
+      .. doxygensnippet:: samples/python/hello_query_device/hello_query_device.py 
+         :language: python      
 
 How It Works
 ############

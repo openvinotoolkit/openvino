@@ -179,6 +179,10 @@ shutil.copy("../../../docs/home.rst",".")
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
 
+def replace_design_tabs_script(app, exception):
+    shutil.copy("../../../docs/_static/design-tabs.js","../_build/_static/design-tabs.js")
+
+
 def setup(app):
     logger = logging.getLogger(__name__)
     app.add_config_value('doxygen_mapping_file',
@@ -186,8 +190,9 @@ def setup(app):
     app.add_config_value('repositories', repositories, rebuild=True)
     app.connect('autodoc-skip-member', autodoc_skip_member)
     app.connect('build-finished',replace_index_with_redirect)
+    app.connect('build-finished', replace_design_tabs_script)
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
+    app.add_js_file('js/newsletter.js')
     app.add_js_file('js/graphs_ov_tf.js')
     app.add_js_file('js/open_sidebar.js')
-    

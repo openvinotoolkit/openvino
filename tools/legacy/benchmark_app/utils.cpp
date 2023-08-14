@@ -54,7 +54,7 @@ size_t InputInfo::depth() const {
 }  // namespace benchmark_app
 
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
-    static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds {{"CPU", 60},  {"GPU", 60},   {"VPUX", 60},
+    static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds {{"CPU", 60},  {"GPU", 60},   {"NPU", 60},
                                                                                  {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {

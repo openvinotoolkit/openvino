@@ -369,7 +369,7 @@ def test_split_1d():
 
 
 def test_depth_to_space():
-    b, c, h, w = shape = (2, 8, 3, 3)
+    b, c, h, w = shape = (2, 8, 3, 3)  # noqa: VNE001
     blocksize = 2
     data = np.random.random_sample(shape).astype(np.float32)
     tmp = np.reshape(data, [b, blocksize, blocksize, c // (blocksize ** 2), h, w])

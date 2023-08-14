@@ -91,7 +91,7 @@ Load the model
     # read the network and corresponding weights from file
     model = ie.read_model(model=model_path)
     
-    # compile the model for the CPU (you can choose manually CPU, GPU, MYRIAD etc.)
+    # compile the model for the CPU (you can choose manually CPU, GPU, etc.)
     # or let the engine choose the best available device (AUTO)
     compiled_model = ie.compile_model(model=model, device_name="CPU")
     
