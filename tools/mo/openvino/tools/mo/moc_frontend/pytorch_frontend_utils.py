@@ -19,11 +19,11 @@ def get_pytorch_decoder(model, input_shape, example_inputs, args):
         raise e
     try:
         if 'nncf' in sys.modules:
-            from nncf.torch.nncf_network import NNCFNetwork
+            from nncf.torch.nncf_network import NNCFNetwork # pylint: disable=undefined-variable
             from packaging import version
 
             if isinstance(model, NNCFNetwork):
-                if version.parse(nncf.__version__) < version.parse("2.6"):
+                if version.parse(nncf.__version__) < version.parse("2.6"): # pylint: disable=undefined-variable
                     raise RuntimeError(
                         "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     except:
