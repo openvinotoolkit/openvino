@@ -56,14 +56,14 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
-          path: 'openvino'
+          path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
         with:
           repository: 'openvinotoolkit/openvino_contrib'
-          path: 'openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'recursive'
 
       - name: Clone testdata for C API tests
