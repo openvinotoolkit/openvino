@@ -8,11 +8,11 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <ngraph/runtime/reference/convert.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
+#include "ngraph/runtime/reference/convert.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
