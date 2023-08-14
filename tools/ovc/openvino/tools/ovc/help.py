@@ -17,15 +17,12 @@ def get_convert_model_help_specifics():
             {'description':
                  'Information of model input required for model conversion. '
                  'This is a comma separated list with optional '
-                 'input names, shapes and data types. The order of inputs '
+                 'input names and shapes. The order of inputs '
                  'in converted model will match the order of '
                  'specified inputs. The shape is specified as comma-separated list. '
-                 'The data type of input node is specified in braces and can have one of '
-                 'the values: f64, f32, f16, i64, i32, u8, boolean. If data type is not '
-                 'specified explicitly then data type is taken from the '
-                 'original node data type. Example, to set `input_1` input '
-                 'with shape [1,100] and float32 type, and `sequence_len` input '
-                 'with int32 type \"input_1[1,100]{f32},sequence_len{i32}\".'},
+                 'Example, to set `input_1` input with shape [1,100] and `sequence_len` input '
+                 'with shape [1,?]: \"input_1[1,100],sequence_len[1,?]\", where "?" is dynamic dimension. '
+                 'Example with unnamed inputs: \"[1,100],[1,?]\".'},
         'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
