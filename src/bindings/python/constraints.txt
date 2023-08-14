@@ -16,7 +16,7 @@ wheel>=0.38.1,<=0.41.0
 # Frontends
 docopt~=0.6.2
 paddlepaddle==2.4.2
-tensorflow>=1.15.5,<2.13.0
+tensorflow>=1.15.5,<2.14.0
 six~=1.16.0
 protobuf>=3.18.1,<4.0.0
 onnx==1.13.1
