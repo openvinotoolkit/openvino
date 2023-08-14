@@ -336,8 +336,8 @@ if(ENABLE_PYTHON_PACKAGING)
                     --prefix "${python_package_prefix}"
                     --install-lib "${install_lib}"
                     --install-scripts "${python_package_prefix}/bin"
-                    # --single-version-externally-managed
-                    # --record=installed.txt
+                    --single-version-externally-managed
+                    --record=installed.txt
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${meta_info_subdir} folder")

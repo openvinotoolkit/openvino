@@ -199,6 +199,7 @@ class PrebuiltExtension(Extension):
             nln = "\n"
             raise DistutilsSetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
         super().__init__(name, sources, *args, **kwargs)
+        self._needs_stub = False
 
 
 class CustomBuild(build):
