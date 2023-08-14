@@ -68,10 +68,6 @@ bool is_optimized_output_user(const T user) {
     return false;
 }
 bool is_output_buffer(const primitive_inst* prim, bool runtime_alloc) {
-    if (runtime_alloc) {
-        if (prim->is_forced_realloc_mem())
-            return false;
-    }
     if (prim->is_output())
         return true;
 
@@ -386,8 +382,6 @@ event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-    //if (id() == "concat:present.0.value" || id() == "concat:present.0.key")
-//        std::cout << "here" << std::endl;
     event::ptr ev = nullptr;
     if (_node->get_users().size() == 1 && _node->get_users().front()->is_type<concatenation>()) {
         auto concat_inst = _network.get_primitive(get_users().front()->id());
@@ -420,7 +414,10 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size && !_impl_params->force_realloc;
+    // If the node's output memory is used as next input memory for the same node,
+    // the buffer should be allocated newly every time to prevent data corruption
+    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size &&
+                            !_impl_params->output_buffer_used_for_next_input;
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -1265,7 +1262,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         usm_device_allocatable = false;
 
     bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
-                                       ? (!reset && !impl_params.force_realloc)
+                                       ? (!reset && !impl_params.output_buffer_used_for_next_input)
                                        : !user_requesting_mem_reuse_false(_node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be
@@ -1279,7 +1276,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory =
-        is_output_buffer || is_cpu ||
+        (is_output_buffer && !impl_params.output_buffer_used_for_next_input) || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);

@@ -212,11 +212,11 @@ public:
     void build_deps();
     void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
-    void force_realloc_mem() {
-        _impl_params->force_realloc = true;
+    void set_output_buffer_used_for_next_input() {
+        _impl_params->output_buffer_used_for_next_input = true;
     }
-    bool is_forced_realloc_mem() const {
-        return _impl_params->force_realloc;
+    bool is_output_buffer_used_for_next_input() const {
+        return _impl_params->output_buffer_used_for_next_input;
     }
     void configure_shape_of_dependencies();
 

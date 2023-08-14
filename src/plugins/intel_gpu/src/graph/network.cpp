@@ -757,7 +757,7 @@ void network::reset_execution(bool wait) {
     _events.clear();
 }
 
-event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool reuse_prev_output) {
+event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool use_prev_output_buffer) {
     GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
@@ -771,29 +771,27 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     }
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-    // if input is reusing prev output
-    // the user node which uses this input data should use new output memory
-    std::function<void(cldnn::primitive_inst*)> force_users_realloc_mem = [&](cldnn::primitive_inst* user) {
-        if (user->is_output()) {
-            GPU_DEBUG_TRACE_DETAIL << user->id() << " is output => force realloc mem" << std::endl;
-            user->force_realloc_mem();
+    std::function<void(cldnn::primitive_inst*)> set_output_buffer_used_for_next_input = [&](cldnn::primitive_inst* prim) {
+        if (prim->is_output()) {
+            GPU_DEBUG_TRACE_DETAIL << prim->id() << " is output => force realloc mem" << std::endl;
+            prim->set_output_buffer_used_for_next_input();
             return;
         }
-        auto users_of_user = user->get_user_insts();
-        for (auto u : users_of_user) {
+        auto users = prim->get_user_insts();
+        for (auto u : users) {
             if (u->can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << user->id() << " has optimized user " << u->id() << " => check whether its user is output" << std::endl;
-                force_users_realloc_mem(u.get());
+                GPU_DEBUG_TRACE_DETAIL << prim->id() << " has optimized user " << u->id() << " => check whether its user is output" << std::endl;
+                set_output_buffer_used_for_next_input(u.get());
             }
         }
         return;
     };
-    if (reuse_prev_output) {
+    if (use_prev_output_buffer) {
         auto users = input->get_user_insts();
         for (auto u : users) {
             // if inputs user is output, its memory should be reallocated to prevent data corruption
             // Also the memory should not be limited to use lockable memory for better performance
-            force_users_realloc_mem(u.get());
+            set_output_buffer_used_for_next_input(u.get());
         }
     }
     return input->set_data(data);
