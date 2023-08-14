@@ -272,30 +272,47 @@ struct SliceWithAttrs {
 };
 
 bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>& op, SliceAttrs& attrs) {
-    const auto& data_rank = op->get_input_partial_shape(0).rank();
+    const auto& input_shape = op->get_input_partial_shape(0);
+    const auto& data_rank = input_shape.rank();
     if (op->get_input_size() != 5 || data_rank.is_dynamic())
         return false;
+    const auto rank = data_rank.get_length();
 
-    for (size_t i = 1; i < 5; ++i) {
-        auto input_as_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!input_as_constant)
+    auto get_scalar = [](const std::shared_ptr<ov::Node>& node, int64_t& value) -> bool {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (!constant)
             return false;
-        if (shape_size(input_as_constant->get_shape()) != 1)
+        if (shape_size(constant->get_shape()) != 1)
             return false;
+        value = constant->cast_vector<int64_t>()[0];
+        return true;
+    };
 
-        int64_t value = input_as_constant->cast_vector<int64_t>()[0];
+    if (!get_scalar(op->get_input_node_shared_ptr(4), attrs.axis))
+        return false;
+    attrs.axis = attrs.axis >= 0 ? attrs.axis : attrs.axis + rank;
 
-        if (((i == 1 || i == 2) && value < 0) || (i == 3 && value != 1))
+    if (input_shape[attrs.axis].is_dynamic())
+        return false;
+    const auto dimension = input_shape[attrs.axis].get_length();
+
+    for (int i = 1; i < 4; i++) {
+        int64_t value;
+        if (!get_scalar(op->get_input_node_shared_ptr(i), value))
             return false;
-        else if (i == 1)
+        if (i == 3) {
+            if (value != 1)
+                return false;
+            continue;
+        }
+        value = value >= 0 ? value : value + dimension;
+        value = std::min(value, dimension);
+        if (i == 1)
             attrs.start = value;
         else if (i == 2)
             attrs.stop = value;
-        else if (i == 4)
-            attrs.axis = value >= 0 ? value : value + data_rank.get_length();
     }
-    if (attrs.axis < 0 || op->get_input_partial_shape(0)[attrs.axis].is_dynamic())
-        return false;
+
     return true;
 }
 
@@ -332,6 +349,9 @@ bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_
         const auto& output = output_with_axis.first;
         const auto& axis = output_with_axis.second;
         auto attributes = source_to_op_with_attrs[output_with_axis];
+
+        if (attributes.size() < 2)
+            continue;
 
         std::sort(attributes.begin(), attributes.end(), [](const SliceWithAttrs& lhs, const SliceWithAttrs& rhs) {
             if (lhs.attrs.start == rhs.attrs.start)
