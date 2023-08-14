@@ -231,8 +231,8 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 * Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
 
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
+  .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
+     :width: 400
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
    * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_

@@ -44,44 +44,76 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 ### <a name="install-openvino-archive-windows"></a>Step 1: Download and Install OpenVINO Core Components
 
-1. Create an `Intel` folder in the `C:\Program Files (x86)\` directory. Skip this step if the folder already exists.
+@sphinxdirective
 
-   You can also do this via command-lines. Open a new command prompt window as administrator by right-clicking **Command Prompt** from the Start menu and select **Run as administrator**, and then run the following command:
-   ```sh
-   mkdir "C:\Program Files (x86)\Intel"
-   ```
-   > **NOTE**: `C:\Program Files (x86)\Intel` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
+1. Create an ``Intel`` folder in the ``C:\Program Files (x86)\`` directory. Skip this step if the folder already exists.
 
-2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/) to your local `Downloads` folder.
+   You can also do this via command-lines. Open a new command prompt window as an administrator by right-clicking **Command Prompt** from the Start menu and select **Run as administrator**, and then run the following command:
+
+   .. code-block:: sh
+
+      mkdir "C:\Program Files (x86)\Intel"
+
+   .. note::
+
+      ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
+
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
-   ```sh
-   cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64.zip --output openvino_2022.3.1.zip
-   ```
+   .. code-block:: sh
 
-   > **NOTE**: A `.sha256` file is provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run `CertUtil -hashfile openvino_2022.3.0.zip SHA256`. Compare the returned value in the output with what's in the `.sha256` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
+      cd <user_home>/Downloads
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3.1/windows/w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64.zip --output openvino_2022.3.1.zip
 
 
-3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the `C:\Program Files (x86)\Intel` directory.
+   .. note::
+
+      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2022.3.1.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct 
+      file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
+
+
+3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the ``C:\Program Files (x86)\Intel`` directory.
 
    To do this step using command-lines, run the following commands in the command prompt window you opened:
-   ```sh
-   tar -xf openvino_2022.3.0.zip
-   ren w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64 openvino_2022.3.0
-   move openvino_2022.3.0 "C:\Program Files (x86)\Intel"
-   ```
 
-4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
-   ```sh
-   cd C:\Program Files (x86)\Intel
-   mklink /D openvino_2022 openvino_2022.3.0
-   ```
-   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
+   .. code-block:: sh
+
+      tar -xf openvino_2022.3.1.zip
+      ren w_openvino_toolkit_windows_2022.3.1.9227.cf2c7da5689_x86_64 openvino_2022.3.1
+      move openvino_2022.3.1 "C:\Program Files (x86)\Intel"
 
 
-Congratulations, you finished the installation! The `C:\Program Files (x86)\Intel\openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
+6. (Optional) Install *numpy* Python Library:
+
+   .. note::
+
+      This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2022.3.1\python\python.<x>`` folder:
+
+   .. code-block:: sh
+
+      cd "C:\Program Files (x86)\Intel\openvino_2022.3.1"
+      python -m pip install -r .\python\python3.<x>\requirements.txt
+
+
+5. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
+
+   .. code-block:: sh
+
+      cd C:\Program Files (x86)\Intel
+      mklink /D openvino_2022 openvino_2022.3.0
+
+   .. note::
+
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the ``openvino_2022`` folder may already exist. If you want to override it, navigate to the ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before running the ``mklink`` command.
+
+
+Congratulations, you finished the installation! The ``C:\Program Files (x86)\Intel\openvino_2022`` folder now contains the core components for OpenVINO. If you used a different path in Step 1, you will find the ``openvino_2022`` folder there. The path to the ``openvino_2022`` directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
+
+@endsphinxdirective
 
 ### <a name="set-the-environment-variables-windows"></a>Step 2: Configure the Environment
 
