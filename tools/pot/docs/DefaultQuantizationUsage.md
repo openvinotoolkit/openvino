@@ -81,7 +81,7 @@ An example code below shows a basic quantization workflow:
 
 ```python
 from openvino.tools.pot import IEEngine
-from openvino.tools.pot load_model, save_model
+from openvino.tools.pot import load_model, save_model
 from openvino.tools.pot import compress_model_weights
 from openvino.tools.pot import create_pipeline
 
