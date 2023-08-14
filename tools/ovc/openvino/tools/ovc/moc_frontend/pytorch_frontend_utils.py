@@ -19,7 +19,6 @@ def get_pytorch_decoder(model, example_inputs, args):
         raise e
     try:
         if 'nncf' in sys.modules:
-            import nncf
             from nncf.torch.nncf_network import NNCFNetwork
             from packaging import version
 
