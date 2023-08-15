@@ -93,6 +93,7 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_masked_fill);
+OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
@@ -124,6 +125,7 @@ OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rand);
 OP_CONVERTER(translate_randn);
+OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
@@ -247,6 +249,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
         {"aten::cat", op::translate_cat},
+        {"aten::concat", op::translate_cat},
         {"aten::cdist", op::translate_cdist},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
@@ -341,6 +344,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
+        {"aten::masked_scatter", op::translate_masked_scatter},
+        {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
@@ -375,6 +380,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
         {"aten::rand", op::translate_rand},
         {"aten::randn", op::translate_randn},
+        {"aten::randint", op::translate_randint},
         {"aten::rand_like", op::translate_rand_like},
         {"aten::randn_like", op::translate_randn_like},
         {"aten::reciprocal", op::translate_reciprocal},

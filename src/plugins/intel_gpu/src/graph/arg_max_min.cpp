@@ -87,17 +87,17 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
 
     auto& constant_mem = impl_param.memory_deps;
     if (desc->top_k > 0) {
-        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        std::unordered_map<size_t, ov::Tensor> const_data;
         auto topk = desc->top_k;
-        auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::u32, ov::Shape{1}, static_cast<void*>(&topk));
+        auto top_k_tensor = ov::Tensor(ov::element::u32, ov::Shape{1}, static_cast<void*>(&topk));
         const_data = { {1, top_k_tensor} };
 
         output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (constant_mem.count(1)) {
-        std::map<size_t, ngraph::HostTensorPtr> const_data;
+        std::unordered_map<size_t, ov::Tensor> const_data;
         auto target_shape_mem = constant_mem.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
-        const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
+        const_data.emplace(1, make_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
 
         output_shapes = ov::op::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else {
