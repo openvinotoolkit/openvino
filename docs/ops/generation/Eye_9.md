@@ -1,4 +1,4 @@
-# Eye <a name="Eye"></a> {#openvino_docs_ops_generation_Eye_9}
+# Eye {#openvino_docs_ops_generation_Eye_9}
 
 @sphinxdirective
 
@@ -67,10 +67,10 @@ Example 3. *Eye* output with ``output_type`` = ``f16``:
 
 * *output_type*
 
-    * **Description**: the type of the output
-    * **Range of values**: any numeric type
-    * **Type**: ``string``
-    * **Required**: *Yes*
+  * **Description**: the type of the output
+  * **Range of values**: any numeric type
+  * **Type**: ``string``
+  * **Required**: *Yes*
 
 
 **Inputs**:
