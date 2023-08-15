@@ -301,7 +301,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
         }
     }
 }
-#endif
+#endif   // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #if 0
