@@ -614,18 +614,15 @@ private:
     }
 
     void parse() const {
-        // Thread safety is implemented on ov::Model level
-        if (m_parsed)
-            return;
-        const pugi::xml_node& node = m_meta.child(m_name.c_str());
-        m_parsed_map = parse_node(node);
-
-        m_parsed = true;
+        std::call_once(m_oc, [this]() {
+            const pugi::xml_node& node = m_meta.child(m_name.c_str());
+            m_parsed_map = parse_node(node);
+        });
     }
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
-    mutable std::atomic<bool> m_parsed{false};
+    mutable std::once_flag m_oc;
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
