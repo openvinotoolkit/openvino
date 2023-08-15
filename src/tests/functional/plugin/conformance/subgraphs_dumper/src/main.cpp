@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::shared_ptr<ICache>> caches;
     if (FLAGS_cache_type == "OP" || FLAGS_cache_type.empty()) {
         std::cout << "[ INFO ] OpCache is enabled!" << std::endl;
-        // caches.push_back(OpCache::get());
+        caches.push_back(OpCache::get());
     }
     if (FLAGS_cache_type == "GRAPH" || FLAGS_cache_type.empty()) {
         std::cout << "[ INFO ] GraphCache is enabled!" << std::endl;
