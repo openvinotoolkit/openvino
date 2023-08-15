@@ -574,6 +574,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::gyxio;
         case format::gi_yxs_os_yxsv2_osv16:
             return kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16;
+        case format::giy_xs_os_xsv2_osv8__ao32:
+            return kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32;
         case format::g_is_os_zyx_isv16_osv16:
             return kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16;
         case format::g_is_os_yx_isv16_osv16:
