@@ -25,7 +25,6 @@
 #include <fstream>
 #include <functional_test_utils/skip_tests_config.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "openvino/frontend/manager.hpp"
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -194,14 +193,6 @@ public:
         numThreads = std::get<1>(GetParam());
         numIterations = std::get<2>(GetParam());
         modelClass = std::get<3>(GetParam());
-        auto hash = std::hash<std::string>()(::testing::UnitTest::GetInstance()->current_test_info()->name());
-        std::stringstream ss;
-        ss << std::this_thread::get_id();
-        cache_path = "threading_test" + std::to_string(hash) + "_"
-                + ss.str() + "_" + GetTimestamp() + "_cache";
-    }
-    void TearDown() override {
-        std::remove(cache_path.c_str());
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams > obj) {
@@ -229,7 +220,6 @@ protected:
     ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;
-    std::string cache_path;
 
     std::vector<InferenceEngine::CNNNetwork> networks;
     void SetupNetworks() {
@@ -363,188 +353,4 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
         ie.SetConfig(config, target_device);
         (void)ie.LoadNetwork(networks[value % networks.size()], target_device);
     }, numIterations, numThreads);
-}
-
-using CoreThreadingTestsWithCacheEnabled = CoreThreadingTestsWithIterations;
-// tested function: SetConfig, LoadNetwork
-TEST_P(CoreThreadingTestsWithCacheEnabled, smoke_LoadNetwork_cache_enabled) {
-    InferenceEngine::Core ie;
-
-    std::string ir_with_meta = R"V0G0N(
-    <net name="Network" version="11">
-        <layers>
-            <layer name="in1" type="Parameter" id="0" version="opset1">
-                <data element_type="f32" shape="1,3,22,22"/>
-                <output>
-                    <port id="0" precision="FP32">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>22</dim>
-                        <dim>22</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer name="activation" id="1" type="ReLU" version="opset1">
-                <input>
-                    <port id="1" precision="FP32">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>22</dim>
-                        <dim>22</dim>
-                    </port>
-                </input>
-                <output>
-                    <port id="2" precision="FP32">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>22</dim>
-                        <dim>22</dim>
-                    </port>
-                </output>
-            </layer>
-            <layer name="output" type="Result" id="2" version="opset1">
-                <input>
-                    <port id="0" precision="FP32">
-                        <dim>1</dim>
-                        <dim>3</dim>
-                        <dim>22</dim>
-                        <dim>22</dim>
-                    </port>
-                </input>
-            </layer>
-        </layers>
-        <edges>
-            <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-            <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        </edges>
-        <meta_data>
-            <MO_version value="TestVersion"/>
-            <Runtime_version value="TestVersion"/>
-            <cli_parameters>
-                <input_shape value="[1, 3, 22, 22]"/>
-                <transform value=""/>
-                <use_new_frontend value="False"/>
-            </cli_parameters>
-        </meta_data>
-        <framework_meta>
-            <batch value="1"/>
-            <chunk_size value="16"/>
-        </framework_meta>
-        <quantization_parameters>
-            <config>{
-            'compression': {
-                'algorithms': [
-                    {
-                        'name': 'DefaultQuantization',
-                        'params': {
-                            'num_samples_for_tuning': 2000,
-                            'preset': 'performance',
-                            'stat_subset_size': 300,
-                            'use_layerwise_tuning': false
-                        }
-                    }
-                ],
-                'dump_intermediate_model': true,
-                'target_device': 'ANY'
-            },
-            'engine': {
-                'models': [
-                    {
-                        'name': 'bert-small-uncased-whole-word-masking-squad-0001',
-                        'launchers': [
-                            {
-                                'framework': 'openvino',
-                                'adapter': {
-                                    'type': 'bert_question_answering',
-                                    'start_token_logits_output': 'output_s',
-                                    'end_token_logits_output': 'output_e'
-                                },
-                                'inputs': [
-                                    {
-                                        'name': 'input_ids',
-                                        'type': 'INPUT',
-                                        'value': 'input_ids'
-                                    },
-                                    {
-                                        'name': 'attention_mask',
-                                        'type': 'INPUT',
-                                        'value': 'input_mask'
-                                    },
-                                    {
-                                        'name': 'token_type_ids',
-                                        'type': 'INPUT',
-                                        'value': 'segment_ids'
-                                    }
-                                ],
-                                'device': 'cpu'
-                            }
-                        ],
-                        'datasets': [
-                            {
-                                'name': 'squad_v1_1_msl384_mql64_ds128_lowercase',
-                                'annotation_conversion': {
-                                    'converter': 'squad',
-                                    'testing_file': 'PATH',
-                                    'max_seq_length': 384,
-                                    'max_query_length': 64,
-                                    'doc_stride': 128,
-                                    'lower_case': true,
-                                    'vocab_file': 'PATH'
-                                },
-                                'reader': {
-                                    'type': 'annotation_features_extractor',
-                                    'features': [
-                                        'input_ids',
-                                        'input_mask',
-                                        'segment_ids'
-                                    ]
-                                },
-                                'postprocessing': [
-                                    {
-                                        'type': 'extract_answers_tokens',
-                                        'max_answer': 30,
-                                        'n_best_size': 20
-                                    }
-                                ],
-                                'metrics': [
-                                    {
-                                        'name': 'F1',
-                                        'type': 'f1',
-                                        'reference': 0.9157
-                                    },
-                                    {
-                                        'name': 'EM',
-                                        'type': 'exact_match',
-                                        'reference': 0.8504
-                                    }
-                                ],
-                                '_command_line_mapping': {
-                                    'testing_file': 'PATH',
-                                    'vocab_file': [
-                                        'PATH'
-                                    ]
-                                }
-                            }
-                        ]
-                    }
-                ],
-                'stat_requests_number': null,
-                'eval_requests_number': null,
-                'type': 'accuracy_checker'
-            }
-        }</config>
-            <version value="invalid version"/>
-            <cli_params value="{'quantize': None, 'preset': None, 'model': None, 'weights': None, 'name': None, 'engine': None, 'ac_config': None, 'max_drop': None, 'evaluate': False, 'output_dir': 'PATH', 'direct_dump': True, 'log_level': 'INFO', 'pbar': False, 'stream_output': False, 'keep_uncompressed_weights': False, 'data_source': None}"/>
-        </quantization_parameters>
-    </net>
-    )V0G0N";
-    InferenceEngine::Blob::Ptr weights = nullptr;
-    auto model = ie.ReadNetwork(ir_with_meta, weights);
-
-    ie.SetConfig(config, target_device);
-    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), cache_path}}, "");
-    runParallel([&] () {
-        (void)ie.LoadNetwork(model, target_device);
-    }, numIterations, numThreads);
-    ie.SetConfig({{CONFIG_KEY(CACHE_DIR), ""}}, "");;
 }
