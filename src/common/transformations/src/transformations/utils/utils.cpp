@@ -21,32 +21,32 @@ namespace ov {
 namespace op {
 namespace util {
 
-bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value) {
+bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
-        return util::normalize_single_value(const_node->get_vector<float16>(), value);
+        return util::normalize_single_value(const_node->get_vector<float16>(), value, check_value_range);
     case element::Type_t::f32:
-        return util::normalize_single_value(const_node->get_vector<float>(), value);
+        return util::normalize_single_value(const_node->get_vector<float>(), value, check_value_range);
     case element::Type_t::bf16:
-        return util::normalize_single_value(const_node->get_vector<bfloat16>(), value);
+        return util::normalize_single_value(const_node->get_vector<bfloat16>(), value, check_value_range);
     case element::Type_t::f64:
-        return util::normalize_single_value(const_node->get_vector<double>(), value);
+        return util::normalize_single_value(const_node->get_vector<double>(), value, check_value_range);
     case element::Type_t::i8:
-        return util::normalize_single_value(const_node->get_vector<int8_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int8_t>(), value, check_value_range);
     case element::Type_t::i16:
-        return util::normalize_single_value(const_node->get_vector<int16_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int16_t>(), value, check_value_range);
     case element::Type_t::i32:
-        return util::normalize_single_value(const_node->get_vector<int32_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int32_t>(), value, check_value_range);
     case element::Type_t::i64:
-        return util::normalize_single_value(const_node->get_vector<int64_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<int64_t>(), value, check_value_range);
     case element::Type_t::u8:
-        return util::normalize_single_value(const_node->get_vector<uint8_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint8_t>(), value, check_value_range);
     case element::Type_t::u16:
-        return util::normalize_single_value(const_node->get_vector<uint16_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint16_t>(), value, check_value_range);
     case element::Type_t::u32:
-        return util::normalize_single_value(const_node->get_vector<uint32_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint32_t>(), value, check_value_range);
     case element::Type_t::u64:
-        return util::normalize_single_value(const_node->get_vector<uint64_t>(), value);
+        return util::normalize_single_value(const_node->get_vector<uint64_t>(), value, check_value_range);
     default:
         OPENVINO_THROW("Unsupported precision for const operation: ", const_node->get_friendly_name());
     }
