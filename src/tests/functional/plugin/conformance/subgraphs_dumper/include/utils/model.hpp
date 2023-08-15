@@ -63,7 +63,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp = ".
 
 // model_cache_status: model_list
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::vector<std::shared_ptr<ICache>>& caches,
+    std::shared_ptr<ICache>& caches,
     const std::vector<std::string>& models,
     bool extract_body, bool from_cache = false);
 

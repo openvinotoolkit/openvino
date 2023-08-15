@@ -73,7 +73,7 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
 }
 
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::vector<std::shared_ptr<ICache>>& caches,
+    std::shared_ptr<ICache>& cache,
     const std::vector<std::string>& models,
     bool extract_body, bool from_cache) {
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
@@ -84,30 +84,21 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
     auto core = ov::test::utils::PluginCache::get().core();
     auto models_size = models.size();
 
-    for (auto& cache : caches) {
-        for (size_t i = 0; i < models_size; ++i) {
-            const auto& model = models[i];
-            if (ov::util::file_exists(model)) {
-                std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
-                ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
-                try {
-                    std::shared_ptr<ov::Model> function = core->read_model(model);
-                    try {
-                        cache->update_cache(function, model, extract_body, from_cache);
-                    } catch (std::exception &e) {
-                        std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
-                        model_status = ModelCacheStatus::NOT_FULLY_CACHED;
-                    }
-                } catch (std::exception &e) {
-                    model_status = ModelCacheStatus::NOT_READ;
-                    std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
-                }
-                cache_status[model_status].push_back(model);
+    for (size_t i = 0; i < models_size; ++i) {
+        const auto& model = models[i];
+        if (ov::util::file_exists(model)) {
+            std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
+            ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
+            try {
+                cache->update_cache(function, model, extract_body, from_cache);
+            } catch (std::exception &e) {
+                std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                model_status = ModelCacheStatus::NOT_FULLY_CACHED;
             }
+            cache_status[model_status].push_back(model);
         }
-        cache->serialize_cache();
-        cache->reset_cache();
     }
+
     return cache_status;
 }
 

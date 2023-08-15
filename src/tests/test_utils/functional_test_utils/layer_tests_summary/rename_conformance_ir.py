@@ -103,6 +103,11 @@ def generate_node_hash(node):
 
         shape_str = ""
         try:
+            str_to_hash += re.sub(r"[\s+\[\]\{\}\']", "", str(node.get_attributes()))
+        except:
+            logger.error(f"Impossible to get attributes for {node.name}")
+
+        try:
             partial_shape = input.get_partial_shape()
             shape_str += str(len(partial_shape))
             shape_str += str(partial_shape.is_dynamic)
@@ -181,8 +186,11 @@ def create_hash(in_dir_path: Path, operations=dict()):
                 model_path.rename(new_xml_path)
                 meta_path.rename(new_meta_path)
                 bin_path.rename(new_bin_path)
+                # TODO: if some models are still not renaming, create new file and remove old file
                 logger.info(f"{old_name} -> {new_name}")
             elif old_name != new_xml_path:
+                # TODO: if some models are still not renaming and there are duplicates, remove files here
+                logger.warning(f"Could not rename model {old_name} ! Model file name already exists {new_xml_path} ")
                 update_rel_weight(new_meta_path, rel_weight)
         except:
             pass

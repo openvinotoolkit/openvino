@@ -48,39 +48,38 @@ int main(int argc, char *argv[]) {
 
     for (auto& cache : caches) {
         cache->set_serialization_dir(FLAGS_output_folder);
-    }
-    // Upload previously cached graphs to cache
-    if (!FLAGS_local_cache.empty()) {
-        auto cached_ops = find_models(local_cache_dirs);
-        // todo: add normal caching with meta info reading
-        auto this_cache_model_status = cache_models(caches, cached_ops.first, FLAGS_extract_body, true);
-        auto not_read_model = cached_ops.second;
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (not_read_model.first == key) {
-                value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
-            }
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
-            }
-        }
-    }
-    {
-        auto this_cache_model_status = cache_models(caches, models, FLAGS_extract_body);
-        for (auto& model_status : cache_model_status) {
-            auto& key = model_status.first;
-            auto& value = model_status.second;
-            if (this_cache_model_status.count(key)) {
-                value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
-            }
-        }
-    }
 
-    // for (auto& cache : caches) {
-    //     cache->serialize_cache();
-    //     cache->reset_cache();
-    // }
+        // Upload previously cached graphs to cache
+        if (!FLAGS_local_cache.empty()) {
+            auto cached_ops = find_models(local_cache_dirs);
+            // todo: add normal caching with meta info reading
+            auto this_cache_model_status = cache_models(cache, cached_ops.first, FLAGS_extract_body, true);
+            auto not_read_model = cached_ops.second;
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (not_read_model.first == key) {
+                    value.insert(value.end(), not_read_model.second.begin(), not_read_model.second.end());
+                }
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
+            }
+        }
+        {
+            auto this_cache_model_status = cache_models(cache, models, FLAGS_extract_body);
+            for (auto& model_status : cache_model_status) {
+                auto& key = model_status.first;
+                auto& value = model_status.second;
+                if (this_cache_model_status.count(key)) {
+                    value.insert(value.end(), this_cache_model_status[key].begin(), this_cache_model_status[key].end());
+                }
+            }
+        }
+
+        cache->serialize_cache();
+        cache->reset_cache();
+    }
 
     save_model_status_to_file(cache_model_status, FLAGS_output_folder);
     return cache_model_status[ModelCacheStatus::NOT_FULLY_CACHED].empty() && cache_model_status[ModelCacheStatus::NOT_READ].empty();
