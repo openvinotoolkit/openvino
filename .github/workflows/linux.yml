@@ -80,8 +80,6 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          echo ${WORKSPACE}
-          echo ${{ env.WORKSPACE }}
           echo ${GITHUB_WORKSPACE}
           ls -la ${GITHUB_WORKSPACE}
           echo ${OPENVINO_REPO}
@@ -252,6 +250,7 @@ jobs:
 
       - name: Samples tests
         run: |
+          export WORKSPACE=${INSTALL_DIR}
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
 
@@ -264,7 +263,7 @@ jobs:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
           SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
-          WORKSPACE: ${{ env.INSTALL_DIR }}
+          #WORKSPACE: ${{ env.INSTALL_DIR }}
 
       # Present in the "Build" job due to the fact that these tests require build directory
       - name: ONNX frontend tests
