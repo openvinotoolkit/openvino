@@ -336,8 +336,8 @@ if(ENABLE_PYTHON_PACKAGING)
                     --prefix "${python_package_prefix}"
                     --install-lib "${install_lib}"
                     --install-scripts "${python_package_prefix}/bin"
-                    # --single-version-externally-managed
-                    # --record=installed.txt
+                    --single-version-externally-managed
+                    --record=installed.txt
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${meta_info_subdir} folder")
@@ -364,5 +364,8 @@ if(ENABLE_TESTS)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
+    # provides a callback function to describe each component in repo
+    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
+
     ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()

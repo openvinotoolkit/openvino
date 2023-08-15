@@ -35,6 +35,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 add_library(openvino::util ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
 if (WIN32)

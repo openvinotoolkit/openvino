@@ -13,7 +13,7 @@ Post-Training Optimization Tool includes standalone command-line tool and Python
 * Per-channel quantization for Convolutional and Fully-Connected layers.
 * Multiple domains: Computer Vision, Recommendation Systems.
 * Ability to implement custom calibration pipeline via supported [API](openvino/tools/pot/api/README.md).
-* Compression for different HW targets such as CPU, GPU, VPU.
+* Compression for different HW targets such as CPU, GPU, NPU.
 * Post-training sparsity.
 
 ## Usage

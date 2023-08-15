@@ -113,12 +113,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
             auto transpose_const = ngraph::op::v0::Constant::create(ngraph::element::i32, ngraph::Shape{ transpose_order.size() }, transpose_order);
-            auto transpose = ov::op::util::make_try_fold<ngraph::op::v1::Transpose>(node, transpose_const);
+            auto transpose = std::make_shared<ngraph::op::v1::Transpose>(node, transpose_const);
             if (!ngraph::is_type<ngraph::op::v0::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
             }
             transpose->set_friendly_name(transpose_name);
+            ov::disable_constant_folding(transpose);
             new_ops.push_back(transpose);
             return transpose;
         };
