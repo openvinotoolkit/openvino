@@ -12,7 +12,6 @@
 #include <openvino/pass/pattern/op/pattern.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/symbolic_transformations/chained_maximum.hpp>
@@ -22,6 +21,9 @@
 #include <transformations/symbolic_transformations/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 
 void symbolic_set_up_for_shape(ov::DimensionTracker& dt, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
@@ -122,26 +124,50 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
 
 ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     MATCHER_SCOPE(LabelResolvingThroughSelect);
-    auto input_reshape = pattern::wrap_type<op::v1::Reshape>();
-    auto select = pattern::wrap_type<op::v1::Select>({pattern::any_input(), pattern::any_input(), input_reshape});
-    auto softmax = pattern::wrap_type<op::v1::Softmax>({select});  // axis?
+    auto add = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
+    auto input_reshape = pattern::wrap_type<op::v1::Reshape>({add, pattern::any_input()});
+
+    auto select_then = pattern::wrap_type<op::v1::Select>({pattern::any_input(), input_reshape, pattern::any_input()});
+    auto select_else = pattern::wrap_type<op::v1::Select>({pattern::any_input(), pattern::any_input(), input_reshape});
+    auto select = std::make_shared<pass::pattern::op::Or>(OutputVector{select_then, select_else});
+
+    auto softmax = pattern::wrap_type<op::v1::Softmax>({select});
     auto reshape = pattern::wrap_type<op::v1::Reshape>({softmax, pattern::any_input()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& value_map = m.get_pattern_value_map();
-        auto reshape_0 = value_map.at(input_reshape).get_node_shared_ptr();
-        auto reshape_1 = value_map.at(reshape).get_node_shared_ptr();
-        if (reshape_keeps_last_two_dims(reshape_1))
-            return false;  // reshape doesn't need optimization
-        if (!last_two_dims_are_equal(reshape_0->get_output_partial_shape(0), reshape_1->get_output_partial_shape(0)))
+        ov::TensorLabel reshape_labels, add_0_labels, add_1_labels;
+        if (!get_labels(value_map.at(reshape).get_partial_shape(), reshape_labels))
             return false;
-        // we established that data from input_reshape wasn't broadcasted via Select
-        auto select_output = value_map.at(select);
-        auto select_output_pshape = select_output.get_partial_shape();
-        const auto& reshape_pshape = reshape_1->get_output_partial_shape(0);
-        if (!equalize_two_last_dims(reshape_pshape, select_output_pshape))
+        auto add_node = value_map.at(add).get_node_shared_ptr();
+        auto add_0_pshape = add_node->input_value(0).get_partial_shape();
+        auto add_1_pshape = add_node->input_value(1).get_partial_shape();
+        if (!get_labels(add_0_pshape, add_0_labels) && !get_labels(add_1_pshape, add_1_labels))
             return false;
-        select_output.get_node_shared_ptr()->set_output_type(0, select_output.get_element_type(), select_output_pshape);
+
+        if (are_unique_and_equal_labels(reshape_labels, add_0_labels)) {
+            // we detected that no broadcasting was done during binary elementwise and select, propagating labels
+            // through
+            add_node->set_output_type(0, add_node->get_output_element_type(0), add_0_pshape);
+        } else if (are_unique_and_equal_labels(reshape_labels, add_1_labels)) {
+            // we detected that no broadcasting was done during binary elementwise and select, propagating labels
+            // through
+            add_node->set_output_type(0, add_node->get_output_element_type(0), add_1_pshape);
+        } else {
+            return false;
+        }
+
+        std::shared_ptr<ov::Node> select_node = nullptr;
+        if (value_map.count(select_then))
+            select_node = value_map.at(select_then).get_node_shared_ptr();
+        if (value_map.count(select_else))
+            select_node = value_map.at(select_else).get_node_shared_ptr();
+        if (select_node == nullptr)
+            return false;
+
+        auto select_output = select_node->output(0);
+        const auto& reshape_pshape = value_map.at(input_reshape).get_partial_shape();
+        select_node->set_output_type(0, select_node->get_output_element_type(0), reshape_pshape);
         value_map.at(softmax).get_node_shared_ptr()->validate_and_infer_types();
         return true;
     };
@@ -167,16 +193,15 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     REGISTER_PASS(manager, SharedOpOptimization)  // Shared GatherElements
 
     // transformations which use labels for optimizations
-    REGISTER_PASS(manager,
-                  LabelResolvingThroughSelect)  // helps to figure out that broadcasting didn't happen through Select op
-    REGISTER_PASS(manager, DeReshapeMatMul)  // should become one transformation with DeReshapeMatMulWithComplications
-    REGISTER_PASS(manager, DeReshapeMatMulWithComplications)  // should become one transformation with DeReshapeMatMul
-
     REGISTER_PASS(manager, ApplyTableOfEquivalence)
     REGISTER_PASS(manager, OptimizeLabelsUsedAsValues)
+    REGISTER_PASS(manager,
+                  LabelResolvingThroughSelect)  // helps to figure out that broadcasting didn't happen through Select op
+
+    REGISTER_PASS(manager, DeReshapeMatMul)
 
     REGISTER_PASS(manager, NopElimination)
-    REGISTER_PASS(manager, SharedOpOptimization)
+    REGISTER_PASS(manager, SimplifyShapeOfSubGraph)
 
     manager.run_passes(m);
     ov::remove_symbolic_info(m);

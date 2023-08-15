@@ -11,9 +11,9 @@
 
 namespace ov {
 namespace pass {
-class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 class TRANSFORMATIONS_API SymbolicOptimizations;
 class TRANSFORMATIONS_API SymbolicPropagation;
+class TRANSFORMATIONS_API LabelResolvingThroughSelect;
 }  // namespace pass
 }  // namespace ov
 

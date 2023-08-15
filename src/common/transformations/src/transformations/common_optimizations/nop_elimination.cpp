@@ -38,6 +38,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 
 using namespace std;
 using namespace ov;
@@ -833,7 +834,8 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
 
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
-    auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze>(pattern::rank_equals(0));
+    auto first_label =
+        pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::util::GatherBase>(pattern::rank_equals(0));
     auto other_input_label = pattern::any_input(pattern::rank_equals(0));
     auto binary_op_label = pattern::wrap_type<op::util::BinaryElementwiseArithmetic,
                                               op::util::BinaryElementwiseComparison,
@@ -889,6 +891,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
         ADD_MATCHER_FOR_THIS(PrepareShapeOpsForEliminationAroundBE)
+        ADD_MATCHER_FOR_THIS(EliminateGatherUnsqueeze)
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)

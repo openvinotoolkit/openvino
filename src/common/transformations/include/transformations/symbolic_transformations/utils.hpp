@@ -26,9 +26,6 @@ bool batches_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs,
 
 bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1);
 
-ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
-                                            const ov::Output<ov::Node>& non_batch_dims_source);
-
 int64_t get_idx_of_label_in_source(const ov::Output<ov::Node>& source, const ov::label_t& label);
 
 std::shared_ptr<ov::Node> get_node_representing_label_from_source_by_idx(const ov::Output<ov::Node>& source,

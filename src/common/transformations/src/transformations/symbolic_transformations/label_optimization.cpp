@@ -54,6 +54,8 @@ bool ov::pass::OptimizeLabelsUsedAsValues::run_on_model(const std::shared_ptr<ov
     LTS_map label_shape_source;
     LTS_map label_value_source;
     for (const auto& op : m->get_ordered_ops()) {
+        if (auto result = ov::as_type_ptr<op::v0::Result>(op))
+            op->validate_and_infer_types();
         for (auto& output : op->outputs()) {
             optimize_value_usage(output, label_shape_source, label_value_source);
             save_shape_sources(output, label_shape_source);

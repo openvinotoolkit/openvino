@@ -102,20 +102,6 @@ bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_
     return batches_are_equal(input_0, input_1, true) && batches_are_equal(output_0, output_1);
 }
 
-ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_dims_source,
-                                            const ov::Output<ov::Node>& non_batch_dims_source) {
-    auto batch_indices = std::vector<size_t>(batch_dims_source.get_partial_shape().size() - 2);
-    std::iota(batch_indices.begin(), batch_indices.end(), 0);
-    auto batch_dims =
-        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(batch_dims_source, batch_indices);
-    auto non_batch_indices = std::vector<size_t>(2);
-    std::iota(non_batch_indices.begin(), non_batch_indices.end(), non_batch_dims_source.get_partial_shape().size() - 2);
-    auto non_batch_dims =
-        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(non_batch_dims_source, non_batch_indices);
-    auto target_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dims, non_batch_dims}, 0);
-    return target_shape->output(0);
-}
-
 int64_t get_idx_of_label_in_source(const ov::Output<ov::Node>& source, const ov::label_t& label) {
     int64_t idx = -1;
     if (label == ov::no_label)
