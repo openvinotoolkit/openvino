@@ -41,3 +41,10 @@ INSTANTIATE_TEST_SUITE_P(CPU_Streams, CoreThreadingTestsWithIterations,
                      testing::Values(50),
                      testing::Values(ModelClass::Default)),
     CoreThreadingTestsWithIterations::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(CPU_Streams, CoreThreadingTestsWithCacheEnabled,
+    testing::Combine(testing::ValuesIn(paramsStreams),
+                     testing::Values(20),
+                     testing::Values(10),
+                     testing::Values(ModelClass::Default)),
+    CoreThreadingTestsWithCacheEnabled::getTestCaseName);
