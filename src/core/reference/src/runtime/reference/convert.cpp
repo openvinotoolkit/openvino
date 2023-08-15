@@ -5,12 +5,13 @@
 #include "ngraph/runtime/reference/convert.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-
 #    include "jit_generator.hpp"
+#endif
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 namespace {
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
@@ -283,11 +284,12 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
-#    if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
     convert_impl<float, float16, true>(arg, out, count);
 }
-#    else  // FIXME: dublicate and stub for ARM, provide more optimized solution
+
+#else  // !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+// FIXME: dublicate and stub for ARM, provide more optimized solution
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         if (arg[i] > std::numeric_limits<ov::float16>::max()) {
@@ -299,12 +301,12 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
         }
     }
 }
-#    endif
+#endif
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
-#    if 0
+#if 0
     // TODO: Provide fast implementation
-#    else
+#else
     // Slow reference implementation
     size_t num_out_of_range = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -318,11 +320,9 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
         }
     }
     return num_out_of_range;
-#    endif
+#endif
 }
 
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
-
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
