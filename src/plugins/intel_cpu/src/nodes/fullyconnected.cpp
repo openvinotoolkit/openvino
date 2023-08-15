@@ -1129,7 +1129,7 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
     const auto K = weight_dims[1];
     const auto data_type = getOriginalInputPrecisionAtPort(DATA_ID);
     const auto weight_type = getOriginalInputPrecisionAtPort(WEIGHTS_ID);
-    const auto weight_dnnl_type = DnnlExtensionUtils::IEPrecisionToDataType(weight_type);
+    auto weight_dnnl_type = DnnlExtensionUtils::IEPrecisionToDataType(weight_type);
     // heuristics
     if ((data_type == Precision::BF16 && one_of(weight_type, Precision::BF16, Precision::FP32) && K < 32) ||
         (data_type == Precision::I8 && weight_type == Precision::I8 && K < 64) ||
@@ -1176,6 +1176,18 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
             memcpy(biasRnd.get(), bias, N * sizeof(float));
         }
     };
+    param.b_is_trans = !weightsNonTransposed;
+    if (weightsNonTransposed) {
+        if (!getParentEdgeAt(1)->getParent()->isConstant())
+            IE_THROW() << "Weight input is not const for node " << getName() << ".";
+        auto edgeMem = getParentEdgeAt(1)->getMemoryPtr();
+        if (!edgeMem)
+            IE_THROW() << "Cannot get const weights edgeMem for node " << getName() << ".";
+
+        auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
+        auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+        weight_dnnl_type = weightSrcDesc.get_data_type();
+    }
     if (data_type == Precision::BF16) {
         if (one_of(outputDataType, memory::data_type::f32, memory::data_type::bf16) &&
             (fusedWith.empty() ||
@@ -1184,7 +1196,6 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
             param.dt_a = llmdnn::llmdnn_bf16;
             param.dt_b = mapToLLMDataType(weight_dnnl_type);
             param.dt_c = mapToLLMDataType(outputDataType);
-            param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
             if (withBiases) {
                 param.postops_type = static_cast<llmdnn::postops_types>(param.postops_type | llmdnn::BIAS);
@@ -1204,7 +1215,6 @@ bool FullyConnected::extractParamForLLMFc(llmdnn::fc_create_param& param) {
             param.dt_a = llmdnn::llmdnn_s8;
             param.dt_b = llmdnn::llmdnn_s8;
             param.dt_c = mapToLLMDataType(outputDataType);
-            param.b_is_trans = true;
             param.postops_type = llmdnn::NONE;
 
             if (withBiases) {
@@ -1349,8 +1359,27 @@ bool FullyConnected::initLLMFc() {
         auto N = weightDims[0];
         auto K = weightDims[1];
         auto work_amount = rnd_up(N, 32) / 32;
-        auto weight_dnnl_Type = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
-        auto stride_b = K * dnnl::memory::data_type_size(weight_dnnl_Type);
+        auto weight_dnnl_Type = param.dt_b;
+        size_t stride_b;
+        auto llm_type_size = [] (llmdnn::data_type_t dt) {
+            switch (dt) {
+                case llmdnn::llmdnn_f16:
+                case llmdnn::llmdnn_bf16:
+                    return 2;
+                case llmdnn::llmdnn_f32:
+                    return 4;
+                case llmdnn::llmdnn_s8:
+                case llmdnn::llmdnn_u8:
+                    return 1;
+                default:
+                    IE_THROW() << "unknown llm data type " << dt;
+            }
+        };
+        if (weightsNonTransposed) {
+            stride_b = N * llm_type_size(weight_dnnl_Type);
+        } else {
+            stride_b = K * llm_type_size(weight_dnnl_Type);
+        }
         llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
             size_t start {0}, end {0};
             dnnl::impl::balance211(work_amount, thread_num, idx, start, end);
