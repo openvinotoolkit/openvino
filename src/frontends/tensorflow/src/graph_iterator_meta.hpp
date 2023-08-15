@@ -31,11 +31,13 @@ class GraphIteratorMeta : public GraphIteratorProto {
     std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
+    bool m_mmap_enabled;
 
 public:
     template <typename T>
-    GraphIteratorMeta(const std::basic_string<T>& path)
-        : m_metagraph_def(std::make_shared<::tensorflow::MetaGraphDef>()) {
+    GraphIteratorMeta(const std::basic_string<T>& path, const bool mmap_enabled)
+        : m_metagraph_def(std::make_shared<::tensorflow::MetaGraphDef>()),
+          m_mmap_enabled(mmap_enabled) {
         this->read_meta(path);
     }
 
@@ -75,7 +77,7 @@ private:
 
         std::basic_string<T> varIndexPath = get_variables_index_name<T>(model_path);
         if (ov::util::file_exists(varIndexPath)) {
-            m_variables_index = std::make_shared<VariablesIndex>();
+            m_variables_index = std::make_shared<VariablesIndex>(m_mmap_enabled);
             std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(), "MetaGraph's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, model_path, false),

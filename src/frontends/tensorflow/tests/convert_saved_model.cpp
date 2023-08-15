@@ -158,6 +158,11 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithIntermediateOutput) 
     }
 }
 
+TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMMAPCompare) {
+    { model = convert_model("saved_model_variables"); }
+    { model_ref = convert_model("saved_model_variables", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
     // The test aims to check that model with only numerical names for operation
