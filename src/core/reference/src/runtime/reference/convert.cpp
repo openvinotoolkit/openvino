@@ -288,7 +288,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
     convert_impl<float, float16, true>(arg, out, count);
 }
 
-#else  // !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+#else   // !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
 // FIXME: dublicate and stub for ARM, provide more optimized solution
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
     for (size_t i = 0; i < count; ++i) {
@@ -301,7 +301,7 @@ void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t c
         }
     }
 }
-#endif   // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #if 0
