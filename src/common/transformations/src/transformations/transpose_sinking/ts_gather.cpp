@@ -240,12 +240,14 @@ TSGatherBackward::TSGatherBackward() {
                 if (success) {
                     size_t j = 0;
                     for (size_t i = 0; i < shape.size(); ++i) {
-                        if (shape[i] != new_shape[j] && shape[i] == 1) {
-                            axes_val.push_back(i);
-                            continue;
-                        } else if (shape[i] != new_shape[j]) {
-                            success = false;
-                            break;
+                        if (j >= new_shape.size() || shape[i] != new_shape[j]) {
+                            if (shape[i] == 1) {
+                                axes_val.push_back(i);
+                                continue;
+                            } else {
+                                success = false;
+                                break;
+                            }
                         }
                         j++;
                     }
