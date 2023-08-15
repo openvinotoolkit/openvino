@@ -191,10 +191,11 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine)
+program::program(engine& engine,
+        const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _config(),
+      _config(config),
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
