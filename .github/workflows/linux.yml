@@ -250,7 +250,7 @@ jobs:
 
       - name: Samples tests
         run: |
-          export WORKSPACE=${INSTALL_DIR}
+          export WORKSPACE=${{ env.INSTALL_DIR }}
           python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
 
