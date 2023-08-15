@@ -91,7 +91,7 @@ TSGatherForward::TSGatherForward() {
         std::vector<size_t> new_transpose_order(order_val.size() + indices_rank_val - 1);
         const int n_axis_dims = static_cast<int>(indices_rank_val) - 1;
         /*
-            i - new_transpose_order index
+            i - ref_transpose_order index
             j - order_val index
             k - substituted dims by Gather index
             - There might be a situation when output Gather shape has one dimension
@@ -240,12 +240,14 @@ TSGatherBackward::TSGatherBackward() {
                 if (success) {
                     size_t j = 0;
                     for (size_t i = 0; i < shape.size(); ++i) {
-                        if (shape[i] != new_shape[j] && shape[i] == 1) {
-                            axes_val.push_back(i);
-                            continue;
-                        } else if (shape[i] != new_shape[j]) {
-                            success = false;
-                            break;
+                        if (j >= new_shape.size() || shape[i] != new_shape[j]) {
+                            if (shape[i] == 1) {
+                                axes_val.push_back(i);
+                                continue;
+                            } else {
+                                success = false;
+                                break;
+                            }
                         }
                         j++;
                     }
