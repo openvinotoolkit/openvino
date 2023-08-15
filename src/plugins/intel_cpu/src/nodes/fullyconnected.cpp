@@ -38,6 +38,10 @@
 #include "mlas/sgemm.hpp"
 #endif
 
+#ifdef OV_CPU_WITH_LLMDNN
+#include "common/simple_parallel.h"
+#endif
+
 using namespace dnnl;
 using namespace InferenceEngine;
 
@@ -1307,7 +1311,7 @@ bool FullyConnected::initLLMFc() {
         return false;
     }
 
-    size_t thread_num = static_cast<size_t>(parallel_get_max_threads());
+    size_t thread_num = llmdnn::get_total_threads();
     fcLLMs.resize(thread_num);
     bool ret = true;
     for (size_t i = 0; i < thread_num; i++) {
@@ -1332,7 +1336,7 @@ bool FullyConnected::initLLMFc() {
         auto work_amount = rnd_up(N, 32) / 32;
         auto weight_dnnl_Type = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(WEIGHTS_ID));
         auto stride_b = K * dnnl::memory::data_type_size(weight_dnnl_Type);
-        parallel_for(thread_num, [&] (size_t idx) {
+        llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
             size_t start {0}, end {0};
             dnnl::impl::balance211(work_amount, thread_num, idx, start, end);
             size_t n0 = start * 32;
