@@ -625,7 +625,7 @@ private:
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
-    mutable bool m_parsed{false};
+    mutable std::atomic<bool> m_parsed{false};
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
@@ -655,7 +655,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
         if (name == "meta_data") {
             for (const auto& data : meta_section.children()) {
                 const std::string& section_name = data.name();
-                // Rename cli_parameters to conversion_parameters
+                // Rename cli_parameters to  
                 if (section_name == "cli_parameters") {
                     std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
                     rt_info["conversion_parameters"] = meta;
