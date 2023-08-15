@@ -655,7 +655,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
         if (name == "meta_data") {
             for (const auto& data : meta_section.children()) {
                 const std::string& section_name = data.name();
-                // Rename cli_parameters to  
+                // Rename cli_parameters to conversion_parameters
                 if (section_name == "cli_parameters") {
                     std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
                     rt_info["conversion_parameters"] = meta;
