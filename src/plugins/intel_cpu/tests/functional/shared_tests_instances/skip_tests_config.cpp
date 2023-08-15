@@ -200,13 +200,11 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin api + legacy ov api will put preprocess into transformation, which will add additional Convert
         // node to graph, it cause below tests failure
         R"(.*smoke_Basic/FuseTransposeAndReorderTest.CompareWithRefs.*)",
-        R"(.*smoke_IsOp/ComparisonLayerTest.*)",
         // Issue: 113703 - input/output port's name maybe changed after transformation in plugin api 2.0
         R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: JIT choose error issue, don't know why not choose jit_avx512_BF16
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*)",
-
         // TODO: for 22.2 (CVS-68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
     };

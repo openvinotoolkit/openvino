@@ -75,6 +75,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
+
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
@@ -124,6 +125,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
+
             if (m_visualize) {
                 auto file_ext = "svg";
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
