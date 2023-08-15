@@ -852,7 +852,7 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-    conf.readProperties(config);
+    conf.readProperties(config, modelType);
 
     // import config props from caching model
     calculate_streams(conf, model, true);
