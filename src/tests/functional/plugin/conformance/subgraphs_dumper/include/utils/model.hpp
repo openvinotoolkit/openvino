@@ -89,7 +89,7 @@ generate_model(const std::set<std::shared_ptr<ov::Node>>& nodes,
             auto orig_node_name = node->get_friendly_name();
             checked_ops.insert(orig_node_name);
             cloned_node_map.insert({ orig_node_name,
-                                     clone_node(node, true, false, orig_node_name) });
+                                     clone_node(node, false, false, orig_node_name) });
             
             // create temporary vector to fill node output indexes
             std::vector<size_t> out_ports(node->outputs().size());
