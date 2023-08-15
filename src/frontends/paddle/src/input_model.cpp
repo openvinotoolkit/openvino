@@ -59,7 +59,8 @@ public:
 private:
     void loadPlaces();
     template <typename T>
-    void loadConsts(const std::basic_string<T>& folder_with_weights, std::istream* weight_stream);
+    void load_consts(const std::basic_string<T>& folder_with_weights);
+    void load_consts(std::istream* weight_stream);
     void createTempConsts();
     std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
 
@@ -156,16 +157,8 @@ void InputModel::InputModelImpl::loadPlaces() {
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    std::vector<char> header(16);
-    is.read(&header[0], 16);
-    uint32_t dims_len = 0;
-    is.read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len);
-    is.read(&dims_struct[0], dims_len);
     is.read(data, len);
-    if (is.gcount() != len)
-        return false;
-    return true;
+    return (size_t)is.gcount() == len;
 }
 
 template <typename T>
@@ -179,6 +172,20 @@ std::basic_string<wchar_t> get_const_path(const std::basic_string<wchar_t>& fold
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring _name = converter.from_bytes(name);
     return folder + paddle::get_path_sep<wchar_t>() + _name;
+}
+#endif
+
+template <typename T>
+bool is_pdmodel(const std::basic_string<T>& path) {
+    std::string ext = ".pdmodel";
+    return ov::util::ends_with(path, ext);
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+bool is_pdmodel(const std::basic_string<wchar_t>& path) {
+    std::wstring ext = L".pdmodel";
+    return ov::util::ends_with(path, ext);
 }
 #endif
 
@@ -267,9 +274,9 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
     return new_op_places;
 }
 
+// load_consts with folder is compatible with old PaddlePaddle API.
 template <typename T>
-void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_with_weights,
-                                            std::istream* weight_stream) {
+void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_with_weights) {
     for (const auto& item : m_var_places) {
         const auto& var_desc = item.second->get_desc();
         const auto& name = item.first;
@@ -286,15 +293,78 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
         std::vector<uint8_t> tensor_data(data_length);
 
         bool read_succeed = false;
-        if (weight_stream) {
-            read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
-        } else if (!folder_with_weights.empty()) {
+        if (!folder_with_weights.empty()) {
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
+            const size_t header_size = 16;
+            std::vector<char> header(header_size);
+            is.read(&header[0], header_size);
+
+            uint32_t dims_len = 0;
+            is.read(reinterpret_cast<char*>(&dims_len), 4);
+            std::vector<char> dims_struct(dims_len);
+            is.read(&dims_struct[0], dims_len);
             read_succeed = read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         } else {
-            FRONT_END_GENERAL_CHECK(false, "Either folder with weights or stream must be provided.");
+            FRONT_END_GENERAL_CHECK(false, "Folder with weights must be provided.");
         }
+        FRONT_END_GENERAL_CHECK(read_succeed,
+                                "File containing constant with name ",
+                                name,
+                                " wasn't successfully read.");
+        auto const_node = opset7::Constant::create(type, shape, &tensor_data[0]);
+        const_node->set_friendly_name(name);
+        m_tensor_values[name] = const_node;
+    }
+}
+
+// load_consts with stream is compatible with new PaddlePaddle API.
+void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
+    for (const auto& item : m_var_places) {
+        const auto& var_desc = item.second->get_desc();
+        const auto& name = item.first;
+        if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))
+            continue;
+
+        // var_desc.persistable() is used to mark node const value or not.
+        if (!var_desc.persistable())
+            continue;
+
+        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
+        FRONT_END_GENERAL_CHECK(weight_stream != nullptr && weight_stream->peek() != EOF,
+                                "PaddlePaddle *.pdiparams format weight file doesn't exist!");
+        /*
+            reference:
+            https://github.com/PaddlePaddle/Paddle2ONNX/blob/c14446437041a0aa3572994d085b7a35c5b0985c/paddle2onnx/parser/parser.cc#L261
+            When deserialize the proto, the header of each weight
+            [ 4 byte ]      -- version(not need)
+            [   8 byte   ]  -- lod_level(not need)
+            [ 4 byte ]      -- version(not need)
+            [ 4 byte ]      -- TensorDesc size
+            [ x byte ... ]  -- TensorDesc
+            [ y byte ... ]  -- weight
+        */
+        {
+            const size_t header_size = 16;
+            std::vector<char> header(header_size);
+            weight_stream->read(&header[0], header_size);
+        }
+
+        int32_t size;
+        weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        std::unique_ptr<char[]> buf(new char[size]);
+        weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
+
+        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
+            new ::paddle::framework::proto::VarType_TensorDesc());
+        tensor_desc->ParseFromArray(buf.get(), size);
+        Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
+        const auto& type = TYPE_MAP[tensor_desc->data_type()];
+        const auto& data_length = shape_size(shape) * type.size();
+        std::vector<uint8_t> tensor_data(data_length);
+
+        bool read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         FRONT_END_GENERAL_CHECK(read_succeed,
                                 "File containing constant with name ",
                                 name,
@@ -306,6 +376,14 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
     }
 }
 
+/*
+    1. path: is a directory, compatible with old PaddlePaddle API.
+             read __model__ as model stream.
+             read the separate weights in the directory.
+    2. path: is a pdmodel file, compatible with new PaddlePaddle API.
+             read *.pdmodel as model stream.
+             read *.pdiparam as weight stream.
+*/
 template <typename T>
 InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
                                            const InputModel& input_model,
@@ -328,10 +406,10 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
         version >= 2000000 || version == 0,
         "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     loadPlaces();
-    if (weights_stream && weights_stream.is_open()) {
-        loadConsts(std::basic_string<T>{}, &weights_stream);
+    if (is_pdmodel(path)) {
+        load_consts(&weights_stream);
     } else {
-        loadConsts(path, nullptr);
+        load_consts(path);
     }
     createTempConsts();
 }
@@ -402,7 +480,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& str
         "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     loadPlaces();
     if (streams.size() > 1)
-        loadConsts(std::string(), streams[1]);
+        load_consts(streams[1]);
     createTempConsts();
 }
 
