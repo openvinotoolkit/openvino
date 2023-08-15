@@ -80,6 +80,8 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          echo ${WORKSPACE}
+          echo ${{ env.WORKSPACE }}
           echo ${GITHUB_WORKSPACE}
           ls -la ${GITHUB_WORKSPACE}
           echo ${OPENVINO_REPO}
