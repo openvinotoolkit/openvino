@@ -32,7 +32,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         auto input_shape_rank = static_cast<size_t>(tile->get_input_partial_shape(0).rank().get_length());
         int64_t cur_dim_id = tiles.size() - 1;
 
-        if (static_cast<int64_t>(tiles.size()) != input_shape_rank) return false;
+        if (tiles.size() != input_shape_rank) return false;
 
         auto last_node = tile->input_value(0);
         auto friendly_name = tile->get_friendly_name();

@@ -90,3 +90,4 @@ attach_lstm_elt_impl::attach_lstm_elt_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_elt_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_elt)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm)

@@ -17,7 +17,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
     ngraph::Shape strides(2, 1);
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const Shape const_shape {channels, channels, 3, 3};
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(const_shape), -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(const_shape), -10., 10.);
     auto weights = std::make_shared<op::v0::Constant>(precision, const_shape, const_values);
     auto conv = std::make_shared<op::v1::Convolution>(conv_param, weights, strides, pad_begin, pad_end, strides);
 
@@ -39,7 +39,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const auto channels = static_cast<size_t>(input_shapes[0][1].get_length());
     const Shape const_shape {channels, channels, 3, 3};
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(const_shape), -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(const_shape), -10., 10.);
     auto weights = std::make_shared<op::v0::Constant>(precision, const_shape, const_values);
     auto conv = std::make_shared<op::v1::Convolution>(conv_param, weights, strides, pad_begin, pad_end, strides);
 
@@ -53,7 +53,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto ineltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({ineltwise_binary->output(0)});
     auto ineltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({ineltwise_unary_1->output(0)});
 
-    auto subgraph = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{conv, eltwise_sinh},
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{conv, eltwise_sinh},
                                           std::make_shared<ov::Model>(NodeVector{ineltwise_unary_2},
                                                                   ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{conv_param, eltwise_param});

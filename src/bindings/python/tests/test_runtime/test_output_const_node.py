@@ -6,16 +6,18 @@ import os
 from copy import copy, deepcopy
 
 from ..conftest import model_path
-import openvino.runtime.opset8 as ops
-from openvino.runtime import (
-    ConstOutput,
+import openvino.runtime.opset12 as ops
+from openvino import (
     Shape,
     PartialShape,
     Type,
+    Core,
+    OVAny,
+)
+from openvino.runtime import (
+    ConstOutput,
     Output,
     RTMap,
-    OVAny,
-    Core,
 )
 
 import pytest

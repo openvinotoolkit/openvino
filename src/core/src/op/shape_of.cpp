@@ -5,7 +5,6 @@
 #include "ngraph/op/shape_of.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 #include <vector>
 
@@ -17,6 +16,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -50,6 +50,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace shape_of {
 namespace {
 template <element::Type_t ET>
@@ -100,11 +101,13 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
     auto output_type = shape_of_node->get_output_element_type(0);
     if (partial_shape.is_static()) {
         auto arg_shape = shape_of_input.get_shape();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto result_tensor = make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
         if (evaluate_shape_of(result_tensor, make_shared<HostTensor>(output_type, partial_shape))) {
             replacement = make_shared<op::Constant>(result_tensor);
             return true;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return false;
     }
     return false;

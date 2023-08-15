@@ -42,7 +42,7 @@ public:
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
         try {
-            std::ifstream mg_stream(path, std::ios::in | std::ifstream::binary);
+            std::ifstream mg_stream(path.c_str(), std::ios::in | std::ifstream::binary);
             auto metagraph_def = std::make_shared<::tensorflow::MetaGraphDef>();
             return mg_stream && mg_stream.is_open() && metagraph_def->ParsePartialFromIstream(&mg_stream) &&
                    metagraph_def->has_graph_def() && metagraph_def->graph_def().node_size() > 0;
@@ -70,13 +70,13 @@ private:
     bool read_meta(const std::basic_string<T>& path) {
         std::basic_string<T> model_path = path.substr(0, path.find_last_of('.'));
 
-        std::ifstream mg_stream{path, std::ifstream::in | std::ifstream::binary};
+        std::ifstream mg_stream{path.c_str(), std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(mg_stream && mg_stream.is_open(), "Model file does not exist");
 
         std::basic_string<T> varIndexPath = get_variables_index_name<T>(model_path);
         if (ov::util::file_exists(varIndexPath)) {
             m_variables_index = std::make_shared<VariablesIndex>();
-            std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
+            std::ifstream vi_stream{varIndexPath.c_str(), std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(), "MetaGraph's variable index file does not exist");
             FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, model_path, false),
                                     "MetaGraph's variable index file cannot be parsed");

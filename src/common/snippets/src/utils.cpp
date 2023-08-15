@@ -5,17 +5,19 @@
 #include "snippets/utils.hpp"
 
 #include "snippets/pass/fq_decomposition.hpp"
+#include "openvino/core/rt_info.hpp"
 
-namespace ngraph {
+
+namespace ov {
 namespace snippets {
 namespace utils {
 
-auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuantize>& fq) -> size_t {
+auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t {
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    const bool status = ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
+    const bool status = ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(fq, cl, ch, isc, ish, osc, osh);
     bool is_optimized = false;  // The case when we can calculate only scales
     if (status) {
-        const auto out_scales = ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+        const auto out_scales = ov::snippets::pass::FakeQuantizeDecomposition::calculateScales(fq->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         is_optimized = out_scales.size() != 0;
     }
 
@@ -24,10 +26,10 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuan
                                                      [](float val) { return val == 1.f; }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(),
                                                      [](float val) { return val == 0.f; }));
-    const bool il = ngraph::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ngraph::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ngraph::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ngraph::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
@@ -67,27 +69,6 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<opset1::FakeQuan
         return 0;
     }
 }
-std::vector<size_t> get_node_output_layout(const std::shared_ptr<Node>& node) {
-    return get_node_output_layout(node.get());
-}
-std::vector<size_t> get_node_output_layout(const Node* node) {
-    if (!node)
-        return {};
-    if (node->is_dynamic())
-        OPENVINO_THROW("It's illegal to call get_node_output_layout for dynamic nodes");
-    auto &rt = node->get_rt_info();
-    const auto rinfo = rt.find("Layout");
-    if (rinfo != rt.end()) {
-        std::vector<size_t> layout(rinfo->second.as<std::vector<size_t>>());
-        // This might be a little costy, but still useful sanity check. Remove if proved to be unacceptably heavy.
-        std::set<size_t> unique_elements(layout.begin(), layout.end());
-        if (unique_elements.size() < layout.size())
-            OPENVINO_THROW("Layout must contain only unique dimension indexes");
-        return layout;
-    } else {
-        return {};
-    }
-}
 
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout) {
     if (layout.empty())
@@ -106,26 +87,16 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     return reordered_shape;
 }
 
+ov::PartialShape get_port_planar_shape(const Input<Node>& in) {
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
+}
+
 ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
-    std::vector<size_t> layout = get_node_output_layout(out.get_node_shared_ptr());
-    const auto& tensor = out.get_tensor_ptr();
-    if (!tensor)
-        OPENVINO_THROW("get_port_planar_shape can't be called for an uninitialized output tensor");
-    auto tensor_shape = tensor->get_partial_shape();
-    return get_reordered_planar_shape(tensor_shape, layout);
-}
-
-void set_transpose_output_layout(const ov::Output<Node>& port, const std::shared_ptr<opset1::Transpose>& node) {
-    const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
-    OPENVINO_ASSERT(const_order != nullptr, "Transpose order must be Constant to set layout!");
-    set_output_layout(port, const_order->cast_vector<size_t>());
-}
-
-void set_output_layout(const ov::Output<Node>& port, const std::vector<size_t>& layout) {
-    auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
-    rt_info["Layout"] = layout;
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(out);
+    return utils::get_reordered_planar_shape(ov::Shape{port->get_shape()}, port->get_layout());
 }
 
 } // namespace utils
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

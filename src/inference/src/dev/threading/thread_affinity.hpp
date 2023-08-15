@@ -17,7 +17,7 @@ namespace threading {
 
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 using cpu_set_t = void;
-#endif  // (defined(__APPLE__) || defined(_WIN32))
+#endif  // (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 
 /**
  * @brief      Release the cores affinity mask for the current process

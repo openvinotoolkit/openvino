@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -143,15 +143,15 @@ TEST(type_prop, select_labels_all_params_none) {
 }
 
 TEST(type_prop, select_labels_all_params_pdpd) {
-    auto labeled_shape_cond = PartialShape{-1, -1, -1, -1, -1, -1, -1};
+    auto labeled_shape_cond = PartialShape{-1, 2, 1, 1, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
     auto labeled_shape_then = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
-    auto labeled_shape_else = PartialShape{-1, 2, 4, 3, 5, {2, 5}, {2, 8}, {5, -1}, {-1, 5}};
+    auto labeled_shape_else = PartialShape{-1, 2, 1, 3, 1, {1, 5}, {1, 8}, {5, -1}, {-1, 5}};
 
     set_shape_labels(labeled_shape_cond, 10);
     set_shape_labels(labeled_shape_then, 20);
     set_shape_labels(labeled_shape_else, 30);
 
-    ov::TensorLabel expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
+    ov::TensorLabel expected_labels{10, 11, 22, 33, 24, 25, 26, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -395,16 +395,13 @@ INSTANTIATE_TEST_SUITE_P(
                       SelectParams({{4}, {4}, {2, 4}, {2, 4}},
                                    {element::dynamic, element::dynamic, element::i8, element::i8},
                                    op::AutoBroadcastType::NUMPY),
-                      SelectParams({{2}, {2, 4}, {2}, {2, 4}},
+                      SelectParams({{2, 4}, {2, 4}, {2}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{2}, {2, 4}, {2}, {2, 4}},
-                                   {element::boolean, element::f32, element::dynamic, element::f32},
-                                   {op::AutoBroadcastType::PDPD, 0}),
-                      SelectParams({{4}, {2, 4}, {2, 4}, {2, 4}},
+                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
                                    {element::boolean, element::f32, element::f32, element::f32},
                                    {op::AutoBroadcastType::PDPD, 1}),
-                      SelectParams({{4}, {2, 4}, {4}, {2, 4}},
+                      SelectParams({{1}, {2, 4}, {4}, {2, 4}},
                                    {element::boolean, element::f32, element::dynamic, element::f32},
                                    {op::AutoBroadcastType::PDPD, 1}),
                       SelectParams({{4}, {4, 2, 3, 8}, {4, 2, 3, 1}, {4, 2, 3, 8}},

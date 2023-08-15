@@ -4,8 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MULTIDEVICEPLUGIN_SINGLETON_H
-#define MULTIDEVICEPLUGIN_SINGLETON_H
+#pragma once
 #include <cassert>
 #include <list>
 #include <memory>
@@ -15,12 +14,13 @@
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
-#define MultiDevicePlugin MockMultiDevicePlugin
+#define auto_plugin mock_auto_plugin
 #else
 #define MOCKTESTMACRO
 #endif
 
-namespace MultiDevicePlugin {
+namespace ov {
+namespace auto_plugin {
 template <typename Type>
 class Singleton : public NonCopyable {
 public:
@@ -42,6 +42,5 @@ protected:
 
 template <typename Type>
 std::once_flag Singleton<Type>::m_onceFlag;
-} // namespace MultiDevicePlugin
-
-#endif //MULTIDEVICEPLUGIN_SINGLETON_H
+} // namespace auto_plugin
+} // namespace ov

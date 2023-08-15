@@ -216,6 +216,8 @@ public:
                         uint32_t bilinear_interp : 1;
                         uint32_t cubic : 1;
                         uint32_t linear_onnx : 1;
+                        uint32_t bilinear_pillow : 1;
+                        uint32_t bicubic_pillow : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
@@ -605,7 +607,7 @@ struct dep_info {
 //  method in binary_convolution_kernel_generic.cpp.
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
-    size_t dep_idx_start;
+    int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
     DataTensor output_tensor;
@@ -621,6 +623,9 @@ struct fused_operation_desc {
             throw std::runtime_error("Invalid dynamic cast of fused operation parameters");
 
         return p;
+    }
+    bool has_outer_dep() {
+        return dep_idx_start != -1;
     }
 };
 
@@ -668,11 +673,21 @@ struct base_params : public Params {
                 }
             }
         }
+        for (auto& fd : fused_ops) {
+            if (!fd.has_outer_dep())
+                continue;
+            auto& fused_op_inputs = fd.tensors;
+            for (auto& fused_input : fused_op_inputs) {
+                fused_input.SetDynamicShapeOffset(offset);
+                if (fused_input.is_dynamic())
+                    offset += DataTensor::max_rank();
+            }
+        }
         for (auto& out : outputs) {
             out.SetDynamicShapeOffset(offset);
             if (out.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : out.GetDims()) {
+                for (auto& dim : out.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }

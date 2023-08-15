@@ -374,55 +374,7 @@ def test_get_perf_counts(device):
     request = exec_net.requests[0]
     request.infer({'data': img})
     pc = request.get_perf_counts()
-    assert pc['29']["status"] == "EXECUTED"
-    del exec_net
-    del ie_core
-    del net
-
-
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-                            "Dynamic batch fully supported only on CPU")
-def test_set_batch_size(device):
-    ie_core = ie.IECore()
-    if ie_core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to dynamic batch isn't supported")
-    ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    net.batch_size = 10
-    data = np.zeros(shape=net.input_info['data'].input_data.shape)
-    exec_net = ie_core.load_network(net, device)
-    data[0] = generate_image()[0]
-    request = exec_net.requests[0]
-    request.set_batch(1)
-    request.infer({'data': data})
-    assert np.allclose(int(round(request.output_blobs['fc_out'].buffer[0][2])), 0), "Incorrect data for 1st batch"
-    del exec_net
-    del ie_core
-    del net
-
-
-def test_set_zero_batch_size(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device, num_requests=1)
-    request = exec_net.requests[0]
-    with pytest.raises(ValueError) as e:
-        request.set_batch(0)
-    assert "Batch size should be positive integer number but 0 specified" in str(e.value)
-    del exec_net
-    del ie_core
-    del net
-
-
-def test_set_negative_batch_size(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device, num_requests=1)
-    request = exec_net.requests[0]
-    with pytest.raises(ValueError) as e:
-        request.set_batch(-1)
-    assert "Batch size should be positive integer number but -1 specified" in str(e.value)
+    assert pc['29/WithoutBiases']["status"] == "EXECUTED"
     del exec_net
     del ie_core
     del net
@@ -447,23 +399,6 @@ def test_blob_setter(device):
     request.infer()
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
-
-
-def test_blob_setter_with_preprocess(device):
-    ie_core = ie.IECore()
-    net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
-
-    img = generate_image()
-    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
-    img_blob = ie.Blob(tensor_desc, img)
-    preprocess_info = ie.PreProcessInfo()
-    preprocess_info.mean_variant = ie.MeanVariant.MEAN_IMAGE
-
-    request = exec_net.requests[0]
-    request.set_blob('data', img_blob, preprocess_info)
-    pp = request.preprocess_info["data"]
-    assert pp.mean_variant == ie.MeanVariant.MEAN_IMAGE
 
 
 def test_getting_preprocess(device):

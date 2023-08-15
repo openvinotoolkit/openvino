@@ -267,6 +267,7 @@ void regclass_CompiledModel(py::module m) {
         auto inputs_str = Common::docs::container_to_string(self.inputs(), ",\n");
         auto outputs_str = Common::docs::container_to_string(self.outputs(), ",\n");
 
-        return "<CompiledModel:\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str + "\n]>";
+        return "<" + Common::get_class_name(self) + ":\ninputs[\n" + inputs_str + "\n]\noutputs[\n" + outputs_str +
+               "\n]>";
     });
 }

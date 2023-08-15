@@ -118,7 +118,7 @@ TEST_P(CorrectConfigTests, CanUseCache) {
     ie->SetConfig({ { CONFIG_KEY(CACHE_DIR), "./test_cache" } });
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, target_device, configuration));
-    CommonTestUtils::removeDir("./test_cache");
+    ov::test::utils::removeDir("./test_cache");
 }
 
 TEST_P(CorrectConfigCheck, canSetConfigAndCheckGetConfig) {

@@ -8,10 +8,10 @@
 #include "utils/log_util.hpp"
 #include <future>
 using ::testing::_;
-using namespace MockMultiDevice;
+using namespace ov::mock_auto_plugin;
 // disable using windows.h
 #if 0
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(_WIN32)
 #include <windows.h>
 #elif defined(__linux__)
 #include <stdlib.h>
@@ -21,11 +21,11 @@ using namespace MockMultiDevice;
 #endif
 #endif
 
-MockLog* MockLog::_mockLog = NULL;
+MockLog* MockLog::m_mocklog = NULL;
 using ConfigParams = std::tuple<
         std::string,     // logLevel
         std::string,     // envlogLevel
-        int             //  expectCallNum
+        int              //  expectCallNum
         >;
 class LogUtilsTest : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -62,7 +62,7 @@ public:
     }
 
     void TearDown() override {
-        MockLog::Release();
+        MockLog::release();
     }
 
     void printLog() {
@@ -79,14 +79,14 @@ public:
     }
 };
 
-TEST_P(LogUtilsTest, setLogLevel) {
+TEST_P(LogUtilsTest, set_log_level) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
-    setLogLevel(_logLevel);
+    set_log_level(_logLevel);
     printLog();
 }
 
 TEST_P(LogUtilsTest, INFO_RUN) {
-    setLogLevel(_logLevel);
+    set_log_level(_logLevel);
     int a = 0;
     INFO_RUN([&a](){a++;});
     if (_logLevel == "LOG_INFO" || _logLevel == "LOG_DEBUG" ||
@@ -98,7 +98,7 @@ TEST_P(LogUtilsTest, INFO_RUN) {
 }
 
 TEST_P(LogUtilsTest, DEBUG_RUN) {
-    setLogLevel(_logLevel);
+    set_log_level(_logLevel);
     int a = 0;
     DEBUG_RUN([&a](){a++;});
     if (_logLevel == "LOG_DEBUG" || _logLevel == "LOG_TRACE") {
@@ -109,9 +109,9 @@ TEST_P(LogUtilsTest, DEBUG_RUN) {
 }
 
 #if 0
-TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
+TEST_P(LogUtilsTest, setEnvNotAffectset_log_level) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
-    setLogLevel(_logLevel);
+    set_log_level(_logLevel);
     SetTestEnv("OPENVINO_LOG_LEVEL", "3");
     printLog();
 }

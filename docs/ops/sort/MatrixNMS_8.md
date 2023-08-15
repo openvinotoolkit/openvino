@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about MatrixNonMaxSuppression-8 - a sorting and 
+                maximization operation, which can be performed on two required 
+                input tensors.
+
 **Versioned name**: *MatrixNonMaxSuppression-8*
 
 **Category**: *Sorting and maximization*
@@ -21,7 +26,7 @@ The Matrix NMS algorithm is described below:
 2.  Set the lower triangle and diagonal of ``X`` to 0. Therefore get the upper triangular matrix ``X``.
 3.  Take the column-wise max of ``X`` to compute a vector ``K`` of maximum IOU for each candidate box.
 4.  Repeat element value of ``K`` along axis 1. Suppose this gets a matrix ``X_cmax``.
-5.  Compute the decay factor: ``decay_factor = exp((X_cmax**2 - X**2) * gaussian_sigma)`` if ``decay_function`` is ``guassian``, else ``decay_factor = (1 - X) / (1 - X_cmax)``.
+5.  Compute the decay factor: ``decay_factor = exp((X_cmax**2 - X**2) * gaussian_sigma)`` if ``decay_function`` is ``gaussian``, else ``decay_factor = (1 - X) / (1 - X_cmax)``.
 6.  Take the column-wise min of ``decay_factor``, and element-wise multiply with scores to decay them.
 
 **Attributes**:

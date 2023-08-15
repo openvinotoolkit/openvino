@@ -5,7 +5,9 @@
 #pragma once
 
 // avoiding clash of the "max" macro with std::max
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -19,7 +21,7 @@
 #include <ie_blob.h>
 #include <ie_input_info.hpp>
 
-#include "test_model_repo.hpp"
+#include "helpers/test_model_repo.hpp"
 #include "test_model_path.hpp"
 #include <tests_file_utils.hpp>
 #include <chrono>
@@ -43,7 +45,7 @@ protected:
     void SetUp() override;
 
     static std::string make_so_name(const std::string & input) {
-        return CommonTestUtils::pre + input + IE_BUILD_POSTFIX + CommonTestUtils::ext;
+        return ov::test::utils::pre + input + IE_BUILD_POSTFIX + ov::test::utils::ext;
     }
 
     void TearDown() override;

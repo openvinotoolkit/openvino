@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -65,16 +66,15 @@ ov::Shape tensorToShape(const tensor& t, const format f)
 }
 
 template<typename T>
-void generateTestData(const AdaptiveAvgPoolingParams& p, const format fmt, std::vector<T>& inputs, std::vector<T>& outputs) {
-    const auto in = generate_random_1d<float>(p.inputTensor.count(), -127, 127, 8);
+void generateTestData(const AdaptiveAvgPoolingParams& p, const format fmt, const std::vector<float>& random_inputs, std::vector<T>& inputs, std::vector<T>& outputs) {
     std::vector<float> out(p.outputTensor.count());
 
     const auto inShape = tensorToShape(p.inputTensor, fmt);
     const auto outShape = tensorToShape(p.outputTensor, fmt);
 
-    ngraph::runtime::reference::adaptive_avg_pool<float>(in.data(), out.data(), inShape, outShape);
+    ngraph::runtime::reference::adaptive_avg_pool<float>(random_inputs.data(), out.data(), inShape, outShape);
 
-    inputs = getValues<T>(in);
+    inputs = getValues<T>(random_inputs);
     outputs = getValues<T>(out);
 }
 
@@ -111,6 +111,12 @@ struct PrintToStringParamName {
 template<typename T>
 struct adaptive_avg_pooling_test
         : public ::testing::TestWithParam<AdaptiveAvgPoolingParamsWithLayout> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
 public:
     void test() {
         const auto data_type = type_to_data_type<T>::value;
@@ -122,7 +128,8 @@ public:
 
         std::vector<T> input_data;
         std::vector<T> expected;
-        generateTestData<T>(params, plain_layout, input_data, expected);
+        const std::vector<float> random_input_data = rg.generate_random_1d<float>(params.inputTensor.count(), -127, 127, 8);
+        generateTestData<T>(params, plain_layout, random_input_data, input_data, expected);
         auto& engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_type, plain_layout, params.inputTensor});

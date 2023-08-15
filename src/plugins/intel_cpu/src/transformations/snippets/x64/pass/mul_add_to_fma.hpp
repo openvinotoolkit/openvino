@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/pass/graph_rewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,7 +15,7 @@ namespace pass {
 * @brief Replaces mul and add with FusedMulAdd node
 * @ingroup snippets
 */
-class MulAddToFMA : public ngraph::pass::MatcherPass {
+class MulAddToFMA : public ov::pass::MatcherPass {
 public:
     MulAddToFMA();
 };

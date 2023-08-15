@@ -66,8 +66,9 @@ class LegacyExtTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             ext_path1 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir1")
             ext_path2 = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_exts_dir2")
-            model = create_tf_model()
-            out_xml = os.path.join(tmpdir, "model.xml")
+            tf_model = create_tf_model()
+            tf.io.write_graph(tf_model, tmpdir, 'model.pb', False)
+            model = os.path.join(tmpdir, 'model.pb')
 
             # tests for convert_model()
             ov_model = convert_model(model, extensions=ext_path1)
@@ -82,13 +83,11 @@ class LegacyExtTest(unittest.TestCase):
             flag, msg = compare_functions(ov_model, create_ref_model_2(), False)
             assert flag, msg
 
-            tf.io.write_graph(model, tmpdir, 'model.pb', False)
-            inp_model = os.path.join(tmpdir, 'model.pb')
             from openvino.runtime import Core
             core = Core()
 
             # tests for MO cli tool
-            exit_code, stderr = generate_ir(coverage=False, **{"input_model": inp_model,
+            exit_code, stderr = generate_ir(coverage=False, **{"input_model": model,
                                                                "extensions": ext_path1,
                                                                "output_dir": tmpdir})
             assert not exit_code
@@ -97,7 +96,7 @@ class LegacyExtTest(unittest.TestCase):
             flag, msg = compare_functions(ov_model, create_ref_model_1(), False)
             assert flag, msg
 
-            exit_code, stderr = generate_ir(coverage=False, **{"input_model": inp_model,
+            exit_code, stderr = generate_ir(coverage=False, **{"input_model": model,
                                                                "extensions": ','.join([ext_path1, ext_path2]),
                                                                "output_dir": tmpdir})
             assert not exit_code

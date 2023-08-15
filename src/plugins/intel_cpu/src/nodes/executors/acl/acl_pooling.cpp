@@ -21,14 +21,14 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
                                      const VectorDims* indDims,
                                      PoolingLayerInfo* pool_info,
                                      Pooling3dLayerInfo* pool3d_info) {
-    unsigned int pad_left   = (poolingAttrs.data_pad_begin.size() >= 2) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
-    unsigned int pad_right  = (poolingAttrs.data_pad_end.size() >= 2) ?   poolingAttrs.data_pad_end[1]   : poolingAttrs.data_pad_end[0];
-    unsigned int pad_top    = (poolingAttrs.data_pad_begin.size() >= 2) ? poolingAttrs.data_pad_begin[0] : 0;
-    unsigned int pad_bottom = (poolingAttrs.data_pad_end.size() >= 2) ?   poolingAttrs.data_pad_end[0]   : 0;
-    unsigned int kernel_w = (poolingAttrs.kernel.size() >= 2) ? poolingAttrs.kernel[1] : poolingAttrs.kernel[0];
-    unsigned int kernel_h = (poolingAttrs.kernel.size() >= 2) ? poolingAttrs.kernel[0] : 1;
-    unsigned int stride_x = (poolingAttrs.stride.size() >= 2) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
-    unsigned int stride_y = (poolingAttrs.stride.size() >= 2) ? poolingAttrs.stride[0] : 1;
+    unsigned int pad_left   = (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[1] : poolingAttrs.data_pad_begin[0];
+    unsigned int pad_right  = (poolingAttrs.data_pad_end.size() >= 2u) ?   poolingAttrs.data_pad_end[1]   : poolingAttrs.data_pad_end[0];
+    unsigned int pad_top    = (poolingAttrs.data_pad_begin.size() >= 2u) ? poolingAttrs.data_pad_begin[0] : 0;
+    unsigned int pad_bottom = (poolingAttrs.data_pad_end.size() >= 2u) ?   poolingAttrs.data_pad_end[0]   : 0;
+    unsigned int kernel_w = (poolingAttrs.kernel.size() >= 2u) ? poolingAttrs.kernel[1] : poolingAttrs.kernel[0];
+    unsigned int kernel_h = (poolingAttrs.kernel.size() >= 2u) ? poolingAttrs.kernel[0] : 1;
+    unsigned int stride_x = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
+    unsigned int stride_y = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[0] : 1;
 
     PoolingType pool_type;
     bool exclude_padding = false;
@@ -110,8 +110,8 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
 
-    if (srcDims.size() == 5) {
-        if (dstDescs.size() == 1) {
+    if (srcDims.size() == 5u) {
+        if (dstDescs.size() == 1u) {
             Pooling3dLayerInfo pool_info;
             if (!isSupported(srcTensorInfo,
                              dstTensorInfo,
@@ -131,7 +131,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
         }
     } else {
         arm_compute::PoolingLayerInfo pool_info;
-        if (dstDescs.size() > 1) {
+        if (dstDescs.size() > 1u) {
             if (!isSupported(srcTensorInfo,
                              dstTensorInfo,
                              poolingAttrs,
@@ -173,15 +173,15 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 }
 
 void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, std::unordered_map<int, MemoryPtr> postOpsArgs) {
-    srcTensor.allocator()->import_memory(src[0]->GetPtr());
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
-    if (dst.size() > 1) indTensor.allocator()->import_memory(dst[1]->GetPtr());
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
+    if (dst.size() > 1u) indTensor.allocator()->import_memory(dst[1]->getData());
 
     exec_func();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
-    if (dst.size() > 1) indTensor.allocator()->free();
+    if (dst.size() > 1u) indTensor.allocator()->free();
 }
 
 }   // namespace intel_cpu

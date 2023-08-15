@@ -3,9 +3,9 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

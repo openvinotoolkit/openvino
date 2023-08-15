@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn about extra API references required for the development of 
+                 plugins in OpenVINO.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -9,9 +13,9 @@
    ../groupov_dev_api
    ../groupie_transformation_api
 
-@endsphinxdirective
-
 The guides below provides extra API references needed for OpenVINO plugin development:
 
-* [OpenVINO Plugin API](@ref ov_dev_api)
-* [OpenVINO Transformation API](@ref ie_transformation_api)
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.0/groupov_dev_api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.0/groupie_transformation_api.html>`__
+
+@endsphinxdirective

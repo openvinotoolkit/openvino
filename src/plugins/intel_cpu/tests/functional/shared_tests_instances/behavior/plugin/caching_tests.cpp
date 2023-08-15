@@ -39,7 +39,7 @@ namespace {
             1
     };
 
-    static std::shared_ptr<ngraph::Function> simple_function_non_max_supression_internal(ngraph::element::Type, size_t) {
+    static std::shared_ptr<ngraph::Function> simple_function_non_max_suppression_internal(ngraph::element::Type, size_t) {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
@@ -77,7 +77,7 @@ namespace {
 
     static std::vector<nGraphFunctionWithName> internal_functions_cpu() {
         std::vector<nGraphFunctionWithName> funcs = {
-            nGraphFunctionWithName { simple_function_non_max_supression_internal, "NonMaxSuppressionIEInternal"},
+            nGraphFunctionWithName { simple_function_non_max_suppression_internal, "NonMaxSuppressionIEInternal"},
             nGraphFunctionWithName { simple_function_matrix_nms_internal, "NmsStaticShapeIE_MatrixNms"},
             nGraphFunctionWithName { simple_function_multiclass_nms_internal, "MulticlassNmsIEInternal"},
         };
@@ -89,7 +89,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Float, LoadNetworkCacheTestBase,
@@ -97,7 +97,7 @@ namespace {
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
                                     ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
@@ -105,6 +105,6 @@ namespace {
                                     ::testing::ValuesIn(internal_functions_cpu()),
                                     ::testing::ValuesIn(precisionsCPUInternal),
                                     ::testing::ValuesIn(batchSizesCPUInternal),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                    ::testing::Values(ov::test::utils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

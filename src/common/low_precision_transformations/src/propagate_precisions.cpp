@@ -12,6 +12,7 @@
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/propagate_to_input.hpp"
 #include "itt.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
@@ -20,7 +21,7 @@ ngraph::pass::low_precision::PropagatePrecisions::PropagatePrecisions(const Attr
 
 bool ngraph::pass::low_precision::PropagatePrecisions::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(PropagatePrecisions);
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
     precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(params, AttributeSource::OutputPort);

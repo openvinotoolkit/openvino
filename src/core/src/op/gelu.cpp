@@ -101,6 +101,7 @@ op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const {
     return m_approximation_mode;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace gelu {
 namespace {
 template <element::Type_t ET>

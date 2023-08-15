@@ -33,17 +33,17 @@ public:
         result << std::to_string(obj.index) << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "IS=";
-        result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+        result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
         result << ")";
         return result.str();
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
 
         auto netPrecision = ElementType::undefined;
         InputShape inputShape;
@@ -112,6 +112,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_3d_compareWithRefs_dynamic,
         ::testing::ValuesIn(netPrecisions)),
     ShapeOfLayerGPUTest::getTestCaseName);
 
+std::vector<Shape> inShapesStatic3d = {
+    { 8, 5, 4 },
+    { 8, 5, 3 },
+    { 8, 5, 2 },
+    { 1, 2, 4 },
+    { 1, 2, 3 },
+    { 1, 2, 2 }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_3d_compareWithRefs_static,
+    ShapeOfLayerGPUTest,
+    ::testing::Combine(
+            ::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic3d)),
+            ::testing::ValuesIn(netPrecisions)),
+    ShapeOfLayerGPUTest::getTestCaseName);
+
 // ==============================================================================
 // 4D
 std::vector<ov::test::InputShape> inShapesDynamic4d = {
@@ -139,6 +154,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_4d_compareWithRefs_dynamic,
         ::testing::ValuesIn(netPrecisions)),
     ShapeOfLayerGPUTest::getTestCaseName);
 
+std::vector<Shape> inShapesStatic4d = {
+    { 8, 5, 3, 4 },
+    { 8, 5, 3, 3 },
+    { 8, 5, 3, 2 },
+    { 1, 2, 3, 4 },
+    { 1, 2, 3, 3 },
+    { 1, 2, 3, 2 }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_4d_compareWithRefs_static,
+    ShapeOfLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic4d)),
+        ::testing::ValuesIn(netPrecisions)),
+    ShapeOfLayerGPUTest::getTestCaseName);
+
 // ==============================================================================
 // 5D
 std::vector<ov::test::InputShape> inShapesDynamic5d = {
@@ -163,6 +193,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_5d_compareWithRefs_dynamic,
     ShapeOfLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamic5d),
+        ::testing::ValuesIn(netPrecisions)),
+    ShapeOfLayerGPUTest::getTestCaseName);
+
+std::vector<Shape> inShapesStatic5d = {
+    { 8, 5, 3, 2, 4 },
+    { 8, 5, 3, 2, 3 },
+    { 8, 5, 3, 2, 2 },
+    { 1, 2, 3, 4, 4 },
+    { 1, 2, 3, 4, 3 },
+    { 1, 2, 3, 4, 2 }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_ShapeOf_5d_compareWithRefs_static,
+    ShapeOfLayerGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(static_shapes_to_test_representation(inShapesStatic5d)),
         ::testing::ValuesIn(netPrecisions)),
     ShapeOfLayerGPUTest::getTestCaseName);
 

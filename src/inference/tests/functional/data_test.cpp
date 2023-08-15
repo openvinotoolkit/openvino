@@ -9,6 +9,7 @@
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
+IE_SUPPRESS_DEPRECATED_START
 
 class DataTests : public ::testing::Test {
 protected:

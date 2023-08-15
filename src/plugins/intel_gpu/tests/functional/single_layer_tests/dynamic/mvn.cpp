@@ -38,13 +38,13 @@ public:
        std::tie(inputShapes, netPrecision, axes, normalizeVariance, eps) = basicParamsSet;
 
        std::ostringstream result;
-       result << "IS=" << CommonTestUtils::partialShape2str({inputShapes.first}) << "_";
+       result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
        result << "TS=";
        for (const auto& shape : inputShapes.second) {
-           result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+           result << "(" << ov::test::utils::vec2str(shape) << ")_";
        }
        result << "Precision=" << netPrecision << "_";
-       result << "ReductionAccess=" << CommonTestUtils::vec2str(axes) << "_";
+       result << "ReductionAxes=" << ov::test::utils::vec2str(axes) << "_";
        result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
        result << "Epsilon=" << eps;
        result << "_" << "CNNInpPrc=" << inputPrecision;
@@ -53,7 +53,7 @@ public:
    }
 protected:
    void SetUp() override {
-       targetDevice = CommonTestUtils::DEVICE_GPU;
+       targetDevice = ov::test::utils::DEVICE_GPU;
 
        basicGPUMvnParams basicParamsSet;
        ElementType inPrc;
@@ -96,17 +96,6 @@ namespace {
 const std::vector<InputShape> inputShapes_1D = {
        {
            // dynamic
-           {-1},
-           // target
-           {
-               {2},
-               {16},
-               {1},
-               {2}
-           }
-       },
-       {
-           // dynamic
            {{1, 20}},
            // target
            {
@@ -114,31 +103,6 @@ const std::vector<InputShape> inputShapes_1D = {
                {16},
                {4},
                {16}
-           }
-       }
-};
-
-const std::vector<InputShape> inputShapes_2D = {
-       {
-           // dynamic
-           {-1, -1},
-           // target
-           {
-               {2, 16},
-               {4, 16},
-               {1, 16},
-               {4, 16}
-           }
-       },
-       {
-           // dynamic
-           {{1, 5}, {1, 20}},
-           // target
-           {
-               {1, 1},
-               {2, 16},
-               {4, 16},
-               {2, 16}
            }
        }
 };
@@ -235,7 +199,6 @@ const std::vector<int> reduction_axes_23 = {2, 3};
 const std::vector<int> reduction_axes_12 = {1, 2};
 const std::vector<int> reduction_axes_3 = {3};
 const std::vector<int> reduction_axes_2 = {2};
-const std::vector<int> empty_reduction_axes = {};
 
 std::vector<ElementType> inpPrc = {ElementType::i8, ElementType::f16, ElementType::f32};
 
@@ -271,41 +234,6 @@ const auto Mvn5D = ::testing::Combine(
        ::testing::ValuesIn(inpPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerGPUTest, Mvn5D, MvnLayerGPUTest::getTestCaseName);
-
-const auto Mvn1D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_1D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerGPUTest, Mvn1D, MvnLayerGPUTest::getTestCaseName);
-
-// 2D no transformed
-const auto Mvn2D = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerGPUTest, Mvn2D, MvnLayerGPUTest::getTestCaseName);
-
-// 2d transformed
-const auto Mvn2DTrans = ::testing::Combine(
-       ::testing::Combine(
-               ::testing::ValuesIn(inputShapes_2D),
-               ::testing::Values(ElementType::f32),
-               ::testing::ValuesIn({empty_reduction_axes}),
-               ::testing::ValuesIn(normalizeVariance),
-               ::testing::ValuesIn(epsilon)),
-       ::testing::ValuesIn(inpPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerGPUTest, Mvn2DTrans, MvnLayerGPUTest::getTestCaseName);
 
 } // namespace
 } // namespace GPULayerTestsDefinitions

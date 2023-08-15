@@ -22,13 +22,9 @@ public:
                     ov::element::Type type,
                     const std::vector<std::string>& names,
                     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> quantization,
-                    int64_t input_idx,
-                    int64_t output_idx,
                     const void* data)
         : ov::frontend::tensorflow::TensorPlace(input_model, pshape, type, names),
           m_quantization(quantization),
-          m_input_idx(input_idx),
-          m_output_idx(output_idx),
           m_data(data){};
 
     void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
@@ -60,7 +56,7 @@ public:
 
 protected:
     std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> m_quantization;
-    int64_t m_input_idx, m_output_idx;
+    int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
 };
 

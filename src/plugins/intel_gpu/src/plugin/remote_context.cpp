@@ -20,7 +20,7 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
-        , m_device_name(device_name)
+        , m_device_name(std::move(device_name))
         , m_memory_cache(cache_capacity) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     // TODO: Parameterize this based on plugin config and compilation options
@@ -58,7 +58,7 @@ RemoteContextImpl::RemoteContextImpl(const std::vector<RemoteContextImpl::Ptr>& 
             m_va_display = _va_device = extract_object<gpu_handle_param>(params, GPU_PARAM_KEY(VA_DEVICE));
             m_type = ContextType::DEV_SHARED;
         } else {
-            IE_THROW() << "Invalid execution context type" << contextTypeStr;
+            OPENVINO_THROW("Invalid execution context type", contextTypeStr);
         }
         auto tile_id_itr = params.find(GPU_PARAM_KEY(TILE_ID));
         if (tile_id_itr != params.end()) {
@@ -94,7 +94,7 @@ AnyMap RemoteContextImpl::get_params() const {
         ret[GPU_PARAM_KEY(VA_DEVICE)] = m_va_display;
         break;
     default:
-        IE_THROW() << "Unsupported shared context type " << m_type;
+        OPENVINO_THROW("Unsupported shared context type ", m_type);
     }
 
     return ret;

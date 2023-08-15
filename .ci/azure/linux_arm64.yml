@@ -46,8 +46,7 @@ jobs:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    OPENVINO_ARCH: 'aarch64'
-    NUM_PROC: 1
+    NUM_PROC: 2
     BUILD_TYPE: Release
     OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
     BUILD_OPENVINO: $(WORK_DIR)/build
@@ -57,7 +56,8 @@ jobs:
     TMP_DIR: /mnt/tmp
     OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.11.2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    OV_PYTHON_VERSION_MAJOR_MINOR: 3.11
+    OV_PYTHON_VERSION: $(OV_PYTHON_VERSION_MAJOR_MINOR).2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
@@ -96,6 +96,7 @@ jobs:
     displayName: 'System information'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       mkdir -p $(BUILD_OPENVINO)
       mkdir -p $(INSTALL_OPENVINO)
@@ -108,44 +109,111 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    submodules: 'true'
     path: openvino
 
   - script: |
       set -e
-      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       python3 -m pip install --upgrade pip
+      python3 -m pip install cmake
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
       # install dependencies needed to build CPU plugin for ARM
-      sudo -E apt --assume-yes install scons crossbuild-essential-arm64
-      # Speed up build
-      sudo -E apt -y --no-install-recommends install unzip
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-      unzip ninja-linux.zip
-      sudo cp -v ninja /usr/local/bin/
-    displayName: 'Install dependencies'
+      sudo -E apt --assume-yes install scons gcc-10-aarch64-linux-gnu g++-10-aarch64-linux-gnu
+      # generic dependencies
+      sudo -E apt --assume-yes install cmake ccache ninja-build unzip fdupes
+    displayName: 'Install build dependencies'
 
-  - task: CMake@1
-    inputs:
-      cmakeArgs: >
-        -G "Ninja Multi-Config"
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
-        -DENABLE_CPPLINT=ON
-        -DENABLE_PYTHON=OFF
-        -DENABLE_TESTS=ON
-        -DENABLE_DATA=OFF
-        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
-        -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
-        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        -S $(OPENVINO_REPO_DIR)
+  - script: |
+      set -e
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal main restricted > arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal-updates main restricted >> arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal universe >> arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal-updates universe >> arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal multiverse >> arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal-updates multiverse >> arm64-sources.list
+      echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ focal-backports main restricted universe multiverse >> arm64-sources.list
+      echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ focal-security main restricted >> arm64-sources.list
+      echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ focal-security universe >> arm64-sources.list
+      echo deb [arch=amd64] http://security.ubuntu.com/ubuntu/ focal-security multiverse >> arm64-sources.list
+      echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ focal main >> arm64-sources.list
+      echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ focal universe >> arm64-sources.list
+      echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ focal-updates main >> arm64-sources.list
+      echo deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ focal-security main >> arm64-sources.list
+      sudo mv arm64-sources.list /etc/apt/sources.list.d/
+      sudo -E dpkg --add-architecture arm64
+      sudo -E apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/arm64-sources.list
+      sudo -E apt-get install -y --no-install-recommends libpython3-dev:arm64
+    displayName: 'Install arm64 libraries'
+
+  - script: |
+      set -e
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/src/plugins
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/gtest
+      git submodule update --init -- $(OPENVINO_REPO_DIR)/thirdparty/open_model_zoo
+    displayName: 'Init submodules for non Conan dependencies'
+
+  - script: |
+      set -e
+      python3 -m pip install conan
+      # install build profile compilers
+      sudo -E apt --assume-yes install gcc g++
+      # generate build profile
+      conan profile detect
+      # generate host profile for linux_arm64
+      echo "include(default)" > $(BUILD_OPENVINO)/linux_arm64
+      echo "[buildenv]" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "CC=aarch64-linux-gnu-gcc-10" >> $(BUILD_OPENVINO)/linux_arm64
+      echo "CXX=aarch64-linux-gnu-g++-10" >> $(BUILD_OPENVINO)/linux_arm64
+      # install OpenVINO dependencies
+      conan install $(OPENVINO_REPO_DIR)/conanfile.txt \
+        -pr:h $(BUILD_OPENVINO)/linux_arm64 \
+        -s:h arch=armv8 \
+        -of $(BUILD_OPENVINO)/dependencies \
+        -b missing
+    env:
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
+    displayName: 'Install conan and dependencies'
+
+  - script: |
+      set -e
+      source $(BUILD_OPENVINO)/dependencies/conanbuild.sh
+      # TODO: return tests building once GPU plugin migrates to Plugin API 2.0
+      cmake \
+        -DCMAKE_VERBOSE_MAKEFILE=ON \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+        -DENABLE_CPPLINT=ON \
+        -DENABLE_INTEL_GPU=ON \
+        -DENABLE_PYTHON=ON \
+        -DENABLE_WHEEL=ON \
+        -DPYBIND11_PYTHONLIBS_OVERWRITE=OFF \
+        -DPYTHON_MODULE_EXTENSION=$(aarch64-linux-gnu-python3-config --extension-suffix) \
+        -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libc-2.31.so \
+        -DPYTHON_INCLUDE_DIR=$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/include/python$(OV_PYTHON_VERSION_MAJOR_MINOR) \
+        -DENABLE_DATA=OFF \
+        -DENABLE_SYSTEM_TBB=ON \
+        -DENABLE_SYSTEM_PROTOBUF=ON \
+        -DENABLE_SYSTEM_SNAPPY=ON \
+        -DENABLE_SYSTEM_PUGIXML=ON \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+        -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC) \
+        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+        -DENABLE_PYTHON_PACKAGING=ON \
+        -S $(OPENVINO_REPO_DIR) \
         -B $(BUILD_OPENVINO)
-    displayName: 'CMake OpenVINO ARM plugin'
+      source $(BUILD_OPENVINO)/dependencies/deactivate_conanbuild.sh
+    env:
+      CMAKE_GENERATOR: Ninja
+      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/dependencies/conan_toolchain.cmake
+    displayName: 'CMake configure'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
     env:
@@ -153,13 +221,17 @@ jobs:
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
       CCACHE_MAXSIZE: 50G
-    displayName: 'Build OpenVINO ARM plugin'
+    displayName: 'Build OpenVINO Runtime'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
-    displayName: 'Install OpenVINO ARM plugin'
+    displayName: 'Install OpenVINO Runtime'
 
-  - task: PublishBuildArtifacts@1
-    inputs:
-      PathtoPublish: $(Build.ArtifactStagingDirectory)
-      ArtifactName: 'openvino_aarch64_linux'
-    displayName: 'Publish OpenVINO AArch64 linux package'
+  - script: |
+      set -e
+      source $(BUILD_OPENVINO)/dependencies/conanbuild.sh
+      $(INSTALL_OPENVINO)/samples/cpp/build_samples.sh
+      source $(BUILD_OPENVINO)/dependencies/deactivate_conanbuild.sh
+    env:
+      CMAKE_GENERATOR: Ninja
+      CMAKE_TOOLCHAIN_FILE: $(BUILD_OPENVINO)/dependencies/conan_toolchain.cmake
+    displayName: 'Build OpenVINO C++ samples'

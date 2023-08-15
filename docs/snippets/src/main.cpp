@@ -42,7 +42,7 @@ ov::CompiledModel compiled_model = core.compile_model("model.tflite", "AUTO");
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
     // To construct a model, please follow 
-    // https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html
+    // https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_Representation.html
     return model;
 };
 std::shared_ptr<ov::Model> model = create_model();

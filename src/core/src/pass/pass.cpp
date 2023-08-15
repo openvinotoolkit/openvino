@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef _WIN32
-#else
+#ifndef _WIN32
 #    include <cxxabi.h>
 #endif
 

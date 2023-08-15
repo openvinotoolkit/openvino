@@ -342,13 +342,7 @@ void non_max_suppression(const float* boxes_data,
     }
 
     if (sort_result_descending) {
-        std::sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& l, const BoxInfo& r) {
-            bool is_score_equal = std::fabs(l.score - r.score) < 1e-6;
-            return (l.score > r.score) || (is_score_equal && l.batch_index < r.batch_index) ||
-                   (is_score_equal && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
-                   (is_score_equal && l.batch_index == r.batch_index && l.class_index == r.class_index &&
-                    l.index < r.index);
-        });
+        std::reverse(filteredBoxes.begin(), filteredBoxes.end());
     }
 
     size_t max_num_of_selected_indices = selected_indices_shape[0];
@@ -376,6 +370,7 @@ void non_max_suppression(const float* boxes_data,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void nms_postprocessing(const HostTensorVector& outputs,
                         const ngraph::element::Type output_type,
                         const std::vector<int64_t>& selected_indices,

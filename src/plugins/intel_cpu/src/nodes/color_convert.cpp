@@ -11,6 +11,7 @@
 #include <openvino/core/type.hpp>
 #include <ie/ie_parallel.hpp>
 #include "kernels/x64/jit_kernel.hpp"
+#include "shape_inference/custom/color_convert.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl;
@@ -331,7 +332,7 @@ void RefConverter::convert(const T* y,
         auto y_ptr = y + batch * stride_y;
         auto uv_ptr = uv + batch * stride_uv;
 
-        for (int w = 0; w < width; w++) {
+        for (size_t w = 0; w < width; w++) {
             auto y_index = h * width + w;
             auto y_val = static_cast<float>(y_ptr[y_index]);
             auto uv_index = (h / 2) * width + (w / 2) * 2;
@@ -684,7 +685,7 @@ void RefConverter::convert(const T* y,
         auto u_ptr = u + batch * stride_uv;
         auto v_ptr = v + batch * stride_uv;
 
-        for (int w = 0; w < width; w++) {
+        for (size_t w = 0; w < width; w++) {
             auto y_index = h * width + w;
             auto y_val = static_cast<float>(y_ptr[y_index]);
             auto uv_index = (h / 2) * (width / 2) + w / 2;
@@ -971,45 +972,6 @@ public:
 #endif
 }   // namespace i420
 
-/**
- * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
- * passed through or recalculated as 2/3 of the initial size.
- *
- */
-class ColorConvertShapeInfer : public ShapeInferEmptyPads {
-public:
-    ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const auto& dims = input_shapes.front().get();
-        if (dims.size() != 4)
-            IE_THROW() <<"NV12Converter node has incorrect input dimensions";
-        return { m_singlePlain
-                    ? std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM] * 2 / 3, dims[Converter::W_DIM], 3 } }
-                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } },
-                    ShapeInferStatus::success };
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    bool m_singlePlain = false;
-};
-
-class ColorConvertShapeInferFactory : public ShapeInferFactory {
-public:
-    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        bool isSinglePlain = m_op->get_input_size() == 1;
-        return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 }   // namespace
 
 ColorConvert::Converter::Converter(Node *node, const ColorFormat & colorFormat)
@@ -1026,11 +988,11 @@ InferenceEngine::Precision ColorConvert::Converter::outputPrecision(size_t idx) 
 }
 
 const void * ColorConvert::Converter::input(size_t idx) const {
-    return _node->getParentEdgeAt(idx)->getMemoryPtr()->GetPtr();
+    return _node->getParentEdgeAt(idx)->getMemoryPtr()->getData();
 }
 
 void * ColorConvert::Converter::output(size_t idx) const {
-    return _node->getChildEdgeAt(idx)->getMemoryPtr()->GetPtr();
+    return _node->getChildEdgeAt(idx)->getMemoryPtr()->getData();
 }
 
 const VectorDims & ColorConvert::Converter::inputDims(size_t idx) const {

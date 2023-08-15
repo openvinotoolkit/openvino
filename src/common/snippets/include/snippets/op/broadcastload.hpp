@@ -6,9 +6,9 @@
 
 #include <snippets/op/memory_access.hpp>
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace snippets {
 namespace op {
 
@@ -19,7 +19,7 @@ namespace op {
  */
 class BroadcastLoad : public MemoryAccess {
 public:
-    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::MemoryAccess);
+    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ov::snippets::op::MemoryAccess);
 
     BroadcastLoad(const Output<Node>& x, ov::PartialShape output_shape, size_t offset = 0lu);
     BroadcastLoad() = default;
@@ -36,4 +36,4 @@ private:
 
 } // namespace op
 } // namespace snippets
-} // namespace ngraph
+} // namespace ov

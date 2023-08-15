@@ -4,23 +4,28 @@
 
 if(WIN32)
     set(PROGRAMFILES_ENV "ProgramFiles(X86)")
-    file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
 
-    set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
-                  "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+    # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
+    # we don't have such variable
+    if(DEFINED ENV{PROGRAMFILES_ENV})
+        file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
 
-    message(STATUS "Trying to find apivalidator in: ")
-    foreach(wdk_path IN LISTS WDK_PATHS)
-        message("    * ${wdk_path}")
-    endforeach()
+        set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
+                    "${PROGRAMFILES}/Windows Kits/10/bin/x64")
 
-    find_host_program(ONECORE_API_VALIDATOR
-                      NAMES apivalidator
-                      PATHS ${WDK_PATHS}
-                      DOC "ApiValidator for OneCore compliance")
+        message(STATUS "Trying to find apivalidator in: ")
+        foreach(wdk_path IN LISTS WDK_PATHS)
+            message("    * ${wdk_path}")
+        endforeach()
 
-    if(ONECORE_API_VALIDATOR)
-        message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
+        find_host_program(ONECORE_API_VALIDATOR
+                        NAMES apivalidator
+                        PATHS ${WDK_PATHS}
+                        DOC "ApiValidator for OneCore compliance")
+
+        if(ONECORE_API_VALIDATOR)
+            message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
+        endif()
     endif()
 endif()
 

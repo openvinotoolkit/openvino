@@ -79,10 +79,6 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     fi
 fi
 
-if [ -e "$INSTALLDIR/tools/compile_tool" ]; then
-    export LD_LIBRARY_PATH=$INSTALLDIR/tools/compile_tool${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-fi
-
 # OpenCV environment
 if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
     # shellcheck source=/dev/null
@@ -116,7 +112,7 @@ check_python_version () {
     if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
         [ "$python_version_minor" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
         [ "$python_version_minor" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
-        echo "[setupvars.sh] WARNING: Unsupported Python version. Please install one of Python" \
+        echo "[setupvars.sh] WARNING: Unsupported Python version ${python_version}. Please install one of Python" \
         "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
         "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
         return 0
@@ -136,14 +132,8 @@ check_python_version () {
         if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
             # add path to OpenCV API for Python 3.x
             export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
-            pydir=$INTEL_OPENVINO_DIR/python/python$python_version
-            if [[ -d $pydir ]]; then
-                # add path to Inference Engine Python API
-                export PYTHONPATH="${pydir}:${PYTHONPATH}"
-            else
-                echo "[setupvars.sh] WARNING: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
-                echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
-            fi
+            # add path to OpenVINO Python API
+            export PYTHONPATH="$INTEL_OPENVINO_DIR/python:${PYTHONPATH}"
         else
             echo "[setupvars.sh] WARNING: Can not find OpenVINO Python binaries by path ${INTEL_OPENVINO_DIR}/python"
             echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"

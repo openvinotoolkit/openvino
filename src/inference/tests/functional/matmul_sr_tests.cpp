@@ -31,7 +31,7 @@ struct ReshapeMatMulTestCase {
     reshape_map new_shapes;
 };
 
-class SmartReshapeMatMulTests : public CommonTestUtils::TestsCommon,
+class SmartReshapeMatMulTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ReshapeMatMulTestCase>> obj) {

@@ -44,9 +44,6 @@ public:
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
 
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
-
     // Return debug name of the input tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
@@ -56,9 +53,6 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
-
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?
@@ -104,8 +98,15 @@ public:
     // node_visitor is a function that will be fed by nodes in subgraph for all nodes in graph
     virtual void visit_subgraph(std::function<void(std::shared_ptr<TorchDecoder>)> node_visitor) const = 0;
 
-    /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
+    /// Probably this together with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const = 0;
+
+    /// \brief Returns if output may contain alias of input in AliasDB
+    virtual bool may_produce_alias(size_t in_index, size_t out_index) const = 0;
+
+    /// Returns new nodes for inputs inlined in the op itself
+    // Used in Torch.FX decoder
+    virtual OutputVector inlined_inputs(size_t start_index) const = 0;
 };
 
 }  // namespace pytorch

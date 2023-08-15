@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/util/log.hpp"
 #if defined(_MSC_VER)
 #    pragma warning(push)
 // Protobuf: conversion from 'XXX' to 'YYY', possible loss of data
 #    pragma warning(disable : 4244)
 #endif
-
-#include "core/transform.hpp"
 
 #include <onnx/defs/function.h>
 #include <onnx/defs/schema.h>
@@ -17,6 +16,7 @@
 #include <algorithm>
 
 #include "core/model.hpp"
+#include "core/transform.hpp"
 #include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
 
@@ -110,7 +110,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             try {
                 ONNX_NAMESPACE::shape_inference::InferShapes(model_proto);
             } catch (const std::exception& e) {
-                NGRAPH_WARN << "ONNX Shape inference failed: " << e.what();
+                OPENVINO_WARN << "ONNX Shape inference failed: " << e.what();
             }
 
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;

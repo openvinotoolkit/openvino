@@ -39,7 +39,7 @@ public:
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
             for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+                result << ov::test::utils::partialShape2str({shape.first}) << "_";
             }
             result.seekp(-1, result.cur);
             result << ")_";
@@ -47,12 +47,12 @@ public:
         result << "TS=";
         for (const auto& shape : inputShapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "blockShape=" << CommonTestUtils::vec2str(blockShape) << "_";
-        result << "cropsBegin=" << CommonTestUtils::vec2str(cropsBegin) << "_";
-        result << "cropsEnd=" << CommonTestUtils::vec2str(cropsEnd) << "_";
+        result << "blockShape=" << ov::test::utils::vec2str(blockShape) << "_";
+        result << "cropsBegin=" << ov::test::utils::vec2str(cropsBegin) << "_";
+        result << "cropsEnd=" << ov::test::utils::vec2str(cropsEnd) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -61,24 +61,24 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); i++) {
+        for (size_t i = 0; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            if (i == 0) {
+            if (i == 0U) {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
-            } else if (i == 1) {
+            } else if (i == 1U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < blockShape.size(); j++) {
                     dataPtr[j] = blockShape[j];
                 }
-            } else if (i == 2) {
+            } else if (i == 2U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < cropsBegin.size(); j++) {
                     dataPtr[j] = cropsBegin[j];
                 }
-            } else if (i == 3) {
+            } else if (i == 3U) {
                 tensor = ov::Tensor(funcInput.get_element_type(), paramShape);
                 auto *dataPtr = tensor.data<int64_t>();
                 for (size_t j = 0; j < cropsEnd.size(); j++) {
@@ -91,7 +91,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape>  inputShapes;
         Precision netPrecision;

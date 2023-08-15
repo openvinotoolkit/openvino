@@ -4,22 +4,20 @@
 
 #include "enforce_precision.hpp"
 
-#include <assert.h>
 #include <memory>
 
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
-#include "ngraph/rt_info.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
-using namespace ngraph;
 using namespace ov::intel_cpu::pass;
 
 EnforcePrecision::EnforcePrecision(
-    const element::Type source,
-    const element::Type target,
-    std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ngraph::Node>& op)> get_supported_precisions) :
+    const ov::element::Type source,
+    const ov::element::Type target,
+    std::function<std::set<std::vector<ov::element::Type>>(const std::shared_ptr<ov::Node>& op)> get_supported_precisions) :
     source(source),
     target(target),
     get_supported_precisions(get_supported_precisions == nullptr ? get_supported_precisions_default : get_supported_precisions) {
@@ -28,7 +26,7 @@ EnforcePrecision::EnforcePrecision(
 
 bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(EnforcePrecision);
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
 
     bool was_updated = false;
     for (const auto& op : f->get_ordered_ops()) {
@@ -82,16 +80,16 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             const std::shared_ptr<Node>& op,
             const size_t input_index,
             const element::Type& target) {
-            auto convert = std::make_shared<ngraph::snippets::op::ConvertSaturation>(
+            auto convert = std::make_shared<snippets::op::ConvertSaturation>(
                 parent_output,
                 target);
-            ngraph::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
+            ov::copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
             op->set_argument(input_index, convert);
         };
 
         for (auto index = 0ull; index < supported_precisions_to_enforce.size(); ++index) {
             if ((supported_precisions_to_enforce[index] == target) || (actual_precisions[index] == source)) {
-                const auto op_parent = ov::as_type_ptr<ngraph::snippets::op::ConvertSaturation>(op->get_input_node_shared_ptr(index));
+                const auto op_parent = ov::as_type_ptr<snippets::op::ConvertSaturation>(op->get_input_node_shared_ptr(index));
                 if ((op_parent != nullptr) &&
                     (op_parent->get_input_element_type(0) == target) &&
                     // we can remove existing convertion only if precisions before and after are appropriate for removal
@@ -111,7 +109,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
         auto type_relaxed_node = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
         if (was_updated || (type_relaxed_node != nullptr)) {
-            const bool res = ngraph::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(op);
+            const bool res = snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(op);
             was_updated = was_updated || res;
         }
     }
@@ -119,9 +117,9 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
     return was_updated;
 }
 
-std::set<std::vector<element::Type>> EnforcePrecision::get_supported_precisions_default(
-    const std::shared_ptr<ngraph::Node>&op) noexcept {
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) && ov::is_type<ngraph::snippets::op::Brgemm>(op)) {
+std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisions_default(
+    const std::shared_ptr<ov::Node>&op) noexcept {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) && ov::is_type<snippets::op::Brgemm>(op)) {
         return {{element::bf16, element::bf16}};
     }
     return {};

@@ -492,7 +492,7 @@ public:
 #define CASE_CONV_U8S8_12 { 32, 15, 5, 5 }, { 32, 30, 3, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_13 { 32, 16, 4, 5 }, { 32, 32, 4, 5 }, { 32, 16, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_14 { 32, 17, 4, 5 }, { 32, 17, 4, 5 }, { 17, 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
-#define CASE_CONV_U8S8_15 { 1, 15, 2, 2 }, { 1, 30, 1, 1 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_15 { 1, 15, 3, 3 }, { 1, 30, 1, 1 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_CONV_S8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -4405,8 +4405,8 @@ public:
 };
 
 
-#define CASE_CONV_FP16_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 30, 5, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
-#define CASE_CONV_FP16_PERMUTE_2 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 30, 5, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_PERMUTE_1 { 1, 4, 5, 3 }, { 1, 30, 3, 2 }, { 30, 3, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_PERMUTE_2 { 1, 15, 5, 4 }, { 1, 30, 3, 2 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
 class conv_after_permute_optimizing : public PermuteOptimizingTestOnednn {};
 TEST_P(conv_after_permute_optimizing, basic) {
@@ -4548,10 +4548,10 @@ TEST_P(onednn_replace_full_tensor_sum_to_binary_add, basic) {
 }
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; eltw_type; eltw_format; out_type; out_format; default_type; default_format;
-#define CASE_CONV_ELTW_SUM_TO_BINARY_ADD { 1, 32, 4, 4 }, { 1, 32, 2, 2 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_SUM_TO_BINARY_ADD { 1, 32, 4, 4 }, { 1, 32, 2, 2 }, { 32, 32, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum_to_binary_add, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 3, 4 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 2, 3 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

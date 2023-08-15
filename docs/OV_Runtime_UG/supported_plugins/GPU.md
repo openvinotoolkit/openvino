@@ -8,6 +8,11 @@
 
    openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
 
+.. meta::
+   :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit 
+                 is an OpenCL based plugin for inference of deep neural 
+                 networks on Intel® GPus.
+
 
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
@@ -51,54 +56,54 @@ Then, the device name can be passed to the ``ov::Core::compile_model()`` method,
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_default_gpu
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_default_gpu
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_default_gpu
 
    .. tab-item:: specific GPU
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_gpu_with_id
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_gpu_with_id
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_gpu_with_id
 
    .. tab-item:: specific tile
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_gpu_with_id_and_tile
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_gpu_with_id_and_tile
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_gpu_with_id_and_tile
 
 Supported Inference Data Types
@@ -144,18 +149,18 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-         :language: cpp
-         :fragment: compile_model_multi
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/compile_model.py
          :language: Python
+         :fragment: compile_model_multi
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+         :language: cpp
          :fragment: compile_model_multi
 
 
@@ -175,36 +180,36 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_batch_plugin
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_batch_plugin
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_batch_plugin
 
    .. tab-item:: Batching via throughput hint
 
       .. tab-set::
 
-         .. tab-item:: C++
-            :sync: cpp
-
-            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
-               :language: cpp
-               :fragment: compile_model_auto_batch
-
          .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
                :language: Python
+               :fragment: compile_model_auto_batch
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. doxygensnippet:: docs/snippets/gpu/compile_model.cpp
+               :language: cpp
                :fragment: compile_model_auto_batch
 
 
@@ -267,18 +272,18 @@ The code snippet below demonstrates examples of a bounded dynamic batch:
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
-         :language: cpp
-         :fragment: dynamic_batch
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.py
          :language: Python
+         :fragment: dynamic_batch
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/dynamic_batch.cpp
+         :language: cpp
          :fragment: dynamic_batch
 
 
@@ -338,24 +343,23 @@ Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
 
 The GPU plugin has the following additional preprocessing options:
-- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the 
-  ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended 
-  to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+
+- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 .. tab-set::
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
-         :language: cpp
-         :fragment: init_preproc
 
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.py
          :language: Python
+         :fragment: init_preproc
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
+         :language: cpp
          :fragment: init_preproc
 
 
@@ -400,38 +404,39 @@ Read-write properties
 
 All parameters must be set before calling ``ov::Core::compile_model()`` in order to take effect or passed as additional argument to ``ov::Core::compile_model()``.
 
-- ov::cache_dir
-- ov::enable_profiling
-- ov::hint::model_priority
-- ov::hint::performance_mode
-- ov::hint::execution_mode
-- ov::hint::num_requests
-- ov::hint::inference_precision
-- ov::num_streams
-- ov::compilation_num_threads
-- ov::device::id
-- ov::intel_gpu::hint::host_task_priority
-- ov::intel_gpu::hint::queue_priority
-- ov::intel_gpu::hint::queue_throttle
-- ov::intel_gpu::enable_loop_unrolling
+- ``ov::cache_dir``
+- ``ov::enable_profiling``
+- ``ov::hint::model_priority``
+- ``ov::hint::performance_mode``
+- ``ov::hint::execution_mode``
+- ``ov::hint::num_requests``
+- ``ov::hint::inference_precision``
+- ``ov::num_streams``
+- ``ov::compilation_num_threads``
+- ``ov::device::id``
+- ``ov::intel_gpu::hint::host_task_priority``
+- ``ov::intel_gpu::hint::queue_priority``
+- ``ov::intel_gpu::hint::queue_throttle``
+- ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::disable_winograd_convolution``
 
 Read-only Properties
 +++++++++++++++++++++++++++++++++++++++
 
-- ov::supported_properties
-- ov::available_devices
-- ov::range_for_async_infer_requests
-- ov::range_for_streams
-- ov::optimal_batch_size
-- ov::max_batch_size
-- ov::device::full_name
-- ov::device::type
-- ov::device::gops
-- ov::device::capabilities
-- ov::intel_gpu::device_total_mem_size
-- ov::intel_gpu::uarch_version
-- ov::intel_gpu::execution_units_count
-- ov::intel_gpu::memory_statistics
+- ``ov::supported_properties``
+- ``ov::available_devices``
+- ``ov::range_for_async_infer_requests``
+- ``ov::range_for_streams``
+- ``ov::optimal_batch_size``
+- ``ov::max_batch_size``
+- ``ov::device::full_name``
+- ``ov::device::type``
+- ``ov::device::gops``
+- ``ov::device::capabilities``
+- ``ov::intel_gpu::device_total_mem_size``
+- ``ov::intel_gpu::uarch_version``
+- ``ov::intel_gpu::execution_units_count``
+- ``ov::intel_gpu::memory_statistics``
 
 Limitations
 #######################################
@@ -451,7 +456,7 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer ``FP16`` inference precision over ``FP32``, as Model Optimizer can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
 - Try to group individual infer jobs by using :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>`.
 -	Consider :doc:`caching <openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.

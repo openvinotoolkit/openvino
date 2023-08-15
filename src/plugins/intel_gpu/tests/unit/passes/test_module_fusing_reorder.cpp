@@ -479,13 +479,13 @@ INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_errata_case_for_conv, test_can
                                             onednn_layout_errata_test_param{
                                                 layout(data_types::f16, format::byxf, {1, 16, 8, 8}),
                                                 layout(data_types::f16, format::b_fs_yx_fsv16, {1, 16, 8, 8}),
-                                                layout(data_types::f16, format::bfyx, {1, 8, 1, 1}),
+                                                layout(data_types::f16, format::bfyx, {8, 16, 1, 1}),
                                                 layout(data_types::f16, format::byxf, {1, 8, 8, 8}),
                                                 true },
                                             onednn_layout_errata_test_param{
                                                 layout(data_types::f16, format::bfyx, {1, 8, 8, 8}),
                                                 layout(data_types::f16, format::byxf, {1, 8, 8, 8}),
-                                                layout(data_types::f16, format::bfyx, {1, 3, 1, 1}),
+                                                layout(data_types::f16, format::bfyx, {3, 8, 1, 1}),
                                                 layout(data_types::f16, format::byxf, {1, 3, 8, 8}),
                                                 true },
                                             }));

@@ -43,20 +43,20 @@ protected:
         const ov::Shape secShape = {4};
         ngraph::ParameterVector params(2);
         targetStaticShapes = {{inpShape, secShape}};
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         params[0] = ngraph::builder::makeParams(rtPrc, {inpShape})[0];
         params[1] = ngraph::builder::makeParams(ov::element::i32, {secShape})[0];
-        auto shape = std::make_shared<ov::opset8::ShapeOf>(params[0]);
+        auto shape = std::make_shared<ov::op::v3::ShapeOf>(params[0]);
         auto c = ngraph::builder::makeConstant<float>(rtPrc, {}, {1.0f});
-        auto broadcast = std::make_shared<ov::opset8::Broadcast>(c, shape);
-        auto reshape = std::make_shared<ov::opset8::Reshape>(broadcast, params[1], false);
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(c, shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, params[1], false);
         ov::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape->output(0))};
         function = std::make_shared<ngraph::Function>(results, params, "reshape_check");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::runtime::Tensor tensor;
             if (i == 1) {

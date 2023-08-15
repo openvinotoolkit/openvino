@@ -26,6 +26,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/core/null_node.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -195,7 +196,9 @@ struct LSTMAttributes {
           m_activation_beta{node.get_attribute_value<std::vector<float>>("activation_beta", std::vector<float>{})},
           m_input_forget{static_cast<bool>(node.get_attribute_value<std::int64_t>("input_forget", 0))} {
         m_clip_threshold = std::abs(m_clip_threshold);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::string direction = ngraph::to_lower(node.get_attribute_value<std::string>("direction", "forward"));
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         m_direction = ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
     }
@@ -266,3 +269,4 @@ OutputVector lstm(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

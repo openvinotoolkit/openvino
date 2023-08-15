@@ -9,43 +9,11 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "shape_inference/custom/ngram.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-class NgramShapeInfer : public ShapeInferEmptyPads {
-public:
-    NgramShapeInfer(const size_t k) : m_k(k) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto output_shape = input_shapes[0].get();
-        output_shape[1] *= m_k;
-        return {{std::move(output_shape)}, ShapeInferStatus::success};
-    }
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    size_t m_k;
-};
-
-class NgramShapeInferFactory : public ShapeInferFactory {
-public:
-    NgramShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        auto ngram = ov::as_type_ptr<NgramNode>(m_op);
-        if (!ngram) {
-            IE_THROW(Unexpected) << "Wrong operation type";
-        }
-        return std::make_shared<NgramShapeInfer>(ngram->get_k());
-    }
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-}   // namespace
 
 bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -104,7 +72,7 @@ void Ngram::prepareParams() {
 
     idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
     numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
-    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
     windowStride = srcDataDims[1];
@@ -115,7 +83,7 @@ void Ngram::prepareParams() {
 
 template <typename idces_type>
 std::vector<size_t> Ngram::computeBatchLenghts() {
-    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -130,8 +98,8 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == InferenceEngine::Precision::I32) {

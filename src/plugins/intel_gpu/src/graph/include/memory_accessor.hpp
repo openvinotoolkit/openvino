@@ -34,7 +34,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
      * @param stream  CLDNN stream used for memory locks.
      * @param clbk    Function object for custom callback when accessing data and not found in CLDNN memories.
      */
-    MemoryAccessor(const container_type* ptrs, const stream& stream, std::function<const ov::Tensor(size_t)> clbk)
+    MemoryAccessor(const container_type* ptrs, const stream& stream, std::function<ov::Tensor(size_t)> clbk)
         : m_ptrs{ptrs},
           m_stream{stream},
           m_clbk{std::move(clbk)},

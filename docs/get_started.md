@@ -1,21 +1,25 @@
-# Get Started {#get_started}
+# GET STARTED {#get_started}
 
 @sphinxdirective
+
+.. meta::
+   :description: Learn how to install Intel® Distribution of OpenVINO™ toolkit 
+                 on Windows, macOS, and Linux operating systems, using various 
+                 installation methods.
 
 .. toctree::
    :maxdepth: 1
    :hidden:
-   
-   Installing OpenVINO <openvino_docs_install_guides_overview>
-   Additional Configurations <openvino_docs_install_guides_configurations_header>
-   Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
+
+   Install OpenVINO <openvino_docs_install_guides_overview>
+   Additional Hardware setup <openvino_docs_install_guides_configurations_header>
    Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
 
 
 .. raw:: html
 
    <link rel="stylesheet" type="text/css" href="_static/css/getstarted_style.css">
-   
+
    <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
      <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb" >Quick Start Example</a>
      <a href="openvino_docs_install_guides_overview.html" >Install OpenVINO</a>
@@ -63,10 +67,10 @@ Interactive Tutorials - Jupyter Notebooks
 
 Start with :doc:`interactive Python tutorials <tutorials>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
-* `Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
-* `OpenVINO Runtime API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
-* `Convert TensorFlow Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`__
-* `Convert PyTorch Models to OpenVINO <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
+* `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
+* `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
+* `Convert TensorFlow Models to OpenVINO <notebooks/101-tensorflow-classification-to-openvino-with-output.html>`__
+* `Convert PyTorch Models to OpenVINO <notebooks/102-pytorch-onnx-to-openvino-with-output.html>`__
 
 .. _code-samples:
 
@@ -94,10 +98,10 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `OpenVINO Post-Training Model Quantization <https://docs.openvino.ai/nightly/notebooks/111-detection-quantization-with-output.html>`__
-* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <https://docs.openvino.ai/nightly/notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
-* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <https://docs.openvino.ai/nightly/notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
-* `Model Optimization Guide <https://docs.openvino.ai/nightly/notebooks/openvino_docs_model_optimization_guide.html>`__
+* Tutorial - `OpenVINO Post-Training Model Quantization <notebooks/111-yolov5-quantization-migration-with-output.html>`__
+* Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
+* Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
+* :doc:`Model Optimization Guide <openvino_docs_model_optimization_guide>`
 
 Automated Device Configuration
 ------------------------------

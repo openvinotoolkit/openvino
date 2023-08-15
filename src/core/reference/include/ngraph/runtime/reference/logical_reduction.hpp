@@ -13,6 +13,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+OPENVINO_SUPPRESS_DEPRECATED_START
 static inline void reduce_logical_and(const char* arg,
                                       char* out,
                                       const Shape& in_shape,
@@ -56,6 +57,7 @@ static inline void reduce_logical_or(const char* arg, char* out, const Shape& in
         out[out_idx] = out[out_idx] || arg[in_idx];
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph

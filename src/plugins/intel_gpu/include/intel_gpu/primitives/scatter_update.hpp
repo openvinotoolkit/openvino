@@ -12,6 +12,10 @@ namespace cldnn {
 struct scatter_update : public primitive_base<scatter_update> {
     CLDNN_DECLARE_PRIMITIVE(scatter_update)
 
+    scatter_update() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     enum scatter_update_axis {
         along_b,
         along_f,
@@ -51,6 +55,16 @@ struct scatter_update : public primitive_base<scatter_update> {
         auto rhs_casted = downcast<const scatter_update>(rhs);
 
         return axis == rhs_casted.axis;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<scatter_update>::save(ob);
+        ob << axis;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<scatter_update>::load(ib);
+        ib >> axis;
     }
 };
 }  // namespace cldnn

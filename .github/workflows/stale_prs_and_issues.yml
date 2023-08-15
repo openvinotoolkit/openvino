@@ -14,13 +14,12 @@ jobs:
     steps:
       - uses: actions/stale@v8
         with:
-          stale-issue-message: 'This issue will be closed in 2 weeks in case of no activity.'
-          stale-pr-message: 'This PR will be closed in 2 weeks in case of no activity.'
-          close-issue-message: 'This issue was closed because it has been stalled for 1 week with no activity.'
-          close-pr-message: 'This PR was closed because it has been stalled for 1 week with no activity.'
-          days-before-stale: 14
+          stale-issue-message: 'This issue will be closed in a week because of 9 months of no activity.'
+          stale-pr-message: 'This PR will be closed in a week because of 2 weeks of no activity.'
+          close-issue-message: 'This issue was closed because it has been stalled for 9 months with no activity.'
+          close-pr-message: 'This PR was closed because it has been stalled for 2 week with no activity.'
+          days-before-pr-stale: 14
+          days-before-issue-stale: 274
           days-before-close: 7
           ascending: true
-          operations-per-run: 5000
-          repo-token: ${{ secrets.STALE_ISSUES_TOKEN }}
           exempt-pr-labels: 'no_stale'

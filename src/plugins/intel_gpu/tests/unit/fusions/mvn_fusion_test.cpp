@@ -298,4 +298,5 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::
     mvn_test_params{ CASE_MVN_I8_6, 2, 2, 3 },
     mvn_test_params{ CASE_MVN_I8_8, 3, 3, 3 },
     mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 2, 3},
 }));

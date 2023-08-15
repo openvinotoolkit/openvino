@@ -64,7 +64,7 @@ public:
                 testValues.constInput);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::FuseConvertTransformation, ngraph::opset1::Convert>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::FuseConvertTransformation, ov::op::v0::Convert>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseConvertFunction::get(

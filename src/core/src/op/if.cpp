@@ -107,8 +107,12 @@ void ov::op::v8::If::validate_and_infer_types() {
                               val.size() == 1,
                               "The number of values in the If condition constant is greater than 1");
 
-        validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
-        validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        // Condition is constant we only need to validate one body
+        if (val[0]) {
+            validate_and_infer_type_body(get_then_body(), m_input_descriptions[THEN_BODY_INDEX]);
+        } else {
+            validate_and_infer_type_body(get_else_body(), m_input_descriptions[ELSE_BODY_INDEX]);
+        }
         auto output_nodes = outputs();
 
         auto cond_index = val[0] ? THEN_BODY_INDEX : ELSE_BODY_INDEX;

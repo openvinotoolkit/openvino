@@ -7,11 +7,11 @@ from typing import Any
 
 from openvino.runtime import PartialShape, Shape, Layout, Model
 from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
-from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
+from openvino.tools.mo.utils.cli_parser import get_all_cli_parser  # pylint: disable=no-name-in-module,import-error
+from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state  # pylint: disable=no-name-in-module,import-error
 
-InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"], defaults=[None, None])
+InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"], defaults=[None, None, None, None])
 
 
 def convert_model(
@@ -25,6 +25,7 @@ def convert_model(
         input: [str, list, tuple, InputCutInfo] = None,
         output: [str, list] = None,
         input_shape: [str, PartialShape, Shape, list] = None,
+        example_input: Any = None,
         batch: int = None,
         mean_values: [str, dict, list] = (),
         scale_values: [str, dict, list] = (),
@@ -42,10 +43,10 @@ def convert_model(
         version: bool = None,
         progress: bool = False,
         stream_output: bool = False,
+        share_weights: bool = False,
 
-        # PyTorch-specific parameters:
-        example_input: Any = None,
-        onnx_opset_version: int = None,
+        # PaddlePaddle-specific parameters:
+        example_output: Any = None,
 
         # TensorFlow*-specific parameters
         input_model_is_text: bool = None,
@@ -68,8 +69,8 @@ def convert_model(
 
         # Caffe*-specific parameters:
         input_proto: [str, pathlib.Path] = None,
-        caffe_parser_path: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'proto'),
-        k: [str, pathlib.Path] = os.path.join(os.path.dirname(__file__), 'front', 'caffe', 'CustomLayersMapping.xml'),
+        caffe_parser_path: [str, pathlib.Path] = None,
+        k: [str, pathlib.Path] = None,
         disable_omitting_optional: bool = False,
         enable_flattening_nested_params: bool = False,
 
@@ -96,6 +97,11 @@ def convert_model(
             Caffe*: a model proto file with model weights
 
             Supported formats of input model:
+
+            PaddlePaddle
+            paddle.hapi.model.Model
+            paddle.fluid.dygraph.layers.Layer
+            paddle.fluid.executor.Executor
 
             PyTorch
             torch.nn.Module
@@ -158,6 +164,11 @@ def convert_model(
             for each input separated by a comma, for example: [1,3,227,227],[2,4]
             for a model with two inputs with 4D and 2D shapes. Alternatively, specify
             shapes with the --input option.
+        :param example_input:
+            Sample of model input in original framework.
+            For PyTorch it can be torch.Tensor.
+            For Tensorflow it can be tf.Tensor or numpy.ndarray.
+            For PaddlePaddle it can be Paddle Variable.
         :param batch:
             Set batch size. It applies to 1D or higher dimension inputs.
             The default dimension index for the batch is zero.
@@ -261,12 +272,14 @@ def convert_model(
             Enable model conversion progress display.
         :param stream_output:
             Switch model conversion progress display to a multiline mode.
+        :param share_weights:
+            Map memory of weights instead reading files or share memory from input model.
+            Currently, mapping feature is provided only for ONNX models
+            that do not require fallback to the legacy ONNX frontend for the conversion.
 
-    PyTorch-specific parameters:
-        :param example_input:
-            Sample of model input in original framework. For PyTorch it can be torch.Tensor.
-        :param onnx_opset_version:
-            Version of ONNX opset that is used for converting from PyTorch to ONNX.
+    PaddlePaddle-specific parameters:
+        :param example_output:
+            Sample of model output in original framework. For PaddlePaddle it can be Paddle Variable.
 
     TensorFlow*-specific parameters:
         :param input_model_is_text:

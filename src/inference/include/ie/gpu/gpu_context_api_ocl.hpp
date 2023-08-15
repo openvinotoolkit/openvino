@@ -10,6 +10,22 @@
  */
 #pragma once
 
+// TODO: Remove after migration to new API in the benchmark app
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <ie_remote_context.hpp>
 #include <memory>
 #include <string>
@@ -29,7 +45,7 @@ namespace gpu {
  * The plugin object derived from this class can be obtained either with
  * GetContext() method of Executable network or using CreateContext() Core call.
  */
-class ClContext : public RemoteContext, public details::param_map_obj_getter {
+class INFERENCE_ENGINE_1_0_DEPRECATED ClContext : public RemoteContext, public details::param_map_obj_getter {
 public:
     /**
      * @brief A smart pointer to the ClContext object
@@ -69,7 +85,7 @@ public:
  * @brief The basic class for all GPU plugin remote blob objects.
  * The OpenCL memory object handle (cl_mem) can be obtained from this class object.
  */
-class ClBlob : public RemoteBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED ClBlob : public RemoteBlob {
 public:
     /**
      * @brief A smart pointer to the ClBlob object
@@ -89,7 +105,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can obtain OpenCL buffer handle from this class.
  */
-class ClBufferBlob : public ClBlob, public details::param_map_obj_getter {
+class INFERENCE_ENGINE_1_0_DEPRECATED ClBufferBlob : public ClBlob, public details::param_map_obj_getter {
 public:
     /**
      * @brief A smart pointer to the ClBufferBlob object
@@ -137,7 +153,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can obtain USM pointer from this class.
  */
-class USMBlob : public ClBlob, public details::param_map_obj_getter {
+class INFERENCE_ENGINE_1_0_DEPRECATED USMBlob : public ClBlob, public details::param_map_obj_getter {
 public:
     /**
      * @brief A smart pointer to the ClBufferBlob object
@@ -180,7 +196,7 @@ public:
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can obtain OpenCL image handle from this class.
  */
-class ClImage2DBlob : public ClBlob, public details::param_map_obj_getter {
+class INFERENCE_ENGINE_1_0_DEPRECATED ClImage2DBlob : public ClBlob, public details::param_map_obj_getter {
 public:
     /**
      * @brief A smart pointer to the ClImage2DBlob object
@@ -223,41 +239,6 @@ public:
 };
 
 /**
- * @brief This function is used to construct a NV12 compound blob object from two cl::Image2D wrapper objects.
- * The resulting compound contains two remote blobs for Y and UV planes of the surface.
- * @param ctx RemoteContext plugin object derived from ClContext class.
- * @param nv12_image_plane_y cl::Image2D object containing Y plane data.
- * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
- * @return A shared remote blob instance
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2023.1 release")
-static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
-                                              cl::Image2D& nv12_image_plane_y,
-                                              cl::Image2D& nv12_image_plane_uv) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
-    if (nullptr == casted) {
-        IE_THROW() << "Invalid remote context passed";
-    }
-
-    size_t width = nv12_image_plane_y.getImageInfo<CL_IMAGE_WIDTH>();
-    size_t height = nv12_image_plane_y.getImageInfo<CL_IMAGE_HEIGHT>();
-
-    // despite of layout, blob dimensions always follow in N,C,H,W order
-    TensorDesc ydesc(Precision::U8, {1, 1, height, width}, Layout::NHWC);
-
-    ParamMap blobParams = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_IMAGE2D)},
-                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(nv12_image_plane_y.get())}};
-    Blob::Ptr y_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(ydesc, blobParams));
-
-    TensorDesc uvdesc(Precision::U8, {1, 2, height / 2, width / 2}, Layout::NHWC);
-    blobParams[GPU_PARAM_KEY(MEM_HANDLE)] = static_cast<gpu_handle_param>(nv12_image_plane_uv.get());
-    Blob::Ptr uv_blob = std::dynamic_pointer_cast<Blob>(casted->CreateBlob(uvdesc, blobParams));
-
-    Blob::Ptr res = make_shared_blob<NV12Blob>(y_blob, uv_blob);
-    return res;
-}
-
-/**
  * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
  * @param core A reference to Inference Engine Core object
  * @param deviceName A name of device to create a remote context for
@@ -266,10 +247,10 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx,
  * device should be used
  * @return A shared remote context instance
  */
-static inline RemoteContext::Ptr make_shared_context(Core& core,
-                                                     std::string deviceName,
-                                                     cl_context ctx,
-                                                     int target_tile_id = -1) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline RemoteContext::Ptr make_shared_context(Core& core,
+                                                                                     std::string deviceName,
+                                                                                     cl_context ctx,
+                                                                                     int target_tile_id = -1) {
     ParamMap contextParams = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                               {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
                               {GPU_PARAM_KEY(TILE_ID), target_tile_id}};
@@ -284,7 +265,9 @@ static inline RemoteContext::Ptr make_shared_context(Core& core,
  * @note Only latency mode is supported for such context sharing case.
  * @return A shared remote context instance
  */
-static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_command_queue queue) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline RemoteContext::Ptr make_shared_context(Core& core,
+                                                                                     std::string deviceName,
+                                                                                     cl_command_queue queue) {
     cl_context ctx;
     auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
     if (res != CL_SUCCESS)
@@ -301,7 +284,7 @@ static inline RemoteContext::Ptr make_shared_context(Core& core, std::string dev
  * @param ctx A remote context used to create remote blob
  * @return A remote blob instance
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr ctx) {
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr ctx) {
     return std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(desc));
 }
 
@@ -312,8 +295,10 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr 
  * @param buffer A cl::Buffer object wrapped by a remote blob
  * @return A remote blob instance
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Buffer& buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                         RemoteContext::Ptr ctx,
+                                                                         cl::Buffer& buffer) {
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -330,8 +315,10 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @param buffer A cl_mem object wrapped by a remote blob
  * @return A remote blob instance
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl_mem buffer) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                         RemoteContext::Ptr ctx,
+                                                                         cl_mem buffer) {
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -348,8 +335,10 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
  * @param image A cl::Image2D object wrapped by a remote blob
  * @return A remote blob instance
  */
-static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Image2D& image) {
-    auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
+INFERENCE_ENGINE_1_0_DEPRECATED static inline Blob::Ptr make_shared_blob(const TensorDesc& desc,
+                                                                         RemoteContext::Ptr ctx,
+                                                                         cl::Image2D& image) {
+    auto casted = ctx->as<ClContext>();
     if (nullptr == casted) {
         IE_THROW() << "Invalid remote context passed";
     }
@@ -362,3 +351,8 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 }  // namespace gpu
 
 }  // namespace InferenceEngine
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif

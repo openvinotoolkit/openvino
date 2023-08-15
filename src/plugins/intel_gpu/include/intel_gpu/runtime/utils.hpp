@@ -14,6 +14,8 @@
 #include <vector>
 #include <set>
 
+#include "openvino/core/except.hpp"
+
 namespace cldnn {
 
 struct primitive;
@@ -137,7 +139,8 @@ inline derived_type* downcast(base_type* base) {
     if (auto casted = dynamic_cast<derived_type*>(base))
         return casted;
 
-    throw std::runtime_error("Unable to cast pointer from base to derived type");
+    OPENVINO_THROW("Unable to cast pointer from base (", typeid(base_type).name(), ") ",
+                    "type to derived (", typeid(derived_type).name(), ") type");
 }
 
 template <typename derived_type, typename base_type, typename std::enable_if<std::is_base_of<base_type, derived_type>::value, int>::type = 0>

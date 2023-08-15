@@ -25,7 +25,8 @@ add_library(${TARGET_NAME}
     $<TARGET_OBJECTS:inference_engine_obj>
     $<TARGET_OBJECTS:inference_engine_obj_version>
     $<TARGET_OBJECTS:inference_engine_transformations_obj>
-    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>)
+    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>)
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
@@ -38,9 +39,9 @@ target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph_reference
-                                             ngraph_builders
-                                             ov_shape_inference
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
+                                             openvino::builders
+                                             openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}
                                              Threads::Threads)
@@ -118,13 +119,7 @@ ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
 # Install OpenVINO runtime
 #
 
-list(APPEND PATH_VARS "IE_INCLUDE_DIR")
-
 ov_add_library_version(${TARGET_NAME})
-
-if(ENABLE_INTEL_GNA)
-    list(APPEND PATH_VARS "GNA_PATH")
-endif()
 
 ov_cpack_add_component(${OV_CPACK_COMP_CORE}
                        HIDDEN
@@ -145,13 +140,26 @@ if(ENABLE_PLUGINS_XML)
     endif()
 endif()
 
+#
 # Install cmake scripts
+#
 
 install(EXPORT OpenVINOTargets
         FILE OpenVINOTargets.cmake
         NAMESPACE openvino::
         DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+# build tree
+
+list(APPEND PATH_VARS "IE_INCLUDE_DIR")
+if(ENABLE_INTEL_GNA)
+    list(APPEND PATH_VARS "GNA_PATH")
+endif()
+if(DNNL_USE_ACL)
+    list(APPEND BUILD_PATH_VARS "FIND_ACL_PATH")
+    set(FIND_ACL_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+endif()
 
 set(PUBLIC_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/inference/include")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
@@ -160,12 +168,21 @@ set(IE_TBB_DIR "${TBB_DIR}")
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
                                INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
-                               PATH_VARS ${PATH_VARS})
+                               PATH_VARS ${PATH_VARS} ${BUILD_PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/OpenVINOConfig.cmake"
                               INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}"
-                              PATH_VARS ${PATH_VARS})
+                              PATH_VARS ${PATH_VARS} ${BUILD_PATH_VARS})
+
+# install tree
+
+if(DNNL_USE_ACL)
+    list(APPEND INSTALL_PATH_VARS "ARM_COMPUTE_LIB_DIR")
+    # remove generator expression at the end, because searching in Release / Debug will be
+    # done by ACLConfig.cmake itself
+    string(REPLACE "$<CONFIG>" "" ARM_COMPUTE_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
+endif()
 
 set(IE_INCLUDE_DIR "${OV_CPACK_INCLUDEDIR}/ie")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
@@ -178,12 +195,12 @@ endif()
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
                               INSTALL_DESTINATION ${OV_CPACK_IE_CMAKEDIR}
-                              PATH_VARS ${PATH_VARS})
+                              PATH_VARS ${PATH_VARS} ${INSTALL_PATH_VARS})
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
                               INSTALL_DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                              PATH_VARS ${PATH_VARS})
+                              PATH_VARS ${PATH_VARS} ${INSTALL_PATH_VARS})
 
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake" @ONLY)
@@ -200,7 +217,9 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
         DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
+#
 # Generate and install openvino.pc pkg-config file
+#
 
 if(ENABLE_PKGCONFIG_GEN)
     # fill in PKGCONFIG_OpenVINO_DEFINITIONS

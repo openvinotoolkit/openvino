@@ -13,6 +13,7 @@ namespace pass {
 class TRANSFORMATIONS_API MarkPrecisionSensitiveShapeOfSubgraphs;
 class TRANSFORMATIONS_API MarkPrecisionSensitiveConstants;
 class TRANSFORMATIONS_API MarkDividesInShapeSubgraphs;
+class TRANSFORMATIONS_API MarkShapeOfSubgraphs;
 
 }  // namespace pass
 }  // namespace ov
@@ -31,6 +32,17 @@ public:
 
 protected:
     std::function<void(ov::Node*)> m_markup_func;
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkShapeOfSubgraphs marks shape subgraphs.
+ * Information whether the node belongs to the shape path or to the data path is needed during evaluate and CF.
+ */
+class ov::pass::MarkShapeOfSubgraphs : public MarkPrecisionSensitiveShapeOfSubgraphs {
+public:
+    OPENVINO_RTTI("MarkShapeOfSubgraphs", "0");
+    MarkShapeOfSubgraphs();
 };
 
 /**

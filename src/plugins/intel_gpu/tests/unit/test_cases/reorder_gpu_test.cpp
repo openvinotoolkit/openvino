@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
@@ -2445,6 +2446,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
 }
 
 TEST(reorder_gpu, any_format) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
@@ -2455,7 +2457,7 @@ TEST(reorder_gpu, any_format) {
 
     network net(engine, topo, get_test_default_config(engine));
 
-    auto data = generate_random_1d<float>(input->count(), -1, 1);
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
     set_values(input, data);
     net.set_input_data("in", input);
 
@@ -2705,6 +2707,7 @@ struct reorder_test_param {
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
 public:
+    tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     cldnn::topology topology_test;
     ExecutionConfig config = get_test_default_config(engine);
@@ -2747,6 +2750,7 @@ public:
     }
 
     void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
         config.set_property(ov::intel_gpu::optimize_data(true));
     }
 
@@ -2758,16 +2762,16 @@ public:
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
+            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
+            VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
-            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         }
 
@@ -2797,24 +2801,6 @@ public:
 };
 
 class testing_removal_reorder : public ReorderTest<reorder_test_param> {};
-TEST_P(testing_removal_reorder, removal_reorder_1d_along_f) {
-    auto p = GetParam();
-    create_topologies(input_layout("input", get_input_layout(p)),
-                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
-                data("weights", get_mem(get_weights_layout(p))),
-                data("bias1", get_mem(get_bias_layout(p))),
-                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv16, data_types::f16),
-                convolution("conv_prim", input_info("reorder_input"), "weights", "", 1, p.stride, {1, 1}, p.pad, p.pad, false),
-                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv16, data_types::f16),
-                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
-                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
-    );
-
-    execute(p, false);
-
-    ASSERT_EQ(check_optimized_out(p, "reorder_bias1"), true);
-}
-
 // Testing bugfix not to remove reorder in front of conv has deep depth input
 TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input) {
     auto p = GetParam();
@@ -2931,7 +2917,7 @@ TEST_P(testing_onednn_reorder, basic_selection) {
 INSTANTIATE_TEST_SUITE_P(basic_onednn_reorder, testing_onednn_reorder,
                         ::testing::ValuesIn(std::vector<reorder_test_param>{
                                             reorder_test_param{{1, 32, 16, 16}, {1, 32, 16, 16}, {1, 1, 1, 1}, {1, 1}, {0, 0},
-                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::oiyx, data_types::f16, format::b_fs_yx_fsv16},
                                             }));
 
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -3236,23 +3222,6 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_differen
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
 }
 
-TEST_P(testing_removal_reorder, removal_reorder_1d_along_f_cached) {
-    auto p = GetParam();
-    create_topologies(input_layout("input", get_input_layout(p)),
-                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
-                data("weights", get_mem(get_weights_layout(p))),
-                data("bias1", get_mem(get_bias_layout(p))),
-                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv16, data_types::f16),
-                convolution("conv_prim", input_info("reorder_input"), "weights", "", 1, p.stride, {1, 1}, p.pad, p.pad, false),
-                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv16, data_types::f16),
-                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
-                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
-    );
-
-    execute(p, true);
-
-    ASSERT_EQ(check_optimized_out(p, "reorder_bias1"), true);
-}
 #endif
 
 TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input_cached) {

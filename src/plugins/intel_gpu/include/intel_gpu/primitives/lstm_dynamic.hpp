@@ -20,6 +20,10 @@ namespace cldnn {
 struct lstm_dynamic : public primitive_base<lstm_dynamic> {
     CLDNN_DECLARE_PRIMITIVE(lstm_dynamic)
 
+    lstm_dynamic() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs lstm_dynamic layer.
     /// @param id This primitive id.
     /// @param input Primitive id of input layer.
@@ -106,6 +110,34 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
                cmp_fields(initial_cell.empty()) &&
                cmp_fields(bias.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lstm_dynamic>::save(ob);
+        ob << dyn_length;
+        ob << weights;
+        ob << recurrent;
+        ob << last_hidden_state;
+        ob << last_cell_state;
+        ob << bias;
+        ob << initial_hidden;
+        ob << initial_cell;
+        ob << clip;
+        ob << input_forget;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lstm_dynamic>::load(ib);
+        ib >> dyn_length;
+        ib >> weights;
+        ib >> recurrent;
+        ib >> last_hidden_state;
+        ib >> last_cell_state;
+        ib >> bias;
+        ib >> initial_hidden;
+        ib >> initial_cell;
+        ib >> clip;
+        ib >> input_forget;
     }
 
 protected:

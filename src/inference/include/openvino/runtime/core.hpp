@@ -359,6 +359,7 @@ public:
         return compile_model(model, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     /**
      * @deprecated This method is deprecated. Please use other Core::add_extension methods.
      * @brief Registers OpenVINO 1.0 extension to a Core object.
@@ -366,6 +367,7 @@ public:
      */
     OPENVINO_DEPRECATED("Please use add_extension(ov::Extension) or add_extension(path_to_library) instead.")
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Registers an extension to a Core object.
@@ -686,8 +688,9 @@ public:
      * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
+     * @param config Plugin configuration options
      */
-    void register_plugin(const std::string& plugin, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.

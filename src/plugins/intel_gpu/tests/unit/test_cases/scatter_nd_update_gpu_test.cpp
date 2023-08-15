@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "scatter_nd_update_inst.h"
 
@@ -22,18 +23,6 @@
 using namespace cldnn;
 using namespace ::tests;
 
-namespace {
-template<typename T>
-T generate_random_val(int min, int max, int k = 8) {
-    static std::default_random_engine generator(random_seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(k * min, k * max);
-    T val = (T)distribution(generator);
-    val /= k;
-
-    return val;
-}
-}
 
 struct scatter_nd_update_basic_test_params
 {
@@ -54,6 +43,14 @@ struct scatter_nd_update_basic_test_params
 
 struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_basic_test_params>
 {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        std::string suite_name = std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                                 std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
+        rg.set_seed(suite_name);
+    }
+
     format get_default_format(int rank = 4) {
         if (rank <= 4)
             return cldnn::format::bfyx;
@@ -76,7 +73,7 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         while (unique_indices.size() != count) {
             std::vector<T> indices;
             for (size_t i = 0; i < last_indices_dim; i++) {
-                indices.push_back(static_cast<T>(generate_random_val<int>(0, data_shape[i] - 1)));
+                indices.push_back(static_cast<T>(rg.generate_random_val<int>(0, data_shape[i] - 1)));
             }
 
             unique_indices.insert(indices);
@@ -116,9 +113,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data_fp16 = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto input_data_fp16 = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data_fp16 = generate_unique_indices<T>(params);
-        auto updates_data_fp16 = generate_random_1d<T>(params.updates_size.count(), -127, 127);
+        auto updates_data_fp16 = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         std::vector<float> input_data(params.input_size.count());
         for (size_t i = 0; i < params.input_size.count(); ++i)
@@ -196,9 +193,9 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         std::reverse(indices_vec.begin() + 2, indices_vec.end());
         indices_vec.resize(params.indices_rank);
 
-        auto input_data = generate_random_1d<T>(params.input_size.count(), -127, 127);
+        auto input_data = rg.generate_random_1d<T>(params.input_size.count(), -127, 127);
         auto indices_data = generate_unique_indices<T>(params);
-        auto updates_data = generate_random_1d<T>(params.updates_size.count(), -127, 127);
+        auto updates_data = rg.generate_random_1d<T>(params.updates_size.count(), -127, 127);
 
         set_values(input1, input_data);
         set_values(input2, indices_data);
@@ -257,7 +254,7 @@ TEST_P(scatter_nd_update_random_test, random)
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, false);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 
 INSTANTIATE_TEST_SUITE_P(scatter_nd_update_gpu_random_test_fp32_bsv32_fsv16_4d_rank_1,
@@ -4462,6 +4459,9 @@ TEST(scatter_nd_update_gpu, dynamic) {
 }
 
 TEST(scatter_nd_update_gpu, dynamic_5d) {
+    tests::random_generator rg(std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+                               std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+
     auto& engine = get_test_engine();
 
     auto input1_layout = layout{{ 8, -1, -1, 384}, data_types::f32, format::bfyx };
@@ -4474,7 +4474,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     topology.add(input_layout("updates", input3_layout));
     topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
@@ -4498,7 +4498,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
     };
 
 
-    auto generate_unique_indices = [](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
+    auto generate_unique_indices = [&rg](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
         std::set<std::vector<int32_t>> unique_indices;
         std::vector<int32_t> result;
         size_t last_indices_dim = indices_shape.at(indices_shape.size() - 1);
@@ -4513,7 +4513,7 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
             for (size_t i = 0; i < last_indices_dim; i++) {
                 const int min = 0;
                 const int max = static_cast<int>(data_shape[i]) - 1;
-                indices.push_back(static_cast<int32_t>(generate_random_val<int>(min, max)));
+                indices.push_back(static_cast<int32_t>(rg.generate_random_val<int>(min, max)));
             }
 
             unique_indices.insert(indices);
@@ -4541,9 +4541,9 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
         auto input2 = engine.allocate_memory({ in2_shape, data_types::i32, format::bfzyx }); // Indexes
         auto input3 = engine.allocate_memory({ in3_shape, data_types::f32, format::bfyx });  // Updates
 
-        std::vector<float> input_data = generate_random_1d<float>(input1->count(), 1, 100);
+        std::vector<float> input_data = rg.generate_random_1d<float>(input1->count(), 1, 100);
         std::vector<int32_t> indices = generate_unique_indices(in1_shape, in2_shape);
-        std::vector<float> updates = generate_random_1d<float>(input3->count(), 100, 200);
+        std::vector<float> updates = rg.generate_random_1d<float>(input3->count(), 100, 200);
         auto expected_res = get_expected_res(input_data, indices, updates, in1_shape, in2_shape, in3_shape);
 
         set_values<float>(input1, input_data);
@@ -4588,7 +4588,7 @@ TEST_P(scatter_nd_update_random_test, random_cached)
     else if (param.input_type == data_types::f32)
         this->execute<float>(param, true);
     else
-        IE_THROW() << "unidentified data type";
+        OPENVINO_THROW("unidentified data type");
 }
 #endif
 TEST(scatter_nd_update_gpu_fp16, d222222_i211111_cached) {

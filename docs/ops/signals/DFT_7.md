@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about DFT-7 - a signal processing operation, which can be 
+                performed on two required and one optional input tensor.
+
 **Versioned name**: *DFT-7*
 
 **Category**: *Signal processing*
@@ -73,7 +77,8 @@ Calculations for the generic case of axes and signal sizes are similar.
 
 There is no ``signal_size`` input (4D input tensor):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>
@@ -98,7 +103,8 @@ There is no ``signal_size`` input (4D input tensor):
 
 There is no ``signal_size`` input (3D input tensor):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>
@@ -121,7 +127,8 @@ There is no ``signal_size`` input (3D input tensor):
 
 There is ``signal_size`` input (4D input tensor):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>
@@ -149,7 +156,8 @@ There is ``signal_size`` input (4D input tensor):
 
 There is ``signal_size`` input (3D input tensor):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>
@@ -175,7 +183,8 @@ There is ``signal_size`` input (3D input tensor):
 
 There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unsorted axes):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>
@@ -205,7 +214,8 @@ There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unso
 
 There is ``signal_size`` input (5D input tensor, ``-1`` in ``signal_size``, unsorted axes, the second example):
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="DFT" ... >
        <input>

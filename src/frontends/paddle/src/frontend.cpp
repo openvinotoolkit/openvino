@@ -4,7 +4,15 @@
 
 #include "openvino/frontend/paddle/frontend.hpp"
 
-#include <google/protobuf/stubs/logging.h>
+#include <google/protobuf/port_def.inc>
+#if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
+#    define OV_PROTOBUF_ABSL_IS_USED
+#endif
+#include <google/protobuf/port_undef.inc>
+
+#ifndef OV_PROTOBUF_ABSL_IS_USED
+#    include <google/protobuf/stubs/logging.h>
+#endif
 
 #include <fstream>
 #include <map>
@@ -20,13 +28,14 @@
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
 #include "op_table.hpp"
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
-#include "so_extension.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 using namespace ov::frontend::paddle::op::default_opset;
 using namespace ov;
@@ -136,7 +145,7 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::ifstream& ext_s
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variant.is<std::wstring>()) {
         const auto& model_path = variant.as<std::wstring>();
-        ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
+        ext_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
@@ -375,7 +384,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }
-        std::ifstream model_str(model_path, std::ios::in | std::ifstream::binary);
+        std::ifstream model_str(model_path.c_str(), std::ios::in | std::ifstream::binary);
         // It is possible to validate here that protobuf can read model from the stream,
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
@@ -449,6 +458,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
+    normalize(f[0]);
     return f[0];
 }
 
@@ -464,6 +474,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
     fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
+    normalize(partiallyConverted);
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& model) const {
@@ -496,7 +507,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
 
     fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
-
+    normalize(f[0]);
     return f[0];
 }
 
@@ -534,6 +545,12 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.run_passes(model);
+}
+
 }  // namespace paddle
 }  // namespace frontend
 }  // namespace ov
@@ -551,7 +568,9 @@ PADDLE_C_API void* get_front_end_data() {
 
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
+#    ifndef OV_PROTOBUF_ABSL_IS_USED
     google::protobuf::SetLogHandler(nullptr);
+#    endif
 #endif
     return res;
 }

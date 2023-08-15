@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
 #include <algorithm>
 #include <regex>

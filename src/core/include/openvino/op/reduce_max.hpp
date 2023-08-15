@@ -30,6 +30,8 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
 };
 }  // namespace v1
 }  // namespace op

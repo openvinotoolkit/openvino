@@ -33,6 +33,8 @@ enum DataLayout {
     byxf,                   // 3D+batch
     fyxb,                   // 3D+batch
     bfxy,                   // 3D+batch
+    byfx,
+    bxfy,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
@@ -83,6 +85,8 @@ enum WeightsLayout {
     oiyx,
     ioyx,
     oyxi,
+    oyix,
+    oxiy,
     iyxo,
     yxio,
     o_is_yx_isv16,
@@ -105,7 +109,7 @@ enum WeightsLayout {
     os_i_osv16__ai8,
     os_i_osv16,
     os_is_yx_osv16_isv2,
-    os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_yx_osv16_isv16,           // weights for int8 blocked conv
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
@@ -289,6 +293,8 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oiyx:
         case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
+        case WeightsLayout::oyix:
+        case WeightsLayout::oxiy:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
@@ -307,6 +313,8 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::bfyx:
         case DataLayout::yxfb:
         case DataLayout::byxf:
+        case DataLayout::byfx:
+        case DataLayout::bxfy:
         case DataLayout::fyxb:
         case DataLayout::bfxy:
         case DataLayout::bfzyx:

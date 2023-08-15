@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 
@@ -208,12 +208,12 @@ TEST(partial_shape, to_shape_static) {
 
 TEST(partial_shape, to_shape_dims_dynamic) {
     PartialShape ps{2, 4, Dimension::dynamic(), 8};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, to_shape_rank_dynamic) {
     PartialShape ps{PartialShape::dynamic()};
-    ASSERT_THROW({ ps.to_shape(); }, std::invalid_argument);
+    ASSERT_THROW({ ps.to_shape(); }, ov::Exception);
 }
 
 TEST(partial_shape, tensor_descriptor_from_shape) {
@@ -685,6 +685,7 @@ TEST(partial_shape, partial_shape_relaxes_refines_static_static_not_eq) {
     ASSERT_FALSE(s2.relaxes(s1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(partial_shape, partial_shape_project_rank_dynamic) {
     PartialShape s1{PartialShape::dynamic()};
     PartialShape s2 = project(s1, AxisSet{284, 0, 103});

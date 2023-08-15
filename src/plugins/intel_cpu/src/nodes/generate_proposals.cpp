@@ -18,7 +18,7 @@
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -147,7 +147,7 @@ void nms_cpu(const int num_boxes, int is_dead[],
             continue;
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == static_cast<size_t>(max_num_out))
             break;
 
         int tail = box + 1;
@@ -362,10 +362,10 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
 
         // Prepare memory
-        const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->GetPtr());
-        const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->GetPtr());
-        const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->GetPtr());
-        const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->GetPtr());
+        const float *p_deltas_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_DELTAS)->getMemoryPtr()->getData());
+        const float *p_scores_item  = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_SCORES)->getMemoryPtr()->getData());
+        const float *p_anchors_item = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_ANCHORS)->getMemoryPtr()->getData());
+        const float *p_img_info_cpu = reinterpret_cast<const float *>(getParentEdgeAt(INPUT_IM_INFO)->getMemoryPtr()->getData());
 
         const int anchors_num = scoreDims[1];
 
@@ -453,12 +453,12 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
         // copy to out memory
         redefineOutputMemory({VectorDims{total_num_rois, 4}, VectorDims{total_num_rois}, VectorDims{batch_size}});
-        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->GetPtr());
-        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->GetPtr());
-        uint8_t* p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetPtr());
+        float *p_roi_item       = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_ROIS)[0]->getMemoryPtr()->getData());
+        float *p_roi_score_item = reinterpret_cast<float *>(getChildEdgesAtPort(OUTPUT_SCORES)[0]->getMemoryPtr()->getData());
+        uint8_t* p_roi_num_item = reinterpret_cast<uint8_t *>(getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getData());
         memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
-        memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->GetSize());
+        memcpy(p_roi_num_item, &roi_num[0], getChildEdgesAtPort(OUTPUT_ROI_NUM)[0]->getMemoryPtr()->getSize());
     } catch (const std::exception &e) {
         std::string errorMsg = e.what();
         IE_THROW() << errorMsg;

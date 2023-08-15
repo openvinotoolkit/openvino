@@ -14,8 +14,6 @@ const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
         FuncTestUtils::BlobType::Batched,
         FuncTestUtils::BlobType::Memory,
         FuncTestUtils::BlobType::Remote,
-        FuncTestUtils::BlobType::I420,
-        FuncTestUtils::BlobType::NV12
 };
 
 INSTANTIATE_TEST_SUITE_P(ie_infer_request, InferRequestSetBlobByType,

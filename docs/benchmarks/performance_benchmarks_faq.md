@@ -3,6 +3,10 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
+
+
 .. dropdown:: How often do performance benchmarks get updated?
 
    New performance benchmarks are typically published on every
@@ -29,7 +33,7 @@
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
 
-.. dropdown:: What image sizes are used for the classification network models?
+.. dropdown:: Where can I find a more detailed description of the workloads used for benchmarking?
 
    The image size used in inference depends on the benchmarked
    network. The table below presents the list of input sizes for each
@@ -42,47 +46,43 @@
         - Public Network
         - Task
         - Input Size
+      * - `GPT-2 <https://https://github.com/onnx/models/blob/main/text/machine_comprehension/gpt-2/README.md>`__
+        - OpenAI GPT-2
+        - Transformer
+        - 1024
       * - `bert-base-cased <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`__
         - BERT
         - question / answer
-        - 124
+        - 128
       * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
         - BERT-large
         - question / answer
         - 384
-      * - `deeplabv3-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3>`__
+      * - `deeplabv3 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3>`__
         -  DeepLab v3 Tf
         - semantic segmentation
         - 513x513
-      * - `densenet-121-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/densenet-121-tf>`__
-        - Densenet-121 Tf
-        - classification
-        - 224x224
       * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
         - Efficientdet
         - classification
         - 512x512
-      * - `faster_rcnn_resnet50_coco-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
+      * - `faster_rcnn_resnet50_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/faster_rcnn_resnet50_coco>`__
         - Faster RCNN Tf
         - object detection
         - 600x1024
-      * - `inception-v4-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v4-tf>`__
-        - Inception v4 Tf (aka GoogleNet-V4)
+      * - `inception-v4 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/googlenet-v4-tf>`__
+        - Inception v4 (aka GoogleNet-V4)
         - classification
         - 299x299
-      * - `mobilenet-ssd-CF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd>`__
+      * - `mobilenet-ssd <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-ssd>`__
         - SSD (MobileNet)_COCO-2017_Caffe
         - object detection
         - 300x300
-      * - `mobilenet-v2-pytorch <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
+      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification
         - 224x224
-      * - `resnet-18-pytorch <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-18-pytorch>`__
-        - ResNet-18 PyTorch
-        - classification
-        - 224x224
-      * - `resnet-50-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
+      * - `resnet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
         - ResNet-50_v1_ILSVRC-2012
         - classification
         - 224x224
@@ -94,12 +94,16 @@
         - U-Net
         - semantic segmentation
         - 368x480     
-      * - `yolo-v3-tiny-tf <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
+      * - `yolo-v3 <https://https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tf>`__
+        - YOLO v3 
+        - object detection
+        - 416x416      
+      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
         - YOLO v3 Tiny
         - object detection
         - 416x416      
-      * - `yolo_v4-TF <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v4-tf>`__
-        - Yolo-V4 TF
+      * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
+        - Yolov8nano 
         -  object detection
         - 608x608
 

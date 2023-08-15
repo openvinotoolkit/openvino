@@ -27,6 +27,10 @@ typedef enum { /*:int32_t*/
 struct lrn : public primitive_base<lrn> {
     CLDNN_DECLARE_PRIMITIVE(lrn)
 
+    lrn() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs LRN primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -82,6 +86,24 @@ struct lrn : public primitive_base<lrn> {
                alpha == rhs_casted.alpha &&
                beta == rhs_casted.beta &&
                norm_region == rhs_casted.norm_region;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<lrn>::save(ob);
+        ob << size;
+        ob << k;
+        ob << alpha;
+        ob << beta;
+        ob << make_data(&norm_region, sizeof(lrn_norm_region));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<lrn>::load(ib);
+        ib >> size;
+        ib >> k;
+        ib >> alpha;
+        ib >> beta;
+        ib >> make_data(&norm_region, sizeof(lrn_norm_region));
     }
 };
 }  // namespace cldnn

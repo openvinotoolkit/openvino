@@ -347,6 +347,7 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v5_Loop_evaluate);
     ngraph::runtime::reference::loop(m_bodies[0],
@@ -357,6 +358,7 @@ bool op::v5::Loop::evaluate(const HostTensorVector& outputs, const HostTensorVec
                                      inputs);
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v5::Loop::has_evaluate() const {
     OV_OP_SCOPE(v5_Loop_has_evaluate);
@@ -377,7 +379,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     dst.m_num_iterations = m_num_iterations;
     dst.m_special_body_ports = m_special_body_ports;
 
-    dst.m_bodies[0] = clone_function(*get_function());
+    dst.m_bodies[0] = get_function()->clone();
 
     for (auto& input_description : m_input_descriptions[0]) {
         dst.m_input_descriptions[0].push_back(input_description->copy());

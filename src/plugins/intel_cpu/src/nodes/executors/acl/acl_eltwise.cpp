@@ -14,10 +14,10 @@ inline VectorDims reshape_sizes(VectorDims dims) {
     const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
     VectorDims result_dims(MAX_NUM_SHAPE - 1);
     if (dims.size() >= MAX_NUM_SHAPE) {
-        for (int i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
             result_dims[i] = dims[i];
         }
-        for (int i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
+        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
             result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
         }
     } else {
@@ -26,12 +26,46 @@ inline VectorDims reshape_sizes(VectorDims dims) {
     return result_dims;
 }
 
+bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
+    if (one_of(algorithm, Algorithm::EltwiseSqrt,
+                          Algorithm::EltwiseDivide,
+                          Algorithm::EltwiseRelu,
+#ifdef OPENVINO_ARCH_ARM64
+                          Algorithm::EltwiseGeluErf,
+#endif
+                          Algorithm::EltwiseElu,
+                          Algorithm::EltwiseTanh,
+                          Algorithm::EltwiseSigmoid,
+                          Algorithm::EltwiseSoftRelu,
+                          Algorithm::EltwiseClamp,
+                          Algorithm::EltwiseSwish,
+                          Algorithm::EltwisePrelu,
+                          Algorithm::EltwiseHswish,
+                          Algorithm::EltwiseAbs,
+                          Algorithm::EltwiseExp,
+                          Algorithm::EltwiseLog,
+                          Algorithm::EltwiseMaximum,
+                          Algorithm::EltwiseMinimum,
+                          Algorithm::EltwiseSquaredDifference,
+                          Algorithm::EltwiseAdd,
+                          Algorithm::EltwiseSubtract,
+                          Algorithm::EltwiseMultiply,
+                          Algorithm::EltwiseEqual,
+                          Algorithm::EltwiseNotEqual,
+                          Algorithm::EltwiseGreater,
+                          Algorithm::EltwiseGreaterEqual,
+                          Algorithm::EltwiseLess,
+                          Algorithm::EltwiseLessEqual)) {
+        return true;
+    }
+    return false;
+}
 
 bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
-        for (int i = 0; i < srcDescs.size(); i++) {
+        for (size_t i = 0; i < srcDescs.size(); i++) {
             if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
         }
         if (dstDescs[0]->getPrecision() != dstPrc) { return false; }
@@ -48,10 +82,9 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
         case Algorithm::EltwiseSigmoid:
-//            case Algorithm::EltwisePowerDynamic: // TODO: ACL version doesn't work https://github.com/ARM-software/ComputeLibrary/issues/1047
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
-        //case Algorithm::EltwiseSwish: // TODO: efficientdet-d0 accuracy drops if ACL Swish is used
+        case Algorithm::EltwiseSwish:
         case Algorithm::EltwisePrelu:
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
@@ -144,18 +177,18 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
     srcTensors = std::vector<arm_compute::Tensor>(srcDescs.size());
     dstTensors = std::vector<arm_compute::Tensor>(dstDescs.size());
 
-    for (int i = 0; i < srcVecDims.size(); i++) {
+    for (size_t i = 0; i < srcVecDims.size(); i++) {
         srcVecDims[i] = shapeCast(reshape_sizes(srcDescs[i]->getShape().getDims()));
     }
-    for (int i = 0; i < dstVecDims.size(); i++) {
+    for (size_t i = 0; i < dstVecDims.size(); i++) {
         dstVecDims[i] = shapeCast(reshape_sizes(dstDescs[i]->getShape().getDims()));
     }
 
-    for (int i = 0; i < srcDescs.size(); i++) {
+    for (size_t i = 0; i < srcDescs.size(); i++) {
         srcDataLayout[i] = getAclDataLayoutByMemoryDesc(srcDescs[i]);
         if (srcDataLayout[i] == arm_compute::DataLayout::UNKNOWN) { return false; }
     }
-    for (int i = 0; i < dstDescs.size(); i++) {
+    for (size_t i = 0; i < dstDescs.size(); i++) {
         dstDataLayout[i] = getAclDataLayoutByMemoryDesc(dstDescs[i]);
         if (dstDataLayout[i] == arm_compute::DataLayout::UNKNOWN) { return false; }
     }
@@ -179,14 +212,14 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
         mover(dstVecDims[0]);
     }
 
-    for (int i = 0; i < srcVecDims.size(); i++) {
+    for (size_t i = 0; i < srcVecDims.size(); i++) {
         srcTensorsInfo[i] = TensorInfo(srcVecDims[i], 1,
                                        precisionToAclDataType(srcDescs[i]->getPrecision()),
                                        srcDataLayout[i]);
         srcTensors[i].allocator()->init(srcTensorsInfo[i]);
     }
 
-    for (int i = 0; i < dstVecDims.size(); i++) {
+    for (size_t i = 0; i < dstVecDims.size(); i++) {
         dstTensorsInfo[i] = TensorInfo(dstVecDims[i], 1,
                                        precisionToAclDataType(dstDescs[i]->getPrecision()),
                                        dstDataLayout[i]);
@@ -254,15 +287,6 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return false;
             exec_func = [this]{
                 auto acl_op = std::make_unique<NEElementwiseSquaredDiff>();
-                acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
-                acl_op->run();
-            };
-            break;
-        case Algorithm::EltwisePowerDynamic:
-            if (!NEElementwisePower::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0]))
-                return false;
-            exec_func = [this]{
-                auto acl_op = std::make_unique<NEElementwisePower>();
                 acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
                 acl_op->run();
             };
@@ -474,19 +498,19 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
 
 void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst,
                               const void *post_ops_data_) {
-    for (int i = 0; i < src.size(); i++) {
-        srcTensors[i].allocator()->import_memory(src[i]->GetPtr());
+    for (size_t i = 0; i < src.size(); i++) {
+        srcTensors[i].allocator()->import_memory(src[i]->getData());
     }
-    for (int i = 0; i < dst.size(); i++) {
-        dstTensors[i].allocator()->import_memory(dst[i]->GetPtr());
+    for (size_t i = 0; i < dst.size(); i++) {
+        dstTensors[i].allocator()->import_memory(dst[i]->getData());
     }
 
     exec_func();
 
-    for (int i = 0; i < src.size(); i++) {
+    for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].allocator()->free();
     }
-    for (int i = 0; i < dst.size(); i++) {
+    for (size_t i = 0; i < dst.size(); i++) {
         dstTensors[i].allocator()->free();
     }
 }

@@ -103,7 +103,7 @@ public:
             testValues.additionalLayer);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ngraph::opset1::Convolution>({
+            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, testValues.params.precisionsOnActivations},
                 {{1}, testValues.params.precisionsOnWeights}
             })
@@ -112,13 +112,13 @@ public:
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>() :
             std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>()
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithNeighbors(

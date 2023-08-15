@@ -83,3 +83,4 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::detection_output)

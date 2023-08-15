@@ -24,7 +24,7 @@ namespace low_precision {
 
 MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     MATCHER_SCOPE(MultiplyTransformation);
-    auto matcher = pattern::wrap_type<opset1::Multiply>();
+    auto matcher = pattern::wrap_type<ov::opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -51,10 +51,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
-        auto fakeQuantizeOnWeights = ov::as_type_ptr<opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
+        auto fakeQuantizeOnWeights = ov::as_type_ptr<ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(index));
         if (fakeQuantizeOnWeights != nullptr) {
             auto result = NetworkHelper::fold_fake_quantize(fakeQuantizeOnWeights);
-            if (ov::is_type<opset1::Constant>(result)) {
+            if (ov::is_type<ov::opset1::Constant>(result)) {
                 replace_node(fakeQuantizeOnWeights, result);
             }
         }
@@ -82,12 +82,12 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         auto multiplyParentParent = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second);
         auto multiplyParentConst = multiplyParent.get_node_shared_ptr()->input_value(multiplyBranch.second == 0 ? 1 : 0);
 
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
             std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
             ov::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(
-                fold<opset1::Multiply>(
+                fold<ov::opset1::Multiply>(
                     foldConvert(multiplyParentConst, element::f32),
                     foldConvert(constParent, element::f32)),
                 element::f32).get());
@@ -123,17 +123,17 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
-        auto newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
+        inputs[fullPathIndex] = std::make_shared<ov::opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-        newMultiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
+        newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply->get_output_element_type(0) },
                 ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
@@ -159,8 +159,8 @@ bool MultiplyTransformation::canBeTransformed(const TransformationContext& conte
         return false;
     }
 
-    const bool nonConstantData = !ov::is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
-                                 !ov::is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr());
+    const bool nonConstantData = !ov::is_type<ov::opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                 !ov::is_type<ov::opset1::Constant>(dequantization2.data.get_node_shared_ptr());
 
     if (((dequantization1.empty() || dequantization2.empty()) && nonConstantData)) {
         return false;

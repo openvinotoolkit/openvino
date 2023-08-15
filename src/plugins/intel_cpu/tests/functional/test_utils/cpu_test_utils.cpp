@@ -4,39 +4,36 @@
 
 #include "cpu_test_utils.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "utils/general_utils.h"
 #include <cstdint>
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
 
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
-#define CASE(_fmt) do { \
-    if (v == _fmt) return #_fmt; \
-} while (0)
-    CASE(undef);
-    CASE(ncw);
-    CASE(nCw8c);
-    CASE(nCw16c);
-    CASE(nwc);
-    CASE(nchw);
-    CASE(nChw8c);
-    CASE(nChw16c);
-    CASE(nhwc);
-    CASE(ncdhw);
-    CASE(nCdhw8c);
-    CASE(nCdhw16c);
-    CASE(ndhwc);
-    CASE(nc);
-    CASE(x);
-    CASE(tnc);
-    CASE(ntc);
-    CASE(ldnc);
-    CASE(ldigo);
-    CASE(ldgoi);
-    CASE(ldio);
-    CASE(ldoi);
-    CASE(ldgo);
+#define CASE(_fmt) case (cpu_memory_format_t::_fmt): return #_fmt;
+    switch (v) {
+        CASE(undef);
+        CASE(ncw);
+        CASE(nCw8c);
+        CASE(nCw16c);
+        CASE(nwc);
+        CASE(nchw);
+        CASE(nChw8c);
+        CASE(nChw16c);
+        CASE(nhwc);
+        CASE(ncdhw);
+        CASE(nCdhw8c);
+        CASE(nCdhw16c);
+        CASE(ndhwc);
+        CASE(nc);
+        CASE(x);
+        CASE(ntc);
+        CASE(ldgoi);
+        CASE(ldoi);
+    }
 #undef CASE
     assert(!"unknown fmt");
     return "undef";
@@ -162,7 +159,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             }
 
             auto shape = partialShape.get_shape();
-            bool skip_unsquized_1D = std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool skip_unsquized_1D = static_cast<size_t>(std::count(shape.begin(), shape.end(), 1)) == shape.size() - 1;
             bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc || fmt == cpu_memory_format_t::nwc) && shape[1] == 1;
             return skip_unsquized_1D || permule_of_1;
         };
@@ -170,7 +167,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
         if (nodeType.count(getExecValue(ExecGraphInfoSerialization::LAYER_TYPE))) {
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
-            for (int i = 0; i < inFmts.size(); i++) {
+            for (size_t i = 0; i < inFmts.size(); i++) {
                 const auto parentPort = node->input_values()[i];
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
@@ -229,7 +226,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
 }
 
 bool CPUTestsBase::primTypeCheck(std::string primType) const {
-    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || selectedType == primType;
+    return selectedType.find(CPUTestsBase::any_type) != std::string::npos || std::regex_match(primType, std::regex(selectedType));
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -258,6 +255,11 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }
 
+#if defined(OV_CPU_WITH_ACL)
+std::string CPUTestsBase::getPrimitiveType() const {
+    return "acl";
+}
+#else
 std::string CPUTestsBase::getPrimitiveType() const {
     std::string isaType;
     if (InferenceEngine::with_cpu_x86_avx512f()) {
@@ -271,6 +273,7 @@ std::string CPUTestsBase::getPrimitiveType() const {
     }
     return isaType;
 }
+#endif
 
 std::string CPUTestsBase::getISA(bool skip_amx) const {
     std::string isaType;
@@ -332,7 +335,7 @@ CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::Par
    auto newLastNode = modifyGraph(ngPrc, params, lastNode);
    ngraph::ResultVector results;
 
-   for (int i = 0; i < newLastNode->get_output_size(); i++)
+   for (size_t i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ngraph::opset1::Result>(newLastNode->output(i)));
 
    return std::make_shared<ngraph::Function>(results, params, name);
@@ -350,26 +353,54 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
     return implString;
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
+void CPUTestsBase::updateSelectedType(const std::string& primitiveType, const ov::element::Type netType, const ov::AnyMap& config) {
+    auto getExecType = [&](){
+        // inference_precision affects only floating point type networks
+        if (!netType.is_real())
+            return netType;
+
+        const auto it = config.find(ov::hint::inference_precision.name());
+        if (it == config.end())
+            return netType;
+
+        const auto inference_precision_type = it->second.as<ov::element::Type>();
+        // currently plugin only allows to change precision from higher to lower (i.e. f32 -> f16 or f32 -> bf16)
+        if (netType.bitwidth() < inference_precision_type.bitwidth()) {
+            return netType;
+        }
+
+        return inference_precision_type;
+    };
+
+    const auto execType = getExecType();
+
+    selectedType = primitiveType;
+    selectedType.push_back('_');
+    selectedType += InferenceEngine::details::convertPrecision(execType).name();
+}
+
+std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
     auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (int i = 0; i < formats.size(); i++) {
-            if (formats[i] == nCw16c)
-                formats[i] = nCw8c;
-            if (formats[i] == nChw16c)
-                formats[i] = nChw8c;
-            if (formats[i] == nCdhw16c)
-                formats[i] = nCdhw8c;
+        for (auto& format : formats) {
+            if (format == nCw16c)
+                format = nCw8c;
+            if (format == nChw16c)
+                format = nChw8c;
+            if (format == nCdhw16c)
+                format = nCdhw8c;
         }
     };
 
+    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
+
     if (!InferenceEngine::with_cpu_x86_avx512f()) {
-        for (auto& param : paramsVector) {
+        for (auto& param : filteredParamsVector) {
             adjustBlockedFormatByIsa(std::get<0>(param));
             adjustBlockedFormatByIsa(std::get<1>(param));
         }
     }
 
-    return paramsVector;
+    return filteredParamsVector;
 }
 
 inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
@@ -419,7 +450,7 @@ void CheckNumberOfNodesWithType(InferenceEngine::ExecutableNetwork &execNet, con
     CheckNumberOfNodesWithTypes(execNet, {nodeType}, expectedCount);
 }
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;
 

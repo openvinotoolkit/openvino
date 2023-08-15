@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/adaptive_pool_to_reduce.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
@@ -58,6 +59,7 @@
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/common_optimizations/select_with_one_value_condition.hpp>
 #include <transformations/common_optimizations/sequence_fusion.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -82,6 +84,7 @@
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -205,6 +208,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
+    ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)
@@ -241,7 +245,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, ResolveNameCollisions)
     manager.run_passes(f);
 
     if (!m_use_shapes) {
@@ -249,8 +255,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
         }
-        f->validate_nodes_and_infer_types();
     }
+    f->validate_nodes_and_infer_types();
 
     return false;
 }

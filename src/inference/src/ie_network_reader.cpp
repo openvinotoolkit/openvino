@@ -22,7 +22,7 @@
 #ifdef ENABLE_IR_V7_READER
 #    include "legacy/ie_ir_version.hpp"
 #endif
-#include "ie_itt.hpp"
+#include "itt.hpp"
 #include "legacy/ie_reader.hpp"
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
@@ -116,7 +116,7 @@ public:
     }
 
     bool supportModel(std::istream& model) const override {
-        OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Reader::supportModel");
+        OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Reader::supportModel");
         return ptr->supportModel(model);
     }
 
@@ -140,7 +140,7 @@ namespace {
 Reader::Ptr reader_irv7 = nullptr;
 
 void registerReaders() {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "registerReaders");
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
@@ -181,8 +181,12 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
     std::string model_path = modelPath;
 #    endif
 
+    if (ov::util::directory_exists(modelPath)) {
+        return {};
+    }
+
     // Try to open model file
-    std::ifstream modelStream(model_path, std::ios::binary);
+    std::ifstream modelStream(model_path.c_str(), std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW() << "Model file " << modelPath << " cannot be opened!";
 
@@ -214,7 +218,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             std::string weights_path = bPath;
 #    endif
             std::ifstream binStream;
-            binStream.open(weights_path, std::ios::binary);
+            binStream.open(weights_path.c_str(), std::ios::binary);
             if (!binStream.is_open())
                 IE_THROW() << "Weights file " << bPath << " cannot be opened!";
 
@@ -225,7 +229,7 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             Blob::Ptr weights = make_shared_blob<uint8_t>({Precision::U8, {fileSize}, C});
 
             {
-                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "ReadNetworkWeights");
+                OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ReadNetworkWeights");
                 weights->allocate();
                 binStream.read(weights->buffer(), fileSize);
                 binStream.close();

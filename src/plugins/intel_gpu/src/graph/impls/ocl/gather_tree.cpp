@@ -65,3 +65,4 @@ attach_gather_tree_impl::attach_gather_tree_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_tree_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_tree)

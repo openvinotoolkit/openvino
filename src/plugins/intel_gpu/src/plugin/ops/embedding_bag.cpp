@@ -25,13 +25,11 @@ static void CreateEmbeddingBagOffsetsSumOp(Program& p, const std::shared_ptr<ngr
     int32_t defaultIndex = -1;
     if (inputs.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
-        if (!index_node) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val))
-             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+             OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         defaultIndex = static_cast<int32_t>(val);
         inputs.erase(inputs.begin() + 3); // Remove "default_index"
@@ -113,13 +111,11 @@ static void CreateEmbeddingSegmentsSumOp(Program& p, const std::shared_ptr<ngrap
     // port of default_index is 4 by default, but we removed "num_segments" above, so now it's equal to 3
     if (inputs.size() > 3) {
         auto index_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(4));
-        if (!index_node) {
-            IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
+        OPENVINO_ASSERT(index_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         float val;
         if (ngraph::shape_size(index_node->get_output_shape(0)) != 1 || !ov::op::util::get_single_value(index_node, val))
-             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+            OPENVINO_THROW("Unsupported parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         defaultIndex = static_cast<int32_t>(val);
         inputs.erase(inputs.begin() + 3); // Remove "default_index"

@@ -9,6 +9,7 @@
 #include <string>
 #include <map>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "cpu_tensor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -52,11 +53,65 @@ protected:
     InferenceEngine::Precision normToInputSupportedPrec(const std::pair<const std::string, InferenceEngine::Blob::Ptr>& input) const;
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 
+protected:
+    class OutputControlBlock {
+    public:
+        using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
+
+    public:
+        OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape);
+
+        OutputControlBlock(const OutputControlBlock&) = delete;
+        OutputControlBlock& operator=(const OutputControlBlock&) = delete;
+
+        OutputControlBlock(OutputControlBlock&&) = default;
+        OutputControlBlock& operator=(OutputControlBlock&&) = default;
+
+        InferenceEngine::Blob::Ptr blob() const {
+            return m_blob;
+        }
+
+        std::shared_ptr<Tensor> tensor() const {
+            return m_tensor;
+        }
+
+        const void* rawPtr() const {
+            return m_tensor->get_memory()->getData();
+        }
+
+        MemMngrPtr currentMemMngr() const {
+            return m_buffers[m_buffIndx];
+        }
+
+        MemMngrPtr nextMemMngr() {
+            m_buffIndx ^= 0x1;
+            if (!m_buffers[m_buffIndx]) {
+                m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+            }
+            return m_buffers[m_buffIndx];
+        }
+
+        void update() {
+            m_proxyMemMngr->setMemMngr(currentMemMngr());
+            m_blob->allocate(); // WA: update handle
+        }
+
+    private:
+        std::shared_ptr<Tensor> m_tensor = nullptr;
+        InferenceEngine::Blob::Ptr m_blob = nullptr;
+        ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
+        std::array<MemMngrPtr, 2> m_buffers;
+        int m_buffIndx = 0;
+    };
+
+protected:
     virtual void initBlobs() = 0;
     virtual void PushInputData() = 0;
 
     Graph* graph = nullptr;
-    std::unordered_map<std::string, void*> externalPtr;
+    std::unordered_map<std::string, InferenceEngine::Blob::Ptr> externalPtr;
+
+    std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
 private:
     void PushStates();
@@ -84,7 +139,6 @@ public:
 private:
     void PushInputData() override;
     void initBlobs() override;
-    void SetBatch(int batch = -1) override;
     void changeDefaultPtr() override;
 };
 
@@ -97,6 +151,8 @@ public:
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
     void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batched_blob) override;
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+
+    void checkBlobs() override;
 
 private:
     void PushInputData() override;

@@ -6,10 +6,13 @@
 
 #include <cpp/ie_infer_request.hpp>
 
+#include "openvino/core/deprecated.hpp"
+
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(VariableStateCPPTests, throwsOnUninitializedReset) {
     VariableState req;

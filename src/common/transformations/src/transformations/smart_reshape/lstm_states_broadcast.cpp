@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"

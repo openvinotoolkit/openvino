@@ -4,6 +4,7 @@
 
 #include "ngraph/builder/make_constant.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace builder {
 std::shared_ptr<Node> make_constant_from_double(const element::Type& type, const Shape& shape, double num) {

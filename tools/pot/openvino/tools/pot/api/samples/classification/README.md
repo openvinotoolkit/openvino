@@ -6,14 +6,14 @@ This example demonstrates the use of the :doc:`Post-training Optimization Tool A
 The `MobilenetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-1.0-224>`__ model from TensorFlow is used for this purpose.
 A custom ``DataLoader`` is created to load the `ImageNet <http://www.image-net.org/>`__ classification dataset and the implementation of Accuracy at top-1 metric is used for the model evaluation. The code of the example is available on `GitHub <https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/classification>`__.
 
-How to prepare the data
+How to Prepare the Data
 #######################
 
 To run this example, you need to `download <https://image-net.org/download.php>`__ the validation part of the ImageNet image database and place it in a separate folder, 
-which will be later referred as ``<IMAGES_DIR>``. Annotations to images should be stored in a separate .txt file (``<IMAGENET_ANNOTATION_FILE>``) in the format ``image_name label``.
+which will be later referred to as ``<IMAGES_DIR>``. Annotations to images should be stored in a separate .txt file (``<IMAGENET_ANNOTATION_FILE>``) in the format ``image_name label``.
 
 
-How to Run the example
+How to Run the Example
 ######################
 
 1. Launch :doc:`Model Downloader <omz_tools_downloader>` tool to download ``mobilenet-v2-1.0-224`` model from the Open Model Zoo repository.

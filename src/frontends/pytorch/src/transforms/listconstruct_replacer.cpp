@@ -9,7 +9,11 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/select.hpp"
@@ -52,6 +56,13 @@ ListConstructReplacer::ListConstructReplacer() {
     auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
     // aten::split_with_sizes case
     auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list});
+    // aten::upsample... case inside the body when body was removed
+    auto interpolate_convert_op = pattern::wrap_type<v0::Convert>({list});
+    auto interpolate_mul_op = pattern::wrap_type<v1::Multiply>({interpolate_convert_op, pattern::any_input()});
+    auto interpolate_op =
+        pattern::wrap_type<v11::Interpolate>({pattern::any_input(), interpolate_mul_op, pattern::any_input()});
+    // aten::randint case
+    auto rand_op = pattern::wrap_type<v8::RandomUniform>({list, pattern::any_input(), pattern::any_input()});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,
@@ -61,7 +72,9 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      select_op,
                                                                      tile_op,
                                                                      transpose_op,
-                                                                     vsplit_op});
+                                                                     vsplit_op,
+                                                                     interpolate_op,
+                                                                     rand_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -70,6 +83,7 @@ ListConstructReplacer::ListConstructReplacer() {
         // Concatenation is possible because all elements in list should be scalar or 1D tensors,
         // result should be 1D tensor.
         OutputVector inputs;
+        ov::pass::NodeRegistry rg;
         auto neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
         const auto& start_output = list_node->output(0);
         for (const auto& input : get_list_as_outputs(start_output)) {
@@ -81,16 +95,16 @@ ListConstructReplacer::ListConstructReplacer() {
             auto rank = input.get_partial_shape().rank();
             if (rank.is_static() && rank.get_length() > 1) {
                 // if list elements of rank higher then 1D we cannot resolve it
+                add_exception_to_fw_node(list, "unsupported list: all inputs must be 1D.");
                 return false;
             }
             // reshape all elements to 1D
-            auto reshape = std::make_shared<v1::Reshape>(input, neg_1, false);
+            auto reshape = rg.make<v1::Reshape>(input, neg_1, false);
             inputs.push_back(reshape);
         }
-        auto concat = std::make_shared<v0::Concat>(inputs, 0);
-        copy_runtime_info({list_node}, concat);
+        auto concat = rg.make<v0::Concat>(inputs, 0);
+        copy_runtime_info_and_name(list_node, rg.get());
         replace_node(list_node, concat);
-        concat->set_friendly_name(list_node->get_friendly_name());
         return true;
     };
     auto m = std::make_shared<pattern::Matcher>(lc_pattern, "ov::frontend::pytorch::pass::ListConstructReplacer");

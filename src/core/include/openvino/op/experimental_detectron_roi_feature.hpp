@@ -52,13 +52,12 @@ public:
         return m_attrs;
     }
 
+    ///@brief Set the ExperimentalDetectronROIFeatureExtractor's attributes.
+    ///@param attrs  Attributes to set.
+    void set_attrs(Attributes attrs);
+
 private:
     Attributes m_attrs;
-
-    template <class T>
-    friend void shape_infer(const ExperimentalDetectronROIFeatureExtractor* op,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

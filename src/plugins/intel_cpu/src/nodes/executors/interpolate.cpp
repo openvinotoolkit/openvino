@@ -62,17 +62,17 @@ void ov::intel_cpu::InterpolateExecutor::buildTblNN(const SizeVector& srcDimPad5
     bool isDDownsample = (fz < 1) ? true : false;
     bool isHDownsample = (fy < 1) ? true : false;
     bool isWDownsample = (fx < 1) ? true : false;
-    for (int oz = 0; oz < OD; oz++) {
+    for (int oz = 0; oz < static_cast<int>(OD); oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         indexTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
         indexTable[oz] = clipCoord(indexTable[oz], ID);
     }
-    for (int oy = 0; oy < OH; oy++) {
+    for (int oy = 0; oy < static_cast<int>(OH); oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         indexTable[OD + oy] = nearestRound(iy, isHDownsample, nearestMode);
         indexTable[OD + oy] = clipCoord(indexTable[OD + oy], IH);
     }
-    for (int ox = 0; ox < OW; ox++) {
+    for (int ox = 0; ox < static_cast<int>(OW); ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         indexTable[OD + OH + ox] = nearestRound(ix, isWDownsample, nearestMode);
         indexTable[OD + OH + ox] = clipCoord(indexTable[OD + OH + ox], IW);
@@ -317,7 +317,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const SizeVector& srcDim
         int *idxOH = static_cast<int*>(&idxTable[sizeOD]);
         int *idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
-        for (int oz = 0; oz < OD; oz++) {
+        for (int oz = 0; oz < static_cast<int>(OD); oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
             int iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
@@ -330,7 +330,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const SizeVector& srcDim
                 }
             }
         }
-        for (int oy = 0; oy < OH; oy++) {
+        for (int oy = 0; oy < static_cast<int>(OH); oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
             int iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
@@ -343,7 +343,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const SizeVector& srcDim
                 }
             }
         }
-        for (int ox = 0; ox < OW; ox++) {
+        for (int ox = 0; ox < static_cast<int>(OW); ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
             int ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
@@ -451,7 +451,7 @@ inline SizeVector getBlockND(const SizeVector& shape) {
 }
 
 const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(src[0]->GetData());
+    const uint8_t *src_data_origin = reinterpret_cast<uint8_t*>(src[0]->getData());
 
     const auto &srcDim = src[0]->getStaticDims();
     const auto &dstDim = dst[0]->getStaticDims();

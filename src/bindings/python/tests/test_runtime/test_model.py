@@ -7,12 +7,11 @@ import numpy as np
 import pytest
 import math
 
-import openvino.runtime.opset8 as ops
-from openvino.runtime import (
+import openvino.runtime.opset12 as ops
+from openvino import (
     Core,
     Model,
     Tensor,
-    Output,
     Dimension,
     Layout,
     Type,
@@ -22,6 +21,7 @@ from openvino.runtime import (
     get_batch,
     serialize,
 )
+from openvino.runtime import Output
 
 from tests.test_utils.test_utils import generate_add_model, create_filename_for_test
 
@@ -620,3 +620,40 @@ def test_serialize_complex_rt_info(request, tmp_path):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+def test_model_add_remove_result_parameter_sink():
+    param = ops.parameter(PartialShape([1]), dtype=np.float32, name="param")
+    relu1 = ops.relu(param, name="relu1")
+    relu2 = ops.relu(relu1, name="relu2")
+    result = ops.result(relu2, "res")
+    model = Model([result], [param], "TestModel")
+
+    result2 = ops.result(relu2, "res2")
+    model.add_results([result2])
+
+    results = model.get_results()
+    assert len(results) == 2
+    assert results[0].get_output_element_type(0) == Type.f32
+    assert results[0].get_output_partial_shape(0) == PartialShape([1])
+
+    model.remove_result(result)
+    assert len(model.results) == 1
+
+    param1 = ops.parameter(PartialShape([1]), name="param1")
+    model.add_parameters([param1])
+
+    params = model.parameters
+    assert (params[0].get_partial_shape()) == PartialShape([1])
+    assert len(params) == 2
+
+    model.remove_parameter(param)
+    assert len(model.parameters) == 1
+
+    assign = ops.assign()
+    model.add_sinks([assign])
+
+    assign_nodes = model.sinks
+    assert ["Assign"] == [sink.get_type_name() for sink in assign_nodes]
+    model.remove_sink(assign)
+    assert len(model.sinks) == 0

@@ -15,7 +15,11 @@ namespace cldnn {
 struct resample : public primitive_base<resample> {
     CLDNN_DECLARE_PRIMITIVE(resample)
 
-    using InterpolateOp = ov::op::v4::Interpolate;
+    resample() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    using InterpolateOp = ov::op::util::InterpolateBase;
 
     /// @brief Constructs Resample primitive.
     /// @param id This primitive id.
@@ -186,6 +190,40 @@ struct resample : public primitive_base<resample> {
                cmp_fields(coord_trans_mode) &&
                cmp_fields(round_mode);
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<resample>::save(ob);
+        ob << output_size;
+        ob << num_filter;
+        ob << sizes;
+        ob << scales;
+        ob << axes;
+        ob << pads_begin;
+        ob << pads_end;
+        ob << make_data(&operation_type, sizeof(InterpolateOp::InterpolateMode));
+        ob << make_data(&shape_calc_mode, sizeof(InterpolateOp::ShapeCalcMode));
+        ob << antialias;
+        ob << cube_coeff;
+        ob << make_data(&coord_trans_mode, sizeof(InterpolateOp::CoordinateTransformMode));
+        ob << make_data(&round_mode, sizeof(InterpolateOp::NearestMode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<resample>::load(ib);
+        ib >> output_size;
+        ib >> num_filter;
+        ib >> sizes;
+        ib >> scales;
+        ib >> axes;
+        ib >> pads_begin;
+        ib >> pads_end;
+        ib >> make_data(&operation_type, sizeof(InterpolateOp::InterpolateMode));
+        ib >> make_data(&shape_calc_mode, sizeof(InterpolateOp::ShapeCalcMode));
+        ib >> antialias;
+        ib >> cube_coeff;
+        ib >> make_data(&coord_trans_mode, sizeof(InterpolateOp::CoordinateTransformMode));
+        ib >> make_data(&round_mode, sizeof(InterpolateOp::NearestMode));
     }
 };
 }  // namespace cldnn

@@ -43,14 +43,13 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
     ov::op::v1::Select op;
     op.set_auto_broadcast(desc->broadcast_spec);
 
-    std::vector<ShapeType> output_shapes = { ShapeType{} };
     std::vector<ShapeType> input_shapes = {
         input0_layout.get<ShapeType>(),
         input1_layout.get<ShapeType>(),
         input2_layout.get<ShapeType>()
     };
 
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
 
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
@@ -64,7 +63,7 @@ std::string select_inst::to_string(select_node const& node) {
     std::stringstream primitive_description;
 
     json_composite select_info;
-    for (size_t i = 0; i < node.inputs_count(); i++) {
+    for (size_t i = 0; i < node.get_inputs_count(); i++) {
         select_info.add("input_" + std::to_string(i), node.input(i).id());
     }
 

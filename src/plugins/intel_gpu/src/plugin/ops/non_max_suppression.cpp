@@ -64,9 +64,9 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
     };
 
     if (p.use_new_shape_infer()) {
-        auto nonMaxSupressionLayerName = layer_type_name_ID(op);
+        auto nonMaxSuppressionLayerName = layer_type_name_ID(op);
         auto prim = cldnn::non_max_suppression(
-                nonMaxSupressionLayerName,
+                nonMaxSuppressionLayerName,
                 reordered_inputs[0],
                 reordered_inputs[1],
                 0,
@@ -83,7 +83,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             case 4: prim.iou_threshold = reordered_inputs[3].pid;
             case 3: prim.num_select_per_class = reordered_inputs[2].pid;
             case 2: break;
-            default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
         }
 
         p.add_primitive(*op, prim);
@@ -105,11 +105,11 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
                 shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutSecond));
 
-                cldnn::primitive_id non_max_supression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
-                auto nms_mutable_prim_second = cldnn::mutable_data(non_max_supression_mutable_id_w_second,
+                cldnn::primitive_id non_max_suppression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
+                auto nms_mutable_prim_second = cldnn::mutable_data(non_max_suppression_mutable_id_w_second,
                                                                    shared_memory.back());
                 p.add_primitive(*op, nms_mutable_prim_second);
-                inputs.push_back(cldnn::input_info(non_max_supression_mutable_id_w_second));
+                inputs.push_back(cldnn::input_info(non_max_suppression_mutable_id_w_second));
             }
             case 2: {
                 auto mutable_precision_first = op->get_output_element_type(1);
@@ -121,20 +121,20 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                 GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
                 shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutFirst));
 
-                cldnn::primitive_id non_max_supression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
-                auto nms_mutable_prim_first = cldnn::mutable_data(non_max_supression_mutable_id_w_first,
+                cldnn::primitive_id non_max_suppression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
+                auto nms_mutable_prim_first = cldnn::mutable_data(non_max_suppression_mutable_id_w_first,
                                                                   shared_memory.back());
                 p.add_primitive(*op, nms_mutable_prim_first);
-                inputs.push_back(cldnn::input_info(non_max_supression_mutable_id_w_first));
+                inputs.push_back(cldnn::input_info(non_max_suppression_mutable_id_w_first));
             }
             case 1: break;
-            default: IE_THROW() << "Incorrect number of output for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of output for layer: ", op->get_friendly_name());
         }
 
-        auto nonMaxSupressionLayerName = num_outputs > 1 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
+        auto nonMaxSuppressionLayerName = num_outputs > 1 ? layer_type_name_ID(op) + ".out0" : layer_type_name_ID(op);
 
         auto prim = cldnn::non_max_suppression(
-                nonMaxSupressionLayerName,
+                nonMaxSuppressionLayerName,
                 reordered_inputs[0],
                 reordered_inputs[1],
                 static_cast<int>(outputIndices),
@@ -150,7 +150,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
             case 4: prim.iou_threshold = reordered_inputs[3].pid;
             case 3: prim.num_select_per_class = reordered_inputs[2].pid;
             case 2: break;
-            default: IE_THROW() << "Incorrect number of input primitives for layer: " << op->get_friendly_name();
+            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
         }
 
         switch (num_outputs) {
@@ -163,16 +163,16 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
 
         switch (num_outputs) {
             case 3: {
-                cldnn::primitive_id non_max_supression_id_r_second = layer_type_name_ID(op) + ".out2";
-                auto nms_mutable_prim_r_second = cldnn::mutable_data(non_max_supression_id_r_second,
-                                                                     { cldnn::input_info(nonMaxSupressionLayerName) },
+                cldnn::primitive_id non_max_suppression_id_r_second = layer_type_name_ID(op) + ".out2";
+                auto nms_mutable_prim_r_second = cldnn::mutable_data(non_max_suppression_id_r_second,
+                                                                     { cldnn::input_info(nonMaxSuppressionLayerName) },
                                                                      shared_memory.front());
                 p.add_primitive(*op, nms_mutable_prim_r_second);
             }
             case 2: {
-                cldnn::primitive_id non_max_supression_id_r_first = layer_type_name_ID(op) + ".out1";
-                auto nms_mutable_prim_r_first = cldnn::mutable_data(non_max_supression_id_r_first,
-                                                                    { cldnn::input_info(nonMaxSupressionLayerName) },
+                cldnn::primitive_id non_max_suppression_id_r_first = layer_type_name_ID(op) + ".out1";
+                auto nms_mutable_prim_r_first = cldnn::mutable_data(non_max_suppression_id_r_first,
+                                                                    { cldnn::input_info(nonMaxSuppressionLayerName) },
                                                                     shared_memory.back());
                 p.add_primitive(*op, nms_mutable_prim_r_first);
             }

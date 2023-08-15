@@ -40,7 +40,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
-if (TARGET inference_engine_snippets)
+if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
@@ -63,8 +63,8 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 openvino::pugixml
-                funcTestUtils
-                ngraph_test_util
+                common_test_utils
+                func_test_utils
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses

@@ -18,8 +18,10 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;
@@ -68,14 +70,18 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
 }
 
 /**
- * @brief Check if all indicies in 1-D input shape are ignored by masks.
+ * @brief Check if all indices in 1-D input shape are ignored by masks.
  *
- * @param shape        Indicies shape (assume compatible 1-D shape).
- * @param ignored_mask Axis set of ignored indicies.
+ * @param shape        Indices shape (assume compatible 1-D shape).
+ * @param ignored_mask Axis set of ignored indices.
  * @return True if all ignored other wise false.
  */
-bool all_indicies_ignored(const ov::PartialShape& shape, const AxisSet& ignore_mask) {
-    return shape.rank().is_static() && ov::cmp::le(shape[0].get_interval().get_max_val(), ignore_mask.size());
+bool all_indices_ignored(const ov::PartialShape& shape, const std::vector<int64_t>& ignore_mask) {
+    auto ignored = shape.rank().is_static() && ov::cmp::le(shape[0].get_interval().get_max_val(), ignore_mask.size());
+    for (size_t i = 0; ignored && i < static_cast<size_t>(shape[0].get_interval().get_max_val()); ++i) {
+        ignored = static_cast<bool>(ignore_mask[i]);
+    }
+    return ignored;
 }
 }  // namespace
 
@@ -152,9 +158,8 @@ void op::v1::StridedSlice::validate_and_infer_types() {
     OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    auto output_shapes = std::vector<ov::PartialShape>(1, PartialShape::dynamic());
 
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -183,8 +188,10 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace strided_slice {
 namespace {
+OPENVINO_SUPPRESS_DEPRECATED_START
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
 {
@@ -222,6 +229,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                            ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 }  // namespace strided_slice
 
@@ -249,13 +257,12 @@ bool op::v1::StridedSlice::has_evaluate() const {
     return get_input_size() == 4;
 }
 
-bool op::v1::StridedSlice::indicies_input_has_and_set_bounds(const size_t port,
-                                                             const std::vector<int64_t>& masks) const {
+bool op::v1::StridedSlice::indices_input_has_and_set_bounds(const size_t port, const std::vector<int64_t>& mask) const {
     const auto& lb_t = get_input_tensor(port).get_lower_value();
     const auto& ub_t = get_input_tensor(port).get_upper_value();
 
-    const auto mask_set = convert_mask_to_axis_set(masks);
-    bool valid_bounds = all_indicies_ignored(get_input_partial_shape(port), mask_set);
+    const auto mask_set = convert_mask_to_axis_set(mask);
+    bool valid_bounds = all_indices_ignored(get_input_partial_shape(port), mask);
 
     if (!valid_bounds && lb_t && ub_t) {
         using TCast = int64_t;
@@ -274,49 +281,69 @@ bool op::v1::StridedSlice::indicies_input_has_and_set_bounds(const size_t port,
 }
 
 bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
-    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
-           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+    return indices_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indices_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
-    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
-           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+    return indices_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indices_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_label(TensorLabelVector& output_labels) const {
-    return indicies_input_has_and_set_bounds(1, get_begin_mask()) &&
-           indicies_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
+    return indices_input_has_and_set_bounds(1, get_begin_mask()) &&
+           indices_input_has_and_set_bounds(2, get_end_mask()) && get_input_tensor(3).has_and_set_bound() &&
            default_label_evaluator(this, {0}, output_labels);
 }
 
 bool op::v1::StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     auto is_folded = Node::constant_fold(output_values, inputs_values);
-    if (!is_folded) {
-        // If all ignore mask are set for all begin or end then replace this input by dummy constant
-        // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignore).
-        auto get_indicies_input = [&inputs_values](size_t port, AxisSet&& mask) -> Output<Node> {
-            return all_indicies_ignored(inputs_values[port].get_partial_shape(), mask)
-                       ? std::make_shared<op::v0::Constant>(inputs_values[port].get_element_type(),
-                                                            Shape{mask.size()},
-                                                            0)
-                       : inputs_values[port];
+    if (!is_const_fold_disabled() && !is_folded) {
+        // If all ignored mask are set for all begin or end then replace this input by dummy constant
+        // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignored).
+        auto get_indices_input = [&inputs_values](size_t port, const std::vector<int64_t>& mask) -> Output<Node> {
+            const auto& port_shape = inputs_values[port].get_partial_shape();
+            const auto& data_shape = inputs_values[0].get_partial_shape();
+
+            size_t size;
+            if (port_shape.rank().is_static() && port_shape[0].is_static())
+                size = static_cast<size_t>(port_shape[0].get_length());
+            else if (data_shape.rank().is_static())
+                size = data_shape.size();
+            else
+                size = mask.size();
+
+            const auto& zero_constant =
+                make_shared<ov::opset1::Constant>(inputs_values[port].get_element_type(), ov::Shape{size}, 0);
+            return all_indices_ignored(inputs_values[port].get_partial_shape(), mask) ? zero_constant
+                                                                                      : inputs_values[port];
         };
 
-        const auto& begin = get_indicies_input(1, convert_mask_to_axis_set(get_begin_mask()));
-        const auto& end = get_indicies_input(2, convert_mask_to_axis_set(get_end_mask()));
+        const auto& begin = get_indices_input(1, get_begin_mask());
+        const auto& end = get_indices_input(2, get_end_mask());
 
         const auto& output =
             ((&begin != &inputs_values[1]) || (&end != &inputs_values[2]))
                 ? clone_with_new_inputs(OutputVector{inputs_values[0], begin, end, inputs_values[3]})->output(0)
                 : this->output(0);
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto c = ov::get_constant_from_source(output)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
-            output_values[0] = c;
-            is_folded = true;
+        std::vector<Node*> nodes;
+        // Check if bounds can be evaluated and none of output nodes have disabled constant folding.
+        if (ov::could_propagate(output, nodes) && std::none_of(nodes.begin(), nodes.end(), [](const Node* n) {
+                return ov::pass::constant_folding_is_disabled(n);
+            })) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            if (const auto c = ov::get_constant_from_source(output)) {
+                OPENVINO_SUPPRESS_DEPRECATED_END
+                output_values[0] = c;
+                auto output_ptr = output_values[0].get_node_shared_ptr();
+                for (const auto& n : nodes) {
+                    copy_runtime_info(n->shared_from_this(), output_ptr);
+                }
+                is_folded = true;
+            }
         }
     }
     return is_folded;

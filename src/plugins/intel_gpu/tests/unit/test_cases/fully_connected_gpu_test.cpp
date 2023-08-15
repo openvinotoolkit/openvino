@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -60,10 +61,11 @@ VVVVF<T> fully_connected_reference(VVVVF<T> &input, VVVVF<T> &weights, VF<T> &bi
 template <typename T>
 void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format test_weights_fmt,
                                   int input_b, int f, int y, int x, int output_f, bool relu, T slope = 0) {
+    tests::random_generator rg(GET_SUITE_NAME);
     int min_random = -2, max_random = 2;
-    VVVVF<T> input_rnd = generate_random_4d<T>(input_b, f, y, x, min_random, max_random);
-    VVVVF<T> weights_rnd = generate_random_4d<T>(output_f, f, y, x, min_random, max_random);
-    VF<T> bias_rnd_vec = generate_random_1d<T>(output_f, min_random, max_random);
+    VVVVF<T> input_rnd = rg.generate_random_4d<T>(input_b, f, y, x, min_random, max_random);
+    VVVVF<T> weights_rnd = rg.generate_random_4d<T>(output_f, f, y, x, min_random, max_random);
+    VF<T> bias_rnd_vec = rg.generate_random_1d<T>(output_f, min_random, max_random);
     VF<T> input_rnd_vec = flatten_4d<T>(test_input_fmt, input_rnd);
     VF<T> weights_rnd_vec = flatten_4d<T>(test_weights_fmt, weights_rnd);
 
@@ -716,6 +718,7 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
 
 TEST(fully_connected_gpu, b_fs_yx_fsv4)
 {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     const int in_B = 2;
@@ -781,8 +784,8 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     auto input_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, W_B, 1, 1 } });
     auto output_low_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
     auto output_high_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    set_values(input_low_mem,  generate_random_1d<float>(W_B, -200, 0));
-    set_values(input_high_mem, generate_random_1d<float>(W_B, 1, 200));
+    set_values(input_low_mem,  rg.generate_random_1d<float>(W_B, -200, 0));
+    set_values(input_high_mem, rg.generate_random_1d<float>(W_B, 1, 200));
     set_values(output_low_mem, { -127.0f });
     set_values(output_high_mem, { 127.0f });
 
@@ -846,9 +849,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
-    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
@@ -922,9 +926,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     auto bias_prim = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, output_f, 1 } });
 
     // Generate random input data and set values
-    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
-    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
-    auto bias_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto input_data = rg.generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto weights_data = rg.generate_random_4d<FLOAT16>(output_f, input_f, input_y, input_x, -1, 1);
+    auto bias_data = rg.generate_random_1d<FLOAT16>(output_f, -1, 1);
 
     auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
@@ -988,6 +993,12 @@ using fully_connected_test_params = std::tuple<
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_f;
@@ -998,9 +1009,9 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         std::tie(batch, dims, output_f, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
-        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
-        auto weights_data = generate_smart_random_4d<WeightsT>(output_f, input_f, input_y, input_x);
-        auto bias_data = generate_smart_random_2d<BiasT>(1, output_f);
+        auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
+        auto weights_data = rg.generate_random_4d<WeightsT>(output_f, input_f, input_y, input_x, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
+        auto bias_data = rg.generate_random_2d<BiasT>(1, output_f, type_test_ranges<BiasT>::min, type_test_ranges<BiasT>::max, type_test_ranges<BiasT>::k);
 
         auto& eng = get_test_engine();
         auto net = network_test(eng);
@@ -1111,6 +1122,12 @@ INSTANTIATE_TEST_SUITE_P(
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         shared_dims dims;
         size_t batch, input_f, input_x, input_y, output_y;
@@ -1121,9 +1138,9 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         std::tie(batch, dims, output_y, input_format, output_format, kernel, is_caching_test) = GetParam();
         std::tie(input_f, input_x, input_y) = dims;
 
-        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
-        auto weights_data = generate_smart_random_4d<WeightsT>(output_y, input_y, 1, 1);
-        auto bias_data = generate_smart_random_2d<BiasT>(1, output_y);
+        auto input_data = rg.generate_random_4d<InputT>(batch, input_f, input_y, input_x, type_test_ranges<InputT>::min, type_test_ranges<InputT>::max, type_test_ranges<InputT>::k);
+        auto weights_data = rg.generate_random_4d<WeightsT>(output_y, input_y, 1, 1, type_test_ranges<WeightsT>::min, type_test_ranges<WeightsT>::max, type_test_ranges<WeightsT>::k);
+        auto bias_data = rg.generate_random_2d<BiasT>(1, output_y, type_test_ranges<BiasT>::min, type_test_ranges<BiasT>::max, type_test_ranges<BiasT>::k);
 
         auto& eng = get_test_engine();
         auto net = network_test(eng);
@@ -1481,25 +1498,17 @@ VVF<OutputT> ref_fully_connected(
     return output;
 }
 
-namespace {
-    template<typename T>
-    std::vector<T> generate_random_values(size_t a, int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    // 1/k is the resolution of the floating point numbers
-    std::uniform_int_distribution<int> distribution(min, max);
-    std::vector<T> v(a);
-
-    for (size_t i = 0; i < a; ++i) {
-        v[i] = (T)distribution(generator);
-    }
-    return v;
-    }
-} // namespace
 
 template <typename InputT, typename OutputT>
 class fc_quantized_random_test
     : public fully_connected_quantized_test<InputT, OutputT>
     , public ::testing::WithParamInterface< fully_connected_quantized_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
 public:
     void run_random_test() {
         size_t b, in_f, in_x, in_y, out_f;
@@ -1507,13 +1516,13 @@ public:
 
         std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
 
-        VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
-        VVVVF<int8_t> weights_data = generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
-        VF<int> bias_data = generate_random_1d<int>(out_f, -127, 127);
+        VVVVF<InputT> input_data = rg.generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
+        VVVVF<int8_t> weights_data = rg.generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
+        VF<int> bias_data = rg.generate_random_1d<int>(out_f, -127, 127);
         bool is_unsigned = std::is_same<OutputT, uint8_t>::value;
         quantization_t quant_data;
-        quant_data.input_low   = generate_random_values<float>(out_f, -200, 0);
-        quant_data.input_high  = generate_random_values<float>(out_f, 1, 200);
+        quant_data.input_low   = rg.generate_random_1d<float>(out_f, -200, 0);
+        quant_data.input_high  = rg.generate_random_1d<float>(out_f, 1, 200);
         quant_data.output_low  = is_unsigned ? 0.0f   : -127.0f;
         quant_data.output_high = is_unsigned ? 255.0f : 127.0f;
         quant_data.levels      = is_unsigned ? 256    : 255;
@@ -1729,8 +1738,8 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();
@@ -1890,6 +1899,111 @@ TEST(fully_connected_gpu, dynamic) {
     ASSERT_EQ(0.75f, output_ptr[1]);
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
+}
+
+TEST(fully_connected_gpu, dynamic_6d_input) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 1, input_f = 3, input_w = 2, input_z = 1, input_y = 1, input_x = 4;
+    const int32_t weight_b = 2;
+
+    auto input_dyn_layout = layout{ov::PartialShape{ov::Dimension(-1), input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx};
+    auto input_data = engine.allocate_memory(layout{ov::PartialShape{input_b, input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx});
+    auto weights_data = engine.allocate_memory({ov::PartialShape{weight_b, input_x}, data_types::f32, format::bfyx });
+
+    set_values(input_data, {-0.5f, 2.0f, 0.5f, 1.f,  -1.5f, 2.0f, 0.5f, 1.f,
+                            -0.5f, 2.5f, 0.5f, 1.f,  -0.5f, 3.0f, 0.5f, 1.f,
+                            -0.5f, 2.0f, 0.5f, 1.f,  -0.5f, 2.0f, 2.5f, 1.f});
+    set_values(weights_data, {1.5f, 1.0f, -1.0f, 0.0f,
+                              0.5f, -0.5f, -0.5f, 1.0f, });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank())
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
+    ASSERT_EQ(out_l.batch(), 1);
+    ASSERT_EQ(out_l.feature(), 3);
+    ASSERT_EQ(out_l.spatial(0), 2);
+    ASSERT_EQ(out_l.spatial(1), 1);
+    ASSERT_EQ(out_l.spatial(2), 1);
+    ASSERT_EQ(out_l.spatial(3), 2);
+
+    std::vector<float> expected_output = {
+        0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5
+    };
+
+    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+    for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
+        ASSERT_EQ(expected_output[i], output_ptr[i]);
+    }
+}
+
+TEST(fully_connected_gpu, static_6d_input) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_b = 1, input_f = 3, input_w = 2, input_z = 1, input_y = 1, input_x = 4;
+    const int32_t weight_b = 2;
+
+    auto input_dyn_layout = layout{ov::PartialShape{input_b, input_f, input_w, input_z, input_y, input_x}, data_types::f32, format::bfwzyx};
+    auto input_data = engine.allocate_memory(input_dyn_layout);
+    auto weights_data = engine.allocate_memory({ov::PartialShape{weight_b, input_x}, data_types::f32, format::bfyx });
+
+    set_values(input_data, {-0.5f, 2.0f, 0.5f, 1.f,  -1.5f, 2.0f, 0.5f, 1.f,
+                            -0.5f, 2.5f, 0.5f, 1.f,  -0.5f, 3.0f, 0.5f, 1.f,
+                            -0.5f, 2.0f, 0.5f, 1.f,  -0.5f, 2.0f, 2.5f, 1.f});
+    set_values(weights_data, {1.5f, 1.0f, -1.0f, 0.0f,
+                              0.5f, -0.5f, -0.5f, 1.0f, });
+
+    cldnn::topology topology{
+        input_layout("input", input_dyn_layout),
+        data("weights", weights_data),
+        fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank()),
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc");
+
+    auto output_prim_mem = outputs.begin()->second.get_memory();
+
+    auto out_l = network.get_output_layout(outputs.begin()->first);
+    ASSERT_EQ(output_prim_mem->get_layout().batch(), 6);
+    ASSERT_EQ(out_l.batch(), 6);
+    ASSERT_EQ(out_l.feature(), 2);
+    ASSERT_EQ(out_l.spatial(0), 1);
+    ASSERT_EQ(out_l.spatial(1), 1);
+
+    std::vector<float> expected_output = {
+        0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5
+    };
+
+    cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+    for (size_t i = 0 ; i < out_l.get_linear_size(); i++) {
+        ASSERT_EQ(expected_output[i], output_ptr[i]);
+    }
 }
 
 TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
@@ -2181,6 +2295,12 @@ using fully_connected_dynamic_test_params = std::tuple<
 
 template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
 struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dynamic_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     void run_test() {
         std::vector<ov::Dimension::value_type> batch_sizes;
         ov::Dimension::value_type input_f;
@@ -2199,10 +2319,10 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), ov::Dimension(), input_f }, input_dt, format::bfyx };
 
         auto weights_mem = engine.allocate_memory({ ov::PartialShape{ output_f, input_f }, weights_dt, format::bfyx });
-        auto weights_data_vec = generate_random_1d<WeightsT>(output_f * input_f, -1, 1);
+        auto weights_data_vec = rg.generate_random_1d<WeightsT>(output_f * input_f, -1, 1);
 
         auto bias_mem = engine.allocate_memory({ ov::PartialShape{ output_f }, output_dt, format::bfyx });
-        auto bias_data_vec = generate_random_1d<OutputT>(output_f, 0, 1);
+        auto bias_data_vec = rg.generate_random_1d<OutputT>(output_f, 0, 1);
 
         set_values(weights_mem, weights_data_vec);
         set_values(bias_mem, bias_data_vec);
@@ -2214,9 +2334,9 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
         };
 
         if (fc_3d)
-            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", padding(), 3));
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt, padding(), 3));
         else
-            topology.add(fully_connected("fc", input_info("input"), "weights", "bias"));
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -2228,7 +2348,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
             if (fc_3d)
                 input_actual_layout = layout{ ov::PartialShape{ 1, batch_size, input_f }, input_dt, format::bfyx };
             cldnn::memory_ptr input_mem = engine.allocate_memory(input_actual_layout);
-            std::vector<InputT> input_data_vec = generate_random_1d<InputT>(batch_size * input_f, 0, 1);
+            std::vector<InputT> input_data_vec = rg.generate_random_1d<InputT>(batch_size * input_f, 0, 1);
             set_values(input_mem, input_data_vec);
             network.set_input_data("input", input_mem);
 
@@ -2392,7 +2512,9 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
     ASSERT_TRUE(reorder_kernel_params != nullptr);
     auto reorder_impl = network.get_program()->get_implementations_cache().get(*reorder_kernel_params);
-    ASSERT_TRUE(reorder_impl != nullptr);
+    // cldnn shape agnostic kernel reorder is done in build time
+    // therefore the reorder is no longer in cache, but the program_node of weight data is in the preferred format
+    ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
     ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
@@ -2408,3 +2530,301 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
 }
+
+template <typename InputT, typename T>
+VVF<T> fully_connected_types_reference(VVVVF<InputT> &input, VVVVF<T> &weights, VF<T> &bias, const quantization_t& quantization, bool relu = false, T slope = 0.0f) {
+    size_t input_f = input[0].size();
+    size_t input_y = input[0][0].size();
+    size_t input_x = input[0][0][0].size();
+    size_t output_b = input.size();         // input is assumed to be bfyx
+    size_t output_f = weights.size();       // weights are assumed to be bfyx
+    VVF<T> output(output_b, VF<T>(output_f));
+    float res;
+    for (size_t b = 0; b < output_b; ++b) {
+        for (size_t n = 0; n < output_f; ++n) {
+            res = bias[n];
+            for (size_t f = 0; f < input_f; ++f) {
+                for (size_t y = 0; y < input_y; ++y) {
+                    for (size_t x = 0; x < input_x; ++x) {
+                        res += (float)input[b][f][y][x] * (float)weights[n][f][y][x];
+                    }
+                }
+            }
+            if (relu && res < (float)0)
+                res *= (float)slope;
+            if (res > quantization.output_high)
+                output[b][n] = quantization.output_high;
+            else {
+                if (res < quantization.output_low)
+                    output[b][n] = quantization.output_low;
+                else
+                    output[b][n] = (T)res;
+            }
+        }
+    }
+    return output;
+}
+
+using fully_connected_types_test_params = std::tuple<
+        size_t,  // batch_num
+        size_t,  // input_f
+        size_t,  // input_x
+        size_t,  // input_y
+        size_t,  // output_f
+        format::type  // format
+>;
+
+template <typename InputT, typename WeightsT>
+class fully_connected_types_test : public ::testing::Test {
+private:
+    size_t batch_num() { return _input.size(); }
+    size_t input_f() { return _input[0].size(); }
+    size_t input_y() { return _input[0][0].size(); }
+    size_t input_x() { return _input[0][0][0].size(); }
+    size_t output_f() { return _weights.size(); }
+
+    data_types input_data_type() {
+        return type_to_data_type<InputT>::value;
+    }
+
+    data_types weights_data_type() {
+        return type_to_data_type<WeightsT>::value;
+    }
+
+    bool has_bias() { return _bias.size() > 0; }
+
+public:
+    static std::string PrintToStringParamName(testing::TestParamInfo<fully_connected_types_test_params> param_info) {
+        // construct a readable name
+        return std::to_string(param_info.index) + "_in_" + std::to_string(testing::get<0>(param_info.param))
+               + "x" + std::to_string(testing::get<1>(param_info.param))
+               + "x" + std::to_string(testing::get<2>(param_info.param))
+               + "x" + std::to_string(testing::get<3>(param_info.param))
+               + "_of_" + std::to_string(testing::get<4>(param_info.param))
+               + "_" + fmt_to_str(testing::get<5>(param_info.param));
+    }
+
+    void set_input(VVVVF<InputT> _data) {
+        _input = std::move(_data);
+    }
+
+    void set_weights(VVVVF<WeightsT> _data) {
+        _weights = std::move(_data);
+    }
+
+    void set_bias(VF<WeightsT> _data) {
+        _bias = std::move(_data);
+    }
+
+    void set_input_format(format::type fmt) {
+        _fmt = fmt;
+    }
+
+    void run_test(VVF<WeightsT> expected) {
+        auto& engine = get_test_engine();
+
+        auto input_size = tensor(TensorValue(batch_num()), TensorValue(input_f()), TensorValue(input_x()), TensorValue(input_y()));
+        auto weights_size = tensor(TensorValue(output_f()), TensorValue(input_f()), TensorValue(input_x()), TensorValue(input_y()));
+
+        auto input_prim = engine.allocate_memory({ input_data_type(), _fmt, input_size });
+        auto weights_prim = engine.allocate_memory({ weights_data_type(), format::bfyx, weights_size });
+
+        VF<InputT> input_flattened(input_prim->get_layout().get_linear_size());
+        for (size_t bi = 0; bi < batch_num(); ++bi)
+            for (size_t fi = 0; fi < input_f(); ++fi)
+                for (size_t yi = 0; yi < input_y(); ++yi)
+                    for (size_t xi = 0; xi < input_x(); ++xi) {
+                        auto idx = tensor((int32_t)bi, (int32_t)fi, (int32_t)xi, (int32_t)yi);
+                        auto offset = input_size.get_linear_offset(idx, _fmt);
+                        input_flattened[offset] = _input[bi][fi][yi][xi];
+                    }
+
+        set_values(input_prim, input_flattened);
+        set_values(weights_prim, flatten_4d(format::bfyx, _weights));
+
+        auto bias_prim = engine.allocate_memory({ weights_data_type(), format::bfyx, tensor(feature(output_f()))});
+        set_values(bias_prim, _bias);
+
+        topology topo;
+        topo.add(data("weights", weights_prim));
+        topo.add(data("bias", bias_prim));
+
+        topo.add(input_layout("input", input_prim->get_layout()));
+
+        auto input_sizes = input_size.sizes();
+        auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
+                                     [](tensor::value_type x) { return x != 1l; });
+        size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
+        auto fc_prim = fully_connected("output", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
+        fc_prim.output_data_types = {type_to_data_type<WeightsT>::value};
+        topo.add(fc_prim);
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network net(engine, topo, config);
+        net.set_input_data("input", input_prim);
+
+        auto output = net.execute();
+        auto out_mem = output.at("output").get_memory();
+        cldnn::mem_lock<WeightsT> out_ptr(out_mem, get_test_stream());
+
+        for (size_t bi = 0; bi < batch_num(); ++bi) {
+            for (size_t fi = 0; fi < output_f(); ++fi) {
+                ASSERT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi << ", output_f() = " << output_f();
+            }
+        }
+    }
+
+private:
+    VVVVF<InputT> _input;
+    VVVVF<WeightsT> _weights;
+    VF<WeightsT> _bias;
+    format::type _fmt;
+};
+
+template <typename InputT, typename WeightsT>
+class fc_random_types_test
+    : public fully_connected_types_test<InputT, WeightsT>
+    , public ::testing::WithParamInterface< fully_connected_types_test_params> {
+public:
+    void run_random_test() {
+        tests::random_generator rg(GET_SUITE_NAME);
+        size_t b, in_f, in_x, in_y, out_f;
+        format::type in_fmt;
+
+        std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
+
+        quantization_t quant_data;
+        quant_data.output_low  = std::numeric_limits<WeightsT>::lowest();
+        quant_data.output_high = std::numeric_limits<WeightsT>::max();
+
+        VVVVF<InputT> input_data = rg.template generate_random_4d<InputT>(b, in_f, in_y, in_x, 0, 127);
+        VVVVF<WeightsT> weights_data = rg.template generate_random_4d<WeightsT>(out_f, in_f, in_y, in_x, quant_data.output_low , quant_data.output_high);
+        VF<WeightsT> bias_data = rg.template generate_random_1d<WeightsT>(out_f, quant_data.output_low , quant_data.output_high);
+
+        this->set_input(input_data);
+        this->set_weights(weights_data);
+        this->set_bias(bias_data);
+        this->set_input_format(in_fmt);
+
+        //this->run_test(ref_fully_connected<WeightsT, float,  InputT, WeightsT>(input_data, weights_data, bias_data, quant_data));
+        this->run_test(fully_connected_types_reference<InputT, WeightsT>(input_data, weights_data, bias_data, quant_data));
+    }
+};
+
+using fully_connected_types_i8_i8_test = fc_random_types_test<int8_t, int8_t>;
+using fully_connected_types_i8_u8_test = fc_random_types_test<int8_t, uint8_t>;
+using fully_connected_types_i8_f32_test = fc_random_types_test<int8_t, float>;
+
+using fully_connected_types_u8_i8_test = fc_random_types_test<uint8_t, int8_t>;
+using fully_connected_types_u8_u8_test = fc_random_types_test<uint8_t, uint8_t>;
+using fully_connected_types_u8_f32_test = fc_random_types_test<uint8_t, float>;
+
+TEST_P(fully_connected_types_i8_i8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_types_i8_u8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_types_i8_f32_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_types_u8_i8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_types_u8_u8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_types_u8_f32_test, random) {
+    run_random_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_i8_i8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_i8_i8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_i8_u8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_i8_u8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_i8_f32_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_i8_f32_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_u8_i8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_u8_i8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_u8_u8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_u8_u8_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    fully_connected_types_u8_f32_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 64),
+        testing::Values(1),
+        testing::Values(1),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32)
+    ),
+    fully_connected_types_u8_f32_test::PrintToStringParamName
+);

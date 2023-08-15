@@ -14,6 +14,10 @@ namespace cldnn {
 struct reorg_yolo : public primitive_base<reorg_yolo> {
     CLDNN_DECLARE_PRIMITIVE(reorg_yolo)
 
+    reorg_yolo() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs region_yolo primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -42,6 +46,16 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
         auto rhs_casted = downcast<const reorg_yolo>(rhs);
 
         return stride == rhs_casted.stride;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<reorg_yolo>::save(ob);
+        ob << stride;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<reorg_yolo>::load(ib);
+        ib >> stride;
     }
 };
 }  // namespace cldnn

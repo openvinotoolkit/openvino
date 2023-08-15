@@ -58,13 +58,13 @@ class aten_chunk_getitem(torch.nn.Module):
 
 class TestChunk(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.input_tensor,)
+        return (np.random.rand(*self.input_shape),)
 
-    @pytest.mark.parametrize("input_tensor", [
-        np.random.rand(4, 4),
-        np.random.rand(5, 9, 7),
-        np.random.rand(10, 13, 11),
-        np.random.rand(8, 7, 6, 5, 4),
+    @pytest.mark.parametrize("input_shape", [
+        (4, 4),
+        (5, 9, 7),
+        (10, 13, 11),
+        (8, 7, 6, 5, 4),
     ])
     @pytest.mark.parametrize("chunks", [
         # Does not work for 1 - no list_unpack present in the graph
@@ -75,15 +75,15 @@ class TestChunk(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_chunk(self, input_tensor, chunks, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
+    def test_chunk(self, input_shape, chunks, ie_device, precision, ir_version):
+        self.input_shape = input_shape
         
-        for dim in range(len(input_tensor.shape)):
-            chunk_size = input_tensor.shape[dim] // chunks
-            chunk_size += 1 if input_tensor.shape[dim] % chunks > 0 else 0
+        for dim, dim_shape in enumerate(input_shape):
+            chunk_size = dim_shape // chunks
+            chunk_size += 1 if dim_shape % chunks > 0 else 0
 
-            output_chunks = input_tensor.shape[dim] // chunk_size
-            output_chunks += 1 if input_tensor.shape[dim] % chunk_size > 0 else 0
+            output_chunks = dim_shape // chunk_size
+            output_chunks += 1 if dim_shape % chunk_size > 0 else 0
             
             if output_chunks == 2:
                 cls = aten_chunk_2
@@ -95,10 +95,10 @@ class TestChunk(PytorchLayerTest):
             self._test(cls(dim), None, "aten::chunk", 
                     ie_device, precision, ir_version, dynamic_shapes = False, freeze_model=True, trace_model=True)
     
-    @pytest.mark.parametrize("input_tensor", [
-        np.random.rand(4, 4),
-        np.random.rand(10, 13, 11),
-        np.random.rand(8, 7, 6, 5, 4),
+    @pytest.mark.parametrize("input_shape", [
+        (4, 4),
+        (10, 13, 11),
+        (8, 7, 6, 5, 4),
     ])
     @pytest.mark.parametrize("chunks", [
         2,
@@ -107,16 +107,54 @@ class TestChunk(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_chunk_getitem(self, input_tensor, chunks, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
-        for dim in range(len(input_tensor.shape)):
+    def test_chunk_getitem(self, input_shape, chunks, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+        for dim, dim_shape in enumerate(input_shape):
 
-            chunk_size = input_tensor.shape[dim] // chunks
-            chunk_size += 1 if input_tensor.shape[dim] % chunks > 0 else 0
+            chunk_size = dim_shape // chunks
+            chunk_size += 1 if dim_shape % chunks > 0 else 0
 
-            output_chunks = input_tensor.shape[dim] // chunk_size
-            output_chunks += 1 if input_tensor.shape[dim] % chunk_size > 0 else 0
+            output_chunks = dim_shape // chunk_size
+            output_chunks += 1 if dim_shape % chunk_size > 0 else 0
 
             for idx in [0, 1, output_chunks - 1]:
                 self._test(aten_chunk_getitem(chunks, dim, idx), None, "aten::chunk", 
                             ie_device, precision, ir_version)
+
+
+class aten_chunk_loop_getitem(torch.nn.Module):
+    def __init__(self, num_chunks) -> None:
+        torch.nn.Module.__init__(self)
+        self.num_chunks = num_chunks
+
+    def forward(self, input_tensor):
+        chunks = torch.chunk(torch.arange(
+            input_tensor.shape[0]), self.num_chunks)
+
+        for inds in chunks:
+            input_tensor[inds] *= 10
+        return input_tensor
+
+
+class TestChunkLoopGetitem(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.rand(*self.input_shape),)
+
+    @pytest.mark.parametrize("input_shape", [
+        (4, 4),
+        (5, 9, 7),
+        (10, 13, 11),
+        (8, 7, 6, 5, 4),
+    ])
+    @pytest.mark.parametrize("chunks", [
+        2,
+        3,
+        4
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_chunk_loop_getitem(self, input_shape, chunks, ie_device, precision, ir_version):
+        self.input_shape = input_shape
+
+        self._test(aten_chunk_loop_getitem(chunks), None, ["aten::chunk", "prim::Loop", "aten::__getitem__"],
+                   ie_device, precision, ir_version)

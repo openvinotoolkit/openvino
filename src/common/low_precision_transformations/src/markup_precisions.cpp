@@ -13,6 +13,7 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include "openvino/opsets/opset12.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
@@ -152,6 +153,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const s
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Pad>() },
+        { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
         { name<opset1::Split>() },
@@ -206,6 +208,7 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset6::MVN>() },
         { name<opset1::NormalizeL2>() },
         { name<opset1::Pad>() },
+        { name<ov::opset12::Pad>() },
         { name<opset1::PRelu>() },
         { name<opset1::ReduceMax>() },
         { name<opset1::ReduceMean>() },

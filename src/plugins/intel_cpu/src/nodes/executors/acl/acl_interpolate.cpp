@@ -50,12 +50,8 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     auto dstDims = dstDescs[0]->getShape().getDims();
 
     if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
-        auto mover = [](VectorDims &_shape) {
-            std::swap(_shape[1], _shape[2]);
-            std::swap(_shape[2], _shape[3]);
-        };
-        mover(srcDims);
-        mover(dstDims);
+        changeLayoutToNhwc(srcDims);
+        changeLayoutToNhwc(dstDims);
     }
 
     auto srcTensorInfo = arm_compute::TensorInfo(shapeCast(srcDims), 1,
@@ -93,7 +89,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
 void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const void *post_ops_data_) {
     auto in_ptr_ = padPreprocess(src, dst);
     srcTensor.allocator()->import_memory(const_cast<void *>(reinterpret_cast<const void *>(in_ptr_)));
-    dstTensor.allocator()->import_memory(dst[0]->GetPtr());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
 
     acl_scale->run();
 
@@ -167,7 +163,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs &interpolateAttrs,
                                                                const std::vector<MemoryDescPtr> &srcDescs,
                                                                const std::vector<MemoryDescPtr> &dstDescs) const {
-    if (srcDescs[0]->getShape().getDims().size() != 4) {
+    if (srcDescs[0]->getShape().getDims().size() != 4u) {
         return false;
     }
 

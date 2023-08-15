@@ -2,6 +2,10 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Equal-1 - an element-wise, comparison operation, which 
+                can be performed on two given tensors in OpenVINO.
+
 **Versioned name**: *Equal-1*
 
 **Category**: *Comparison binary*
@@ -49,7 +53,8 @@ After broadcasting *Equal* does the following with the input tensors *a* and *b*
 
 *Example 1: no broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Equal">
        <data auto_broadcast="none"/>
@@ -73,7 +78,8 @@ After broadcasting *Equal* does the following with the input tensors *a* and *b*
 
 *Example 2: numpy broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Equal">
        <data auto_broadcast="numpy"/>

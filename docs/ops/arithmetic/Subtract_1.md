@@ -2,11 +2,15 @@
 
 @sphinxdirective
 
+.. meta::
+  :description: Learn about Subtract-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Subtract-1*
 
 **Category**: *Arithmetic binary*
 
-**Short description**: *Subtract* performs element-wise subtraction operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
+**Short description**: *Subtract* performs element-wise subtraction operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and ``auto_broadcast`` attribute is not ``none``. Broadcasting is performed according to ``auto_broadcast`` value.
@@ -48,7 +52,8 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
 *Example 1*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Subtract">
         <data auto_broadcast="none"/>
@@ -72,7 +77,8 @@ After broadcasting *Subtract* performs subtraction operation for the input tenso
 
 *Example 2: broadcast*
 
-.. code-block:: cpp 
+.. code-block:: xml
+   :force:
 
     <layer ... type="Subtract">
         <data auto_broadcast="numpy"/>

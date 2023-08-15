@@ -87,7 +87,7 @@ void data_inst::load(BinaryInputBuffer& ib) {
     ib >> make_data(&data_size, sizeof(size_t));
 
     if (!get_network().is_primary_stream()) {
-        _outputs[0] = ib.getConstData(id());
+        _outputs[0] = ib.getConstData(_network.get_local_id(), id());
         auto pos = ib.tellg();
         pos += data_size;
         ib.seekg(pos);
@@ -103,7 +103,7 @@ void data_inst::load(BinaryInputBuffer& ib) {
             _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
         }
 
-        ib.addConstData(id(), _outputs[0]);
+        ib.addConstData(_network.get_local_id(), id(), _outputs[0]);
     }
 }
 
