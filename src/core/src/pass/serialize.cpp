@@ -164,12 +164,12 @@ private:
             auto src_data = reinterpret_cast<const float*>(ptr);
             ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size / 4);
             return new_ptr;
-        } else if (src_type == ov::element::f64) { 
+        } else if (src_type == ov::element::f64) {
             *compressed_size = size / 4;
             auto new_ptr = std::unique_ptr<char[]>(new char[size / 4]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
-            
+
             // FIXME: This is SLOW stub implemenation!
             //#pragma omp parallel for
             for (size_t i = 0; i < size / 8; ++i) {
