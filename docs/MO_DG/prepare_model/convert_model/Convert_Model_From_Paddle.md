@@ -3,8 +3,8 @@
 @sphinxdirective
 
 .. meta::
-   :description: Learn how to convert a model from the
-                 PaddlePaddle format to the OpenVINO Intermediate Representation.
+   :description: Learn how to convert a model from the 
+                 PaddlePaddle format to the OpenVINO Intermediate Representation. 
 
 
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
@@ -40,7 +40,7 @@ Following PaddlePaddle model formats are supported:
 * ``paddle.fluid.dygraph.layers.Layer``
 * ``paddle.fluid.executor.Executor``
 
-Converting certain PaddlePaddle models may require setting ``example_input`` or ``output``. Below examples show how to execute such the conversion.
+Converting certain PaddlePaddle models may require setting ``example_input`` or ``example_output``. Below examples show how to execute such the conversion.
 
 * Example of converting ``paddle.hapi.model.Model`` format model:
 
@@ -49,43 +49,43 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
      import paddle
      from openvino.tools.mo import convert_model
-
+     
      # create a paddle.hapi.model.Model format model
      resnet50 = paddle.vision.models.resnet50()
      x = paddle.static.InputSpec([1,3,224,224], 'float32', 'x')
      y = paddle.static.InputSpec([1,1000], 'float32', 'y')
-
+ 
      model = paddle.Model(resnet50, x, y)
-
+ 
      # convert to OpenVINO IR format
      ov_model = convert_model(model)
-
+ 
      # optional: serialize OpenVINO IR to *.xml & *.bin
      from openvino.runtime import serialize
      serialize(ov_model, "ov_model.xml", "ov_model.bin")
 
 * Example of converting ``paddle.fluid.dygraph.layers.Layer`` format model:
 
-  ``example_input`` is required while ``output`` is optional, which accept the following formats:
+  ``example_input`` is required while ``example_output`` is optional, which accept the following formats:
 
   ``list`` with tensor(``paddle.Tensor``) or InputSpec(``paddle.static.input.InputSpec``)
 
   .. code-block:: py
      :force:
-
+  
      import paddle
      from openvino.tools.mo import convert_model
-
+   
      # create a paddle.fluid.dygraph.layers.Layer format model
      model = paddle.vision.models.resnet50()
      x = paddle.rand([1,3,224,224])
-
+ 
      # convert to OpenVINO IR format
      ov_model = convert_model(model, example_input=[x])
 
 * Example of converting ``paddle.fluid.executor.Executor`` format model:
 
-  ``example_input`` and ``output`` are required, which accept the following formats:
+  ``example_input`` and ``example_output`` are required, which accept the following formats:
 
   ``list`` or ``tuple`` with variable(``paddle.static.data``)
 
@@ -94,21 +94,21 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
 
      import paddle
      from openvino.tools.mo import convert_model
-
+ 
      paddle.enable_static()
-
+ 
      # create a paddle.fluid.executor.Executor format model
      x = paddle.static.data(name="x", shape=[1,3,224])
      y = paddle.static.data(name="y", shape=[1,3,224])
      relu = paddle.nn.ReLU()
      sigmoid = paddle.nn.Sigmoid()
      y = sigmoid(relu(x))
-
+ 
      exe = paddle.static.Executor(paddle.CPUPlace())
      exe.run(paddle.static.default_startup_program())
-
+ 
      # convert to OpenVINO IR format
-     ov_model = convert_model(exe, example_input=[x], output=[y])
+     ov_model = convert_model(exe, example_input=[x], example_output=[y])
 
 Supported PaddlePaddle Layers
 #############################
@@ -168,7 +168,7 @@ The following PaddlePaddle models have been officially validated and confirmed t
      - Models are exported from `PaddleSeg <https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.3>`_. Refer to `model_export.md <https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.3/docs/model_export.md#>`_.
    * - BERT
      - language representation
-     -  Models are exported from `PaddleNLP <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_. Refer to `README.md <https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme>`_.
+     -  Models are exported from `PaddleNLP <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_. Refer to `README.md <https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme>`_.   
 
 Frequently Asked Questions (FAQ)
 ################################
