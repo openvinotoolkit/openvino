@@ -44,6 +44,11 @@ struct Config {
         PER_PLATFORM,
     };
 
+    enum class ModelType {
+        CNN,
+        Unknown
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
@@ -82,7 +87,8 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap &config);
+    void readProperties(const ov::AnyMap &config, ModelType modelType = ModelType::Unknown);
+
     void updateProperties();
 
     std::map<std::string, std::string> _config;

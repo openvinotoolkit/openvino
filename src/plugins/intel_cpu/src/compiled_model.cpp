@@ -15,17 +15,22 @@
 #include "precision_utils.h"
 #include "serialize.h"
 #include "threading/ie_executor_manager.hpp"
+#include "transformations/transformation_pipeline.h"
 #define FIX_62820 0
 #if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #    include <threading/ie_tbb_streams_executor.hpp>
 #endif
+
 #include "ie_ngraph_utils.hpp"
 #include "ie_system_conf.h"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "transformations/utils/utils.hpp"
+
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstring>
 #include <utility>
 
@@ -43,14 +48,12 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 };
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                             const std::shared_ptr<const ov::Model>& orig_model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const Config& cfg,
                              const ExtensionManager::Ptr& extMgr,
                              const bool loaded_from_cache)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
-      m_original_model(orig_model),
       m_plugin(plugin),
       m_cfg{cfg},
       extensionManager(extMgr),
@@ -61,9 +64,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
-        IE_THROW() << "Unable to get API version. Core is unavailable";
+        OPENVINO_THROW("Unable to get API version. Core is unavailable");
     m_cfg.isLegacyApi = !core->is_new_api();
-
 
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
@@ -128,7 +130,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             if (node->getType() == Type::MemoryInput) {
                 auto memoryNode = dynamic_cast<node::MemoryInput*>(node.get());
                 if (!memoryNode) {
-                    IE_THROW() << "Cannot cast " << node->getName() << " to MemoryInput";
+                    OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryInput");
                 }
                 auto state_store = memoryNode->getStore();
                 auto state_name = memoryNode->getId();
@@ -146,11 +148,11 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
 CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
     int streamId = 0;
-    int numaNodeId = 0;
+    int socketId = 0;
     auto streamsExecutor = dynamic_cast<IStreamsExecutor*>(m_task_executor.get());
     if (nullptr != streamsExecutor) {
         streamId = streamsExecutor->get_stream_id();
-        numaNodeId = streamsExecutor->get_numa_node_id();
+        socketId = streamsExecutor->get_socket_id();
     }
     auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
     if (!graphLock._graph.IsReady()) {
@@ -161,8 +163,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::GetGraph() const {
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache =
-                        m_cfg.streamExecutorConfig._streams != 1 ? numaNodesWeights[numaNodeId] : nullptr;
+                    auto weightsCache = m_cfg.streamExecutorConfig._streams != 1 ? m_socketWeights[socketId] : nullptr;
 
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
@@ -354,9 +355,7 @@ ov::Any CompiledModel::get_metric(const std::string& name) const {
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
     ModelSerializer serializer(modelStream, extensionManager);
-    std::pair<const std::shared_ptr<ov::Model>, const std::shared_ptr<const ov::Model>> models =
-        std::make_pair(m_model, m_original_model);
-    serializer << models;
+    serializer << m_model;
 }
 
 }  // namespace intel_cpu

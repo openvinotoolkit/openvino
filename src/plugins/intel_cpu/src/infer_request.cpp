@@ -21,6 +21,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "proxy_mem_mgr.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
@@ -32,34 +33,13 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
       m_compiled_model(compiled_model) {
     m_is_legacy_api = m_compiled_model->GetGraph()._graph.getConfig().isLegacyApi;
 
-    // Precision maybe changed after transformation, need store original input/output port information
-    auto orig_model = m_compiled_model->get_orig_model();
-    for (const auto& in : orig_model->inputs()) {
-        auto port_name = get_port_name(in, m_is_legacy_api);
-        m_orig_ports_map[port_name] = in;
-    }
-    for (const auto& out : orig_model->outputs()) {
-        auto port_name = get_port_name(out, m_is_legacy_api);
-        m_orig_ports_map[port_name] = out;
-    }
-
     for (const auto& in : get_inputs()) {
         auto port_name = get_port_name(in, m_is_legacy_api);
         m_input_ports_map[port_name] = in;
-        if (m_orig_ports_map.find(port_name) == m_orig_ports_map.end()) {
-            OPENVINO_THROW("Input port's name has been changed, cannot find ", port_name);
-        }
-        m_port_precision_changed[port_name] =
-            m_input_ports_map[port_name].get_element_type() != m_orig_ports_map[port_name].get_element_type();
     }
     for (const auto& out : get_outputs()) {
         auto port_name = get_port_name(out, m_is_legacy_api);
         m_output_ports_map[port_name] = out;
-        if (m_orig_ports_map.find(port_name) == m_orig_ports_map.end()) {
-            OPENVINO_THROW("Output port's name has been changed, cannot find ", port_name);
-        }
-        m_port_precision_changed[port_name] =
-            m_output_ports_map[port_name].get_element_type() != m_orig_ports_map[port_name].get_element_type();
     }
     create_infer_request();
 }
@@ -79,8 +59,6 @@ void SyncInferRequest::create_infer_request() {
     }
     for (const auto& it : m_output_ports_map) {
         init_tensor(it.first);
-        // allocate aux tensor for output if output precision has been changed
-        get_tensor(it.second);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
@@ -164,7 +142,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
         if (inputNode == cpuInputNodes.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name.c_str());
         if (inputNode->second->isDynamicNode()) {
-            auto tensor = get_port_tensor(port);
+            auto tensor = get_tensor(port);
             inputNode->second->redefineOutputMemory({tensor->get_shape()});
         }
     }
@@ -181,7 +159,7 @@ void SyncInferRequest::update_external_inputs() {
                            input_name);
         }
         if (external_ptr.find(input_name) != external_ptr.end()) {
-            auto tensor = get_port_tensor(input);
+            auto tensor = get_tensor(input);
             external_ptr[input_name] = tensor;
         }
     }
@@ -219,7 +197,14 @@ void SyncInferRequest::infer() {
 
     throw_if_canceled();
 
-    graph->PullOutputData(m_outputs, m_port_precision_changed, m_aux_tensors);
+    // update output control blocks, if any, in order to refresh internal buffers
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        for (auto&& item : outputControlBlocks) {
+            item.second.update();
+        }
+    }
+
+    graph->PullOutputData(m_outputs);
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
@@ -231,7 +216,7 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 }
 
 static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
-    auto size = tensor->get_byte_size();  // blob->byteSize();
+    auto size = tensor->get_byte_size();
     auto& mem = edge->getMemory();
     auto memMngr = mem.getMemoryMngr();
     IE_ASSERT(memMngr);
@@ -239,93 +224,134 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
 }
 
 void SyncInferRequest::change_default_ptr() {
+    const auto& inputNodesMap = graph->GetInputNodesMap();
+    const auto& outputNodesMap = graph->GetOutputNodesMap();
     for (auto& it : external_ptr) {
-        const auto& inputNodesMap = graph->GetInputNodesMap();
         auto input = inputNodesMap.find(it.first);
-        if (input != inputNodesMap.end()) {
-            NodePtr inputNodePtr = input->second;
-            if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->data()))
-                continue;
-            auto& childEdges = inputNodePtr->getChildEdges();
-            // Perform checks that the user's memory will not be modified
-            bool canBeInPlace = true;
-            for (auto& childEdge : childEdges) {
-                auto ce = childEdge.lock();
-                if (!ce)
-                    OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
-
-                auto& child = ce->getChild();
-
-                if (child->isConstant()) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                // the input memory should be referenced by the children, otherwise it should be written to a
-                // specific location
-                if (ce->inPlace(Edge::LOOK_DOWN)) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                if (auto result = ce->modifiedInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
-
-                if (child->getType() == Type::Concatenation && child->isInPlace()) {
-                    canBeInPlace = false;
-                    break;
-                }
-            }
-            if (canBeInPlace) {
-                for (auto& edge : childEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
-
-                    change_edge_ptr(e, it.second);
-                }
-            }
+        if (inputNodesMap.end() == input) {
+            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob: ", it.first);
             continue;
         }
+        NodePtr inputNodePtr = input->second;
+        if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->data()))
+            continue;
+        auto& childEdges = inputNodePtr->getChildEdges();
+        // Perform checks that the user's memory will not be modified
+        bool canBeInPlace = true;
+        for (auto& childEdge : childEdges) {
+            auto ce = childEdge.lock();
+            if (!ce)
+                OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
 
-        const auto& outputNodesMap = graph->GetOutputNodesMap();
-        auto output = outputNodesMap.find(it.first);
-        if (output != outputNodesMap.end()) {
-            auto parentEdge = output->second->getParentEdgeAt(0);
-            if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->data()))
-                continue;
+            auto& child = ce->getChild();
 
-            bool canBeInPlace = true;
-            void* defaultPtr = parentEdge->getMemory().getData();
-            // Cannot be in-place after concat because concat is using different ptrs without offsets
-            auto parent = parentEdge->getParent();
-            NodePtr previousParent;
-            do {
-                previousParent = parent;
-                if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
-                    canBeInPlace = false;
+            if (child->isConstant()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            // the input memory should be referenced by the children, otherwise it should be written to a
+            // specific location
+            if (ce->inPlace(Edge::LOOK_DOWN)) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (auto result = ce->modifiedInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            if (child->getType() == Type::Concatenation && child->isInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+        }
+        if (canBeInPlace) {
+            for (auto& edge : childEdges) {
+                auto e = edge.lock();
+                if (!e)
+                    OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
+                change_edge_ptr(e, it.second);
+            }
+        }
+    }
+
+    for (auto& it : external_ptr) {
+        const auto& name = it.first;
+        auto output = outputNodesMap.find(name);
+        if (outputNodesMap.end() == output) {
+            continue;
+        }
+        auto parentEdge = output->second->getParentEdgeAt(0);
+        if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->data()))
+            continue;
+
+        bool canBeInPlace = true;
+        void* defaultPtr = parentEdge->getMemory().getData();
+        // Cannot be in-place after concat because concat is using different ptrs without offsets
+        auto parent = parentEdge->getParent();
+        NodePtr previousParent;
+        do {
+            previousParent = parent;
+            if (parent->getChildEdges().size() != 1 || parent->isConstant() || parent->isInPlace()) {
+                canBeInPlace = false;
+                break;
+            }
+
+            auto& parentEdges = parent->getParentEdges();
+            for (auto& edge : parentEdges) {
+                auto e = edge.lock();
+                if (!e)
+                    OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
+
+                if (e->getMemory().getData() == defaultPtr) {
+                    parent = e->getParent();
                     break;
                 }
+            }
+        } while (previousParent != parent);
+        if (canBeInPlace)
+            change_edge_ptr(parentEdge, it.second);
+    }
 
-                auto& parentEdges = parent->getParentEdges();
-                for (auto& edge : parentEdges) {
-                    auto e = edge.lock();
-                    if (!e)
-                        OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
+    if (Graph::Status::ReadyDynamic == graph->getStatus()) {
+        const auto &outMemMngrMap = graph->outputNodesMemMngrMap;
+        for (auto&& item : outMemMngrMap) {
+            const auto& name = item.first;
 
-                    if (e->getMemory().getData() == defaultPtr) {
-                        parent = e->getParent();
-                        break;
+            // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
+            auto outputMemMngr = item.second;
+            OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
+
+            auto controlBlockItr = outputControlBlocks.find(name);
+
+            if (controlBlockItr != outputControlBlocks.end()) {
+                auto output = outputNodesMap.find(name);
+                OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
+                auto parentEdge = output->second->getParentEdgeAt(0);
+                //avoid cyclic memory use
+                auto parentNode = parentEdge->getParent();
+                const auto& parentNodeInpEdges = parentNode->getParentEdges();
+                std::unordered_set<const void*> parentInputPtrs(parentNodeInpEdges.size());
+                for (auto&& edge : parentNodeInpEdges) {
+                    if (auto edgePtr = edge.lock()) {
+                        parentInputPtrs.insert(edgePtr->getMemoryPtr()->getData());
                     }
                 }
-            } while (previousParent != parent);
-            if (canBeInPlace)
-                change_edge_ptr(parentEdge, it.second);
-            continue;
+                auto&& controlBlock = controlBlockItr->second;
+
+                std::shared_ptr<IMemoryMngr> memMngr = parentInputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
+                    controlBlock.nextMemMngr() : // then swap internal buffer to avoid data corruption
+                    controlBlock.currentMemMngr(); // else reuse the existing buffer
+
+                outputMemMngr->setMemMngr(memMngr);
+                DEBUG_LOG("reset proxy ", outputMemMngr, ", actual ", controlBlock.currentMemMngr(), " graph ", graph, " inferrequest ", this);
+                DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
+            } else {
+                outputMemMngr->reset(); // switch to the internal memory since memory sharing is no longer possible
+            }
         }
-        OPENVINO_THROW("Cannot find input/output blob: ", it.first);
     }
 }
 
@@ -340,37 +366,6 @@ void SyncInferRequest::set_async_request(AsyncInferRequest* asyncRequest) {
 void SyncInferRequest::throw_if_canceled() const {
     if (m_asyncRequest != nullptr) {
         m_asyncRequest->throw_if_canceled();
-    }
-}
-
-bool SyncInferRequest::check_compiled_model_port(const ov::Output<const ov::Node>& port) const {
-    auto name = get_port_name(port, m_is_legacy_api);
-    if (name.empty()) {
-        OPENVINO_THROW("cpu plugin checking port failed: cannot find this port with empty name.");
-    }
-
-    bool is_input = ov::op::util::is_parameter(port.get_node());
-    if (is_input) {
-        auto it = m_input_ports_map.find(name);
-        if (it == m_input_ports_map.end()) {
-            OPENVINO_THROW("cpu plugin checking input port failed: cannot find this port with name ", name);
-        }
-
-        if ((it->second.get_element_type() == port.get_element_type()) &&
-            (it->second.get_partial_shape() == port.get_partial_shape())) {
-            return true;
-        }
-        return false;
-    } else {
-        auto it = m_output_ports_map.find(name);
-        if (it == m_output_ports_map.end()) {
-            OPENVINO_THROW("cpu plugin checking output port failed: cannot find this port with name ", name);
-        }
-        if ((it->second.get_element_type() == port.get_element_type()) &&
-            (it->second.get_partial_shape() == port.get_partial_shape())) {
-            return true;
-        }
-        return false;
     }
 }
 
@@ -405,50 +400,9 @@ InferenceEngine::TensorDesc SyncInferRequest::create_tensor_desc(const ov::SoPtr
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ov::SoPtr<ov::ITensor> SyncInferRequest::get_port_tensor(const ov::Output<const ov::Node>& in_port) const {
-    auto port = get_internal_port(in_port);
-    auto tensor = ov::ISyncInferRequest::get_tensor(port);
-    auto name = get_port_name(in_port, m_is_legacy_api);
-
-    if (m_aux_tensors.find(name) != m_aux_tensors.end()) {
-        auto& aux_tensor = m_aux_tensors[name];
-        if (aux_tensor->get_shape() != tensor->get_shape()) {
-            tensor->set_shape(aux_tensor->get_shape());
-        }
-    }
-    return tensor;
-}
-
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_port) const {
-    auto port_name = get_port_name(in_port, m_is_legacy_api);
     auto port = get_internal_port(in_port);
-    auto port_tensor = ov::ISyncInferRequest::get_tensor(port);
-
-    // No precision change
-    auto is_precision_changed = m_port_precision_changed[port_name];
-    if (!is_precision_changed)
-        return port_tensor;
-
-    // If precision has been changed, it need return original precision tensor.
-    // Port's data will be stored in m_aux_tensors, and need converted to compiled tensor
-    //     input  tensor: will be copied to compiled tensor before do graph inference
-    //     output tensor: has been copied from graph's memory to aux tensor when inference done
-    if (m_orig_ports_map.find(port_name) == m_orig_ports_map.end()) {
-        OPENVINO_THROW("get_tensor: cannot find model port, name: ", port_name);
-    }
-
-    // Find aux tensor, will create one if cannot find
-    auto port_shape = port.get_partial_shape();
-    auto it = m_aux_tensors.find(port_name);
-    ov::Shape aux_shape = port_tensor->get_shape();
-    if (it == m_aux_tensors.end()) {
-        m_aux_tensors[port_name] = ov::make_tensor(m_orig_ports_map[port_name].get_element_type(), aux_shape);
-    } else if (port_shape.is_dynamic()) {
-        if (m_aux_tensors[port_name]->get_shape() != aux_shape)
-            m_aux_tensors[port_name]->set_shape(aux_shape);
-    }
-
-    return m_aux_tensors[port_name];
+    return ov::ISyncInferRequest::get_tensor(port);
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& in_port) const {
@@ -470,7 +424,6 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!in_tensor)
         OPENVINO_THROW("Failed to set empty tensor for port!");
-    auto is_compiled_model_port = check_compiled_model_port(in_port);
     auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
 
@@ -482,46 +435,6 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
     auto name = get_port_name(in_port, m_is_legacy_api);
-    auto is_precision_changed = m_port_precision_changed[name];
-
-    // Precision has been changed
-    if (is_precision_changed) {
-        if (!is_compiled_model_port) {
-            // Original port
-            auto _orig_port = m_orig_ports_map[name];
-            if (_orig_port.get_element_type() == in_tensor->get_element_type()) {
-                // Original port + original port's tensor
-                m_aux_tensors[name] = in_tensor;
-                tensor = ov::ISyncInferRequest::get_tensor(port);
-                tensor->set_shape(in_tensor->get_shape());
-            } else if (port.get_element_type() == in_tensor->get_element_type()) {
-                // Original port + compiled model port's tensor
-            } else {
-                OPENVINO_THROW("ParameterMismatch: failed to set input tensor with precision ",
-                               in_tensor->get_element_type(),
-                               ", if model input tensor precision is: ",
-                               port.get_element_type(),
-                               " or ",
-                               _orig_port.get_element_type());
-            }
-        } else {
-            // Compiled model's port
-            if (in_port.get_element_type() != in_tensor->get_element_type()) {
-                if (m_orig_ports_map[name].get_element_type() == in_tensor->get_element_type()) {
-                    // Original port precision tensor, likely reach here
-                    m_aux_tensors[name] = in_tensor;
-                    tensor = ov::ISyncInferRequest::get_tensor(port);
-                    tensor->set_shape(in_tensor->get_shape());
-                } else {
-                    OPENVINO_THROW("ParameterMismatch: failed to set input tensor with precision ",
-                                   in_tensor->get_element_type(),
-                                   ", if model input tensor precision is: ",
-                                   in_port.get_element_type());
-                }
-            }
-        }
-    }
-
     auto tensor_desc = create_tensor_desc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
@@ -606,7 +519,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         } else if (external_ptr.find(name) != external_ptr.end()) {
             external_ptr.erase(name);
         }
+
         m_outputs[name] = tensor;
+        outputControlBlocks.erase(name); // now the memory is under user's control
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
@@ -668,59 +583,88 @@ void SyncInferRequest::init_tensor(const std::string& name) {
     const auto& outMap = graph->outputNodesMap;
     auto output = outMap.find(name);
     if (output != outMap.end()) {
-        auto output_port = m_output_ports_map.find(name);
-        if (output_port != m_output_ports_map.end()) {
-            auto& port = output_port->second;
-            tensor = ov::ISyncInferRequest::get_tensor(port);
-            const auto shape = port.get_partial_shape();
-            const bool isDynamic = shape.is_dynamic();
+        if (m_outputs.find(name) == m_outputs.end()) {
+            auto output_port = m_output_ports_map.find(name);
+            auto port = output_port->second;
+            const auto port_shape = port.get_partial_shape();
+            if (m_output_ports_map.find(name) != m_output_ports_map.end()) {
+                const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
-            if (!tensor) {
-                ov::Shape tensor_shape;
-                if (isDynamic) {
-                    tensor_shape = ov::Shape(shape.rank().get_length(), 0);
+                // WA, due to the transformations and constant folding, shape inference of the resulting model may
+                // have static shapes, while they are dynamic in the initial representation
+                const auto& shape = graph_shape.isDynamic() ? port_shape :
+                    (port_shape.is_dynamic() ? graph_shape.toPartialShape() : port_shape);
+
+                const bool isDynamic = shape.is_dynamic();
+                tensor = ov::ISyncInferRequest::get_tensor(port);
+
+                if (!tensor) {
+                    ov::Shape tensor_shape;
+                    if (isDynamic) {
+                        const auto model_prec = InferenceEngine::details::convertPrecision(port.get_element_type());
+                        const auto graph_prec = output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision();
+                        OutputControlBlock control_block{model_prec, Shape{shape}};
+
+                        DEBUG_LOG(name,
+                            ", tensor ", control_block.tensor(),
+                            ", memmngr ", control_block.tensor()->get_memory()->getMemoryMngr(),
+                            "memory object ", control_block.tensor()->get_memory().get());
+
+                        tensor = control_block.tensor();
+                        if (model_prec == graph_prec) outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
+                    } else {
+                        tensor_shape = shape.to_shape();
+
+                        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(port.get_element_type()),
+                                                        tensor_shape, InferenceEngine::TensorDesc::getLayoutByRank(tensor_shape.size()));
+                        tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
+                    }
+                    ov::ISyncInferRequest::set_tensor(port, tensor);
                 } else {
-                    tensor_shape = shape.to_shape();
-                }
-                tensor = ov::make_tensor(port.get_element_type(), tensor_shape);
-                ov::ISyncInferRequest::set_tensor(port, tensor);
-            } else {
-                const auto& blobDims = tensor->get_shape();
-                // Static shape case is enough information that shapes are incompatible to throw exception
-                // but in dynamic shape case we also need to handle following corner case:
-                // on tensor initialization stage we create empty tensor with dimensions equal 0
-                // so if we have tensor with all zero dimension we mustn't throw exception
-                if (!shape.compatible(ov::PartialShape(blobDims)) &&
-                    (!isDynamic || static_cast<int64_t>(blobDims.size()) != shape.rank().get_length() ||
-                     std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
-                         return dims != 0;
-                     }))) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
-                        << ", output shape: " << shape;
-                }
+                    const auto& blobDims = tensor->get_shape();
+                    const bool isDynamic = port_shape.is_dynamic();
+                    // Static shape case is enough information that shapes are incompatible to throw exception
+                    // but in dynamic shape case we also need to handle following corner case:
+                    // on tensor initialization stage we create empty tensor with dimensions equal 0
+                    // so if we have tensor with all zero dimension we mustn't throw exception
+                    if (!port_shape.compatible(ov::PartialShape(blobDims)) &&
+                        (!isDynamic || static_cast<int64_t>(blobDims.size()) != port_shape.rank().get_length() ||
+                         std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
+                             return dims != 0;
+                         }))) {
+                        IE_THROW(ParameterMismatch)
+                            << "Network input and output use the same name: " << name
+                            << ", but expect tensors with different shapes. Input shape: " << ov::PartialShape(blobDims)
+                            << ", output shape: " << port_shape;
+                    }
 
-                const auto netOutPrc = port.get_element_type();
-                if (netOutPrc != tensor->get_element_type()) {
-                    IE_THROW(ParameterMismatch)
-                        << "Network input and output use the same name: " << name
-                        << " but expect blobs with different precision: " << tensor->get_element_type()
-                        << " for input and " << netOutPrc << " for output.";
+                    const auto netOutPrc = port.get_element_type();
+                    if (netOutPrc != tensor->get_element_type()) {
+                        IE_THROW(ParameterMismatch)
+                            << "Network input and output use the same name: " << name
+                            << " but expect blobs with different precision: " << tensor->get_element_type()
+                            << " for input and " << netOutPrc << " for output.";
+                    }
+                }
+                m_outputs[name] = tensor;
+                auto desc = create_tensor_desc(tensor);
+                if (!port_shape.is_dynamic() && !external_ptr.count(name) &&
+                    desc == MemoryDescUtils::convertToTensorDesc(
+                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
+                    external_ptr[name] = tensor;
+                }
+            } else {
+                OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
+            }
+            // update tensors in case of multiple output ports with the same name
+            for (const auto& out : get_outputs()) {
+                auto port_name = get_port_name(out, m_is_legacy_api);
+                if ((name == port_name) && tensor && port != out) {
+                    ov::ISyncInferRequest::set_tensor(out, tensor);
                 }
             }
-            m_outputs[name] = tensor;
-            auto desc = create_tensor_desc(tensor);
-            if (!isDynamic && !external_ptr.count(name) &&
-                desc == MemoryDescUtils::convertToTensorDesc(
-                            output->second->getParentEdgesAtPort(0)[0]->getMemory().getDesc())) {
-                external_ptr[name] = tensor;
-            }
-        } else {
-            OPENVINO_THROW("Tensor with name: ", name, " exists in CPU plugin graph, but absents in network outputs");
         }
     }
-
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with name: ", name);
     }
@@ -734,25 +678,27 @@ void SyncInferRequest::push_input_data() {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);
         }
-        auto tensor = get_port_tensor(input);
-        if (m_aux_tensors.find(input_name) != m_aux_tensors.end()) {
-            auto& aux_tensor = m_aux_tensors[input_name];
-            if (aux_tensor->get_shape() != tensor->get_shape()) {
-                tensor->set_shape(aux_tensor->get_shape());
-            }
-            const void* srcData = aux_tensor->data();
-            void* dstData = tensor->data();
-            if ((dstData == nullptr) || (srcData == nullptr)) {
-                OPENVINO_THROW("Get tensor has no allocated memory");
-            }
-            cpu_convert(srcData,
-                        dstData,
-                        InferenceEngine::details::convertPrecision(aux_tensor->get_element_type()),
-                        InferenceEngine::details::convertPrecision(tensor->get_element_type()),
-                        tensor->get_size());
-        }
+        auto tensor = get_tensor(input);
         graph->PushInputData(input_name, tensor);
     }
 }
-}  // namespace intel_cpu
-}  // namespace ov
+
+SyncInferRequest::OutputControlBlock::OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape) {
+    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+    m_proxyMemMngr = std::make_shared<ProxyMemoryMngr>(m_buffers[m_buffIndx]);
+
+    Shape memShape = shape.isDynamic() ?
+        Shape{VectorDims(shape.getRank(), 0)} : // this is a WA since the ITensor doesn't allow dyn shapes
+        Shape{shape};
+
+    CpuBlockedMemoryDescPtr desc =
+        std::make_shared<CpuBlockedMemoryDesc>(precision, memShape);
+
+    auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemMngr);
+    m_tensor = std::make_shared<Tensor>(memory);
+}
+
+}   // namespace intel_cpu
+}   // namespace ov
+

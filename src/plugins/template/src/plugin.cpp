@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -234,7 +233,6 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         std::vector<ov::PropertyName> rw_properties{ov::device::id,
                                                     ov::enable_profiling,
                                                     ov::hint::performance_mode,
-                                                    ov::internal::exclusive_async_requests,
                                                     ov::template_plugin::disable_transformations};
         return rw_properties;
     };
@@ -245,25 +243,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         }
         return ret;
     };
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        add_ro_properties(METRIC_KEY(IMPORT_EXPORT_SUPPORT), metrics);
-        return to_string_vector(metrics);
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
-                                            .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
-                configs.emplace_back(configKey);
-            }
-        }
-        return to_string_vector(configs);
-    } else if (ov::supported_properties == name) {
+    if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
@@ -274,7 +254,8 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::supported_properties)::value_type(supported_properties);
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         std::vector<std::string> available_devices = {""};
@@ -282,8 +263,6 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
     } else if (ov::device::full_name == name) {
         std::string device_name = "Template Device Full Name";
         return decltype(ov::device::full_name)::value_type(device_name);
-    } else if (METRIC_KEY(IMPORT_EXPORT_SUPPORT) == name) {
-        return true;
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
         std::string arch = "TEMPLATE";

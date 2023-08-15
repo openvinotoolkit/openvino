@@ -27,11 +27,17 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         const auto& primitive = impl_param.typed_desc<prior_box>();
         auto params = get_default_params<kernel_selector::prior_box_params>(impl_param);
 
-        const auto width = primitive->output_size.spatial[0];
-        const auto height = primitive->output_size.spatial[1];
-        const auto image_width = primitive->img_size.spatial[0];
-        const auto image_height = primitive->img_size.spatial[1];
+        auto width = primitive->output_size.spatial[0];
+        auto height = primitive->output_size.spatial[1];
+        auto image_width = primitive->img_size.spatial[0];
+        auto image_height = primitive->img_size.spatial[1];
 
+        if (width == 0 || height == 0 || image_width == 0 || image_height == 0) {
+            width = impl_param.output_size[0];
+            height = impl_param.output_size[1];
+            image_width = impl_param.img_size[0];
+            image_height = impl_param.img_size[1];
+        }
         params.min_size = primitive->min_sizes;
         params.max_size = primitive->max_sizes;
         params.density = primitive->density;
@@ -72,6 +78,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.heights = primitive->heights;
         const auto output_shape = impl_param.get_output_layout().get_shape();
         params.num_priors_4 = static_cast<uint32_t>(output_shape[1] / (params.width * params.height));
+
+        params.is_clustered = primitive->is_clustered();
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, {}};

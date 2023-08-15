@@ -31,6 +31,8 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
 
         auto& legacy_preproc = input_info->getPreProcess();
 
+        std::cout << "Preprocess input: convert " << const_input.get_element_type() << " --> "
+                  << input_info->getPrecision() << std::endl;
         preproc.input(i).tensor().set_element_type(
             InferenceEngine::details::convertPrecision(input_info->getPrecision()));
 
@@ -122,6 +124,8 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
         ov::legacy_convert::fill_output_info(const_output, output_info);
         OPENVINO_ASSERT(output_info);
         auto element_type = InferenceEngine::details::convertPrecision(output_info->getPrecision());
+        std::cout << "Preprocess output: convert " << const_output.get_element_type() << " --> " << element_type
+                  << std::endl;
         if (element_type != model->output(i).get_element_type()) {
             preproc.output(i).tensor().set_element_type(element_type);
         }

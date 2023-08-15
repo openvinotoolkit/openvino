@@ -63,7 +63,7 @@ class MapHolder : public MappedMemory {
 public:
     MapHolder() = default;
 
-    void set(const std::string& path, const size_t data_size = 0, const size_t offset = 0) {
+    void set(const std::string& path) {
         int prot = PROT_READ;
         int mode = O_RDONLY;
         struct stat sb = {};
@@ -75,17 +75,13 @@ public:
         if (fstat(m_handle.get(), &sb) == -1) {
             throw std::runtime_error("Can not get file size for " + path);
         }
-        if (data_size + offset > static_cast<size_t>(sb.st_size)) {
-            throw std::runtime_error("Can not map out of scope memory for " + path);
-        }
-        m_size = data_size > 0 ? data_size : sb.st_size - offset;
+        m_size = sb.st_size;
         if (m_size > 0) {
-            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), offset);
+            m_data = mmap(nullptr, m_size, prot, MAP_PRIVATE, m_handle.get(), 0);
             if (m_data == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + path + ", err=" + std::strerror(errno));
             }
         } else {
-            m_size = 0;
             m_data = MAP_FAILED;
         }
     }
@@ -105,11 +101,9 @@ public:
     }
 };
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path,
-                                                   const size_t data_size,
-                                                   const size_t offset) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, data_size, offset);
+    holder->set(path);
     return holder;
 }
 

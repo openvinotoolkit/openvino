@@ -49,13 +49,13 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> hidden_memory_dims {1, hiddenSize};
         std::vector<size_t> cell_memory_dims {1, hiddenSize};
 
-        input_bias = CommonTestUtils::generate_float_numbers(inputSize, -0.2f, 0.0f);
-        input_weights = CommonTestUtils::generate_float_numbers(inputSize, 0.0f, 0.1f);
-        hidden_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-        cell_memory_init = CommonTestUtils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
-        weights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
-        reccurrenceWeights_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
-        bias_vals = CommonTestUtils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
+        input_bias = ov::test::utils::generate_float_numbers(inputSize, -0.2f, 0.0f);
+        input_weights = ov::test::utils::generate_float_numbers(inputSize, 0.0f, 0.1f);
+        hidden_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        cell_memory_init = ov::test::utils::generate_float_numbers(hiddenSize, -0.2f, 0.2f);
+        weights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * inputSize, -0.1f, 0.1f);
+        reccurrenceWeights_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize * hiddenSize, -0.1f, 0.1f);
+        bias_vals = ov::test::utils::generate_float_numbers(4 * hiddenSize, -0.2f, 0.1f);
 
         auto input_parameter = builder::makeParams(ngPrc, {input_dims});
 

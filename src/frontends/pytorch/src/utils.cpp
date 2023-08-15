@@ -117,11 +117,7 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& input_node) {
-    Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
@@ -334,6 +330,16 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     return fw_node;
+}
+
+std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs) {
+    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("PTFrameworkNode");
+    attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
+    list_construct->set_attrs(attrs);
+    list_construct->validate_and_infer_types();
+    return list_construct;
 }
 
 bool is_none_node(const Output<Node>& node) {

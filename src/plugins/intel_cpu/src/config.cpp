@@ -70,7 +70,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const ov::AnyMap& prop) {
+void Config::readProperties(const ov::AnyMap& prop, ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
@@ -186,10 +186,16 @@ void Config::readProperties(const ov::AnyMap& prop) {
                     inferencePrecisionSetExplicitly = true;
                 }
             } else if (val == "f16") {
+#if defined(OPENVINO_ARCH_X86_64)
                 if (mayiuse(avx512_core_fp16) || mayiuse(avx512_core_amx_fp16)) {
                     inferencePrecision = ov::element::f16;
                     inferencePrecisionSetExplicitly = true;
                 }
+#elif defined(OV_CPU_ARM_ENABLE_FP16)
+// TODO: add runtime FP16 feature support check for ARM
+                inferencePrecision = ov::element::f16;
+                inferencePrecisionSetExplicitly = true;
+#endif
             } else if (val == "f32") {
                 inferencePrecision = ov::element::f32;
                 inferencePrecisionSetExplicitly = true;
@@ -255,6 +261,13 @@ void Config::readProperties(const ov::AnyMap& prop) {
         } else {
             inferencePrecision = ov::element::f32;
         }
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+        //fp16 precision is used as default precision on ARM for non-convolution networks
+        //fp16 ACL convolution is slower than fp32
+        if (modelType != ModelType::CNN) {
+            inferencePrecision = ov::element::f16;
+        }
+#endif
     }
 
     if (!prop.empty())
@@ -264,6 +277,12 @@ void Config::readProperties(const ov::AnyMap& prop) {
         streamExecutorConfig._streams = 1;
         streamExecutorConfig._streams_changed = true;
     }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: multi-stream execution has functional issues on ARM target
+    streamExecutorConfig._streams = 1;
+    streamExecutorConfig._streams_changed = true;
+#endif
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();

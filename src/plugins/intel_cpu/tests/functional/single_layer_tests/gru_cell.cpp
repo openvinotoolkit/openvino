@@ -39,18 +39,18 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1 ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1 ? "_" : "");
             }
             result << "}_";
         }
         result << "decompose=" << decompose << "_";
-        result << "activations=" << CommonTestUtils::vec2str(activations)  << "_";
+        result << "activations=" << ov::test::utils::vec2str(activations)  << "_";
         result << "clip=" << clip << "_";
         result << "linear=" << linearBeforeReset << "_";
         result << "netPrec=" << netPrecision << "_";
@@ -78,7 +78,7 @@ protected:
 
         std::tie(inputShapes, decompose, activations, clip, linearBeforeReset, netPrecision, cpuParams, additionalConfig) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes(inputShapes);
 

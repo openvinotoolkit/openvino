@@ -13,7 +13,7 @@ std::string ParamReshapeResult::getTestCaseName(const testing::TestParamInfo<Par
     std::tie(inputShape, netPrecision, targetName, config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName << "_";
     for (auto const& configItem : config) {

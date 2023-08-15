@@ -4,12 +4,6 @@
 
 #pragma once
 
-#include <atomic>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "cpu_memory.h"
@@ -20,6 +14,14 @@
 #include "normalize_preprocess.h"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+
+#include <atomic>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "proxy_mem_mgr.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,9 +62,8 @@ public:
     }
 
     void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& in);
-    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out,
-                        std::unordered_map<std::string, bool>& out_precision_changed,
-                        std::unordered_map<std::string, ov::SoPtr<ITensor>>& aux_tensors);
+    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& out);
+
     void Infer(SyncInferRequest* request = nullptr);
 
     const std::vector<NodePtr>& GetNodes() const {
@@ -92,14 +93,14 @@ public:
     NodePtr getInputNodeByName(const std::string &name) {
         auto input = inputNodesMap.find(name);
         if (input == inputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain input node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
         return input->second;
     }
 
     NodePtr getOutputNodeByName(const std::string &name) {
         auto output = outputNodesMap.find(name);
         if (output == outputNodesMap.end())
-            IE_THROW() << "CPU execution graph doesn't contain output node with name: " << name;
+            OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
@@ -182,6 +183,8 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
+    bool ReplaceNode(EdgePtr edge, NodePtr oldNode, NodePtr newNode, bool initNode);
+
     std::shared_ptr<ov::Model> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
@@ -191,6 +194,8 @@ public:
     bool hasDynamicInput() const {
         return graphHasDynamicInput;
     }
+
+    Status getStatus() const {return status;}
 
 protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
@@ -246,6 +251,8 @@ private:
     // TODO: change std::map to std::unordered_map
     std::map<std::string, NodePtr> inputNodesMap;
     std::map<std::string, NodePtr> outputNodesMap;
+
+    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of

@@ -25,6 +25,7 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalXor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logxor {
 namespace {
 template <element::Type_t ET>

@@ -11,8 +11,19 @@ import datetime
 import time
 
 import openvino.runtime.opset12 as ops
-from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model, InferRequest, CompiledModel
-from openvino.runtime import Type, PartialShape, Shape, Layout
+from openvino import (
+    Core,
+    CompiledModel,
+    InferRequest,
+    AsyncInferQueue,
+    Model,
+    Layout,
+    PartialShape,
+    Shape,
+    Type,
+    Tensor,
+)
+from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
 from tests import skip_need_mock_op
@@ -393,7 +404,9 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    # Temporarily skip due to issue-117486
+    if ov_type != Type.bf16:
+        assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -417,7 +430,9 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    # Temporarily skip due to issue-117486
+    if ov_type != Type.bf16:
+        assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [

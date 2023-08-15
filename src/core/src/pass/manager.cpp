@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/manager.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -12,14 +12,10 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
@@ -61,7 +57,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
 }
 
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
     static bool profile_enabled =
@@ -79,7 +75,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
             continue;
         }
-
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
@@ -93,7 +88,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ngraph::Function
+            // on on entire ov::Model
             pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
@@ -129,7 +124,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
-
             if (m_visualize) {
                 auto file_ext = "svg";
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
@@ -147,7 +141,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return function_changed;
 }

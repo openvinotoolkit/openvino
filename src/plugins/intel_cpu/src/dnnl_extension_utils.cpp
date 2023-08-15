@@ -20,6 +20,8 @@ namespace intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
+    case dnnl::memory::data_type::f64:
+        return 8;
     case dnnl::memory::data_type::f32:
         return 4;
     case dnnl::memory::data_type::s32:
@@ -58,8 +60,19 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::bin;
         case InferenceEngine::Precision::FP16:
             return memory::data_type::f16;
+        case InferenceEngine::Precision::FP64:
+            return memory::data_type::f64;
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
+        // Keep same data_size for unsupported precision
+        case InferenceEngine::Precision::U64:
+        case InferenceEngine::Precision::I64:
+            return memory::data_type::f64;
+        case InferenceEngine::Precision::U32:
+            return memory::data_type::s32;
+        case InferenceEngine::Precision::U16:
+        case InferenceEngine::Precision::I16:
+            return memory::data_type::f16;
         default: {
             IE_THROW() << "The plugin does not support " << prec.name();
         }
@@ -82,12 +95,31 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::BIN;
         case memory::data_type::f16:
             return InferenceEngine::Precision::FP16;
+        case memory::data_type::f64:
+            return InferenceEngine::Precision::FP64;
         case memory::data_type::undef:
             return InferenceEngine::Precision::UNSPECIFIED;
         default: {
             IE_THROW() << "Unsupported data type.";
         }
     }
+}
+
+bool DnnlExtensionUtils::isSupportedPrecision(const InferenceEngine::Precision& prec) {
+    switch (prec) {
+        case InferenceEngine::Precision::FP32:
+        case InferenceEngine::Precision::I32:
+        case InferenceEngine::Precision::I8:
+        case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::BOOL:
+        case InferenceEngine::Precision::BIN:
+        case InferenceEngine::Precision::BF16:
+        case InferenceEngine::Precision::FP16:
+            return true;
+    default:
+            return false;
+    }
+    return false;
 }
 
 Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {

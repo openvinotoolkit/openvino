@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "ie_metric_helpers.hpp"  // must be included first
 
 #include "plugin.h"
@@ -13,12 +14,14 @@
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
 #include "itt.h"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "performance_heuristics.hpp"
 #include "serialize.h"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
@@ -31,12 +34,6 @@
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <itt.h>
-
-#if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#include "arm_compute/runtime/CPP/CPPScheduler.h"
-#endif
 
 using namespace ov::threading;
 
@@ -142,10 +139,6 @@ Engine::Engine() :
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     extensionManager->AddExtension(std::make_shared<Extension>());
-#if defined(OV_CPU_WITH_ACL)
-    acl_scheduler = std::make_unique<ACLScheduler>();
-    arm_compute::Scheduler::set(acl_scheduler);
-#endif
 }
 
 Engine::~Engine() {
@@ -155,7 +148,7 @@ Engine::~Engine() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
+    return config.count(InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) ||
            config.count(ov::num_streams.name());
 }
 
@@ -218,8 +211,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
 
         auto num_requests = config.find(ov::hint::num_requests.name());
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second.as<std::string>());
-            // auto val = num_requests->second.as<int>();
+            auto val = InferenceEngine::PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second.as<std::string>());
             if (val > 0)
                 streams_info.num_streams = std::min(streams_info.num_streams, val);
         } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
@@ -245,7 +237,7 @@ void Engine::apply_performance_hints(ov::AnyMap& config, const std::shared_ptr<o
          * This applies for all the configuration parameters */
         const auto perf_hint_name =
             (perf_hint != config.end())
-                ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second.as<std::string>())
+                ? InferenceEngine::PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second.as<std::string>())
                 : engConfig.perfHintsConfig.ovPerfHint;
         return perf_hint_name;
     };
@@ -295,24 +287,26 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     } else {
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
+
     get_num_streams(streams, model, config);
+
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& function, bool imported) const {
+void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const{
     // import config props from caching model
     if (imported && !is_cpu_map_available()) {
-        if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
+        if (model->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
             const auto mode_name = conf.perfHintsConfig.ovPerfHint;
             if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
-                const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+                const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
                 const auto hints_param_name = mode_name + "_" + std::string(ov::num_streams.name());
                 const auto it = hints_config.find(hints_param_name);
                 if (it != hints_config.end()) {
                     conf.readProperties({{std::string(ov::num_streams.name()), it->second.as<std::string>()}});
                 } else {
-                    IE_THROW() << "Cache file doesn't contain precalculated number of streams for mode " << mode_name;
+                    OPENVINO_THROW("Cache file doesn't contain precalculated number of streams for mode ", mode_name);
                 }
             }
         }
@@ -320,10 +314,10 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& f
 
     if (is_cpu_map_available()) {
         const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
-        if (imported && function->has_rt_info("intel_cpu_hints_config")) {
+        if (imported && model->has_rt_info("intel_cpu_hints_config")) {
             // load model_prefer_threads from cache
             int cache_model_prefer;
-            const auto& hints_config = function->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
+            const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
             const auto it_model_prefer = hints_config.find(model_prefer_name);
             if (it_model_prefer != hints_config.end()) {
                 try {
@@ -335,12 +329,12 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& f
                 conf.modelPreferThreads = cache_model_prefer;
             }
         }
-        get_performance_streams(conf, function);
+        get_performance_streams(conf, model);
         // save model_prefer_threads to model rt_info when loading network
         if (!imported) {
             ov::AnyMap hints_props;
             hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
-            function->set_rt_info(hints_props, "intel_cpu_hints_config");
+            model->set_rt_info(hints_props, "intel_cpu_hints_config");
         }
     }
 }
@@ -348,14 +342,14 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& f
 StreamCfg Engine::get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
                                         int stream_mode,
                                         const bool enable_hyper_thread) const {
-    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    const int sockets = static_cast<int>(get_available_numa_nodes().size());
     const int num_cores =
         thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
             ? parallel_get_max_threads()
-            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
-                            : getNumberOfCPUCores());
-    const int num_cores_phy = getNumberOfCPUCores();
-    const int num_big_cores_phy = getNumberOfCPUCores(true);
+            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() :  get_number_of_cpu_cores())
+                            : get_number_of_cpu_cores());
+    const int num_cores_phy = get_number_of_cpu_cores();
+    const int num_big_cores_phy = get_number_of_cpu_cores(true);
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     StreamCfg stream_cfg = {0};
@@ -418,7 +412,7 @@ StreamCfg Engine::get_streams_num(ov::threading::IStreamsExecutor::ThreadBinding
             stream_cfg.num_streams = num_cores_phy / 2;
         }
     } else {
-        IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
+        OPENVINO_THROW("Wrong stream mode to get num of streams: ", stream_mode);
     }
     stream_cfg.num_streams = stream_cfg.num_streams > 0
                                  ? stream_cfg.num_streams
@@ -433,18 +427,26 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
         return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
 
     const auto& val = enableLPT->second.as<std::string>();
-    if (val == PluginConfigParams::YES)
+    if (val == InferenceEngine::PluginConfigParams::YES)
         return true;
-    else if (val == PluginConfigParams::NO)
+    else if (val == InferenceEngine::PluginConfigParams::NO)
         return false;
     else
-        IE_THROW() << "Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO";
+        OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
 }
 
-static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig, const Config& engineConfig) {
+static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
+                                               const Config& engineConfig,
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -453,12 +455,12 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         return Config::SnippetsMode::Enable;  // enable by default
 
     const auto& val = snippetsMode->second.as<std::string>();
-    if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+    if (val == InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK)
         return Config::SnippetsMode::IgnoreCallback;
-    else if (val == PluginConfigInternalParams::DISABLE)
+    else if (val == InferenceEngine::PluginConfigInternalParams::DISABLE)
         return Config::SnippetsMode::Disable;
     else
-        IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
 std::shared_ptr<ov::ICompiledModel>
@@ -492,12 +494,22 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
+    Config::ModelType modelType = getModelType(model);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
-
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    if (!is_cpu_map_available()) {
+        apply_performance_hints(config, cloned_model);
+    }
+
+    // update the props after the perf mode translated to configs
+    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+    Config conf = engConfig;
+    conf.readProperties(config, modelType);
+    calculate_streams(conf, cloned_model);
+
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -505,24 +517,13 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     if (is_legacy_api()) {
         for (const auto& res : cloned_model->get_results()) {
             if (res->get_input_partial_shape(0).is_dynamic()) {
-                IE_THROW() << "CPU plug-in can't load a model with dynamic output shapes via legacy API.";
+                OPENVINO_THROW("CPU plug-in can't load a model with dynamic output shapes via legacy API.");
             }
         }
     }
 
-    if (!is_cpu_map_available()) {
-        apply_performance_hints(config, cloned_model);
-    }
     transformations.CpuSpecificOpSet();
-
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
-
-    // update the props after the perf mode translated to configs
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-
-    conf.readProperties(config);
-    calculate_streams(conf, cloned_model);
 
     if ((cloned_model->inputs().size() != model->inputs().size()) ||
         (cloned_model->outputs().size() != model->outputs().size())) {
@@ -547,7 +548,14 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
         }
     }
 
-    return std::make_shared<CompiledModel>(cloned_model, model, shared_from_this(), conf, extensionManager);
+#if 0
+    ov::pass::Manager manager;
+    std::string model_xml_name="test_compiled_model.xml";
+    std::string model_bin_name="test_compiled_model.bin";
+    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
+    manager.run_passes(cloned_model);
+#endif
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
 }
 
 void Engine::set_property(const ov::AnyMap &config) {
@@ -562,7 +570,7 @@ bool Engine::is_legacy_api() const {
 }
 
 ov::Any Engine::get_property_legacy(const std::string& name, const ov::AnyMap& options) const {
-    Parameter result;
+    ov::Any result;
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
@@ -671,7 +679,8 @@ ov::Any Engine::get_metric_legacy(const std::string& name, const ov::AnyMap& opt
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = { METRIC_KEY(FULL_DEVICE_NAME) };
         return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
@@ -725,7 +734,8 @@ ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::supported_properties)::value_type(supportedProperties);
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};        ;
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -765,13 +775,19 @@ ov::Any Engine::get_metric(const std::string& name, const ov::AnyMap& options) c
 ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
+    if (model == nullptr) {
+        IE_THROW() << "Only ngraph-based models are supported!";
+    }
+
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
-    const bool enableLPT = (lptProp != config.end() && lptProp->second.as<std::string>() ==
-                                                           PluginConfigParams::YES) /* enabled in the orig_config*/
-                           || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
+    const bool enableLPT =
+        (lptProp != config.end() &&
+         lptProp->second.as<std::string>() == InferenceEngine::PluginConfigParams::YES) /* enabled in the orig_config*/
+        || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto context =
@@ -783,6 +799,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
             Transformations transformation(model, enableLPT, conf.inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
             transformation.UpToCpuSpecificOpSet();
             transformation.CpuSpecificOpSet();
+            transformation.RunPrecisionConvert();
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             std::unique_ptr<Node> ptr;
@@ -812,18 +829,16 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
         });
 
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::Model> orig_model;
-    std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>> models = std::make_pair(model, orig_model);
-    deserializer >> models;
-    model = models.first;
-    orig_model = models.second;
+    deserializer >> model;
 
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
+    // import config props from caching model
     calculate_streams(conf, model, true);
 
-    auto compiled_model = std::make_shared<CompiledModel>(model, orig_model, shared_from_this(), conf, extensionManager, true);
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
     return compiled_model;
 }
 }   // namespace intel_cpu

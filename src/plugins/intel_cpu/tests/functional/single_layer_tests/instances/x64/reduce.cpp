@@ -6,6 +6,7 @@
 #include "shared_test_classes/single_layer/reduce_ops.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -110,6 +111,22 @@ const std::vector<ngraph::helpers::ReductionType> reductionTypesFusing = {
         ngraph::helpers::ReductionType::L2,
 };
 
+// This custom subgraph is used to test post-ops fusing case with U8/I8 precision on output,
+// since Transpose prevents dequantization part to be fused back into Reduce
+const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg){
+            auto localPrc = cfg.input->get_element_type();
+            ngraph::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
+            const auto fakeQuantize = ngraph::builder::makeFakeQuantize(cfg.input, localPrc, 256, newShape);
+            std::vector<size_t> order(newShape.size());
+            std::iota(order.begin(), order.end(), 0);
+            auto last = order[order.size() - 1];
+            order.pop_back();
+            order.insert(order.begin(), last);
+            const auto transpose = ngraph::builder::subgraph::Transpose(order);
+            return ngraph::builder::subgraph::makeTranspose(fakeQuantize, transpose);
+        }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"}};
+
 const std::vector<fusingSpecificParams> fusingParamsSet {
         /* activations */
         fusingSwish,
@@ -132,6 +149,10 @@ const std::vector<fusingSpecificParams> fusingParamsSet_KeepNoDims {
         fusingScaleShift
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSet_LowPrecision {
+        fusingFakeQuantizeTranspose
+};
+
 /* ================================ 1.1 No fusion - Arithmetic ================================ */
 const auto params_OneAxis = testing::Combine(
         testing::Combine(
@@ -150,7 +171,7 @@ const auto params_OneAxis = testing::Combine(
 const auto params_MultiAxis_4D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -164,7 +185,7 @@ const auto params_MultiAxis_4D = testing::Combine(
 const auto params_MultiAxis_5D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes5D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -178,7 +199,7 @@ const auto params_MultiAxis_5D = testing::Combine(
 const auto params_MultiAxis_4D_Hybrid = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesND()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypes()),
             testing::ValuesIn(inpOutPrc()),
@@ -192,7 +213,7 @@ const auto params_MultiAxis_4D_Hybrid = testing::Combine(
 const auto params_MultiAxis_5D_Hybrid = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes5D),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypes()),
             testing::ValuesIn(inpOutPrc()),
@@ -206,7 +227,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
 const auto params_MultiAxis_6D = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes6D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::ValuesIn(keepDims()),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -220,7 +241,7 @@ const auto params_MultiAxis_6D = testing::Combine(
 const auto params_Int32 = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::ValuesIn(keepDims()),
             testing::ValuesIn(reductionTypesInt32()),
             testing::Values(ElementType::i32),
@@ -234,7 +255,7 @@ const auto params_Int32 = testing::Combine(
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesHW),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -248,7 +269,7 @@ const auto params_NHWC_SmallChannel = testing::Combine(
 const auto params_SingleBatch = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
@@ -340,7 +361,7 @@ const auto params_OneAxis_Logical = testing::Combine(
 const auto params_MultiAxis_4D_Logical = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn((reductionLogicalTypes)),
                 testing::Values(ElementType::boolean),
@@ -354,7 +375,7 @@ const auto params_MultiAxis_4D_Logical = testing::Combine(
 const auto params_MultiAxis_5D_Logical = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes5D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn((reductionLogicalTypes)),
                 testing::Values(ElementType::boolean),
@@ -368,7 +389,7 @@ const auto params_MultiAxis_5D_Logical = testing::Combine(
 const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesND()),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn((reductionLogicalTypes)),
             testing::Values(ElementType::boolean),
@@ -382,7 +403,7 @@ const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
 const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes5D),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn((reductionLogicalTypes)),
             testing::Values(ElementType::boolean),
@@ -396,7 +417,7 @@ const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
 const auto params_MultiAxis_6D_Logical = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes6D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::ValuesIn(keepDims()),
                 testing::ValuesIn((reductionLogicalTypes)),
                 testing::Values(ElementType::boolean),
@@ -467,7 +488,7 @@ const auto params_OneAxis_fusing = testing::Combine(
 const auto params_MultiAxis_4D_fusing = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesND()),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypesFusing),
                 testing::ValuesIn(inpOutPrc()),
@@ -481,7 +502,7 @@ const auto params_MultiAxis_4D_fusing = testing::Combine(
 const auto params_MultiAxis_5D_fusing = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes5D),
-                testing::Values(CommonTestUtils::OpType::VECTOR),
+                testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypesFusing),
                 testing::ValuesIn(inpOutPrc()),
@@ -490,6 +511,20 @@ const auto params_MultiAxis_5D_fusing = testing::Combine(
                 testing::ValuesIn(inputShapes_5D_dyn)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::ValuesIn(fusingParamsSet),
+        testing::ValuesIn(additionalConfig()));
+
+const auto params_LowPrecision_fusing = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axesNDFusing),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypesFusing),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_dyn)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        testing::ValuesIn(fusingParamsSet_LowPrecision),
         testing::ValuesIn(additionalConfig()));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -513,6 +548,13 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_LowPrecision_fusing_CPU,
+        ReduceCPULayerTest,
+        params_LowPrecision_fusing,
+        ReduceCPULayerTest::getTestCaseName
+);
+
 /* ================================ 2.2 Fusion - KeepNoDims ================================ */
 const auto params_OneAxis_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
@@ -531,7 +573,7 @@ const auto params_OneAxis_fusing_KeepNoDims = testing::Combine(
 const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axesNDFusing),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc()),
@@ -545,7 +587,7 @@ const auto params_MultiAxis_4D_Hybrid_fusing_KeepNoDims = testing::Combine(
 const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes5DFusing),
-            testing::Values(CommonTestUtils::OpType::VECTOR),
+            testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypesFusing),
             testing::ValuesIn(inpOutPrc()),

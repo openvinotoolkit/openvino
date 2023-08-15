@@ -282,6 +282,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto n = edge->getParent();
             os << comma;
             os << node_id(*edge->getParent());
+            auto ptr = edge->getMemoryPtr();
+            if (ptr) {
+                os << "_" << ptr->getData();
+            }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
             comma = ",";

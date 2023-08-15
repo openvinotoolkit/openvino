@@ -22,14 +22,14 @@ std::string TransposeConvTest::getTestCaseName(const testing::TestParamInfo<Tran
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "trgDev=" << targetDevice;
     for (auto const& configItem : config) {
         result << "_configItem=" << configItem.first << "_" << configItem.second;
     }
-    result << "_KERNEL=" << CommonTestUtils::vec2str(kernelShape) << "_";
-    result << "STRIDES=" << CommonTestUtils::vec2str(strides) << "_";
+    result << "_KERNEL=" << ov::test::utils::vec2str(kernelShape) << "_";
+    result << "STRIDES=" << ov::test::utils::vec2str(strides) << "_";
     result << "IC=" << inputChannels << "_";
     result << "OC=" << outputChannels;
     return result.str();

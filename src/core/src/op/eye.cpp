@@ -9,6 +9,7 @@
 #include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace op {
 namespace eye {
@@ -133,22 +134,20 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
             break;
         default:
             OPENVINO_THROW("Unsupported type of input `diagonal_index` in Eye operation: ",
-                           diagonal_index_data->get_element_type().get_type_name());
+                           diagonal_index_data->get_element_type().to_string());
         }
     } else {
         diagonal_index = 0;
     }
 
-    std::map<size_t, HostTensorPtr> constant_data;
     std::vector<ov::PartialShape> input_shapes;
     input_shapes.reserve(inputs.size());
 
     for (size_t i = 0; i < inputs.size(); ++i) {
         input_shapes.push_back(inputs[i]->get_partial_shape());
-        constant_data.emplace(i, inputs[i]);
     }
 
-    const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
     outputs[0]->set_element_type(get_out_type());
     outputs[0]->set_shape(output_shape);

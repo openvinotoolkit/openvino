@@ -4,12 +4,6 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
-
-#include <ngraph/ngraph.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/type/float16.hpp>
-
 #include <algorithm>
 #include <functional>
 #include <initializer_list>
@@ -27,9 +21,15 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
 #include <cassert>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <bitset>
+#include <limits>
+#include <queue>
+#include <fstream>
+#include <unordered_map>
+#include <climits>
+#include <thread>

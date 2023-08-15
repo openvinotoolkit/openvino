@@ -5,6 +5,7 @@
 #pragma once
 
 #include "graph.h"
+#include "cpu_tensor.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -42,7 +43,54 @@ public:
      * @brief If `m_asyncRequest` is initialized throw exception with `ov::Cancelled` status if inference request is
      * canceled
      */
+
     void throw_if_canceled() const;
+
+protected:
+    class OutputControlBlock {
+    public:
+        using MemMngrPtr = std::shared_ptr<MemoryMngrWithReuse>;
+
+    public:
+        OutputControlBlock(const InferenceEngine::Precision& precision, const Shape& shape);
+
+        OutputControlBlock(const OutputControlBlock&) = delete;
+        OutputControlBlock& operator=(const OutputControlBlock&) = delete;
+
+        OutputControlBlock(OutputControlBlock&&) = default;
+        OutputControlBlock& operator=(OutputControlBlock&&) = default;
+
+        std::shared_ptr<Tensor> tensor() const {
+            return m_tensor;
+        }
+
+        const void* rawPtr() const {
+            return m_tensor->get_memory()->getData();
+        }
+
+        MemMngrPtr currentMemMngr() const {
+            return m_buffers[m_buffIndx];
+        }
+
+        MemMngrPtr nextMemMngr() {
+            m_buffIndx ^= 0x1;
+            if (!m_buffers[m_buffIndx]) {
+                m_buffers[m_buffIndx] = std::make_shared<MemoryMngrWithReuse>();
+            }
+            return m_buffers[m_buffIndx];
+        }
+
+        void update() {
+            m_proxyMemMngr->setMemMngr(currentMemMngr());
+        }
+
+    private:
+        std::shared_ptr<Tensor> m_tensor = nullptr;
+        ProxyMemoryMngrPtr m_proxyMemMngr = nullptr;
+        std::array<MemMngrPtr, 2> m_buffers;
+        int m_buffIndx = 0;
+    };
+    std::unordered_map<std::string, OutputControlBlock> outputControlBlocks;
 
 private:
     void create_infer_request();
@@ -59,20 +107,8 @@ private:
     void redefine_memory_for_input_nodes();
 
     void update_external_inputs();
-
     InferenceEngine::TensorDesc create_tensor_desc(const ov::SoPtr<ov::ITensor>& tensor);
-
-    // Transformation shouldn't change model's input/output's precision, but actually it does.
-    // Some additional methods will handle it.
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
-    ov::SoPtr<ov::ITensor> get_port_tensor(const ov::Output<const ov::Node>& port) const;
-    // Check this port is original model port or compiled model's port, return true for compiled model's port
-    // This is because if precision has been changed in compiled model, it needs distinguish them
-    bool check_compiled_model_port(const ov::Output<const ov::Node>& port) const;
-    mutable std::unordered_map<std::string, ov::Output<const ov::Node>> m_orig_ports_map;
-    // Store external tensor due to precision changes
-    mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_aux_tensors;
-    mutable std::unordered_map<std::string, bool> m_port_precision_changed;
     bool m_is_legacy_api = false;
 
     std::shared_ptr<const CompiledModel> m_compiled_model;

@@ -42,7 +42,7 @@ std::string SetBlobTest::getTestCaseName(testing::TestParamInfo<SetBlobParams> o
 
 inline void fillBlob(Blob::Ptr &blob) {
     switch (blob->getTensorDesc().getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob); break;
+#define CASE(X) case X: ov::test::utils::fill_data_random<X>(blob); break;
         CASE(Precision::U8)
         CASE(Precision::I8)
         CASE(Precision::U16)
