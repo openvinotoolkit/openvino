@@ -49,8 +49,8 @@ protected:
     GraphCache() {
         ExtractorsManager::ExtractorsMap matchers = {
             // temporary disabling according mem leaks in CI and not using swap mem
-            // { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
-            // { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor) },
+            { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
     }

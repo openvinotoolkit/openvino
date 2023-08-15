@@ -14,7 +14,7 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class RepeatPatternExtractor : public SubgraphExtractor {
+class RepeatPatternExtractor final : public SubgraphExtractor {
 public:
     RepeatPatternExtractor() {
         MatchersManager::MatchersMap matchers = {

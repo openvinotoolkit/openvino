@@ -12,9 +12,11 @@ namespace ov {
 namespace tools {
 namespace subgraph_dumper {
 
-class FusedNamesExtractor : public SubgraphExtractor {
+class FusedNamesExtractor final : public SubgraphExtractor {
 public:
     FusedNamesExtractor();
+    ~FusedNamesExtractor();
+
     std::list<ExtractedPattern> extract(const std::shared_ptr<ov::Model> &model,
                                         bool is_extract_body = true) override;
     void set_target_device(const std::string& _device) { device = _device; }
