@@ -589,7 +589,7 @@ def parse_input_value(input_value: str):
     Parameters
     ----------
     input_value
-        string with a specified node name, shape, value and data_type.
+        string with a specified node name and shape.
         E.g. 'node_name:0[4]'
 
     Returns
