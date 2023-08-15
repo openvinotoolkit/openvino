@@ -130,8 +130,10 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool use_prev_output_buffer = false);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
     std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
+
+    void set_output_buffer_used_for_next_input(const primitive_id& out_prim, const primitive_id& in_prim);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 

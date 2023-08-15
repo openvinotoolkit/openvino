@@ -212,12 +212,10 @@ public:
     void build_deps();
     void do_runtime_skip_reorder();
     void do_runtime_in_place_concat();
-    void set_output_buffer_used_for_next_input() {
-        _impl_params->output_buffer_used_for_next_input = true;
+    void set_output_buffer_used_for_next_input(const primitive_id& input_prim) {
+        _impl_params->output_buffer_used_for_next_input = input_prim;
     }
-    bool is_output_buffer_used_for_next_input() const {
-        return _impl_params->output_buffer_used_for_next_input;
-    }
+
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {

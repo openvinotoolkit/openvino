@@ -757,7 +757,7 @@ void network::reset_execution(bool wait) {
     _events.clear();
 }
 
-event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool use_prev_output_buffer) {
+event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
     GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> primitive_inst;
 
@@ -771,30 +771,24 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     }
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-    std::function<void(cldnn::primitive_inst*)> set_output_buffer_used_for_next_input = [&](cldnn::primitive_inst* prim) {
-        if (prim->is_output()) {
-            GPU_DEBUG_TRACE_DETAIL << prim->id() << " is output => force realloc mem" << std::endl;
-            prim->set_output_buffer_used_for_next_input();
-            return;
-        }
-        auto users = prim->get_user_insts();
-        for (auto u : users) {
-            if (u->can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << prim->id() << " has optimized user " << u->id() << " => check whether its user is output" << std::endl;
-                set_output_buffer_used_for_next_input(u.get());
-            }
-        }
-        return;
-    };
-    if (use_prev_output_buffer) {
-        auto users = input->get_user_insts();
-        for (auto u : users) {
-            // if inputs user is output, its memory should be reallocated to prevent data corruption
-            // Also the memory should not be limited to use lockable memory for better performance
-            set_output_buffer_used_for_next_input(u.get());
+    return input->set_data(data);
+}
+
+void network::set_output_buffer_used_for_next_input(const primitive_id& out_prim, const primitive_id& in_prim) {
+    // Note that there is an assumption that if the output buffer of previous iteration is used for the input of current iteration
+    // the output buffer of current iteration is to be reused in the next iteration too.
+    GPU_DEBUG_TRACE_DETAIL << out_prim << "'s output buffer is used for next input" << std::endl;
+    auto inst = get_primitive(out_prim);
+    inst->set_output_buffer_used_for_next_input(in_prim);
+
+    if (inst->can_be_optimized()) {
+        GPU_DEBUG_TRACE_DETAIL << out_prim << " is can_be_optimized " << std::endl;
+        auto deps = inst->dependencies();
+        for (auto dep : deps) {
+            GPU_DEBUG_TRACE_DETAIL << "=> check its dep " << dep.first->id() << std::endl;
+            set_output_buffer_used_for_next_input(dep.first->id(), in_prim);
         }
     }
-    return input->set_data(data);
 }
 
 void network::add_default_output_chains() {

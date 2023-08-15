@@ -877,8 +877,9 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                         prev_output_mem =
                             m_graph->get_engine().reinterpret_buffer(*prev_output_mem, prev_output_layout);
                     }
+                    _nw_ptr->set_output_buffer_used_for_next_input(outputID, internalInputName);
                     dependencies.push_back(
-                        _nw_ptr->set_input_data(internalInputName, prev_output_mem, true /*use prev output mem*/));
+                        _nw_ptr->set_input_data(internalInputName, prev_output_mem));
                     return;
                 }
             }
@@ -975,7 +976,6 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     auto src_lock = inputBlob->cbuffer();
                     auto src_ptr = src_lock.as<uint8_t*>();
                     if (!same_host_mem(inputMem, src_ptr)) {
-//                        std::cout << inputName << " copy input mem" << std::endl;
                         auto ev = inputMem->copy_from(stream, src_ptr, false);
                         dependencies.push_back(ev);
                     }

@@ -416,8 +416,18 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // If the node's output memory is used as next input memory for the same node,
     // the buffer should be allocated newly every time to prevent data corruption
-    bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size &&
-                            !_impl_params->output_buffer_used_for_next_input;
+    bool output_used_as_its_input_at_next_iter = false;
+    if (_impl_params->output_buffer_used_for_next_input != "") {
+        for (auto dep : _deps) {
+            if (dep.first->id() == _impl_params->output_buffer_used_for_next_input) {
+                output_used_as_its_input_at_next_iter = true;
+            }
+        }
+    }
+
+    bool can_reuse_buffer = _outputs[0] &&
+                            (actual_layout.count() <= max_output_layout_size) &&
+                            (!output_used_as_its_input_at_next_iter);
 
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
@@ -1262,7 +1272,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         usm_device_allocatable = false;
 
     bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
-                                       ? (!reset && !impl_params.output_buffer_used_for_next_input)
+                                       ? (!reset && (impl_params.output_buffer_used_for_next_input == ""))
                                        : !user_requesting_mem_reuse_false(_node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be
@@ -1276,7 +1286,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() : false;
     auto use_lockable_memory =
-        (is_output_buffer && !impl_params.output_buffer_used_for_next_input) || is_cpu ||
+        (is_output_buffer && (impl_params.output_buffer_used_for_next_input == "")) ||
+        is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
