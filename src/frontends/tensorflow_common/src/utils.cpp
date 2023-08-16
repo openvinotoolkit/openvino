@@ -42,6 +42,7 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
                                  "MaxPool",
                                  "MaxPoolV2",
                                  "MaxPool3D",
+                                 "MaxPoolWithArgmax",
                                  "ExtractImagePatches",
                                  "DepthwiseConv2dNative",
                                  "AvgPool",
@@ -68,8 +69,8 @@ PadType convert_tf_padding(const frontend::NodeContext& node, const string& tf_p
             return PadType::SAME_LOWER;
         }
     } else if (op_type == "Conv2D" || op_type == "Conv3D" || op_type == "MaxPool" || op_type == "MaxPoolV2" ||
-               op_type == "MaxPool3D" || op_type == "ExtractImagePatches" || op_type == "DepthwiseConv2dNative" ||
-               op_type == "AvgPool" || op_type == "AvgPool3D") {
+               op_type == "MaxPool3D" || op_type == "MaxPoolWithArgmax" || op_type == "ExtractImagePatches" ||
+               op_type == "DepthwiseConv2dNative" || op_type == "AvgPool" || op_type == "AvgPool3D") {
         if (tf_padding == "SAME") {
             // According to the formulas for calculating auto_pad values of the
             // Conv layer in the Operation specification,
@@ -344,6 +345,13 @@ shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const vector<int64_t>&
     auto new_shape_node = make_shared<Constant>(element::i64, Shape{new_shape.size()}, new_shape);
     auto reshape = make_shared<Reshape>(arg, new_shape_node, true);
     return reshape;
+}
+
+Output<Node> get_data_slice(const Output<Node>& data, const int64_t& start, const int64_t& stop, const int64_t& step) {
+    auto start_const = make_shared<Constant>(element::i64, Shape{1}, start);
+    auto stop_const = make_shared<Constant>(element::i64, Shape{1}, stop);
+    auto step_const = make_shared<Constant>(element::i64, Shape{1}, step);
+    return make_shared<Slice>(data, start_const, stop_const, step_const)->output(0);
 }
 
 }  // namespace tensorflow
