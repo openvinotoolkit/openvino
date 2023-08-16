@@ -436,12 +436,14 @@ class TestParallelRunner:
         self._total_test_cnt = 0
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
-            cached_test_dict = self.__prepare_smart_filters(cached_test_dict)
+            cached_test_list = self.__prepare_smart_filters(cached_test_dict)
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
-            runtime_test_dist = self.__prepare_smart_filters(runtime_test_dist)
+            runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
         logger.info(f"Total test counter is {self._total_test_cnt}")
-        return cached_test_dict, runtime_test_dist
+        cached_test_list.reverse()
+        runtime_test_list.reverse()
+        return cached_test_list, runtime_test_list
 
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
         commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
@@ -499,6 +501,7 @@ class TestParallelRunner:
         t_start = datetime.datetime.now()
 
         filters_cache, filters_runtime = self.__get_filters()
+
         # it is better to reuse workes for both cached and runtime tasks
         test_filters = filters_cache + filters_runtime
         worker_cnt = 0
