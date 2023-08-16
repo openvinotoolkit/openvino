@@ -24,6 +24,12 @@ class TRANSFORMATIONS_API CompressFloatConstants;
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CompressFloatConstantsImpl", "0");
+    /// @brief Transformation constructor
+    /// @param postponed If true then the transformation won't compress the constants
+    ///                  keeping them in the original type but still will insert Converts. This is
+    ///                  a special mode of operation that requires another transformation to
+    ///                  apply a real compression on constants. Constants eligible for
+    ///                  postponed compression are marked with a special rt_info tag.
     CompressFloatConstantsImpl(bool postponed = false);
 };
 
