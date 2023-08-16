@@ -121,6 +121,13 @@ export interface NodeAddon {
 
   element: typeof element,
   resizeAlgorithm: typeof resizeAlgorithm,
+
+  asyncInfer(
+    InferRequest: InferRequest,
+    inputData: { [inputName: string]: Tensor }
+      | [tensorData: SupportedTypedArray],
+    callback: (err: Error | null, inputData: Tensor[]) => void,
+  ): InferRequest;
 }
 
 export default
