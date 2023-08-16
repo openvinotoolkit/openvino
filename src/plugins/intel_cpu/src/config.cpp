@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop, ModelType modelType) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {
@@ -273,6 +273,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
     streamExecutorConfig._streams = 1;
     streamExecutorConfig._streams_changed = true;
 #endif
+    this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
