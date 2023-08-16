@@ -126,7 +126,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
 
             // all indicies prim::Constant(None), return input as is
             if (advanced_ids.size() == 0) {
-                replace_node(index_op, input_node.get_node_shared_ptr());
+                index_op->output(0).replace(index_op->get_input_source_output(0));
                 return true;
             }
             // perform gather for single element case
@@ -238,7 +238,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 // index is None, stay input as is
                 const auto& attrs = const_input->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
-                    replace_node(index_op, input_node.get_node_shared_ptr());
+                    index_op->output(0).replace(index_op->get_input_source_output(0));
                     return true;
                 }
             }
