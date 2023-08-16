@@ -3,7 +3,7 @@ Speech to Text with OpenVINO™
 
 This tutorial demonstrates speech-to-text recognition with OpenVINO.
 
-This tutorial uses the `quartznet
+This tutorial uses the `QuartzNet
 15x5 <https://docs.openvino.ai/2021.4/omz_models_model_quartznet_15x5_en.html>`__
 model. QuartzNet performs automatic speech recognition. Its design is
 based on the Jasper architecture, which is a convolutional model trained
@@ -11,8 +11,18 @@ with Connectionist Temporal Classification (CTC) loss. The model is
 available from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-Imports
--------
+Table of content: - `Imports <#1>`__ - `Settings <#2>`__ - `Download and
+Convert Public Model <#3>`__ - `Download Model <#4>`__ - `Convert
+Model <#5>`__ - `Audio Processing <#6>`__ - `Define constants <#7>`__ -
+`Available Audio Formats <#8>`__ - `Load Audio File <#9>`__ - `Visualize
+Audio File <#10>`__ - `Change Type of Data <#11>`__ - `Convert Audio to
+Mel Spectrum <#12>`__ - `Run Conversion from Audio to Mel
+Format <#13>`__ - `Visualize Mel Spectrogram <#14>`__ - `Adjust Mel
+scale to Input <#15>`__ - `Load the Model <#16>`__ - `Do
+Inference <#17>`__ - `Read Output <#18>`__ - `Implementation of
+Decoding <#19>`__ - `Run Decoding and Print Output <#20>`__
+
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -34,8 +44,7 @@ Imports
     from openvino.runtime import Core, serialize, Tensor
     from openvino.tools import mo
 
-Settings
---------
+## Settings `⇑ <#0>`__
 
 In this part, all variables used in the notebook are set.
 
@@ -48,15 +57,12 @@ In this part, all variables used in the notebook are set.
     precision = "FP16"
     model_name = "quartznet-15x5-en"
 
-Download and Convert Public Model
----------------------------------
+## Download and Convert Public Model `⇑ <#0>`__ If it is your first run,
+models will be downloaded and converted here. It my take a few minutes.
+Use ``omz_downloader`` and ``omz_converter``, which are command-line
+tools from the ``openvino-dev`` package.
 
-If it is your first run, models will be downloaded and converted here.
-It my take a few minutes. Use ``omz_downloader`` and ``omz_converter``,
-which are command-line tools from the ``openvino-dev`` package.
-
-Download Model
-~~~~~~~~~~~~~~
+### Download Model `⇑ <#0>`__
 
 The ``omz_downloader`` tool automatically creates a directory structure
 and downloads the selected model. This step is skipped if the model is
@@ -74,8 +80,7 @@ Representation (OpenVINO IR).
         download_command = f"omz_downloader --name {model_name} --output_dir {download_folder} --precision {precision}"
         ! $download_command
 
-Convert Model
-~~~~~~~~~~~~~
+### Convert Model `⇑ <#0>`__
 
 In previous step, model was downloaded in PyTorch format. Currently,
 PyTorch models supported in OpenVINO via ONNX exporting,
@@ -176,7 +181,7 @@ Intermediate Representation format for applying optimizations.
             output_names=['output'], 
             dynamic_axes={"audio_signal": {0: "batch_size", 2: "wave_len"}, "output": {0: "batch_size", 2: "wave_len"}}
         )
-        # convert model to OpenVINO Model using OpenVINO Model Optimizer
+        # convert model to OpenVINO Model using model conversion API
         ov_model = mo.convert_model(str(onnx_model_path))
         # serialize model to IR for next usage
         serialize(ov_model, str(converted_model_path))
@@ -191,13 +196,11 @@ Intermediate Representation format for applying optimizations.
         downloaded_model_path = Path("output/public/quartznet-15x5-en/models")
         convert_model(downloaded_model_path, path_to_converted_model)
 
-Audio Processing
-----------------
+## Audio Processing `⇑ <#0>`__
 
 Now that the model is converted, load an audio file.
 
-Define constants
-~~~~~~~~~~~~~~~~
+### Define constants `⇑ <#0>`__
 
 First, locate an audio file and define the alphabet used by the model.
 This tutorial uses the Latin alphabet beginning with a space symbol and
@@ -209,17 +212,17 @@ could be any other character.
     audio_file_name = "edge_to_cloud.ogg"
     alphabet = " abcdefghijklmnopqrstuvwxyz'~"
 
-Available Audio Formats
-~~~~~~~~~~~~~~~~~~~~~~~
+### Available Audio Formats `⇑ <#0>`__
 
 There are multiple supported audio formats that can be used with the
 model:
 
-AIFF, AU, AVR, CAF, FLAC, HTK, SVX, MAT4, MAT5, MPC2K, OGG, PAF, PVF,
-RAW, RF64, SD2, SDS, IRCAM, VOC, W64, WAV, NIST, WAVEX, WVE, XI
+``AIFF``, ``AU``, ``AVR``, ``CAF``, ``FLAC``, ``HTK``, ``SVX``,
+``MAT4``, ``MAT5``, ``MPC2K``, ``OGG``, ``PAF``, ``PVF``, ``RAW``,
+``RF64``, ``SD2``, ``SDS``, ``IRCAM``, ``VOC``, ``W64``, ``WAV``,
+``NIST``, ``WAVEX``, ``WVE``, ``XI``
 
-Load Audio File
-~~~~~~~~~~~~~~~
+### Load Audio File `⇑ <#0>`__
 
 Load the file after checking a file extension. Pass ``sr`` (stands for a
 ``sampling rate``) as an additional parameter. The model supports files
@@ -249,8 +252,7 @@ Now, you can play your audio file.
 
 
 
-Visualise Audio File
-~~~~~~~~~~~~~~~~~~~~
+### Visualize Audio File `⇑ <#0>`__
 
 You can visualize how your audio file presents on a wave plot and
 spectrogram.
@@ -286,8 +288,7 @@ spectrogram.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_21_3.png
 
 
-Change Type of Data
-~~~~~~~~~~~~~~~~~~~
+### Change Type of Data `⇑ <#0>`__
 
 The file loaded in the previous step may contain data in ``float`` type
 with a range of values between -1 and 1. To generate a viable input,
@@ -300,8 +301,7 @@ multiply each value by the max value of ``int16`` and convert it to
         audio = (audio * (2**15 - 1))
     audio = audio.astype(np.int16)
 
-Convert Audio to Mel Spectrum
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert Audio to Mel Spectrum `⇑ <#0>`__
 
 Next, convert the pre-pre-processed audio to `Mel
 Spectrum <https://medium.com/analytics-vidhya/understanding-the-mel-spectrogram-fca2afa2ce53>`__.
@@ -340,8 +340,7 @@ article <https://towardsdatascience.com/audio-deep-learning-made-simple-part-2-w
             return np.pad(normalized, ((0, 0), (0, padding - remainder)))[None]
         return normalized[None]
 
-Run Conversion from Audio to Mel Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Conversion from Audio to Mel Format `⇑ <#0>`__
 
 In this step, convert a current audio file into `Mel
 scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
@@ -350,8 +349,7 @@ scale <https://en.wikipedia.org/wiki/Mel_scale>`__.
 
     mel_basis, spec = audio_to_mel(audio=audio.flatten(), sampling_rate=sampling_rate)
 
-Visualise Mel Spectogram
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Visualize Mel Spectrogram `⇑ <#0>`__
 
 For more information about Mel spectrogram, refer to this
 `article <https://towardsdatascience.com/getting-to-know-the-mel-spectrogram-31bca3e2d9d0>`__.
@@ -374,8 +372,7 @@ presents filter bank for converting Hz to Mels.
 .. image:: 211-speech-to-text-with-output_files/211-speech-to-text-with-output_29_1.png
 
 
-Adjust Mel scale to Input
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Adjust Mel scale to Input `⇑ <#0>`__
 
 Before reading the network, make sure that the input is ready.
 
@@ -383,8 +380,7 @@ Before reading the network, make sure that the input is ready.
 
     audio = mel_to_input(mel_basis=mel_basis, spec=spec)
 
-Load the Model
---------------
+## Load the Model `⇑ <#0>`__
 
 Now, you can read and load the network.
 
@@ -392,9 +388,9 @@ Now, you can read and load the network.
 
     ie = Core()
 
-You may run the network on multiple devices. By default, it will load
-the model on CPU (you can choose manually CPU, GPU, etc.) or let
-the engine choose the best available device (AUTO).
+You may run the model on multiple devices. By default, it will load the
+model on CPU (you can choose manually CPU, GPU etc.) or let the engine
+choose the best available device (AUTO).
 
 To list all available devices that can be used, run
 ``print(ie.available_devices)`` command.
@@ -409,9 +405,22 @@ To list all available devices that can be used, run
     ['CPU', 'GPU']
 
 
-To change the device used for your network, change value of
-``device_name`` variable to one of the values listed by ``print()`` in
-the cell above.
+Select device from dropdown list
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
 
 .. code:: ipython3
 
@@ -422,10 +431,9 @@ the cell above.
     shape = model_input_layer.partial_shape
     shape[2] = -1
     model.reshape({model_input_layer: shape})
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    compiled_model = ie.compile_model(model=model, device_name=device.value)
 
-Do Inference
-~~~~~~~~~~~~
+### Do Inference `⇑ <#0>`__
 
 Everything is set up. Now, the only thing that remains is passing input
 to the previously loaded network and running inference.
@@ -436,13 +444,12 @@ to the previously loaded network and running inference.
     
     character_probabilities = compiled_model([Tensor(audio)])[output_layer_ir]
 
-Read Output
-~~~~~~~~~~~
+### Read Output `⇑ <#0>`__
 
 After inference, you need to reach out the output. The default output
-format for ``quartznet 15x5`` are per-frame probabilities (after
+format for ``QuartzNet 15x5`` are per-frame probabilities (after
 LogSoftmax) for every symbol in the alphabet, name - output, shape -
-1x64x29, output data format is BxNxC, where:
+1x64x29, output data format is ``BxNxC``, where:
 
 -  B - batch size
 -  N - number of audio frames
@@ -466,8 +473,7 @@ The last step is getting symbols from corresponding indexes in charlist.
     # Run argmax to pick most possible symbols
     character_probabilities = np.argmax(character_probabilities, axis=1)
 
-Implementation of Decoding
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Implementation of Decoding `⇑ <#0>`__
 
 To decode previously explained output, you need the `Connectionist
 Temporal Classification (CTC)
@@ -485,8 +491,7 @@ function. This solution will remove consecutive letters from the output.
             previous_letter_id = letter_index
         return ''.join(transcription)
 
-Run Decoding and Print Output
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Decoding and Print Output `⇑ <#0>`__
 
 .. code:: ipython3
 

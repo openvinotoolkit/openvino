@@ -22,12 +22,18 @@ and datasets. It consists of the following steps:
 -  Compare the performance of the original, converted and quantized
    models.
 
+### Table of content: - `Imports <#1>`__ - `Settings <#2>`__ - `Prepare
+the Model <#3>`__ - `Prepare the Dataset <#4>`__ - `Optimize model using
+NNCF Post-training Quantization API <#5>`__ - `Load and Test OpenVINO
+Model <#6>`__ - `Select inference device <#7>`__ - `Compare F1-score of
+FP32 and INT8 models <#8>`__ - `Compare Performance of the Original,
+Converted and Quantized Models <#9>`__
+
 .. code:: ipython3
 
     !pip install -q "nncf>=2.5.0" datasets evaluate
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -56,10 +62,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-07-11 22:27:10.887837: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 22:27:10.921844: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-15 22:29:19.942802: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-15 22:29:19.975605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 22:27:11.494944: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-15 22:29:20.517786: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -67,8 +73,7 @@ Imports
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Settings
---------
+## Settings `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -82,13 +87,13 @@ Settings
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-Prepare the Model
------------------
+## Prepare the Model `⇑ <#0>`__
 
 Perform the following:
 
-- Download and unpack pre-trained BERT model for MRPC by PyTorch.
-- Convert the model to the OpenVINO Intermediate Representation (OpenVINO IR)
+-  Download and unpack pre-trained BERT model for MRPC by PyTorch.
+-  Convert the model to the OpenVINO Intermediate Representation
+   (OpenVINO IR)
 
 .. code:: ipython3
 
@@ -107,12 +112,12 @@ Convert the original PyTorch model to the OpenVINO Intermediate
 Representation.
 
 From OpenVINO 2023.0, we can directly convert a model from the PyTorch
-format to the OpenVINO IR format using Model Optimizer. Following
+format to the OpenVINO IR format using model conversion API. Following
 PyTorch model formats are supported:
 
--  torch.nn.Module
--  torch.jit.ScriptModule
--  torch.jit.ScriptFunction
+-  ``torch.nn.Module``
+-  ``torch.jit.ScriptModule``
+-  ``torch.jit.ScriptFunction``
 
 .. code:: ipython3
 
@@ -142,17 +147,14 @@ PyTorch model formats are supported:
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/annotations.py:309: UserWarning: TorchScript will treat type annotations of Tensor dtype-specific subtypes as if they are normal Tensors. dtype constraints are not enforced in compilation either.
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
-Prepare the Dataset
--------------------
-
-We download the `General Language Understanding Evaluation
-(GLUE) <https://gluebenchmark.com/>`__ dataset for the MRPC task from
-HuggingFace datasets. Then, we tokenize the data with a pre-trained BERT
-tokenizer from HuggingFace.
+## Prepare the Dataset `⇑ <#0>`__ We download the `General Language
+Understanding Evaluation (GLUE) <https://gluebenchmark.com/>`__ dataset
+for the MRPC task from HuggingFace datasets. Then, we tokenize the data
+with a pre-trained BERT tokenizer from HuggingFace.
 
 .. code:: ipython3
 
@@ -171,15 +173,7 @@ tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-
-.. parsed-literal::
-
-    Found cached dataset glue (/opt/home/k8sworker/.cache/huggingface/datasets/glue/mrpc/1.0.0/dacbe3125aa31d7f70367a07a8a9e72a5a0bfeb5fc42e75c9db75b96da6053ad)
-    Loading cached processed dataset at /opt/home/k8sworker/.cache/huggingface/datasets/glue/mrpc/1.0.0/dacbe3125aa31d7f70367a07a8a9e72a5a0bfeb5fc42e75c9db75b96da6053ad/cache-b5f4c739eb2a4a9f.arrow
-
-
-Optimize model using NNCF Post-training Quantization API
---------------------------------------------------------
+## Optimize model using NNCF Post-training Quantization API `⇑ <#0>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -387,8 +381,8 @@ The optimization process contains the following steps:
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.02it/s]
-    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.94it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:24<00:00, 12.04it/s]
+    Biases correction: 100%|██████████| 74/74 [00:25<00:00,  2.95it/s]
 
 
 .. code:: ipython3
@@ -396,18 +390,16 @@ The optimization process contains the following steps:
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
     ov.serialize(quantized_model, compressed_model_xml)
 
-Load and Test OpenVINO Model
-----------------------------
+## Load and Test OpenVINO Model `⇑ <#0>`__
 
 To load and test converted model, perform the following:
 
-* Load the model and compile it for selected device.
-* Prepare the input.
-* Run the inference.
-* Get the answer from the model output.
+-  Load the model and compile it for selected device.
+-  Prepare the input.
+-  Run the inference.
+-  Get the answer from the model output.
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+### Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -465,8 +457,7 @@ changing ``sample_idx`` to another value (from 0 to 407).
     The same meaning: yes
 
 
-Compare F1-score of FP32 and INT8 models
-----------------------------------------
+## Compare F1-score of FP32 and INT8 models `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -509,8 +500,8 @@ Compare F1-score of FP32 and INT8 models
     F1 score: 0.8995
 
 
-Compare Performance of the Original, Converted and Quantized Models
--------------------------------------------------------------------
+## Compare Performance of the Original, Converted and Quantized Models
+`⇑ <#0>`__
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is
@@ -562,9 +553,14 @@ Frames Per Second (FPS) for images.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.071 seconds per sentence, SPS: 14.09
-    IR FP32 model in OpenVINO Runtime/AUTO: 0.022 seconds per sentence, SPS: 45.98
-    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.77
+    We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See https://huggingface.co/docs/transformers/troubleshooting#incorrect-output-when-padding-tokens-arent-masked.
+
+
+.. parsed-literal::
+
+    PyTorch model on CPU: 0.070 seconds per sentence, SPS: 14.22
+    IR FP32 model in OpenVINO Runtime/AUTO: 0.021 seconds per sentence, SPS: 48.42
+    OpenVINO IR INT8 model in OpenVINO Runtime/AUTO: 0.010 seconds per sentence, SPS: 98.01
 
 
 Finally, measure the inference performance of OpenVINO ``FP32`` and
@@ -600,9 +596,9 @@ in OpenVINO.
     [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
     Device with "device" name is not registered in the OpenVINO Runtime
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
     RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
     Device with "device" name is not registered in the OpenVINO Runtime
@@ -628,9 +624,9 @@ in OpenVINO.
     [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
     Device with "device" name is not registered in the OpenVINO Runtime
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
         benchmark.print_version_info()
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
         for device, version in self.core.get_versions(self.device).items():
     RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
     Device with "device" name is not registered in the OpenVINO Runtime

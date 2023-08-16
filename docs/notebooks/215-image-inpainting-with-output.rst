@@ -9,6 +9,13 @@ given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
 
+Table of content: - `Download the Model <#1>`__ - `Convert Tensorflow
+model to OpenVINO IR format <#2>`__ - `Load the model <#3>`__ -
+`Determine the input shapes of the model <#4>`__ - `Create a square
+mask <#5>`__ - `Load and Resize the Image <#6>`__ - `Generating the
+Masked Image <#7>`__ - `Preprocessing <#8>`__ - `Inference <#9>`__ -
+`Save the Restored Image <#10>`__
+
 .. |pipeline| image:: https://user-images.githubusercontent.com/4547501/165792473-ba784c0d-0a37-409f-a5f6-bb1849c1d140.png
 
 .. code:: ipython3
@@ -26,13 +33,11 @@ original image. The Following pipeline will be used in this notebook.
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download the Model
-~~~~~~~~~~~~~~~~~~
-
-Download ``gmcnn-places2-tf``\ model (this step will be skipped if the
-model is already downloaded) and then unzip it. Downloaded model stored
-in TensorFlow frozen graph format. The steps how this frozen graph can
-be obtained from original model checkpoint can be found in this
+### Download the Model `⇑ <#0>`__ Download ``gmcnn-places2-tf``\ model
+(this step will be skipped if the model is already downloaded) and then
+unzip it. Downloaded model stored in TensorFlow frozen graph format. The
+steps how this frozen graph can be obtained from original model
+checkpoint can be found in this
 `instruction <https://docs.openvino.ai/2023.0/omz_models_model_gmcnn_places2_tf.html#steps-to-reproduce-conversion-to-frozen-graph>`__
 
 .. code:: ipython3
@@ -58,14 +63,12 @@ be obtained from original model checkpoint can be found in this
     Already downloaded
 
 
-Convert Tensorflow model to OpenVINO IR format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert Tensorflow model to OpenVINO IR format `⇑ <#0>`__
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format. To do this Model Optimizer is used.
-For more information about Model Optimizer, see the `Model Optimizer
-Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+convert it to OpenVINO IR format with model conversion API. For more
+information about model conversion, see this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 This step is also skipped if the model is already converted.
 
 .. code:: ipython3
@@ -73,7 +76,7 @@ This step is also skipped if the model is already converted.
     model_dir = Path(base_model_dir, 'public', 'ir')
     ir_path = Path(f"{model_dir}/frozen_model.xml")
     
-    # Run Model Optimizer to convert model to OpenVINO IR FP32 format, if the IR file does not exist.
+    # Run model conversion API to convert model to OpenVINO IR FP32 format, if the IR file does not exist.
     if not ir_path.exists():
         ov_model = mo.convert_model(model_path, input_shape=[[1,512,680,3],[1,512,680,1]])
         serialize(ov_model, str(ir_path))
@@ -86,8 +89,7 @@ This step is also skipped if the model is already converted.
     model/public/ir/frozen_model.xml already exists.
 
 
-Load the model
-~~~~~~~~~~~~~~
+### Load the model `⇑ <#0>`__
 
 Now, load the OpenVINO IR model and perform as follows:
 
@@ -105,14 +107,38 @@ Only a few lines of code are required to run the model:
     
     # Read the model.xml and weights file
     model = core.read_model(model=ir_path)
-    # Load the model on to the CPU
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    # Load the model on to the device
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     # Store the input and output nodes
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-Determine the input shapes of the model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Determine the input shapes of the model `⇑ <#0>`__
 
 Note that both input shapes are the same. However, the second input has
 1 channel (monotone).
@@ -121,8 +147,7 @@ Note that both input shapes are the same. However, the second input has
 
     N, H, W, C = input_layer.shape
 
-Create a square mask
-~~~~~~~~~~~~~~~~~~~~
+### Create a square mask `⇑ <#0>`__
 
 Next, create a single channeled mask that will be laid on top of the
 original image.
@@ -161,11 +186,10 @@ original image.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_12_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
 
 
-Load and Resize the Image
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Load and Resize the Image `⇑ <#0>`__
 
 This image will be altered by using the mask. You can process any image
 you like. Just change the URL below.
@@ -190,11 +214,10 @@ you like. Just change the URL below.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
 
 
-Generating the Masked Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Generating the Masked Image `⇑ <#0>`__
 
 This multiplication of the image and the mask gives the result of the
 masked image layered on top of the original image. The ``masked_image``
@@ -209,11 +232,10 @@ will be the first input to the GMCNN model.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_18_0.png
 
 
-Preprocessing
-~~~~~~~~~~~~~
+### Preprocessing `⇑ <#0>`__
 
 The model expects the input dimensions to be ``NHWC``.
 
@@ -225,8 +247,7 @@ The model expects the input dimensions to be ``NHWC``.
     masked_image = masked_image[None, ...]
     mask = mask[None, ...]
 
-Inference
-~~~~~~~~~
+### Inference `⇑ <#0>`__
 
 Do inference with the given masked image and the mask. Then, show the
 restored image.
@@ -240,11 +261,10 @@ restored image.
 
 
 
-.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_20_0.png
+.. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_22_0.png
 
 
-Save the Restored Image
-~~~~~~~~~~~~~~~~~~~~~~~
+### Save the Restored Image `⇑ <#0>`__
 
 Save the restored image to the data directory to download it.
 

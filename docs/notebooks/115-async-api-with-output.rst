@@ -10,13 +10,21 @@ asynchronous mode. The key advantage of the Async API is that when a
 device is busy with inference, the application can perform other tasks
 in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
+Table of content: - `Imports <#1>`__ - `Prepare model and data
+processing <#2>`__ - `Download test model <#3>`__ - `Load the
+model <#4>`__ - `Create functions for data processing <#5>`__ - `Get the
+test video <#6>`__ - `How to improve the throughput of video
+processing <#7>`__ - `Sync Mode (default) <#8>`__ - `Test performance in
+Sync Mode <#9>`__ - `Async Mode <#10>`__ - `Test the performance in
+Async Mode <#11>`__ - `Compare the performance <#12>`__ -
+```AsyncInferQueue`` <#13>`__ - `Setting Callback <#14>`__ - `Test the
+performance with ``AsyncInferQueue`` <#15>`__
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q "openvino-dev>=2023.0.0"
     !pip install -q opencv-python matplotlib
 
 .. code:: ipython3
@@ -38,13 +46,10 @@ Imports
     
     import notebook_utils as utils
 
-Prepare model and data processing
----------------------------------
+## Prepare model and data processing `⇑ <#0>`__
 
-Download test model
-~~~~~~~~~~~~~~~~~~~
-
-We use a pre-trained model from OpenVINO’s `Open Model
+### Download test model `⇑ <#0>`__ We use a pre-trained model from
+OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test. In this case, the model will be executed to detect the person in
 each frame of the video.
@@ -80,8 +85,7 @@ each frame of the video.
     
 
 
-Load the model
-~~~~~~~~~~~~~~
+### Load the model `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -91,7 +95,7 @@ Load the model
     # read the network and corresponding weights from file
     model = ie.read_model(model=model_path)
     
-    # compile the model for the CPU (you can choose manually CPU, GPU, etc.)
+    # compile the model for the CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO)
     compiled_model = ie.compile_model(model=model, device_name="CPU")
     
@@ -100,8 +104,7 @@ Load the model
     N, C, H, W = input_layer_ir.shape
     shape = (H, W)
 
-Create functions for data processing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Create functions for data processing `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -142,27 +145,24 @@ Create functions for data processing
                 cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3) 
         return image
 
-Get the test video
-~~~~~~~~~~~~~~~~~~
+### Get the test video `⇑ <#0>`__
 
 .. code:: ipython3
 
     video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
-How to improve the throughput of video processing
--------------------------------------------------
-
-Below, we compare the performance of the synchronous and async-based
+## How to improve the throughput of video processing `⇑ <#0>`__ Below,
+we compare the performance of the synchronous and async-based
 approaches:
 
-Sync Mode (default)
-~~~~~~~~~~~~~~~~~~~
+### Sync Mode (default) `⇑ <#0>`__ Let us see how video processing works
+with the default approach. Using the synchronous approach, the frame is
+captured with OpenCV and then immediately processed:
 
-Let us see how video processing works with the default approach. Using
-the synchronous approach, the frame is captured with OpenCV and then
-immediately processed:
+.. figure:: https://user-images.githubusercontent.com/91237924/168452573-d354ea5b-7966-44e5-813d-f9053be4338a.png
+   :alt: drawing
 
-.. image:: https://camo.githubusercontent.com/b77ae49e3c46a0fe3931ad02a7767d6def49aa7b2a7a8ad620a4e12ae31d43a5/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f39313233373932342f3136383435323537332d64333534656135622d373936362d343465352d383133642d6639303533626534333338612e706e67
+   drawing
 
 ::
 
@@ -173,6 +173,8 @@ immediately processed:
    //this call is synchronous
    // display CURRENT result
    }
+
+\``\`
 
 .. code:: ipython3
 
@@ -240,8 +242,7 @@ immediately processed:
                 player.stop()
             return sync_fps
 
-Test performance in Sync Mode
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Test performance in Sync Mode `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -250,15 +251,16 @@ Test performance in Sync Mode
 
 
 
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_15_0.png
+
 
 .. parsed-literal::
 
     Source ended
-    average throuput in sync mode: 38.25 fps
+    average throuput in sync mode: 37.71 fps
 
 
-Async Mode
-~~~~~~~~~~
+### Async Mode `⇑ <#0>`__
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
 of an application. The key advantage of the Async approach is as
@@ -267,7 +269,10 @@ do other things in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
 complete first.
 
-.. image:: https://camo.githubusercontent.com/7bcadb7cf72aefc84d74d8e971a31dab1710bb4303fef814619df638dff8be92/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f39313233373932342f3136383435323537322d63326666316335392d643437302d346238352d623166362d6236653164616339353430652e706e67
+.. figure:: https://user-images.githubusercontent.com/91237924/168452572-c2ff1c59-d470-4b85-b1f6-b6e1dac9540e.png
+   :alt: drawing
+
+   drawing
 
 In the example below, inference is applied to the results of the video
 decoding. So it is possible to keep multiple infer requests, and while
@@ -369,8 +374,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 player.stop()
             return async_fps
 
-Test the performance in Async Mode
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Test the performance in Async Mode `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -378,14 +382,17 @@ Test the performance in Async Mode
     print(f"average throuput in async mode: {async_fps:.2f} fps")
 
 
+
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_19_0.png
+
+
 .. parsed-literal::
 
     Source ended
-    average throuput in async mode: 71.88 fps
+    average throuput in async mode: 73.36 fps
 
 
-Compare the performance
-~~~~~~~~~~~~~~~~~~~~~~~
+### Compare the performance `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -409,24 +416,25 @@ Compare the performance
 
 
 
-AsyncInferQueue
----------------
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_21_0.png
+
+
+## ``AsyncInferQueue`` `⇑ <#0>`__
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
-wrapper class. This class automatically spawns the pool of InferRequest
-objects (also called “jobs”) and provides synchronization mechanisms to
-control the flow of the pipeline. It is a simpler way to manage the
-infer request queue in Asynchronous mode.
+```AsyncInferQueue`` <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+wrapper class. This class automatically spawns the pool of
+``InferRequest`` objects (also called “jobs”) and provides
+synchronization mechanisms to control the flow of the pipeline. It is a
+simpler way to manage the infer request queue in Asynchronous mode.
 
-Setting Callback
-~~~~~~~~~~~~~~~~
+### Setting Callback `⇑ <#0>`__
 
 When ``callback`` is set, any job that ends inference calls upon the
 Python function. The ``callback`` function must have two arguments: one
 is the request that calls the ``callback``, which provides the
-InferRequest API; the other is called “userdata”, which provides the
-possibility of passing runtime values.
+``InferRequest`` API; the other is called “user data”, which provides
+the possibility of passing runtime values.
 
 .. code:: ipython3
 
@@ -496,8 +504,7 @@ possibility of passing runtime values.
             infer_queue.wait_all()
             player.stop()
 
-Test the performance with AsyncInferQueue
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Test the performance with ``AsyncInferQueue`` `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -508,7 +515,10 @@ Test the performance with AsyncInferQueue
 
 
 
+.. image:: 115-async-api-with-output_files/115-async-api-with-output_27_0.png
+
+
 .. parsed-literal::
 
-    average throughput in async mode with async infer queue: 104.69 fps
+    average throughput in async mode with async infer queue: 103.73 fps
 

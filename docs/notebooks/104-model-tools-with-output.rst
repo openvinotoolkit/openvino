@@ -4,34 +4,36 @@ Working with Open Model Zoo Models
 This tutorial shows how to download a model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__, convert it
 to OpenVINO™ IR format, show information about the model, and benchmark
-the model.
+the model. Table of content: - `OpenVINO and Open Model Zoo
+Tools <#1>`__ - `Preparation <#2>`__ - `Model Name <#3>`__ -
+`Imports <#4>`__ - `Settings and Configuration <#5>`__ - `Download a
+Model from Open Model Zoo <#6>`__ - `Convert a Model to OpenVINO IR
+format <#7>`__ - `Get Model Information <#8>`__ - `Run Benchmark
+Tool <#9>`__ - `Benchmark with Different Settings <#10>`__
 
-OpenVINO and Open Model Zoo Tools
----------------------------------
+## OpenVINO and Open Model Zoo Tools `⇑ <#0>`__
 
 OpenVINO and Open Model Zoo tools are listed in the table below.
 
 +------------+--------------+-----------------------------------------+
 | Tool       | Command      | Description                             |
 +============+==============+=========================================+
-| Model      | omz_download | Download models from Open Model Zoo.    |
-| Downloader | er           |                                         |
+| Model      | ``omz_downlo | Download models from Open Model Zoo.    |
+| Downloader | ader``       |                                         |
 +------------+--------------+-----------------------------------------+
-| Model      | omz_converte | Convert Open Model Zoo models to        |
-| Converter  | r            | OpenVINO’s IR format.                   |
+| Model      | ``omz_conver | Convert Open Model Zoo models to        |
+| Converter  | ter``        | OpenVINO’s IR format.                   |
 +------------+--------------+-----------------------------------------+
-| Info       | omz_info_dum | Print information about Open Model Zoo  |
-| Dumper     | per          | models.                                 |
+| Info       | ``omz_info_d | Print information about Open Model Zoo  |
+| Dumper     | umper``      | models.                                 |
 +------------+--------------+-----------------------------------------+
-| Benchmark  | benchmark_ap | Benchmark model performance by          |
-| Tool       | p            | computing inference time.               |
+| Benchmark  | ``benchmark_ | Benchmark model performance by          |
+| Tool       | app``        | computing inference time.               |
 +------------+--------------+-----------------------------------------+
 
-Preparation
------------
+## Preparation `⇑ <#0>`__
 
-Model Name
-~~~~~~~~~~
+### Model Name `⇑ <#0>`__
 
 Set ``model_name`` to the name of the Open Model Zoo model to use in
 this notebook. Refer to the list of
@@ -46,8 +48,7 @@ pre-trained models for a full list of models that can be used. Set
     # model_name = "resnet-50-pytorch"
     model_name = "mobilenet-v2-pytorch"
 
-Imports
-~~~~~~~
+### Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -61,8 +62,7 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import DeviceNotFoundAlert, NotebookAlert
 
-Settings and Configuration
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Settings and Configuration `⇑ <#0>`__
 
 Set the file and directory paths. By default, this notebook downloads
 models from Open Model Zoo to the ``open_model_zoo_models`` directory in
@@ -100,8 +100,7 @@ The following settings can be changed:
     base_model_dir: model, omz_cache_dir: cache, gpu_availble: False
 
 
-Download a Model from Open Model Zoo
-------------------------------------
+## Download a Model from Open Model Zoo `⇑ <#0>`__
 
 Specify, display and run the Model Downloader command to download the
 model.
@@ -140,8 +139,7 @@ Downloading mobilenet-v2-pytorch…
     
 
 
-Convert a Model to OpenVINO IR format
--------------------------------------
+## Convert a Model to OpenVINO IR format `⇑ <#0>`__
 
 Specify, display and run the Model Converter command to convert the
 model to OpenVINO IR format. Model conversion may take a while. The
@@ -177,25 +175,24 @@ Converting mobilenet-v2-pytorch…
 .. parsed-literal::
 
     ========== Converting mobilenet-v2-pytorch to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-name=mobilenet_v2 --weights=model/public/mobilenet-v2-pytorch/mobilenet_v2-b0353104.pth --import-module=torchvision.models --input-shape=1,3,224,224 --output-file=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx --input-names=data --output-names=prob
+    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/internal_scripts/pytorch_to_onnx.py --model-name=mobilenet_v2 --weights=model/public/mobilenet-v2-pytorch/mobilenet_v2-b0353104.pth --import-module=torchvision.models --input-shape=1,3,224,224 --output-file=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx --input-names=data --output-names=prob
     
     ONNX check passed successfully.
     
     ========== Converting mobilenet-v2-pytorch to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmpe5yh3lmf --model_name=mobilenet-v2-pytorch --input=data '--mean_values=data[123.675,116.28,103.53]' '--scale_values=data[58.624,57.12,57.375]' --reverse_input_channels --output=prob --input_model=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 224, 224]' --compress_to_fp16=True
+    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=/tmp/tmp3q4nxrwu --model_name=mobilenet-v2-pytorch --input=data '--mean_values=data[123.675,116.28,103.53]' '--scale_values=data[58.624,57.12,57.375]' --reverse_input_channels --output=prob --input_model=model/public/mobilenet-v2-pytorch/mobilenet-v2.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 224, 224]' --compress_to_fp16=True
     
     [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression by removing argument --compress_to_fp16 or set it to false --compress_to_fp16=False.
     Find more information about compression to FP16 at https://docs.openvino.ai/latest/openvino_docs_MO_DG_FP16_Compression.html
     [ INFO ] The model was converted to IR v11, the latest model format that corresponds to the source DL framework input/output format. While IR v11 is backwards compatible with OpenVINO Inference Engine API v1.0, please use API v2.0 (as of 2022.1) to take advantage of the latest improvements in IR v11.
     Find more information about API v2.0 and IR v11 at https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html
     [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /tmp/tmpe5yh3lmf/mobilenet-v2-pytorch.xml
-    [ SUCCESS ] BIN file: /tmp/tmpe5yh3lmf/mobilenet-v2-pytorch.bin
+    [ SUCCESS ] XML file: /tmp/tmp3q4nxrwu/mobilenet-v2-pytorch.xml
+    [ SUCCESS ] BIN file: /tmp/tmp3q4nxrwu/mobilenet-v2-pytorch.bin
     
 
 
-Get Model Information
----------------------
+## Get Model Information `⇑ <#0>`__
 
 The Info Dumper prints the following information for Open Model Zoo
 models:
@@ -240,8 +237,8 @@ information in a dictionary.
       'description': 'MobileNet V2 is image classification model pre-trained on ImageNet dataset. This is a PyTorch* implementation of MobileNetV2 architecture as described in the paper "Inverted Residuals and Linear Bottlenecks: Mobile Networks for Classification, Detection and Segmentation" <https://arxiv.org/abs/1801.04381>.\nThe model input is a blob that consists of a single image of "1, 3, 224, 224" in "RGB" order.\nThe model output is typical object classifier for the 1000 different classifications matching with those in the ImageNet database.',
       'framework': 'pytorch',
       'license_url': 'https://raw.githubusercontent.com/pytorch/vision/master/LICENSE',
-      'accuracy_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/accuracy-check.yml',
-      'model_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/model.yml',
+      'accuracy_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/accuracy-check.yml',
+      'model_config': '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/model_zoo/models/public/mobilenet-v2-pytorch/model.yml',
       'precisions': ['FP16', 'FP32'],
       'quantization_output_precisions': ['FP16-INT8', 'FP32-INT8'],
       'subdirectory': 'public/mobilenet-v2-pytorch',
@@ -273,8 +270,7 @@ file.
     model/public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml exists: True
 
 
-Run Benchmark Tool
-------------------
+## Run Benchmark Tool `⇑ <#0>`__
 
 By default, Benchmark Tool runs inference for 60 seconds in asynchronous
 mode on CPU. It returns inference speed as latency (milliseconds per
@@ -321,7 +317,7 @@ seconds…
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 30.53 ms
+    [ INFO ] Read model took 29.61 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,224,224]
@@ -335,7 +331,7 @@ seconds…
     [ INFO ] Model outputs:
     [ INFO ]     prob (node: prob) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 149.89 ms
+    [ INFO ] Compile model took 154.76 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -357,21 +353,20 @@ seconds…
     [ INFO ] Fill input 'data' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 6.66 ms
+    [ INFO ] First inference took 7.60 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            20136 iterations
-    [ INFO ] Duration:         15007.99 ms
+    [ INFO ] Count:            20076 iterations
+    [ INFO ] Duration:         15004.20 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        4.33 ms
-    [ INFO ]    Average:       4.34 ms
-    [ INFO ]    Min:           3.20 ms
-    [ INFO ]    Max:           11.84 ms
-    [ INFO ] Throughput:   1341.69 FPS
+    [ INFO ]    Median:        4.34 ms
+    [ INFO ]    Average:       4.35 ms
+    [ INFO ]    Min:           2.53 ms
+    [ INFO ]    Max:           11.71 ms
+    [ INFO ] Throughput:   1338.03 FPS
 
 
-Benchmark with Different Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Benchmark with Different Settings `⇑ <#0>`__
 
 The ``benchmark_app`` tool displays logging information that is not
 always necessary. A more compact result is achieved when the output is
@@ -456,9 +451,9 @@ Benchmark command:
 
     command ended
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
         benchmark.set_allow_auto_batching(False)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
         self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
     RuntimeError: Check 'false' failed at src/inference/src/core.cpp:238:
 
@@ -484,9 +479,9 @@ Benchmark command:
     Check 'false' failed at src/plugins/auto/src/plugin_config.cpp:55:
     property: ALLOW_AUTO_BATCHING: not supported
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 327, in main
         benchmark.set_allow_auto_batching(False)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 63, in set_allow_auto_batching
         self.core.set_property({'ALLOW_AUTO_BATCHING': flag})
     RuntimeError: Check 'false' failed at src/inference/src/core.cpp:238:
     Check 'false' failed at src/plugins/auto/src/plugin_config.cpp:55:

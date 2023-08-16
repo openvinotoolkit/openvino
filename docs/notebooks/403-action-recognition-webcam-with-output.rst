@@ -35,8 +35,15 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-Imports
--------
+Table of content: - `Imports <#1>`__ - `The models <#2>`__ - `Download
+the models <#3>`__ - `Load your labels <#4>`__ - `Load the
+models <#5>`__ - `Model Initialization function <#6>`__ -
+`Initialization for Encoder and Decoder <#7>`__ - `Helper
+functions <#8>`__ - `AI Functions <#9>`__ - `Main Processing
+Function <#10>`__ - `Run Action Recognition on a Video File <#11>`__ -
+`Run Action Recognition Using a Webcam <#12>`__
+
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -55,11 +62,9 @@ Imports
     sys.path.append("../utils")
     import notebook_utils as utils
 
-The models
-----------
+## The models `⇑ <#0>`__
 
-Download the models
-~~~~~~~~~~~~~~~~~~~
+### Download the models `⇑ <#0>`__
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. It automatically creates a directory structure
@@ -119,8 +124,7 @@ and the system automatically downloads the two models
     
 
 
-Load your labels
-~~~~~~~~~~~~~~~~
+### Load your labels `⇑ <#0>`__
 
 This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
@@ -145,8 +149,7 @@ also provides the text file embedded into this notebook.
     ['abseiling', 'air drumming', 'answering questions', 'applauding', 'applying cream', 'archery', 'arm wrestling', 'arranging flowers', 'assembling computer'] (400,)
 
 
-Load the models
-~~~~~~~~~~~~~~~
+### Load the models `⇑ <#0>`__
 
 Load the two models for this particular architecture, Encoder and
 Decoder. Downloaded models are located in a fixed structure, indicating
@@ -155,26 +158,52 @@ a vendor, the name of the model, and a precision.
 1. Initialize OpenVINO Runtime.
 2. Read the network from ``*.bin`` and ``*.xml`` files (weights and
    architecture).
-3. Compile the model for CPU.
+3. Compile the model for specified device.
 4. Get input and output names of nodes.
 
 Only a few lines of code are required to run the model.
 
-Model Initialization function
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+#### Model Initialization function `⇑ <#0>`__
 
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    ie_core = Core()
+    core = Core()
     
     
-    def model_init(model_path: str) -> Tuple:
+    def model_init(model_path: str, device: str) -> Tuple:
         """
         Read the network and weights from a file, load the
         model on CPU and get input and output names of nodes
     
-        :param: model: model architecture path *.xml
+        :param: 
+                model: model architecture path *.xml
+                device: inference device
         :retuns:
                 compiled_model: Compiled model 
                 input_key: Input node for model
@@ -182,31 +211,29 @@ Model Initialization function
         """
     
         # Read the network and corresponding weights from a file.
-        model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can also use GPU).
-        compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+        model = core.read_model(model=model_path)
+        # Compile the model for specified device.
+        compiled_model = core.compile_model(model=model, device_name=device)
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Initialization for Encoder and Decoder
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#### Initialization for Encoder and Decoder `⇑ <#0>`__
 
 .. code:: ipython3
 
     # Encoder initialization
-    input_key_en, output_keys_en, compiled_model_en = model_init(model_path_encoder)
+    input_key_en, output_keys_en, compiled_model_en = model_init(model_path_encoder, device.value)
     # Decoder initialization
-    input_key_de, output_keys_de, compiled_model_de = model_init(model_path_decoder)
+    input_key_de, output_keys_de, compiled_model_de = model_init(model_path_decoder, device.value)
     
     # Get input size - Encoder.
     height_en, width_en = list(input_key_en.shape)[2:]
     # Get input size - Decoder.
     frames2decode = list(input_key_de.shape)[0:][1]
 
-Helper functions
-~~~~~~~~~~~~~~~~
+### Helper functions `⇑ <#0>`__
 
 Use the following helper functions for preprocessing and postprocessing
 frames:
@@ -326,8 +353,7 @@ frames:
         cv2.putText(frame, display_text, text_loc2, FONT_STYLE, FONT_SIZE, FONT_COLOR2)
         cv2.putText(frame, display_text, text_loc, FONT_STYLE, FONT_SIZE, FONT_COLOR)
 
-AI Functions
-~~~~~~~~~~~~
+### AI Functions `⇑ <#0>`__
 
 Following the pipeline above, you will use the next functions to:
 
@@ -416,8 +442,7 @@ Following the pipeline above, you will use the next functions to:
         exp = np.exp(x)
         return exp / np.sum(exp, axis=None)
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Main Processing Function `⇑ <#0>`__
 
 Running action recognition function will run in different operations,
 either a webcam or a video file. See the list of procedures below:
@@ -567,8 +592,7 @@ either a webcam or a video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Action Recognition on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Action Recognition on a Video File `⇑ <#0>`__
 
 Find out how the model works in a video file. `Any format
 supported <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
@@ -588,7 +612,7 @@ step.
 
 
 
-.. image:: 403-action-recognition-webcam-with-output_files/403-action-recognition-webcam-with-output_19_0.png
+.. image:: 403-action-recognition-webcam-with-output_files/403-action-recognition-webcam-with-output_21_0.png
 
 
 .. parsed-literal::
@@ -596,8 +620,7 @@ step.
     Source ended
 
 
-Run Action Recognition Using a Webcam
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Action Recognition Using a Webcam `⇑ <#0>`__
 
 Now, try to see yourself in your webcam.
 
@@ -618,6 +641,6 @@ Now, try to see yourself in your webcam.
 
 .. parsed-literal::
 
-    [ WARN:0@318.296] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@318.297] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@319.035] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@319.035] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 

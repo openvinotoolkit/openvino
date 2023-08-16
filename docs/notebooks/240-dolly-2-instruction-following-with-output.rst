@@ -79,8 +79,15 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-Prerequisites
--------------
+### Table of content: - `Prerequisites <#1>`__ - `Select inference
+device <#2>`__ - `Download and Convert Model <#3>`__ - `Create an
+instruction-following inference pipeline <#4>`__ - `Setup
+imports <#5>`__ - `Prepare template for user prompt <#6>`__ - `Helpers
+for output parsing <#7>`__ - `Main generation function <#8>`__ -
+`Helpers for application <#9>`__ - `Run instruction-following
+pipeline <#10>`__
+
+## Prerequisites `⇑ <#0>`__
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -95,15 +102,55 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     !pip install -q "diffusers>=0.16.1" "transformers>=4.28.0"
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime gradio
 
-Download and Convert Model
---------------------------
+
+.. parsed-literal::
+
+    
+    [notice] A new release of pip is available: 23.1.2 -> 23.2
+    [notice] To update, run: pip install --upgrade pip
+    
+    [notice] A new release of pip is available: 23.1.2 -> 23.2
+    [notice] To update, run: pip install --upgrade pip
+
+
+### Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    from openvino.runtime import Core
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+
+
+
+## Download and Convert Model `⇑ <#0>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
 create pipelines to run an inference with OpenVINO Runtime using Hugging
 Face APIs. The Optimum Inference models are API compatible with Hugging
 Face Transformers models. This means we just need to replace
-AutoModelForXxx class with the corresponding OVModelForXxx class.
+``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
+class.
 
 Below is an example of the Dolly model
 
@@ -134,7 +181,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     
-    current_device = "CPU"
+    current_device = device.value
     
     if model_path.exists():
         ov_model = OVModelForCausalLM.from_pretrained(model_path, device=current_device)
@@ -145,14 +192,10 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
 .. parsed-literal::
 
-    2023-06-01 12:40:22.260551: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-01 12:40:22.297683: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-17 14:47:00.308996: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-17 14:47:00.348466: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-01 12:40:22.937097: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/openvino/offline_transformations/__init__.py:10: FutureWarning: The module is private and following namespace `offline_transformations` will be removed in the future.
-      warnings.warn(
-    Post-training Optimization Tool is deprecated and will be removed in the future. Please use Neural Network Compression Framework instead: https://github.com/openvinotoolkit/nncf
-    Nevergrad package could not be imported. If you are planning to use any hyperparameter optimization algo, consider installing it using pip. This implies advanced usage of the tool. Note that nevergrad is compatible only with Python 3.7+
+    2023-07-17 14:47:01.039895: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -164,11 +207,55 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
     comet_ml is installed but `COMET_API_KEY` is not set.
-    Compiling the model and creating the inference request ...
+    The argument `from_transformers` is deprecated, and will be removed in optimum 2.0.  Use `export` instead
+    Framework not specified. Using pt to export to ONNX.
+    Using framework PyTorch: 1.13.1+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py:504: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert batch_size > 0, "batch_size has to be defined and > 0"
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/transformers/models/gpt_neox/modeling_gpt_neox.py:270: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+      op1 = operator(*args, **kwargs)
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    In-place op on output of tensor.shape. See https://pytorch.org/docs/master/onnx.html#avoid-inplace-operations-when-using-tensor-shape-in-tracing-mode
+    Saving external data to one file...
+    Compiling the model...
+    Set CACHE_DIR to /tmp/tmpndw8_20n/model_cache
 
 
-Create an instruction-following inference pipeline
---------------------------------------------------
+## Create an instruction-following inference pipeline `⇑ <#0>`__
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -176,7 +263,7 @@ iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
 reached. To obtain intermediate generation results without waiting until
 when generation is finished, we will use
-`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
+```TextIteratorStreamer`` <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
 provided as part of HuggingFace `Streaming
 API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
 
@@ -198,22 +285,30 @@ find more information about the most popular decoding methods in this
 
 There are several parameters that can control text generation quality:
 
-- ``Temperature`` is a parameter used to control the level of creativity in AI-generated text. By adjusting the ``temperature``, you can influence the AI model’s probability distribution, making the text more focused or diverse.
+-  | ``Temperature`` is a parameter used to control the level of
+     creativity in AI-generated text. By adjusting the ``temperature``,
+     you can influence the AI model’s probability distribution, making
+     the text more focused or diverse.
+   | Consider the following example: The AI model has to complete the
+     sentence “The cat is \____.” with the following token
+     probabilities:
 
-  Consider the following example: The AI model has to complete the
-  sentence “The cat is \____.” with the following token probabilities:
+   | playing: 0.5
+   | sleeping: 0.25
+   | eating: 0.15
+   | driving: 0.05
+   | flying: 0.05
 
-  ::
-
-      playing: 0.5  
-      sleeping: 0.25  
-      eating: 0.15  
-      driving: 0.05  
-      flying: 0.05  
-
-      - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
-      - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as   "playing," "sleeping," or "eating."  
-      - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
+   -  **Low temperature** (e.g., 0.2): The AI model becomes more focused
+      and deterministic, choosing tokens with the highest probability,
+      such as “playing.”
+   -  **Medium temperature** (e.g., 1.0): The AI model maintains a
+      balance between creativity and focus, selecting tokens based on
+      their probabilities without significant bias, such as “playing,”
+      “sleeping,” or “eating.”
+   -  **High temperature** (e.g., 2.0): The AI model becomes more
+      adventurous, increasing the chances of selecting less likely
+      tokens, such as “driving” and “flying.”
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
    control the range of tokens considered by the AI model based on their
@@ -231,13 +326,13 @@ There are several parameters that can control text generation quality:
       including those with lower probabilities, such as “driving” and
       “flying.”
 
--  ``Top-k`` is an another popular sampling strategy. In comparision
-   with Top-P, which chooses from the smallest possible set of words
-   whose cumulative probability exceeds the probability P, in Top-K
-   sampling K most likely next words are filtered and the probability
-   mass is redistributed among only those K next words. In our example
-   with cat, if k=3, then only “playing”, “sleeping” and “eating” will
-   be taken into account as possible next word.
+-  ``Top-k`` is another popular sampling strategy. In comparison with
+   Top-P, which chooses from the smallest possible set of words whose
+   cumulative probability exceeds the probability P, in Top-K sampling K
+   most likely next words are filtered and the probability mass is
+   redistributed among only those K next words. In our example with cat,
+   if k=3, then only “playing”, “sleeping” and “eating” will be taken
+   into account as possible next word.
 
 To optimize the generation process and use memory more efficiently, the
 ``use_cache=True`` option is enabled. Since the output side is
@@ -263,8 +358,7 @@ generated tokens without waiting until when the whole generation is
 finished using Streaming API, it adds a new token to the output queue
 and then prints them when they are ready.
 
-Setup imports
-~~~~~~~~~~~~~
+### Setup imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -275,11 +369,10 @@ Setup imports
     from transformers import AutoTokenizer, TextIteratorStreamer
     import numpy as np
 
-Prepare template for user prompt
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Prepare template for user prompt `⇑ <#0>`__
 
 For effective generation, model expects to have input in specific
-format. The code below prepare tamplate for passing user instruction
+format. The code below prepare template for passing user instruction
 into model with providing additional context.
 
 .. code:: ipython3
@@ -306,10 +399,9 @@ into model with providing additional context.
         response_key=RESPONSE_KEY,
     )
 
-Helpers for output parsing
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Helpers for output parsing `⇑ <#0>`__
 
-Model was retrained to finish generaton using special token ``### End``
+Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
 
 .. code:: ipython3
@@ -346,8 +438,7 @@ the code below find its id for using it as generation stop-criteria.
         except ValueError:
             pass
 
-Main generation function
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Main generation function `⇑ <#0>`__
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -406,8 +497,7 @@ parameter and returns model response.
             start = perf_counter()
         return model_output, perf_text
 
-Helpers for application
-~~~~~~~~~~~~~~~~~~~~~~~
+### Helpers for application `⇑ <#0>`__
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -435,7 +525,7 @@ elements.
         per_token_time.append(num_current_toks / current_time)
         if len(per_token_time) > 10 and len(per_token_time) % 4 == 0:
             current_bucket = per_token_time[:-10]
-            return f"Average generaton speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
+            return f"Average generation speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
         return current_perf_text, num_tokens
     
     def reset_textbox(instruction:str, response:str, perf:str):
@@ -472,8 +562,7 @@ elements.
                 ov_model.compile()
         return current_text
 
-Run instruction-following pipeline
-----------------------------------
+## Run instruction-following pipeline `⇑ <#0>`__
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
@@ -495,10 +584,7 @@ generation parameters:
 
 .. code:: ipython3
 
-    from openvino.runtime import Core
-    
-    core = Core()
-    available_devices = core.available_devices
+    available_devices = Core().available_devices + ["AUTO"]
     
     examples = [
         "Give me recipe for pizza with pineapple",
@@ -557,6 +643,12 @@ generation parameters:
             demo.launch(enable_queue=True, share=False, height=800)
         except Exception:
             demo.launch(enable_queue=True, share=True, height=800)
+
+
+.. parsed-literal::
+
+    /tmp/ipykernel_1272681/896135151.py:57: GradioDeprecationWarning: The `enable_queue` parameter has been deprecated. Please use the `.queue()` method instead.
+      demo.launch(enable_queue=True, share=False, height=800)
 
 
 .. parsed-literal::

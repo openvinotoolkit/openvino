@@ -71,9 +71,9 @@ made of three key components which are as follows: |deepsort|
    union(IOU) association as proposed in the original SORT algorithm [3]
    on the set of unconfirmed and unmatched tracks from the previous
    step. If the IOU of detection and target is less than a certain
-   threshold value called IOUmin then that assignment is rejected. This
-   helps to account for sudden appearance changes, for example, due to
-   partial occlusion with static scene geometry, and to increase
+   threshold value called ``IOUmin`` then that assignment is rejected.
+   This helps to account for sudden appearance changes, for example, due
+   to partial occlusion with static scene geometry, and to increase
    robustness against erroneous.
 
    When detection result is associated with a target, the detected
@@ -86,20 +86,34 @@ Problems”, Journal of Basic Engineering, vol. 82, no. Series D,
 pp. 35-45, 1960.
 
 [2] H. W. Kuhn, “The Hungarian method for the assignment problem”, Naval
-ResearchLogistics Quarterly, vol. 2, pp. 83-97, 1955.
+Research Logistics Quarterly, vol. 2, pp. 83-97, 1955.
 
 [3] A. Bewley, G. Zongyuan, F. Ramos, and B. Upcroft, “Simple online and
 realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
+### Table of content: - `Imports <#1>`__ - `Download the Model <#2>`__ -
+`Load model <#3>`__ - `Select inference device <#4>`__ - `Data
+Processing <#5>`__ - `Test person reidentification model <#6>`__ -
+`Visualize data <#7>`__ - `Compare two persons <#8>`__ - `Main
+Processing Function <#9>`__ - `Run <#10>`__ - `Initialize
+tracker <#11>`__ - `Run Live Person Tracking <#12>`__ - `Run Person
+Tracking on a Video File <#13>`__
+
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q "openvino-dev>=2023.0.0"
     !pip install -q opencv-python matplotlib requests scipy
 
-Imports
--------
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -134,10 +148,8 @@ Imports
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
 
-Download the Model
-------------------
-
-We will use pre-trained models from OpenVINO’s `Open Model
+## Download the Model `⇑ <#0>`__ We will use pre-trained models from
+OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test.
 
@@ -219,10 +231,8 @@ replace the name of the model in the code below.
     
 
 
-Load model
-----------
-
-Define a common class for model loading and predicting.
+## Load model `⇑ <#0>`__ Define a common class for model loading and
+predicting.
 
 There are four main steps for OpenVINO model initialization, and they
 are required to run for only once before inference loop. 1. Initialize
@@ -238,7 +248,7 @@ performance, but slightly longer startup time).
 
 .. code:: ipython3
 
-    ie_core = Core()
+    core = Core()
     
     
     class Model:
@@ -256,7 +266,7 @@ performance, but slightly longer startup time).
             batchsize: batch size of input data
             device: device used to run inference
             """
-            self.model = ie_core.read_model(model=model_path)
+            self.model = core.read_model(model=model_path)
             self.input_layer = self.model.input(0)
             self.input_shape = self.input_layer.shape
             self.height = self.input_shape[2]
@@ -266,7 +276,7 @@ performance, but slightly longer startup time).
                 input_shape = layer.partial_shape
                 input_shape[0] = batchsize
                 self.model.reshape({layer: input_shape})
-            self.compiled_model = ie_core.compile_model(model=self.model, device_name=device)
+            self.compiled_model = core.compile_model(model=self.model, device_name=device)
             self.output_layer = self.compiled_model.output(0)
     
         def predict(self, input):
@@ -279,20 +289,44 @@ performance, but slightly longer startup time).
             """
             result = self.compiled_model(input)[self.output_layer]
             return result
+
+### Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
     
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
     
-    detector = Model(detection_model_path)
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    detector = Model(detection_model_path, device=device.value)
     # since the number of detection object is uncertain, the input batch size of reid model should be dynamic
-    extractor = Model(reidentification_model_path, -1)
+    extractor = Model(reidentification_model_path, -1, device.value)
 
-Data Processing
----------------
-
-Data Processing includes data preprocess and postprocess functions. -
-Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format. - Data
-postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+## Data Processing `⇑ <#0>`__ Data Processing includes data preprocess
+and postprocess functions. - Data preprocess function is used to change
+the layout and shape of input data, according to requirement of the
+network input format. - Data postprocess function is used to extract the
+useful information from network’s original output and visualize it.
 
 .. code:: ipython3
 
@@ -404,15 +438,12 @@ network’s original output and visualize it.
         """
         return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
-Test person reidentification model
-----------------------------------
+## Test person reidentification model `⇑ <#0>`__ The reidentification
+network outputs a blob with the ``(1, 256)`` shape named
+``reid_embedding``, which can be compared with other descriptors using
+the cosine distance.
 
-The reidentification network outputs a blob with the ``(1, 256)`` shape
-named ``reid_embedding``, which can be compared with other descriptors
-using the cosine distance.
-
-Visualize data
-~~~~~~~~~~~~~~
+### Visualize data `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -456,11 +487,10 @@ Visualize data
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_13_3.png
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_17_3.png
 
 
-Compare two persons
-~~~~~~~~~~~~~~~~~~~
+### Compare two persons `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -481,8 +511,7 @@ Compare two persons
     Different person (confidence: 0.02726622298359871)
 
 
-Main Processing Function
-------------------------
+## Main Processing Function `⇑ <#0>`__
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -636,14 +665,10 @@ video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run
----
+## Run `⇑ <#0>`__
 
-Initialize tracker
-~~~~~~~~~~~~~~~~~~
-
-Before running a new tracking task, we have to reinitialize a Tracker
-object
+### Initialize tracker `⇑ <#0>`__ Before running a new tracking task, we
+have to reinitialize a Tracker object
 
 .. code:: ipython3
 
@@ -659,15 +684,12 @@ object
         n_init=3
     )
 
-Run Live Person Tracking
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Use a webcam as the video input. By default, the primary webcam is set
-with ``source=0``. If you have multiple webcams, each one will be
-assigned a consecutive number starting at 0. Set ``flip=True`` when
-using a front-facing camera. Some web browsers, especially Mozilla
-Firefox, may cause flickering. If you experience flickering, set
-``use_popup=True``.
+### Run Live Person Tracking `⇑ <#0>`__ Use a webcam as the video input.
+By default, the primary webcam is set with ``source=0``. If you have
+multiple webcams, each one will be assigned a consecutive number
+starting at 0. Set ``flip=True`` when using a front-facing camera. Some
+web browsers, especially Mozilla Firefox, may cause flickering. If you
+experience flickering, set ``use_popup=True``.
 
 .. code:: ipython3
 
@@ -681,12 +703,11 @@ Firefox, may cause flickering. If you experience flickering, set
 
 .. parsed-literal::
 
-    [ WARN:0@10.093] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@10.094] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@10.127] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@10.127] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Person Tracking on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Person Tracking on a Video File `⇑ <#0>`__
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -700,7 +721,7 @@ will work.
 
 
 
-.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_23_0.png
+.. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_27_0.png
 
 
 .. parsed-literal::

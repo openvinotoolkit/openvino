@@ -28,16 +28,24 @@ all 80 classes, the segmentation model has been trained on 20 classes
 from the `PASCAL VOC <http://host.robots.ox.ac.uk/pascal/VOC/>`__
 dataset: **background, aeroplane, bicycle, bird, boat, bottle, bus, car,
 cat, chair, cow, dining table, dog, horse, motorbike, person, potted
-plant, sheep, sofa, train, tvmonitor**
+plant, sheep, sofa, train, tv monitor**
 
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
+Table of content: - `Preparation <#1>`__ - `Imports <#2>`__ -
+`Settings <#3>`__ - `Load Model <#4>`__ - `ONNX Model Conversion <#5>`__
+- `Convert PyTorch model to ONNX <#6>`__ - `Convert ONNX Model to
+OpenVINO IR Format <#7>`__ - `Show Results <#8>`__ - `Load and
+Preprocess an Input Image <#9>`__ - `Load the OpenVINO IR Network and
+Run Inference on the ONNX model <#10>`__ - `1. ONNX Model in OpenVINO
+Runtime <#11>`__ - `Select inference device <#12>`__ - `2. OpenVINO IR
+Model in OpenVINO Runtime <#13>`__ - `Select inference device <#14>`__ -
+`PyTorch Comparison <#15>`__ - `Performance Comparison <#16>`__ -
+`References <#17>`__
 
-Preparation
------------
+## Preparation `⇑ <#0>`__
 
-Imports
-~~~~~~~
+### Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -55,8 +63,7 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, viz_result_image, SegmentationMap, Label, download_file
 
-Settings
-~~~~~~~~
+### Settings `⇑ <#0>`__
 
 Set a name for the model, then define width and height of the image that
 will be used by the network during inference. According to the input
@@ -77,16 +84,14 @@ transforms function, the model is pre-trained on images with a height of
         onnx_path.parent.mkdir()
     ir_path = onnx_path.with_suffix(".xml")
 
-Load Model
-~~~~~~~~~~
+### Load Model `⇑ <#0>`__
 
 Generally, PyTorch models represent an instance of ``torch.nn.Module``
 class, initialized by a state dictionary with model weights. Typical
-steps for getting a pre-trained model: 
-
-1. Create instance of model class
+steps for getting a pre-trained model: 1. Create instance of model class
 2. Load checkpoint state dict, which contains pre-trained model weights
-3. Turn model to evaluation for switching some operations to inference mode
+3. Turn model to evaluation for switching some operations to inference
+mode
 
 The ``torchvision`` module provides a ready to use set of functions for
 model class initialization. We will use
@@ -129,11 +134,9 @@ have not downloaded the model before.
     Loaded PyTorch LRASPP MobileNetV3 model
 
 
-ONNX Model Conversion
----------------------
+## ONNX Model Conversion `⇑ <#0>`__
 
-Convert PyTorch model to ONNX
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert PyTorch model to ONNX `⇑ <#0>`__
 
 OpenVINO supports PyTorch models that are exported in ONNX format. We
 will use the ``torch.onnx.export`` function to obtain the ONNX model,
@@ -172,14 +175,12 @@ line of the output will read:
     ONNX model exported to model/lraspp_mobilenet_v3_large.onnx.
 
 
-Convert ONNX Model to OpenVINO IR Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert ONNX Model to OpenVINO IR Format `⇑ <#0>`__
 
-Use Model Optimizer to convert the ONNX model to OpenVINO IR with
-``FP16`` precision. The models are saved inside the current directory.
-For more information about Model Optimizer, see the `Model Optimizer
-Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+To convert the ONNX model to OpenVINO IR with ``FP16`` precision, use
+model conversion API. The models are saved inside the current directory.
+For more information on how to convert models, see this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -199,14 +200,12 @@ Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_O
     Exporting ONNX model to IR... This may take a few minutes.
 
 
-Show Results
-------------
+## Show Results `⇑ <#0>`__
 
 Confirm that the segmentation results look as expected by comparing
 model predictions on the ONNX, OpenVINO IR and PyTorch models.
 
-Load and Preprocess an Input Image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Load and Preprocess an Input Image `⇑ <#0>`__
 
 Images need to be normalized before propagating through the network.
 
@@ -237,8 +236,8 @@ Images need to be normalized before propagating through the network.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
     normalized_input_image = np.expand_dims(np.transpose(normalized_image, (2, 0, 1)), 0)
 
-Load the OpenVINO IR Network and Run Inference on the ONNX model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Load the OpenVINO IR Network and Run Inference on the ONNX model
+`⇑ <#0>`__
 
 OpenVINO Runtime can load ONNX models directly. First, load the ONNX
 model, do inference and show the results. Then, load the model that was
@@ -246,8 +245,7 @@ converted to OpenVINO Intermediate Representation (OpenVINO IR) with
 Model Optimizer and do inference on that model, and show the results on
 an image.
 
-1. ONNX Model in OpenVINO Runtime
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#### 1. ONNX Model in OpenVINO Runtime `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -257,8 +255,7 @@ an image.
     # Read model to OpenVINO Runtime
     model_onnx = core.read_model(model=onnx_path)
 
-Select inference device
-^^^^^^^^^^^^^^^^^^^^^^^
+#### Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -339,11 +336,9 @@ be applied to each label for more convenient visualization.
 
 
 
-2. OpenVINO IR Model in OpenVINO Runtime
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#### 2. OpenVINO IR Model in OpenVINO Runtime `⇑ <#0>`__
 
-Select inference device
-^^^^^^^^^^^^^^^^^^^^^^^
+#### Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -389,8 +384,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-PyTorch Comparison
-------------------
+## PyTorch Comparison `⇑ <#0>`__
 
 Do inference on the PyTorch model to verify that the output visually
 looks the same as the output on the ONNX/OpenVINO IR models.
@@ -415,8 +409,7 @@ looks the same as the output on the ONNX/OpenVINO IR models.
 
 
 
-Performance Comparison
-----------------------
+## Performance Comparison `⇑ <#0>`__
 
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
@@ -488,9 +481,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.80
-    ONNX model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 31.95
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.67
+    PyTorch model on CPU: 0.037 seconds per image, FPS: 27.19
+    ONNX model in OpenVINO Runtime/CPU: 0.031 seconds per image, FPS: 32.33
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.032 seconds per image, FPS: 31.72
 
 
 **Show Device Information**
@@ -508,8 +501,7 @@ performance.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-References
-----------
+## References `⇑ <#0>`__
 
 -  `Torchvision <https://pytorch.org/vision/stable/index.html>`__
 -  `Pytorch ONNX
@@ -517,7 +509,7 @@ References
 -  `PIP install openvino-dev <https://pypi.org/project/openvino-dev/>`__
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
--  `Model Optimizer
-   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
--  `Model Optimizer Pytorch conversion
-   guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+-  `Model Conversion API
+   documentation <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+-  `Converting Pytorch
+   model <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__

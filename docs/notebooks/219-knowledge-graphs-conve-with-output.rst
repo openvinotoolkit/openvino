@@ -6,16 +6,29 @@ the ConvE knowledge graph embeddings model using the Intel® Distribution
 of OpenVINO™ Toolkit. The optimizations process contains the following
 steps:
 
-1. Export the trained model to a format suitable for OpenVINO optimizations and inference
-2. Report the inference performance speedup obtained with the optimized OpenVINO model
+1. Export the trained model to a format suitable for OpenVINO
+   optimizations and inference
+2. Report the inference performance speedup obtained with the optimized
+   OpenVINO model
 
 The ConvE model is an implementation of the paper - “Convolutional 2D
 Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
+Table of content: - `Windows specific settings <#1>`__ - `Import the
+packages needed for successful execution <#2>`__ - `Settings: Including
+path to the serialized model files and input data files <#3>`__ -
+`Download Model Checkpoint <#4>`__ - `Defining the ConvE model
+class <#5>`__ - `Defining the dataloader <#6>`__ - `Evaluate the trained
+ConvE model <#7>`__ - `Prediction on the Knowledge graph. <#8>`__ -
+`Convert the trained PyTorch model to ONNX format for OpenVINO
+inference <#9>`__ - `Evaluate the model performance with
+OpenVINO <#10>`__ - `Select inference device <#11>`__ - `Determine the
+platform specific speedup obtained through OpenVINO graph
+optimizations <#12>`__ - `Benchmark the converted OpenVINO model using
+benchmark app <#13>`__ - `Conclusions <#14>`__ - `References <#15>`__
 
-Windows specific settings
--------------------------
+## Windows specific settings `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -57,8 +70,7 @@ Windows specific settings
             os.environ["LIB"] = os.pathsep.join(b.library_dirs)
             print(f"Added {vs_dir} to PATH")
 
-Import the packages needed for successful execution
----------------------------------------------------
+## Import the packages needed for successful execution `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -78,8 +90,8 @@ Import the packages needed for successful execution
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Settings: Including path to the serialized model files and input data files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Settings: Including path to the serialized model files and input
+data files `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -119,8 +131,7 @@ Settings: Including path to the serialized model files and input data files
     Using cpu device
 
 
-Download Model Checkpoint
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Download Model Checkpoint `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -139,12 +150,11 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/219-knowledge-graphs-conve/models/conve.pt')
 
 
 
-Defining the ConvE model class
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Defining the ConvE model class `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -201,8 +211,7 @@ Defining the ConvE model class
             pred = torch.nn.functional.softmax(x, dim=1)
             return pred
 
-Defining the dataloader
-~~~~~~~~~~~~~~~~~~~~~~~
+### Defining the dataloader `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -250,15 +259,13 @@ Defining the dataloader
             dp.close()
             return triples_list
 
-Evaluate the trained ConvE model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-First, we will evaluate the model performance using PyTorch. The goal is
-to make sure there are no accuracy differences between the original
-model inference and the model converted to OpenVINO intermediate
-representation inference results. Here, we use a simple accuracy metric
-to evaluate the model performance on a test dataset. However, it is
-typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
+### Evaluate the trained ConvE model `⇑ <#0>`__ First, we will evaluate
+the model performance using PyTorch. The goal is to make sure there are
+no accuracy differences between the original model inference and the
+model converted to OpenVINO intermediate representation inference
+results. Here, we use a simple accuracy metric to evaluate the model
+performance on a test dataset. However, it is typical to use metrics
+such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. code:: ipython3
 
@@ -295,19 +302,16 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6920695304870605 ms
+    Average time taken for inference: 0.6897946198781332 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
-Prediction on the Knowledge graph.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Here, we perform the entity prediction on the knowledge graph, as a
-sample evaluation task. We pass the source entity ‘san_marino’ and
-relation ‘locatedIn’ to the knowledge graph and obtain the target entity
-predictions. Expected predictions are target entities that form a
-factual triple with the entity and relation passed as inputs to the
-knowledge graph.
+### Prediction on the Knowledge graph. `⇑ <#0>`__ Here, we perform the
+entity prediction on the knowledge graph, as a sample evaluation task.
+We pass the source entity ``san_marino`` and relation ``locatedIn`` to
+the knowledge graph and obtain the target entity predictions. Expected
+predictions are target entities that form a factual triple with the
+entity and relation passed as inputs to the knowledge graph.
 
 .. code:: ipython3
 
@@ -333,13 +337,11 @@ knowledge graph.
     Source Entity: san_marino, Relation: locatedin, Target entity prediction: europe
 
 
-Convert the trained PyTorch model to ONNX format for OpenVINO inference
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To evaluate performance with OpenVINO, we can either convert the trained
-PyTorch model to an intermediate representation (IR) format or to an
-ONNX representation. This notebook uses the ONNX format. For more
-details on model optimization, refer to:
+### Convert the trained PyTorch model to ONNX format for OpenVINO
+inference `⇑ <#0>`__ To evaluate performance with OpenVINO, we can
+either convert the trained PyTorch model to an intermediate
+representation (IR) format or to an ONNX representation. This notebook
+uses the ONNX format. For more details on model optimization, refer to:
 https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html
 
 .. code:: ipython3
@@ -354,8 +356,7 @@ https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimize
     Converting the trained conve model to ONNX format
 
 
-Evaluate the model performance with OpenVINO
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Evaluate the model performance with OpenVINO `⇑ <#0>`__
 
 Now, we evaluate the model performance with the OpenVINO framework. In
 order to do so, make three main API calls:
@@ -369,9 +370,38 @@ Then, the model can be inferred on by using the
 
 .. code:: ipython3
 
-    ie = Core()
-    ir_net = ie.read_model(model=fp32_onnx_path)
-    compiled_model = ie.compile_model(model=ir_net)
+    core = Core()
+    ov_model = core.read_model(model=fp32_onnx_path)
+
+## Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model=ov_model, device_name=device.value)
     input_layer_source = compiled_model.input('input.1')
     input_layer_relation = compiled_model.input('input.2')
     output_layer = compiled_model.output(0)
@@ -399,12 +429,12 @@ Then, the model can be inferred on by using the
 
 .. parsed-literal::
 
-    Average time taken for inference: 1.466284195582072 ms
+    Average time taken for inference: 1.246631145477295 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
-Determine the platform specific speedup obtained through OpenVINO graph optimizations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Determine the platform specific speedup obtained through OpenVINO
+graph optimizations `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -413,15 +443,14 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.47 X
+    Speedup with OpenVINO optimizations: 0.55 X
 
 
-Benchmark the converted OpenVINO model using benchmark app
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The OpenVINO toolkit provides a benchmarking application to gauge the
-platform specific runtime performance that can be obtained under optimal
-configuration parameters for a given model. For more details refer to:
+### Benchmark the converted OpenVINO model using benchmark app
+`⇑ <#0>`__ The OpenVINO toolkit provides a benchmarking application to
+gauge the platform specific runtime performance that can be obtained
+under optimal configuration parameters for a given model. For more
+details refer to:
 https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html
 
 Here, we use the benchmark application to obtain performance estimates
@@ -435,7 +464,7 @@ inference can also be obtained by looking at the benchmark app results.
 .. code:: ipython3
 
     print('Benchmark OpenVINO model using the benchmark app')
-    ! benchmark_app -m "$fp32_onnx_path" -d CPU -api async -t 10 -shape "input.1[1],input.2[1]" 
+    ! benchmark_app -m "$fp32_onnx_path" -d device.value -api async -t 10 -shape "input.1[1],input.2[1]" 
 
 
 .. parsed-literal::
@@ -445,90 +474,33 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
-    [ INFO ] CPU
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
-    [Step 3/11] Setting device configuration
-    [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
-    [Step 4/11] Reading model files
-    [ INFO ] Loading model files
-    [ INFO ] Read model took 20.85 ms
-    [ INFO ] Original model I/O parameters:
-    [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : i64 / [...] / []
-    [ INFO ]     input.2 (node: input.2) : i64 / [...] / []
-    [ INFO ] Model outputs:
-    [ INFO ]     51 (node: 51) : f32 / [...] / [1,271]
-    [Step 5/11] Resizing model to match image sizes and given batch
-    [ INFO ] Model batch size: 1
-    [ INFO ] Reshaping model: 'input.1': [1], 'input.2': [1]
-    [ INFO ] Reshape model took 0.97 ms
-    [Step 6/11] Configuring input of the model
-    [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : i64 / [...] / [1]
-    [ INFO ]     input.2 (node: input.2) : i64 / [...] / [1]
-    [ INFO ] Model outputs:
-    [ INFO ]     51 (node: 51) : f32 / [...] / [1,271]
-    [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 57.00 ms
-    [Step 8/11] Querying optimal runtime parameters
-    [ INFO ] Model:
-    [ INFO ]   NETWORK_NAME: torch_jit
-    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
-    [ INFO ]   INFERENCE_NUM_THREADS: 24
-    [ INFO ]   PERF_COUNT: False
-    [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
-    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
-    [ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]   ENABLE_CPU_PINNING: True
-    [ INFO ]   SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
-    [ INFO ]   ENABLE_HYPER_THREADING: True
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
-    [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ WARNING ] No input files were given for input 'input.2'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
-    [ INFO ] Fill input 'input.2' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
-    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 5.00 ms
-    [Step 11/11] Dumping statistics report
-    [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            96480 iterations
-    [ INFO ] Duration:         10001.93 ms
-    [ INFO ] Latency:
-    [ INFO ]    Median:        1.01 ms
-    [ INFO ]    Average:       1.04 ms
-    [ INFO ]    Min:           0.60 ms
-    [ INFO ]    Max:           3.45 ms
-    [ INFO ] Throughput:   9646.14 FPS
+    [ ERROR ] Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    Traceback (most recent call last):
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 103, in main
+        benchmark.print_version_info()
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/benchmark.py", line 48, in print_version_info
+        for device, version in self.core.get_versions(self.device).items():
+    RuntimeError: Check 'false' failed at src/inference/src/core.cpp:84:
+    Device with "device" name is not registered in the OpenVINO Runtime
+    
 
 
-Conclusions
-~~~~~~~~~~~
-
-In this notebook, we convert the trained PyTorch knowledge graph
-embeddings model to the OpenVINO format. We confirm that there are no
-accuracy differences post conversion. We also perform a sample
-evaluation on the knowledge graph. Then, we determine the platform
-specific speedup in runtime performance that can be obtained through
-OpenVINO graph optimizations. To learn more about the OpenVINO
-performance optimizations, refer to:
+### Conclusions `⇑ <#0>`__ In this notebook, we convert the trained
+PyTorch knowledge graph embeddings model to the OpenVINO format. We
+confirm that there are no accuracy differences post conversion. We also
+perform a sample evaluation on the knowledge graph. Then, we determine
+the platform specific speedup in runtime performance that can be
+obtained through OpenVINO graph optimizations. To learn more about the
+OpenVINO performance optimizations, refer to:
 https://docs.openvino.ai/2023.0/openvino_docs_optimization_guide_dldt_optimization_guide.html
 
-References
-~~~~~~~~~~
-
-1. Convolutional 2D Knowledge Graph Embeddings, Tim Dettmers et
-   al. (https://arxiv.org/abs/1707.01476)
-2. Model implementation: https://github.com/TimDettmers/ConvE
+### References `⇑ <#0>`__ 1. Convolutional 2D Knowledge Graph
+Embeddings, Tim Dettmers et al. (https://arxiv.org/abs/1707.01476) 2.
+Model implementation: https://github.com/TimDettmers/ConvE
 
 The ConvE model implementation used in this notebook is licensed under
 the MIT License. The license is displayed below: MIT License

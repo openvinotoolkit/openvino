@@ -16,7 +16,7 @@ spoke when?”
 
 With the increasing number of broadcasts, meeting recordings and voice
 mail collected every year, speaker diarization has received much
-attention by the speech community. Seaker diarization is an essential
+attention by the speech community. Speaker diarization is an essential
 feature for a speech recognition system to enrich the transcription with
 speaker labels.
 
@@ -37,8 +37,13 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-Prerequisites
--------------
+Table of content: - `Prerequisites <#1>`__ - `Prepare pipeline <#2>`__ -
+`Load test audio file <#3>`__ - `Run inference pipeline <#4>`__ -
+`Convert model to OpenVINO Intermediate Representation format <#5>`__ -
+`Select inference device <#6>`__ - `Replace segmentation model with
+OpenVINO <#7>`__ - `Run speaker diarization with OpenVINO <#8>`__
+
+## Prerequisites `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -47,31 +52,33 @@ Prerequisites
 
 .. parsed-literal::
 
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     onnx 1.14.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.5.0rc0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.74 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
     
 
-Prepare pipeline
-----------------
+## Prepare pipeline `⇑ <#0>`__
 
-Traditional Speaker Diarization systems can be generalized into a five
-step process:
+Traditional Speaker Diarization systems can be generalized into a
+five-step process:
 
-* **Feature extraction**: transform the raw waveform into audio features like 
-mel spectrogram.
-* **Voice activity detection**: identify the chunks in the audio where some voice 
-activity was observed. As we are not interested in silence and noise, we ignore 
-those irrelevant chunks. 
-* **Speaker change detection**: identify the speaker change points in the 
-conversation present in the audio.
-* **Speech turn representation**: encode each subchunk by creating feature representations.
-* **Speech turn clustering**: cluster the subchunks based on their vector 
-representation. Different clustering algorithms may be applied based on the 
-availability of cluster count (k) and the embedding process of the previous step.
+-  **Feature extraction**: transform the raw waveform into audio
+   features like mel spectrogram.
+-  **Voice activity detection**: identify the chunks in the audio where
+   some voice activity was observed. As we are not interested in silence
+   and noise, we ignore those irrelevant chunks.
+-  **Speaker change detection**: identify the speaker change points in
+   the conversation present in the audio.
+-  **Speech turn representation**: encode each subchunk by creating
+   feature representations.
+-  **Speech turn clustering**: cluster the subchunks based on their
+   vector representation. Different clustering algorithms may be applied
+   based on the availability of cluster count (k) and the embedding
+   process of the previous step.
 
 The final output will be the clusters of different subchunks from the
 audio stream. Each cluster can be given an anonymous identifier
@@ -112,7 +119,8 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
 .. code:: python
 
-   ## login to huggingfacehub to get access to pre-trained model 
+
+   ## login to huggingfacehub to get access to pre-trained model
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -127,8 +135,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
     
     pipeline = Pipeline.from_pretrained("philschmid/pyannote-speaker-diarization-endpoint")
 
-Load test audio file
---------------------
+## Load test audio file `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -183,8 +190,7 @@ Load test audio file
 .. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_9_1.png
 
 
-Run inference pipeline
-----------------------
+## Run inference pipeline `⇑ <#0>`__
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -205,7 +211,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.65 s
+    Diarization pipeline took 15.37 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -244,8 +250,8 @@ We can also print each time frame and corresponding speaker:
     start=27.8s stop=29.5s speaker_SPEAKER_02
 
 
-Convert model to OpenVINO Intermediate Representation format
-------------------------------------------------------------
+## Convert model to OpenVINO Intermediate Representation format
+`⇑ <#0>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -284,8 +290,33 @@ with ``openvino.runtime.serialize``.
     Model successfully converted to IR and saved to pyannote-segmentation.xml
 
 
-Replace segmentation model with OpenVINO
-----------------------------------------
+## Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+## Replace segmentation model with OpenVINO `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -293,7 +324,7 @@ Replace segmentation model with OpenVINO
     
     core = Core()
     
-    ov_seg_model = core.compile_model(ov_speaker_segmentation)
+    ov_seg_model = core.compile_model(ov_speaker_segmentation, device.value)
     infer_request = ov_seg_model.create_infer_request()
     ov_seg_out = ov_seg_model.output(0)
 
@@ -316,8 +347,7 @@ Replace segmentation model with OpenVINO
     
     pipeline._segmentation.infer = infer_segm
 
-Run speaker diarization with OpenVINO
--------------------------------------
+## Run speaker diarization with OpenVINO `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -332,7 +362,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 14.98 s
+    Diarization pipeline took 14.69 s
 
 
 .. code:: ipython3
@@ -342,7 +372,7 @@ Run speaker diarization with OpenVINO
 
 
 
-.. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_25_0.png
+.. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_27_0.png
 
 
 

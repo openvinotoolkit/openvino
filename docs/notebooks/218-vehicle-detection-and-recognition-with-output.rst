@@ -17,10 +17,16 @@ As a result, you can get:
 
    result
 
+Table of content: - `Imports <#1>`__ - `Download Models <#2>`__ - `Load
+Models <#3>`__ - `Get attributes from model <#4>`__ - `Helper
+function <#5>`__ - `Read and display a test image <#6>`__ - `Use the
+Detection Model to Detect Vehicles <#7>`__ - `Detection
+Processing <#8>`__ - `Recognize vehicle attributes <#9>`__ -
+`Recognition processing <#10>`__ - `Combine two models <#11>`__
+
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 Import the required modules.
 
@@ -39,8 +45,7 @@ Import the required modules.
     sys.path.append("../utils")
     import notebook_utils as utils
 
-Download Models
----------------
+## Download Models `⇑ <#0>`__
 
 Use ``omz_downloader`` - a command-line tool from the ``openvino-dev``
 package. The ``omz_downloader`` tool automatically creates a directory
@@ -114,8 +119,7 @@ Representation (OpenVINO IR).
     
 
 
-Load Models
------------
+## Load Models `⇑ <#0>`__
 
 This tutorial requires a detection model and a recognition model. After
 downloading the models, initialize OpenVINO Runtime, and use
@@ -125,8 +129,32 @@ specified device.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
     # Initialize OpenVINO Runtime runtime.
-    ie_core = Core()
+    core = Core()
     
     
     def model_init(model_path: str) -> Tuple:
@@ -143,16 +171,14 @@ specified device.
         """
     
         # Read the network and corresponding weights from a file.
-        model = ie_core.read_model(model=model_path)
-        # Compile the model for CPU (you can also use GPU).
-        compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+        model = core.read_model(model=model_path)
+        compiled_model = core.compile_model(model=model, device_name=device.value)
         # Get input and output names of nodes.
         input_keys = compiled_model.input(0)
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Get attributes from model
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Get attributes from model `⇑ <#0>`__
 
 Use ``input_keys.shape`` to get data shapes.
 
@@ -170,8 +196,7 @@ Use ``input_keys.shape`` to get data shapes.
     # Get input size - Recognition.
     height_re, width_re = list(input_key_re.shape)[2:]
 
-Helper function
-~~~~~~~~~~~~~~~
+### Helper function `⇑ <#0>`__
 
 The ``plt_show()`` function is used to show image.
 
@@ -188,8 +213,7 @@ The ``plt_show()`` function is used to show image.
         plt.axis("off")
         plt.imshow(raw_image)
 
-Read and display a test image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Read and display a test image `⇑ <#0>`__
 
 The input shape of detection model is ``[1, 3, 256, 256]``. Therefore,
 you need to resize the image to ``256 x 256``, and expand the batch
@@ -217,11 +241,10 @@ channel with ``expand_dims`` function.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_12_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_13_0.png
 
 
-Use the Detection Model to Detect Vehicles
-------------------------------------------
+## Use the Detection Model to Detect Vehicles `⇑ <#0>`__
 
 .. figure:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
    :alt: pipline
@@ -231,14 +254,15 @@ Use the Detection Model to Detect Vehicles
 As shown in the flowchart, images of individual vehicles are sent to the
 recognition model. First, use ``infer`` function to get the result.
 
-The detection model output has the format [image_id, label, conf, x_min,
-y_min, x_max, y_max], where:
+The detection model output has the format
+``[image_id, label, conf, x_min, y_min, x_max, y_max]``, where:
 
--  image_id - ID of the image in the batch
--  label - predicted class ID (0 - vehicle)
--  conf - confidence for the predicted class
--  (x_min, y_min) - coordinates of the top left bounding box corner
--  (x_max, y_max) - coordinates of the bottom right bounding box corner
+-  ``image_id`` - ID of the image in the batch
+-  ``label`` - predicted class ID (0 - vehicle)
+-  ``conf`` - confidence for the predicted class
+-  ``(x_min, y_min)`` - coordinates of the top left bounding box corner
+-  ``(x_max, y_max)`` - coordinates of the bottom right bounding box
+   corner
 
 Delete unused dims and filter out results that are not used.
 
@@ -251,8 +275,7 @@ Delete unused dims and filter out results that are not used.
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-Detection Processing
-~~~~~~~~~~~~~~~~~~~~
+### Detection Processing `⇑ <#0>`__
 
 With the function below, you change the ratio to the real position in
 the image and filter out low-confidence results.
@@ -300,8 +323,7 @@ the image and filter out low-confidence results.
     # Find the position of a car.
     car_position = crop_images(image_de, resized_image_de, boxes)
 
-Recognize vehicle attributes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Recognize vehicle attributes `⇑ <#0>`__
 
 Select one of the detected boxes. Then, crop to an area containing a
 vehicle to test with the recognition model. Again, you need to resize
@@ -320,11 +342,10 @@ the input image and run inference.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_19_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_20_0.png
 
 
-Recognition processing
-''''''''''''''''''''''
+##### Recognition processing `⇑ <#0>`__
 
 The result contains colors of the vehicles (white, gray, yellow, red,
 green, blue, black) and types of vehicles (car, bus, truck, van). Next,
@@ -372,8 +393,7 @@ determine the maximum probability as the result.
     Attributes:('Gray', 'Car')
 
 
-Combine two models
-~~~~~~~~~~~~~~~~~~
+### Combine two models `⇑ <#0>`__
 
 Congratulations! You successfully used a detection model to crop an
 image with a vehicle and recognize the attributes of a vehicle.
@@ -434,5 +454,5 @@ image with a vehicle and recognize the attributes of a vehicle.
 
 
 
-.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_25_0.png
+.. image:: 218-vehicle-detection-and-recognition-with-output_files/218-vehicle-detection-and-recognition-with-output_26_0.png
 

@@ -12,13 +12,17 @@ Additionally, you can also upload a video file.
    **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    server, the webcam will not work. However, you can still do inference
-   on a video.
+   on a video. Table of content: - `Preparation <#1>`__ - `Install
+   requirements <#2>`__ - `Imports <#3>`__ - `The Model <#4>`__ -
+   `Download the Model <#5>`__ - `Convert the Model <#6>`__ - `Load the
+   Model <#7>`__ - `Processing <#8>`__ - `Process Results <#9>`__ -
+   `Main Processing Function <#10>`__ - `Run <#11>`__ - `Run Live Object
+   Detection <#12>`__ - `Run Object Detection on a Video File <#13>`__ -
+   `References <#14>`__
 
-Preparation
------------
+## Preparation `⇑ <#0>`__
 
-Install requirements
-~~~~~~~~~~~~~~~~~~~~
+### Install requirements `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -34,16 +38,22 @@ Install requirements
     )
 
 
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
 
 
 .. parsed-literal::
 
-    ('notebook_utils.py', <http.client.HTTPMessage at 0x7ff46817ce50>)
+    ('notebook_utils.py', <http.client.HTTPMessage at 0x7f2e81ba2ee0>)
 
 
 
-Imports
-~~~~~~~
+### Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -61,11 +71,9 @@ Imports
     
     import notebook_utils as utils
 
-The Model
----------
+## The Model `⇑ <#0>`__
 
-Download the Model
-~~~~~~~~~~~~~~~~~~
+### Download the Model `⇑ <#0>`__
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -107,12 +115,11 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-Convert the Model
-~~~~~~~~~~~~~~~~~
+### Convert the Model `⇑ <#0>`__
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
-convert it to OpenVINO IR format using `Model Optimizer Python
-API <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_Python_API.html>`__
+convert it to OpenVINO IR format, using `model conversion Python
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 (``mo.convert_model`` function). If the model has been already
 converted, this step is skipped.
 
@@ -141,8 +148,7 @@ converted, this step is skipped.
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
-Load the Model
-~~~~~~~~~~~~~~
+### Load the Model `⇑ <#0>`__
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -151,19 +157,41 @@ desired device. If you choose ``GPU`` you need to wait for a while, as
 the startup time is much longer than in the case of ``CPU``.
 
 There is a possibility to let OpenVINO decide which hardware offers the
-best performance. For that purpose, just use ``AUTO``. Remember that for
-most cases the best hardware is ``GPU`` (better performance, but longer
-startup time).
+best performance. For that purpose, just use ``AUTO``.
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
 
 .. code:: ipython3
 
     # Initialize OpenVINO Runtime.
-    ie_core = ov.Core()
+    core = ov.Core()
     # Read the network and corresponding weights from a file.
-    model = ie_core.read_model(model=converted_model_path)
+    model = core.read_model(model=converted_model_path)
     # Compile the model for CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO).
-    compiled_model = ie_core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
@@ -189,11 +217,9 @@ output.
 
 
 
-Processing
-----------
+## Processing `⇑ <#0>`__
 
-Process Results
-~~~~~~~~~~~~~~~
+### Process Results `⇑ <#0>`__
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -282,8 +308,7 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Main Processing Function `⇑ <#0>`__
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -393,11 +418,9 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run
----
+## Run `⇑ <#0>`__
 
-Run Live Object Detection
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Live Object Detection `⇑ <#0>`__
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -426,12 +449,11 @@ Run the object detection:
 
 .. parsed-literal::
 
-    [ WARN:0@43.661] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@43.661] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
+    [ WARN:0@44.255] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+    [ERROR:0@44.255] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-Run Object Detection on a Video File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Run Object Detection on a Video File `⇑ <#0>`__
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -446,7 +468,7 @@ will work.
 
 
 
-.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_20_0.png
+.. image:: 401-object-detection-with-output_files/401-object-detection-with-output_21_0.png
 
 
 .. parsed-literal::
@@ -454,8 +476,7 @@ will work.
     Source ended
 
 
-References
-----------
+## References `⇑ <#0>`__
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

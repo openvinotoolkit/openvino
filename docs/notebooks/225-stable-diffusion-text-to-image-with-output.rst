@@ -35,11 +35,18 @@ using OpenVINO.
 Notebook contains the following steps:
 
 1. Convert PyTorch models to ONNX format.
-2. Convert ONNX models to OpenVINO IR format, using Model Optimizer tool.
+2. Convert ONNX models to OpenVINO IR format, using model conversion
+   API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-Prerequisites
--------------
+### Table of content: - `Prerequisites <#1>`__ - `Create PyTorch Models
+pipeline <#2>`__ - `Convert models to OpenVINO Intermediate
+representation (IR) format <#3>`__ - `Text Encoder <#4>`__ -
+`U-net <#5>`__ - `VAE <#6>`__ - `Prepare Inference Pipeline <#7>`__ -
+`Configure Inference Pipeline <#8>`__ - `Text-to-Image
+generation <#9>`__ - `Image-to-Image generation <#10>`__
+
+## Prerequisites `⇑ <#0>`__
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -58,7 +65,8 @@ not, you do not have to do anything. Just run the notebook.**
 
 .. code:: python
 
-   ## login to huggingfacehub to get access to pretrained model 
+
+   ## login to huggingfacehub to get access to pretrained model
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -76,15 +84,13 @@ solutions based on Stable Diffusion.
 
 .. code:: ipython3
 
-    !pip install -q 'diffusers[torch]>=0.9.0'
-    !pip install -q 'huggingface-hub>=0.9.1'
+    !pip install -q "diffusers[torch]>=0.9.0"
+    !pip install -q "huggingface-hub>=0.9.1"
 
 
-Create Pytorch Models pipeline
-------------------------------
-
-StableDiffusionPipeline is an end-to-end inference pipeline that you can
-use to generate images from text with just a few lines of code.
+## Create PyTorch Models pipeline `⇑ <#0>`__ ``StableDiffusionPipeline``
+is an end-to-end inference pipeline that you can use to generate images
+from text with just a few lines of code.
 
 First, load the pre-trained weights of all components of the model.
 
@@ -109,8 +115,8 @@ First, load the pre-trained weights of all components of the model.
     Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
 
 
-Convert models to OpenVINO Intermediate representation (IR) format
-------------------------------------------------------------------
+## Convert models to OpenVINO Intermediate representation (IR) format
+`⇑ <#0>`__
 
 OpenVINO supports PyTorch through export to the ONNX format. You will
 use ``torch.onnx.export`` function for obtaining ONNX model. You can
@@ -123,21 +129,21 @@ input and output names or dynamic shapes).
 
 While ONNX models are directly supported by OpenVINO™ runtime, it can be
 useful to convert them to IR format to take advantage of advanced
-OpenVINO optimization tools and features. You will use OpenVINO Model
-Optimizer tool for conversion model to IR format and compression weights
-to ``FP16`` format.
+OpenVINO optimization tools and features. For converting the model to IR
+format and compressing weights to ``FP16`` format, you will use model
+conversion API.
 
 The model consists of three important parts:
 
-* Text Encoder for creation condition to generate image from text prompt.
-* Unet for step by step denoising latent image representation.
-* Autoencoder (VAE) for encdoing input image to latent space (if required) and decoding latent
-space to image back after generation.
+-  Text Encoder for creation condition to generate image from text
+   prompt.
+-  Unet for step by step denoising latent image representation.
+-  Autoencoder (VAE) for encoding input image to latent space (if
+   required) and decoding latent space to image back after generation.
 
 Let us convert each part.
 
-Text Encoder
-~~~~~~~~~~~~
+### Text Encoder `⇑ <#0>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -218,16 +224,14 @@ hidden states. You will use ``opset_version=14``, because model contains
 
 
 
-U-net
-~~~~~
+### U-net `⇑ <#0>`__
 
 Unet model has three inputs:
 
-* ``sample`` - latent image sample from
-previous step. Generation process has not been started yet, so you will
-use random noise.
-* ``timestep`` - current scheduler step.
-* ``encoder_hidden_state`` - hidden state of text encoder.
+-  ``sample`` - latent image sample from previous step. Generation
+   process has not been started yet, so you will use random noise.
+-  ``timestep`` - current scheduler step.
+-  ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 
@@ -295,8 +299,7 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-VAE
-~~~
+### VAE `⇑ <#0>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -410,13 +413,15 @@ of the pipeline, it will be better to convert them to separate models.
     VAE decoder will be loaded from vae_decoder.xml
 
 
-Prepare Inference Pipeline
---------------------------
+## Prepare Inference Pipeline `⇑ <#0>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
 
-.. image:: https://camo.githubusercontent.com/60d9edf7fc65d617c56ddac5344a9fe3f4152e38f43cab994589a8e8bf14d36a/68747470733a2f2f757365722d696d616765732e67697468756275736572636f6e74656e742e636f6d2f32393435343439392f3231363337383933322d37613962653339662d636338362d343365342d623037322d3636333732613335643662642e706e67
+.. figure:: https://user-images.githubusercontent.com/29454499/216378932-7a9be39f-cc86-43e4-b072-66372a35d6bd.png
+   :alt: sd-pipeline
+
+   sd-pipeline
 
 As you can see from the diagram, the only difference between
 Text-to-Image and text-guided Image-to-Image generation in approach is
@@ -770,8 +775,7 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-Configure Inference Pipeline
-----------------------------
+## Configure Inference Pipeline `⇑ <#0>`__
 
 First, you should create instances of OpenVINO Model.
 
@@ -779,16 +783,35 @@ First, you should create instances of OpenVINO Model.
 
     from openvino.runtime import Core
     core = Core()
-    text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, 'AUTO')
+
+Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    unet_model = core.compile_model(UNET_OV_PATH, 'AUTO')
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
 
 .. code:: ipython3
 
-    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, 'AUTO')
-    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, 'AUTO')
+    
+    text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
+
+.. code:: ipython3
+
+    unet_model = core.compile_model(UNET_OV_PATH, device.value)
+
+.. code:: ipython3
+
+    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value)
+    vae_encoder = core.compile_model(VAE_ENCODER_OV_PATH, device.value)
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 Let us define them and put all components together
@@ -814,16 +837,14 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-Text-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Text-to-Image generation `⇑ <#0>`__
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
-latent state initialization and number of steps. 
+latent state initialization and number of steps.
 
-.. note::
-
-   Consider increasing ``steps`` to get more precise results. A suggested value is ``50``, but it will take longer time to process.
+   **Note**: Consider increasing ``steps`` to get more precise results.
+   A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
 
@@ -907,13 +928,12 @@ Now is show time!
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_29_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_33_1.png
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-Image-to-Image generation
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Image-to-Image generation `⇑ <#0>`__
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -972,7 +992,7 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_33_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_37_1.png
 
 
 
@@ -1005,5 +1025,5 @@ semantically consistent with the input.
 
 
 
-.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_35_1.png
+.. image:: 225-stable-diffusion-text-to-image-with-output_files/225-stable-diffusion-text-to-image-with-output_39_1.png
 

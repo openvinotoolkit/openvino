@@ -8,10 +8,13 @@ In this tutorial, a pre-trained
 model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
-recognizes four classes: background, road, curb and mark.
+recognizes four classes: background, road, curb and mark. Table of
+content: - `Imports <#1>`__ - `Download model weights <#2>`__ - `Select
+inference device <#3>`__ - `Load the Model <#4>`__ - `Load an
+Image <#5>`__ - `Do Inference <#6>`__ - `Prepare Data for
+Visualization <#7>`__ - `Visualize data <#8>`__
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -24,8 +27,7 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-Download model weights
-----------------------
+## Download model weights `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -61,8 +63,7 @@ Download model weights
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-Select inference device
------------------------
+## Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -89,8 +90,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model
---------------
+## Load the Model `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -102,10 +102,7 @@ Load the Model
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-Load an Image
--------------
-
-A sample image from the `Mapillary
+## Load an Image `⇑ <#0>`__ A sample image from the `Mapillary
 Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
@@ -134,7 +131,7 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f021436e0a0>
+    <matplotlib.image.AxesImage at 0x7f1f2c248430>
 
 
 
@@ -142,8 +139,7 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
-Do Inference
-------------
+## Do Inference `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -159,7 +155,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f02142bce50>
+    <matplotlib.image.AxesImage at 0x7f1f2c18bfd0>
 
 
 
@@ -167,8 +163,7 @@ Do Inference
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
-Prepare Data for Visualization
-------------------------------
+## Prepare Data for Visualization `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -185,8 +180,7 @@ Prepare Data for Visualization
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-Visualize data
---------------
+## Visualize data `⇑ <#0>`__
 
 .. code:: ipython3
 

@@ -5,20 +5,26 @@ This notebook demonstrates background removal in images using
 U\ :math:`^2`-Net and OpenVINO.
 
 For more information about U\ :math:`^2`-Net, including source code and
-test data, see the `Github
+test data, see the `GitHub
 page <https://github.com/xuebinqin/U-2-Net>`__ and the research paper:
 `U^2-Net: Going Deeper with Nested U-Structure for Salient Object
 Detection <https://arxiv.org/pdf/2005.09007.pdf>`__.
 
 The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
-`here <https://github.com/xuebinqin/U-2-Net>`__.
+`here <https://github.com/xuebinqin/U-2-Net>`__. Table of content: -
+`Preparation <#1>`__ - `Install requirements <#2>`__ - `Import the
+PyTorch Library and U\ :math:`^2`-Net <#3>`__ - `Settings <#4>`__ -
+`Load the U\ :math:`^2`-Net Model <#5>`__ - `Convert PyTorch
+U\ :math:`^2`-Net model to OpenVINO IR <#6>`__ - `Convert Pytorch model
+to OpenVINO IR Format <#7>`__ - `Load and Pre-Process Input
+Image <#8>`__ - `Select inference device <#9>`__ - `Do Inference on
+OpenVINO IR Model <#10>`__ - `Visualize Results <#11>`__ - `Add a
+Background Image <#12>`__ - `References <#13>`__
 
-Preparation
------------
+## Preparation `⇑ <#0>`__
 
-Install requirements
-~~~~~~~~~~~~~~~~~~~~
+### Install requirements `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -26,8 +32,7 @@ Install requirements
     !pip install -q torch onnx opencv-python matplotlib
     !pip install -q gdown
 
-Import the PyTorch Library and U\ :math:`^2`-Net
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Import the PyTorch Library and U\ :math:`^2`-Net `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -63,8 +68,7 @@ Import the PyTorch Library and U\ :math:`^2`-Net
     from notebook_utils import load_image
     from model.u2net import U2NET, U2NETP
 
-Settings
-~~~~~~~~
+### Settings `⇑ <#0>`__
 
 This tutorial supports using the original U\ :math:`^2`-Net salient
 object detection model, as well as the smaller U2NETP version. Two sets
@@ -103,8 +107,7 @@ detection and human segmentation.
     MODEL_DIR = "model"
     model_path = Path(MODEL_DIR) / u2net_model.name / Path(u2net_model.name).with_suffix(".pth")
 
-Load the U\ :math:`^2`-Net Model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Load the U\ :math:`^2`-Net Model `⇑ <#0>`__
 
 The U\ :math:`^2`-Net human segmentation model weights are stored on
 Google Drive. They will be downloaded if they are not present yet. The
@@ -132,12 +135,16 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1rbSTGKAE-MTxBYHd-51l2hMOQPT_7EPy
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 4.90MB/s]
-
+    100%|██████████| 4.68M/4.68M [00:01<00:00, 3.98MB/s]
 
 .. parsed-literal::
 
     Model weights have been downloaded to model/u2net_lite/u2net_lite.pth
+
+
+.. parsed-literal::
+
+    
 
 
 .. code:: ipython3
@@ -160,37 +167,35 @@ next cell loads the model and the pre-trained weights.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3734: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3734: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1967: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:1967: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
       warnings.warn("nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.")
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
-Convert PyTorch U\ :math:`^2`-Net model to OpenVINO IR
-------------------------------------------------------
+## Convert PyTorch U\ :math:`^2`-Net model to OpenVINO IR `⇑ <#0>`__
 
-Convert Pytorch model to OpenVINO IR Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert Pytorch model to OpenVINO IR Format `⇑ <#0>`__
 
-Use Model Optimizer Python API to convert the Pytorch model to OpenVINO
-IR format, with ``FP16`` precision. We add the mean values to the model
-and scale the input with the standard deviation with ``scale_values``
-parameter. With these options, it is not necessary to normalize input
-data before propagating it through the network. The mean and standard
-deviation values can be found in the
+To convert the Pytorch model to OpenVINO IR format with ``FP16``
+precision, use model conversion Python API . We add the mean values to
+the model and scale the input with the standard deviation with
+``scale_values`` parameter. With these options, it is not necessary to
+normalize input data before propagating it through the network. The mean
+and standard deviation values can be found in the
 `dataloader <https://github.com/xuebinqin/U-2-Net/blob/master/data_loader.py>`__
 file in the `U^2-Net
 repository <https://github.com/xuebinqin/U-2-Net/>`__ and multiplied by
 255 to support images with pixel values from 0-255.
 
-For more information, refer to the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+For more information about model conversion, refer to this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
 Executing the following command may take a while.
 
@@ -203,8 +208,7 @@ Executing the following command may take a while.
         compress_to_fp16=True
     )
 
-Load and Pre-Process Input Image
---------------------------------
+## Load and Pre-Process Input Image `⇑ <#0>`__
 
 While OpenCV reads images in ``BGR`` format, the OpenVINO IR model
 expects images in ``RGB``. Therefore, convert the images to ``RGB``,
@@ -224,16 +228,42 @@ that is expected by the OpenVINO IR model.
     # for OpenVINO IR model: (1, 3, 512, 512).
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
-Do Inference on OpenVINO IR Model
----------------------------------
+## Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+## Do Inference on OpenVINO IR Model `⇑ <#0>`__
 
 Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. code:: ipython3
 
     # Load the network to OpenVINO Runtime.
-    ie = Core()
-    compiled_model_ir = ie.compile_model(model=model_ir, device_name="CPU")
+    core = Core()
+    compiled_model_ir = core.compile_model(model=model_ir, device_name=device.value)
     # Get the names of input and output layers.
     input_layer_ir = compiled_model_ir.input(0)
     output_layer_ir = compiled_model_ir.output(0)
@@ -250,11 +280,10 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.122 seconds, FPS: 8.17.
+    Inference finished. Inference time: 0.119 seconds, FPS: 8.43.
 
 
-Visualize Results
------------------
+## Visualize Results `⇑ <#0>`__
 
 Show the original image, the segmentation result, and the original image
 with the background removed.
@@ -281,11 +310,10 @@ with the background removed.
 
 
 
-.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_20_0.png
+.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_22_0.png
 
 
-Add a Background Image
-~~~~~~~~~~~~~~~~~~~~~~
+### Add a Background Image `⇑ <#0>`__
 
 In the segmentation result, all foreground pixels have a value of 1, all
 background pixels a value of 0. Replace the background image as follows:
@@ -340,7 +368,7 @@ background pixels a value of 0. Replace the background image as follows:
 
 
 
-.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_22_0.png
+.. image:: 205-vision-background-removal-with-output_files/205-vision-background-removal-with-output_24_0.png
 
 
 
@@ -349,13 +377,12 @@ background pixels a value of 0. Replace the background image as follows:
     The generated image <code>coco_hollywood-wall.jpg</code> is saved in the directory <code>output</code>. You can also download the image by clicking on this link: output/coco_hollywood-wall.jpg<br>
 
 
-References
-----------
+## References `⇑ <#0>`__
 
 -  `PIP install
    openvino-dev <https://github.com/openvinotoolkit/openvino/blob/releases/2021/3/docs/install_guides/pypi-openvino-dev.md>`__
--  `Model Optimizer
-   Documentation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model_General.html>`__
+-  `Model Conversion
+   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 -  `U^2-Net <https://github.com/xuebinqin/U-2-Net>`__
 -  U^2-Net research paper: `U^2-Net: Going Deeper with Nested
    U-Structure for Salient Object

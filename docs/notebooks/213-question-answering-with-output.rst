@@ -7,10 +7,15 @@ model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/inte
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs.
+of this notebook provides live inference results from your inputs. Table
+of content: - `Imports <#1>`__ - `The model <#2>`__ - `Download the
+model <#3>`__ - `Load the model <#4>`__ - `Select inference
+device <#5>`__ - `Processing <#6>`__ - `Preprocessing <#7>`__ -
+`Postprocessing <#8>`__ - `Main Processing Function <#9>`__ -
+`Run <#10>`__ - `Run on local paragraphs <#11>`__ - `Run on
+websites <#12>`__
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -24,11 +29,9 @@ Imports
     import html_reader as reader
     import tokens_bert as tokens
 
-The model
----------
+## The model `⇑ <#0>`__
 
-Download the model
-~~~~~~~~~~~~~~~~~~
+### Download the model `⇑ <#0>`__
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. The ``omz_downloader`` tool automatically
@@ -82,8 +85,7 @@ there is no need to use ``omz_converter``.
     
 
 
-Load the model
-~~~~~~~~~~~~~~
+### Load the model `⇑ <#0>`__
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -98,8 +100,38 @@ You can choose ``CPU`` or ``GPU`` for this model.
     core = Core()
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
-    # Load the model on CPU (you can use GPU as well).
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+
+#### Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get input and output names of nodes.
     input_keys = list(compiled_model.inputs)
@@ -126,8 +158,7 @@ for BERT-large-like model.
 
 
 
-Processing
-----------
+## Processing `⇑ <#0>`__
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -164,8 +195,7 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing
-~~~~~~~~~~~~~
+### Preprocessing `⇑ <#0>`__
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -247,8 +277,7 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing
-~~~~~~~~~~~~~~
+### Postprocessing `⇑ <#0>`__
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -340,8 +369,7 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+### Main Processing Function `⇑ <#0>`__
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -382,11 +410,9 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run
----
+## Run `⇑ <#0>`__
 
-Run on local paragraphs
-~~~~~~~~~~~~~~~~~~~~~~~
+### Run on local paragraphs `⇑ <#0>`__
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -401,9 +427,13 @@ theory <https://rajpurkar.github.io/SQuAD-explorer/explore/v2.0/dev/Computationa
 
 Sample questions:
 
-- What is the term for a task that generally lends itself to being solved by a computer?
-- By what main attribute are computational problems classified utilizing computational complexity theory?
-- What branch of theoretical computer science deals with broadly classifying computational problems by difficulty and class of relationship?
+-  What is the term for a task that generally lends itself to being
+   solved by a computer?
+-  By what main attribute are computational problems classified
+   utilizing computational complexity theory?
+-  What branch of theoretical computer science deals with broadly
+   classifying computational problems by difficulty and class of
+   relationship?
 
 If you want to stop the processing just put an empty string.
 
@@ -433,21 +463,20 @@ questions in the box.**
     Time: 0.03s
 
 
-Run on websites
-~~~~~~~~~~~~~~~
+### Run on websites `⇑ <#0>`__
 
-You can also provide urls. Note that the context (a knowledge base) is
+You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the
-paragraphs, the algorithm wil not be able to find it.
+paragraphs, the algorithm will not be able to find it.
 
 Sample source: `OpenVINO
 wiki <https://en.wikipedia.org/wiki/OpenVINO>`__
 
 Sample questions:
 
-- What does OpenVINO mean?
-- What is the license for OpenVINO?
-- Where can you deploy OpenVINO code?
+-  What does OpenVINO mean?
+-  What is the license for OpenVINO?
+-  Where can you deploy OpenVINO code?
 
 If you want to stop the processing just put an empty string.
 

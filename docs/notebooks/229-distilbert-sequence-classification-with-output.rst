@@ -7,8 +7,13 @@ identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
 
-Imports
--------
+Table of content: - `Imports <#1>`__ - `Initializing the Model <#2>`__ -
+`Initializing the Tokenizer <#3>`__ - `Convert Model to OpenVINO
+Intermediate Representation format <#4>`__ - `Select inference
+device <#5>`__ - `Inference <#6>`__ - `For a single input
+sentence <#7>`__ - `Read from a text file <#8>`__
+
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -20,11 +25,9 @@ Imports
     from openvino.tools import mo
     from openvino.runtime import PartialShape, Type, serialize, Core
 
-Initializing the Model
-----------------------
-
-We will use the transformer-based
-`distilbert-base-uncased-finetuned-sst-2-english <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
+## Initializing the Model `⇑ <#0>`__ We will use the transformer-based
+`DistilBERT base uncased finetuned
+SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
 model from Hugging Face.
 
 .. code:: ipython3
@@ -34,8 +37,7 @@ model from Hugging Face.
         pretrained_model_name_or_path=checkpoint
     )
 
-Initializing the Tokenizer
---------------------------
+## Initializing the Tokenizer `⇑ <#0>`__
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -45,8 +47,8 @@ easily assigned meaning. It involves cleaning the data and assigning
 tokens or IDs to the words, so they are represented in a vector space
 where similar words have similar vectors. This helps the model
 understand the context of a sentence. Here, we will use
-`AutoTokenizer <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
-- a pre-trained tokenizer from Hugging Face: .
+```AutoTokenizer`` <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
+- a pre-trained tokenizer from Hugging Face:
 
 .. code:: ipython3
 
@@ -54,15 +56,14 @@ understand the context of a sentence. Here, we will use
         pretrained_model_name_or_path=checkpoint
     )
 
-Convert Model to OpenVINO Intermediate Representation format
-------------------------------------------------------------
+## Convert Model to OpenVINO Intermediate Representation format
+`⇑ <#0>`__
 
-`Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-is a cross-platform command-line tool that facilitates the transition
-between training and deployment environments, performs static model
-analysis, and adjusts deep learning models for optimal execution on
-end-point target devices.
+`Model conversion
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+facilitates the transition between training and deployment environments,
+performs static model analysis, and adjusts deep learning models for
+optimal execution on end-point target devices.
 
 .. code:: ipython3
 
@@ -75,7 +76,7 @@ end-point target devices.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:223: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:223: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -91,9 +92,38 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
 
 .. code:: ipython3
 
-    warnings.filterwarnings("ignore")
     core = Core()
-    compiled_model = core.compile_model(ov_model)
+
+### Select inference device `⇑ <#0>`__
+
+select device from dropdown list for running inference using OpenVINO
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    warnings.filterwarnings("ignore")
+    compiled_model = core.compile_model(ov_model, device.value)
     infer_request = compiled_model.create_infer_request()
 
 .. code:: ipython3
@@ -109,8 +139,7 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
-Inference
----------
+## Inference `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -135,8 +164,7 @@ Inference
             probability = np.argmax(softmax(i))
         return label[probability]
 
-For a single input sentence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### For a single input sentence `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -155,8 +183,7 @@ For a single input sentence
     Total Time:  0.04  seconds
 
 
-Read from a text file
-~~~~~~~~~~~~~~~~~~~~~
+### Read from a text file `⇑ <#0>`__
 
 .. code:: ipython3
 

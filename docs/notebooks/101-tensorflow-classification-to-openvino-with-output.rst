@@ -1,18 +1,23 @@
 Convert a TensorFlow Model to OpenVINO™
 =======================================
 
-This short tutorial shows how to convert a TensorFlow
-`MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
-image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
-(OpenVINO IR) format, using `Model
-Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
-After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image.
+| This short tutorial shows how to convert a TensorFlow
+  `MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
+  image classification model to OpenVINO `Intermediate
+  Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
+  (OpenVINO IR) format, using `model conversion
+  API <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
+  After creating the OpenVINO IR, load the model in `OpenVINO
+  Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+  and do inference with a sample image.
+| Table of content: - `Imports <#1>`__ - `Settings <#2>`__ - `Download
+  model <#3>`__ - `Convert a Model to OpenVINO IR Format <#4>`__ -
+  `Convert a TensorFlow Model to OpenVINO IR Format <#5>`__ - `Test
+  Inference on the Converted Model <#6>`__ - `Load the Model <#7>`__ -
+  `Select inference device <#8>`__ - `Get Model Information <#9>`__ -
+  `Load an Image <#10>`__ - `Do Inference <#11>`__ - `Timing <#12>`__
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -29,14 +34,13 @@ Imports
 
 .. parsed-literal::
 
-    2023-07-11 22:24:31.659014: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 22:24:31.694466: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-15 22:26:34.199621: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-15 22:26:34.233464: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 22:24:32.210417: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-15 22:26:34.746193: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-Settings
---------
+## Settings `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -48,8 +52,7 @@ Settings
     
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
-Download model
---------------
+## Download model `⇑ <#0>`__
 
 Load model using `tf.keras.applications
 api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -68,7 +71,7 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-07-11 22:24:33.117393: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-08-15 22:26:35.659386: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -79,9 +82,9 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-07-11 22:24:37.315661: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
+    2023-08-15 22:26:39.846021: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
     	 [[{{node inputs}}]]
-    2023-07-11 22:24:40.473876: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
+    2023-08-15 22:26:42.992490: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,1,1,1024]
     	 [[{{node inputs}}]]
     WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 54). These functions will not be directly callable after loading.
 
@@ -96,25 +99,23 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
-Convert a Model to OpenVINO IR Format
--------------------------------------
+## Convert a Model to OpenVINO IR Format `⇑ <#0>`__
 
-Convert a TensorFlow Model to OpenVINO IR Format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#0>`__
 
-Call the OpenVINO Model Optimizer Python API to convert the TensorFlow
-model to OpenVINO IR. ``mo.convert_model`` function accept path to saved
+Use the model conversion Python API to convert the TensorFlow model to
+OpenVINO IR. The ``mo.convert_model`` function accept path to saved
 model directory and returns OpenVINO Model class instance which
-represents this model. Obtained model is ready to use and loading on
-device using ``compile_model`` or can be saved on disk using
-``serialize`` function. See the `Model Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__
-for more information about Model Optimizer and TensorFlow models
-conversion.
+represents this model. Obtained model is ready to use and to be loaded
+on a device using ``compile_model`` or can be saved on a disk using the
+``serialize`` function. See the
+`tutorial <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__
+for more information about using model conversion API with TensorFlow
+models.
 
 .. code:: ipython3
 
-    # Run Model Optimizer if the IR model file does not exist
+    # Run model conversion API if the IR model file does not exist
     if not ir_path.exists():
         print("Exporting TensorFlow model to IR... This may take a few minutes.")
         ov_model = mo.convert_model(saved_model_dir=model_path, input_shape=[[1, 224, 224, 3]], compress_to_fp16=True)
@@ -128,19 +129,16 @@ conversion.
     Exporting TensorFlow model to IR... This may take a few minutes.
 
 
-Test Inference on the Converted Model
--------------------------------------
+## Test Inference on the Converted Model `⇑ <#0>`__
 
-Load the Model
-~~~~~~~~~~~~~~
+### Load the Model `⇑ <#0>`__
 
 .. code:: ipython3
 
     core = Core()
     model = core.read_model(ir_path)
 
-Select inference device
------------------------
+## Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -170,8 +168,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-Get Model Information
-~~~~~~~~~~~~~~~~~~~~~
+### Get Model Information `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -179,8 +176,7 @@ Get Model Information
     output_key = compiled_model.output(0)
     network_input_shape = input_key.shape 
 
-Load an Image
-~~~~~~~~~~~~~
+### Load an Image `⇑ <#0>`__
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -203,8 +199,7 @@ network.
 .. image:: 101-tensorflow-classification-to-openvino-with-output_files/101-tensorflow-classification-to-openvino-with-output_18_0.png
 
 
-Do Inference
-~~~~~~~~~~~~
+### Do Inference `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -228,8 +223,7 @@ Do Inference
 
 
 
-Timing
-------
+## Timing `⇑ <#0>`__
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the
@@ -258,5 +252,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 998.88
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 988.20
 

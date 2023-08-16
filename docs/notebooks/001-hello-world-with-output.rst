@@ -11,10 +11,11 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used in
 this tutorial. For more information about how OpenVINO IR models are
 created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
-tutorial.
+tutorial. Table of content: - `Imports <#1>`__ - `Download the Model and
+data samples <#2>`__ - `Select inference device <#3>`__ - `Load the
+Model <#4>`__ - `Load an Image <#5>`__ - `Do Inference <#6>`__
 
-Imports
--------
+## Imports `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -29,8 +30,7 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Download the Model and data samples
------------------------------------
+## Download the Model and data samples `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -63,8 +63,7 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device
------------------------
+## Select inference device `⇑ <#0>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -91,8 +90,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model
---------------
+## Load the Model `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -102,8 +100,7 @@ Load the Model
     
     output_layer = compiled_model.output(0)
 
-Load an Image
--------------
+## Load an Image `⇑ <#0>`__
 
 .. code:: ipython3
 
@@ -122,8 +119,7 @@ Load an Image
 .. image:: 001-hello-world-with-output_files/001-hello-world-with-output_10_0.png
 
 
-Do Inference
-------------
+## Do Inference `⇑ <#0>`__
 
 .. code:: ipython3
 
