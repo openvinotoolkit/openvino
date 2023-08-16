@@ -114,9 +114,10 @@ FrontEnd::FrontEnd() {}
 
 std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> converted_model;
     {
-        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        TranslateSession translate_session(model, supported_ops, m_telemetry);
         converted_model = translate_session.get_converted_model();
     }
 
@@ -144,14 +145,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
-    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
-        supported_ops = get_supported_ops_fx();
-    else
-        supported_ops = get_supported_ops_ts();
-    for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
-        supported_ops[i->first] = i->second;
-
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> partial_model;
     {
         TranslateSession translate_session(model, supported_ops, m_telemetry);
@@ -272,6 +266,17 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
     FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");
     return std::make_shared<pytorch::InputModel>(tdecoder);
+}
+
+std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::frontend::InputModel::Ptr& model) const {
+    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
+    if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
+        supported_ops = get_supported_ops_fx();
+    else
+        supported_ops = get_supported_ops_ts();
+    for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
+        supported_ops[i->first] = i->second;
+    return supported_ops;
 }
 
 }  // namespace pytorch
