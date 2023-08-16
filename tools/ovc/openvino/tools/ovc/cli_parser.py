@@ -89,7 +89,12 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
 
     raise Exception("Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(type(input)))
 
-def is_single_input(input: [str, tuple, list]):
+def is_single_input(input: [tuple, list, str, type, Type, PartialShape, Shape]):
+    """
+    Checks if input has parameters for single input.
+    :param input: list or tuple of input parameters or input shape or input name.
+    :return: True if input has parameters for single input, otherwise False.
+    """
     name = None
     inp_type = None
     shape = None
