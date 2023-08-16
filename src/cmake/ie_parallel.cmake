@@ -89,7 +89,7 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
+        find_package(TBB ${_ov_minimal_tbb_version} REQUIRED COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
 
         if(NOT TBB_FOUND)

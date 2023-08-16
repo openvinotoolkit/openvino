@@ -24,6 +24,7 @@ flatbuffers/[>=22.9.24]
 
 [options]
 protobuf/*:lite=True
+onetbb/*:shared=False
 flatbuffers/*:header_only=True
 
 [generators]
