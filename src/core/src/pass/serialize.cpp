@@ -135,7 +135,7 @@ private:
         if (!compress_to_fp16) {
             m_binary_output.write(ptr, size);
         } else {
-            OPENVINO_ASSERT(size % ov::element::f16.size() == 0);
+            OPENVINO_ASSERT(size % src_type.size() == 0);
             auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
             m_binary_output.write(fp16_buffer.get(), *new_size);
             // Compressed data is disposed
@@ -157,7 +157,7 @@ private:
         } else if (src_type == ov::element::f64) {
             auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
-            auto src_data = reinterpret_cast<const float*>(ptr);
+            auto src_data = reinterpret_cast<const double*>(ptr);
 
             // Reference implementation for fp64 to fp16 conversoin
             for (size_t i = 0; i < num_src_elements; ++i) {
