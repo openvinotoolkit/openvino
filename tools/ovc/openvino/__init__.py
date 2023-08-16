@@ -47,6 +47,9 @@ try:
     from openvino.runtime import save_model
     from openvino.runtime import layout_helpers
 
+    # Import backend for torch compile
+    from openvino.frontend.pytorch.torchdynamo import backend
+
     # Set version for openvino package
     from openvino.runtime import get_version
     __version__ = get_version()
