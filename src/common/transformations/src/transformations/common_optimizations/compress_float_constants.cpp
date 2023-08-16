@@ -26,7 +26,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
 
     auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_shape());
     auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
+    if (!dst_data || size == 0)
         return nullptr;
 
     // TODO: Speed this part up by applying code similar to Convert::evaluate
@@ -81,30 +81,52 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
 
         auto c_type = const_node->get_element_type();
         std::shared_ptr<ov::Node> new_const;
+
+#if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
         if (c_type == ov::element::f32) {
-            if (postponed) {  // New optimized implemenation based on count_out_of_f16_range, replace postposed by false
-                              // to disable
-                auto size = shape_size(const_node->get_output_shape(0));
-                auto num_out_of_range =
-                    ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(),
-                                                                       size);
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
+        } else if (c_type == ov::element::f64) {
+            new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
+        }
+        if (!new_const)  // if out of range > threshold -> then new_const == nullptr
+            return false;
 
-                // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-                float keep_threshold = 0.75f;
-                float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+        if (postponed) {  // dispose converted const for postponed
+            new_const = const_node
+        }
 
-                if (out_of_range_proportion >= keep_threshold) {
-                    return false;
-                }
+#else
+        if (c_type == ov::element::f32) {
+            auto size = shape_size(const_node->get_output_shape(0));
+            if (size == 0)
+                return false;
+            auto num_out_of_range =
+                ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+
+            // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
+            float keep_threshold = 0.75f;
+            float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+            if (out_of_range_proportion >= keep_threshold)
+                return false;
+
+            if (postponed) {
                 new_const = const_node;
             } else {
-                new_const = change_constant_precision_to_fp16<ov::element::Type_t::f32>(const_node, postponed);
+                const auto* src_data = const_node->get_data_ptr<float>();
+                auto compressed_const =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::f16, const_node->get_shape());
+                auto* dst_data =
+                    const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
+                OPENVINO_ASSERT(dst_data);
+                ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+                new_const = compressed_const;
             }
         } else if (c_type == ov::element::f64) {
             new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node, postponed);
         } else {
             return false;
         }
+#endif  // !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
 
         if (!new_const) {
             return false;
