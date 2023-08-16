@@ -1019,6 +1019,9 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::jit_avx512_dw,
         impl_desc_type::jit_avx512_1x1,
         impl_desc_type::jit_avx512,
+        // [WA]default support after fully evaluate
+        // impl_desc_type::brgconv_avx2_1x1,
+        // impl_desc_type::brgconv_avx2,
         impl_desc_type::jit_avx2_dw,
         impl_desc_type::jit_avx2_1x1,
         impl_desc_type::jit_avx2,

@@ -474,8 +474,10 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
     bool is_f16 = (prc == ov::element::f16);
     bool is_signed = prc.is_signed();
 
-    if (is_f16 && !mayiuse(cpu::x64::avx512_core_fp16))
-        OPENVINO_THROW("Load emitter in ", name_, " only support fp16 on platform with avx512_core_fp16.");
+    if (is_f16 && !mayiuse(cpu::x64::avx512_core_fp16) && !mayiuse(cpu::x64::avx2_vnni_2))
+        OPENVINO_THROW("Load emitter in ",
+                       name_,
+                       " only support fp16 on platform with avx512_core_fp16 or avx2_vnni_2.");
 
     // Ensure extended double words fit inside Zmm (32/2(num) * 32 <= 512)
     // For Ymm register, load capacity is halved (16/2(num) * 32 <= 128)
@@ -1210,8 +1212,21 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
                 data_idx = static_cast<int>(ymm.getIdx());
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
+        } else if (mayiuse(cpu::x64::avx2_vnni_2)) {
+            // to avoid src vmm pollution
+            if (src_prc_ == Precision::FP32) {
+                xmm = Xmm(aux_vec_idxs[0]);
+            }
+            h->vcvtps2ph(xmm, ymm, 0x4);
+            if (store_num == 16) {
+                h->uni_vmovdqu(ptr[reg + offset], xmm);
+            } else {
+                data_idx = static_cast<int>(xmm.getIdx());
+                store_bytes<Vmm>(reg, offset, store_num * 2);
+            }
         } else {
-            store_dword_to_word_base();
+            IE_THROW() << "Store emitter in " << name_
+                       << " only support fp16 on platform with avx512_core_fp16 or avx2_vnni_2.";
         }
     } else {
         switch (store_num) {

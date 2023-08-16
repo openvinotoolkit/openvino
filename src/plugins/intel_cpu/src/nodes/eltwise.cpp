@@ -283,7 +283,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                     this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
         }
 
-        if (mayiuse(avx512_core))
+        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2))
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
 
         const auto &jep = jep_;
@@ -839,8 +839,12 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case ov::element::bf16:
-                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
-                vmovdqu16(op, ymm_dst);
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                             {static_cast<size_t>(ymm_dst.getIdx())});
+                if (isa == x64::avx512_core)
+                    vmovdqu16(op, ymm_dst);
+                else
+                    uni_vmovdqu(op, ymm_dst);
                 break;
             case ov::element::f16:
                 vcvtps2ph(op, vmm_dst, 0x4);
@@ -2184,8 +2188,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     if (!fusedWith.empty()) {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
-
-    if (!mayiuse(avx512_core)) {
+    if (!mayiuse(avx512_core) && !mayiuse(avx2_vnni_2)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == ov::element::bf16)
