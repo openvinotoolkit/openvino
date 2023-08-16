@@ -99,7 +99,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
     if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$" AND
         NOT ENABLE_SYSTEM_TBB AND
         NOT _ov_system_tbb_is_obsolete)
-        message(FATAL_ERROR "Debian | RPM | Conda-forge | brew | vcpkg packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
+        message(FATAL_ERROR "Debian | RPM | Conda-forge | brew | vcpkg | Conan packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
