@@ -124,6 +124,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
         const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
         cldnn::tensor img_size_tensor{};
+        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
         if (image_size_constant) {
         const auto image_size = image_size_constant->cast_vector<int64_t>();
         const auto image_width = image_size[0];
@@ -195,6 +196,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
         const cldnn::tensor output_size_tensor{cldnn::spatial(width, height)};
 
         cldnn::tensor img_size_tensor{};
+        // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
         if (image_size_constant) {
         const auto image_size = image_size_constant->cast_vector<int64_t>();
         const auto image_width = image_size[0];
