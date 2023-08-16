@@ -72,7 +72,7 @@ class TestOVCTool(CommonMOConvertTest):
             tf_net = sess.graph_def
 
         # save model to .pb and return path to the model
-        return save_to_pb(tf_net, tmp_dir)
+        return save_to_pb(tf_net, tmp_dir, 'model2.pb')
 
     def create_tf_saved_model_dir(self, temp_dir):
         import tensorflow as tf
@@ -85,7 +85,7 @@ class TestOVCTool(CommonMOConvertTest):
         y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
         keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[y])
 
-        tf.saved_model.save(keras_net, temp_dir + "/model")
+        tf.saved_model.save(keras_net, temp_dir + "/test_model")
 
         shape = PartialShape([-1, 1, 2, 3])
         param1 = ov.opset8.parameter(shape, name="Input1:0", dtype=np.float32)
@@ -97,7 +97,7 @@ class TestOVCTool(CommonMOConvertTest):
         parameter_list = [param1, param2]
         model_ref = Model([sigm], parameter_list, "test")
 
-        return temp_dir + "/model", model_ref
+        return temp_dir + "/test_model", model_ref
 
 
     def test_ovc_tool(self, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
@@ -108,10 +108,10 @@ class TestOVCTool(CommonMOConvertTest):
         core = Core()
 
         # tests for MO cli tool
-        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir + os.sep + "model"})
+        exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir + os.sep + "model1"})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
+        ov_model = core.read_model(os.path.join(temp_dir, "model1.xml"))
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
@@ -126,7 +126,7 @@ class TestOVCTool(CommonMOConvertTest):
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_path, "output_model": temp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
+        ov_model = core.read_model(os.path.join(temp_dir, "model2.xml"))
         flag, msg = compare_functions(ov_model, create_ref_graph(), False)
         assert flag, msg
 
@@ -139,7 +139,7 @@ class TestOVCTool(CommonMOConvertTest):
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir, "output_model": temp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
+        ov_model = core.read_model(os.path.join(temp_dir, "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
 
@@ -152,6 +152,6 @@ class TestOVCTool(CommonMOConvertTest):
         exit_code, stderr = generate_ir_ovc(coverage=False, **{"input_model": model_dir + os.sep, "output_model": temp_dir})
         assert not exit_code
 
-        ov_model = core.read_model(os.path.join(temp_dir, "model.xml"))
+        ov_model = core.read_model(os.path.join(temp_dir, "test_model.xml"))
         flag, msg = compare_functions(ov_model, ref_model, False)
         assert flag, msg
