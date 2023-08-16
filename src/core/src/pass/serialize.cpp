@@ -101,13 +101,18 @@ public:
         const auto offset = write_pos - m_blob_offset;
         *new_size = size;
 
-        if (!m_enable_compression) {
+        if (!m_enable_compression || compress_to_fp16) {
             write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
             return offset;
         }
-        // TODO: When FP16 compression is turned on, we can avoid comparing FP32
-        // weights, but it would require comparing with data from a file, because
-        // on-the-fly converted FP16 constants are not kept in memory.
+        // TODO: Find a way to keep both types of compression (m_enable_compression and compress_to_fp16)
+        // simultaneously. Disabled usual compression by m_enable_compression for those constants that are requested to
+        // be compressed by compress_to_fp16 for now. To implement both compression types applied simultaneously
+        // we need to save element_type for each constant in the cache together with the compression status
+        // that implies a wider impact and requires a more accurate implementation of cache handling.
+        // When FP16 compression is turned on together with the usual compression enabled by m_enable_compression, we
+        // can avoid comparing FP32 weights, but it would require comparing with data from a file, because on-the-fly
+        // converted FP16 constants are not kept in memory.
 
         // This hash is weak (but efficient) and must be replace with some other
         // more stable hash algorithm. For example current hash algorithms gives
