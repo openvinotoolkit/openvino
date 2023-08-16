@@ -148,27 +148,6 @@ Now, consider how to cut some parts of the model off. This chapter describes the
 .. image:: _static/images/inception_v1_first_block.svg
    :alt: Inception V1 first convolution block
 
-
-To cut a model, you can specify the ``input`` parameter in a form of a tuple:
-
-.. code-block:: py
-   :force:
-
-   ov_model = convert_model(model, input=("input_name", [3], np.float32))
-
-For complex cases, when a value needs to be set in the ``input`` parameter, the ``InputCutInfo`` class can be used. ``InputCutInfo`` supports four types of parameters:
-
-* name: ``string``.
-* shape: ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.runtime.Dimension``), ``openvino.runtime.PartialShape``, ``openvino.runtime.Shape``.
-* type: ``numpy type``, ``openvino.runtime.Type``.
-* value: ``numpy.ndarray``, ``list`` of numeric values, ``bool``.
-
-``InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4])`` is equivalent of ``InputCutInfo(name="input_name", shape=[3], type=np.float32, value=[0.5, 2.1, 3.4])``.
-
-
-You can cut a model at either the end or the beginning. The examples below present how to perform such cutting in several ways.
-
-
 Cutting at the End
 ++++++++++++++++++++
 
