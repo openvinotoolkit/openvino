@@ -151,9 +151,6 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
     auto add = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>(
         OutputVector{matmul, pattern::any_input()},
         [](ov::Output<Node> out) -> bool {
-            // FIXME: two modes -- reducing and expanding from Reshape fusion
-            // TODO: other input should be Reshape with Concat pattern -- then we can modify it to
-            // FIXME: modify Reshapes pattern to reflect shrinking / expanding of dimensions !!!
             if (!pattern::consumers_count(1)(out))
                 return false;
             auto input_0_pshape = out.get_node_shared_ptr()->get_input_partial_shape(0);

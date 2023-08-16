@@ -74,7 +74,7 @@ private:
 
 size_t max_element(const vector<vector<size_t>>& vectors) {
     size_t current_max = 0;
-    for (const auto & vector : vectors)
+    for (const auto& vector : vectors)
         current_max = max(current_max, *std::max_element(vector.begin(), vector.end()));
     return current_max;
 }
@@ -93,14 +93,14 @@ ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_di
                                             const ov::Output<ov::Node>& non_batch_dims_source) {
     auto batch_indices = std::vector<size_t>(batch_dims_source.get_partial_shape().size() - 2);
     std::iota(batch_indices.begin(), batch_indices.end(), 0);
-    auto batch_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(batch_dims_source,
-                                                                                         batch_indices);
+    auto batch_dims =
+        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(batch_dims_source, batch_indices);
     auto non_batch_indices = std::vector<size_t>(2);
     std::iota(non_batch_indices.begin(), non_batch_indices.end(), non_batch_dims_source.get_partial_shape().size() - 2);
-    auto non_batch_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(non_batch_dims_source,
-                                                                                             non_batch_indices);
+    auto non_batch_dims =
+        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(non_batch_dims_source, non_batch_indices);
     auto target_shape =
-            ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::OutputVector{batch_dims, non_batch_dims}, 0);
+        ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::OutputVector{batch_dims, non_batch_dims}, 0);
     return target_shape->output(0);
 }
 
@@ -124,12 +124,13 @@ static std::ostream& operator<<(std::ostream& os, const vector<size_t>& vals) {
 }
 }  // namespace
 
+using DeReshapeMatMulParameters =
+    tuple<tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>>,
+          size_t,
+          size_t,
+          size_t>;
 
-using DeReshapeMatMulParameters = tuple<tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>>, size_t, size_t, size_t>;
-
-class DeReshapeMatMulTest
-        : public TransformationTestsF,
-          public testing::WithParamInterface<DeReshapeMatMulParameters> {
+class DeReshapeMatMulTest : public TransformationTestsF, public testing::WithParamInterface<DeReshapeMatMulParameters> {
 public:
     void SetUp() override {
         TransformationTestsF::SetUp();
@@ -158,37 +159,42 @@ public:
         // 0 - no add, 1 - add has matmul on lhs, 2 - add has matmul on rhs
         const size_t& final_add_mode = std::get<3>(GetParam());
 
-        const auto& max_idx = max_element(
-                {lhs_shape_idx, rhs_shape_idx, lhs_reshape_idx, rhs_reshape_idx, out_reshape_idx});
+        const auto& max_idx =
+            max_element({lhs_shape_idx, rhs_shape_idx, lhs_reshape_idx, rhs_reshape_idx, out_reshape_idx});
         const DimensionTestHelper dims(max_idx + 1);
 
         PartialShape lhs_original_pshape = dims.make_shape(lhs_shape_idx);
         PartialShape rhs_original_pshape = dims.make_shape(rhs_shape_idx);
 
         get_model(dims,
-                lhs_original_pshape, rhs_original_pshape,
-                lhs_reshape_idx, rhs_reshape_idx,
-                out_reshape_idx,
-                bea_scalar_mode, concat_mode, final_add_mode);
+                  lhs_original_pshape,
+                  rhs_original_pshape,
+                  lhs_reshape_idx,
+                  rhs_reshape_idx,
+                  out_reshape_idx,
+                  bea_scalar_mode,
+                  concat_mode,
+                  final_add_mode);
         manager.register_pass<pass::DeReshapeMatMul>();
         get_model_ref(dims,
-                      lhs_original_pshape, rhs_original_pshape,
-                      lhs_reshape_idx, rhs_reshape_idx,
-                      bea_scalar_mode, concat_mode, final_add_mode);
-
-
-
+                      lhs_original_pshape,
+                      rhs_original_pshape,
+                      lhs_reshape_idx,
+                      rhs_reshape_idx,
+                      bea_scalar_mode,
+                      concat_mode,
+                      final_add_mode);
     }
 
     void get_model(const DimensionTestHelper& dims,
-                                     const PartialShape& lhs_original_pshape,
-                                     const PartialShape& rhs_original_pshape,
-                                     const vector<size_t>& lhs_reshape_idx,
-                                     const vector<size_t>& rhs_reshape_idx,
-                                     const vector<size_t>& out_reshape_idx,
-                                     const size_t& bea_scalar_mode,
-                                     const size_t& concat_mode,
-                                     const size_t& final_add_mode) {
+                   const PartialShape& lhs_original_pshape,
+                   const PartialShape& rhs_original_pshape,
+                   const vector<size_t>& lhs_reshape_idx,
+                   const vector<size_t>& rhs_reshape_idx,
+                   const vector<size_t>& out_reshape_idx,
+                   const size_t& bea_scalar_mode,
+                   const size_t& concat_mode,
+                   const size_t& final_add_mode) {
         ParameterVector inputs;
         OutputVector outputs;
 
@@ -200,9 +206,9 @@ public:
             const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
-            if (set<size_t>{10, 300, 301}.count(concat_mode)) { // reshape on 0 port
+            if (set<size_t>{10, 300, 301}.count(concat_mode)) {  // reshape on 0 port
                 lhs_output = make_shared<v0::Concat>(OutputVector{lhs_output, another_input}, -1);
-            } else if (set<size_t>{11, 310, 311}.count(concat_mode)) { // reshape on 1 port
+            } else if (set<size_t>{11, 310, 311}.count(concat_mode)) {  // reshape on 1 port
                 lhs_output = make_shared<v0::Concat>(OutputVector{another_input, lhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
@@ -221,9 +227,9 @@ public:
         if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) {
             const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
-            if (set<size_t>{20, 300, 310}.count(concat_mode)) { // reshape on 0 port
+            if (set<size_t>{20, 300, 310}.count(concat_mode)) {  // reshape on 0 port
                 rhs_output = make_shared<v0::Concat>(OutputVector{rhs_output, another_input}, -1);
-            } else if (set<size_t>{21, 301, 311}.count(concat_mode)) { // reshape on 1 port
+            } else if (set<size_t>{21, 301, 311}.count(concat_mode)) {  // reshape on 1 port
                 rhs_output = make_shared<v0::Concat>(OutputVector{another_input, rhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
@@ -237,10 +243,12 @@ public:
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
-        if (final_add_mode == 1)       // 1 - add has matmul on lhs
-            matmul = make_shared<v1::Add>(matmul, v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
+        if (final_add_mode == 1)  // 1 - add has matmul on lhs
+            matmul =
+                make_shared<v1::Add>(matmul, v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
         else if (final_add_mode == 2)  // 2 - add has matmul on rhs
-            matmul = make_shared<v1::Add>(v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}), matmul);
+            matmul =
+                make_shared<v1::Add>(v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}), matmul);
 
         auto output_reshape = reshape(matmul, out_reshape_idx, dims);
 
@@ -256,13 +264,13 @@ public:
     }
 
     void get_model_ref(const DimensionTestHelper& dims,
-                                         const PartialShape& lhs_original_pshape,
-                                         const PartialShape& rhs_original_pshape,
-                                         const vector<size_t>& lhs_reshape_idx,
-                                         const vector<size_t>& rhs_reshape_idx,
-                                         const size_t& bea_scalar_mode,
-                                         const size_t& concat_mode,
-                                         const size_t& final_add_mode) {
+                       const PartialShape& lhs_original_pshape,
+                       const PartialShape& rhs_original_pshape,
+                       const vector<size_t>& lhs_reshape_idx,
+                       const vector<size_t>& rhs_reshape_idx,
+                       const size_t& bea_scalar_mode,
+                       const size_t& concat_mode,
+                       const size_t& final_add_mode) {
         ParameterVector inputs;
         OutputVector outputs;
 
@@ -277,9 +285,9 @@ public:
             auto target_shape_of_input = get_shape_from_sources(lhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
-            if (set<size_t>{10, 300, 301}.count(concat_mode)) { // reshape on 0 port
+            if (set<size_t>{10, 300, 301}.count(concat_mode)) {  // reshape on 0 port
                 lhs_output = make_shared<v0::Concat>(OutputVector{lhs_output, input_reshape}, -1);
-            } else if (set<size_t>{11, 310, 311}.count(concat_mode)) { // reshape on 1 port
+            } else if (set<size_t>{11, 310, 311}.count(concat_mode)) {  // reshape on 1 port
                 lhs_output = make_shared<v0::Concat>(OutputVector{input_reshape, lhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
@@ -306,9 +314,9 @@ public:
             auto target_shape_of_input = get_shape_from_sources(rhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
-            if (set<size_t>{20, 300, 310}.count(concat_mode)) { // reshape on 0 port
+            if (set<size_t>{20, 300, 310}.count(concat_mode)) {  // reshape on 0 port
                 rhs_output = make_shared<v0::Concat>(OutputVector{rhs_output, input_reshape}, -1);
-            } else if (set<size_t>{21, 301, 311}.count(concat_mode)) { // reshape on 1 port
+            } else if (set<size_t>{21, 301, 311}.count(concat_mode)) {  // reshape on 1 port
                 rhs_output = make_shared<v0::Concat>(OutputVector{input_reshape, rhs_output}, -1);
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
@@ -325,10 +333,12 @@ public:
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
-        if (final_add_mode == 1)       // 1 - add has matmul on lhs
-            matmul = make_shared<v1::Add>(matmul, v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
+        if (final_add_mode == 1)  // 1 - add has matmul on lhs
+            matmul =
+                make_shared<v1::Add>(matmul, v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}));
         else if (final_add_mode == 2)  // 2 - add has matmul on rhs
-            matmul = make_shared<v1::Add>(v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}), matmul);
+            matmul =
+                make_shared<v1::Add>(v0::Constant::create(element::f32, Shape(lhs_reshape_idx.size(), 1), {1}), matmul);
 
         inputs.push_back(dims.get_parameter());
         inputs.push_back(lhs_input);
@@ -351,24 +361,27 @@ public:
         tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>> tmp;
 
         std::tie(tmp, bea_scalar_mode, concat_mode, final_add_mode) = obj.param;
-        std::tie(lhs_input_shape_indices, lhs_reshape_indices, rhs_input_shape_indices, rhs_reshape_indices, output_reshape_indices) = tmp;
+        std::tie(lhs_input_shape_indices,
+                 lhs_reshape_indices,
+                 rhs_input_shape_indices,
+                 rhs_reshape_indices,
+                 output_reshape_indices) = tmp;
 
         std::ostringstream result;
         result << "l_in_shape_idx=" << lhs_input_shape_indices << "_l_reshape_idx=" << lhs_reshape_indices
                << "_r_in_shape_idx=" << rhs_input_shape_indices << "_r_reshape_idx=" << rhs_reshape_indices
-               << "_out_reshape_idx=" << output_reshape_indices
-               << "_bea_scalar_mode=" << bea_scalar_mode
-               << "_concat_mode=" << concat_mode
-               << "_final_add_mode=" << final_add_mode;
+               << "_out_reshape_idx=" << output_reshape_indices << "_bea_scalar_mode=" << bea_scalar_mode
+               << "_concat_mode=" << concat_mode << "_final_add_mode=" << final_add_mode;
         return result.str();
     }
 };
 
-const auto shape_test_cases = vector<tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>>> {
-        {{0, 1, 2, 3}, {5, 2, 3}, {0, 1, 3, 4}, {5, 3, 4}, {0, 1, 2, 4}},                   // 4D -> 3D -> 4D
-        {{5, 2, 3}, {0, 1, 2, 3}, {5, 3, 4}, {0, 1, 3, 4}, {5, 2, 4}},                      // 3D -> 4D -> 3D
-        {{0, 1, 2, 3, 4}, {0, 6, 3, 4}, {0, 1, 2, 4, 5}, {0, 6, 4, 5}, {0, 1, 2, 3, 5}},    // 5D -> 4D -> 5D
-};
+const auto shape_test_cases =
+    vector<tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>>>{
+        {{0, 1, 2, 3}, {5, 2, 3}, {0, 1, 3, 4}, {5, 3, 4}, {0, 1, 2, 4}},                 // 4D -> 3D -> 4D
+        {{5, 2, 3}, {0, 1, 2, 3}, {5, 3, 4}, {0, 1, 3, 4}, {5, 2, 4}},                    // 3D -> 4D -> 3D
+        {{0, 1, 2, 3, 4}, {0, 6, 3, 4}, {0, 1, 2, 4, 5}, {0, 6, 4, 5}, {0, 1, 2, 3, 5}},  // 5D -> 4D -> 5D
+    };
 
 const auto bea_scalar_modes = vector<size_t>{0, 1, 2, 3};
 const auto concat_modes = vector<size_t>{0, 10, 11, 20, 21, 300, 301, 310, 311};
@@ -377,12 +390,10 @@ const auto final_add_modes = vector<size_t>{0, 1, 2};
 TEST_P(DeReshapeMatMulTest, DeReshapeTests) {}
 
 INSTANTIATE_TEST_SUITE_P(
-        TransformationTestsF,
-        DeReshapeMatMulTest,
-        testing::Combine(
-                testing::ValuesIn(shape_test_cases), // lhs_idx, rhs_idx, reshape_idx, reshape_idx, reshape_idx
-                testing::ValuesIn(bea_scalar_modes),
-                testing::ValuesIn(concat_modes),
-                testing::ValuesIn(final_add_modes)
-        ),
-        DeReshapeMatMulTest::getTestCaseName);
+    TransformationTestsF,
+    DeReshapeMatMulTest,
+    testing::Combine(testing::ValuesIn(shape_test_cases),  // lhs_idx, rhs_idx, reshape_idx, reshape_idx, reshape_idx
+                     testing::ValuesIn(bea_scalar_modes),
+                     testing::ValuesIn(concat_modes),
+                     testing::ValuesIn(final_add_modes)),
+    DeReshapeMatMulTest::getTestCaseName);
