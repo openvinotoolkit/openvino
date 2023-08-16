@@ -301,7 +301,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
 .. important::
 
-   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or serialize into a file for subsequent use.
 
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################

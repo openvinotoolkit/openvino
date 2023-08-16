@@ -58,7 +58,7 @@ Example of using ``example_input``:
 
 .. important::
 
-   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or serialize into a file for subsequent use.
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
