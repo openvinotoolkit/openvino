@@ -871,13 +871,9 @@ def get_model_name_from_args(argv: argparse.Namespace):
     if not isinstance(input_model, (str, pathlib.Path)):
         return output_dir
 
-    # get file name
-    input_model_name = os.path.split(input_model)[1]
-
-    # get base directory name if file name is empty
-    while input_model_name == '' and len(input_model) > 0:
-        input_model_name = os.path.basename(input_model)
-        input_model = os.path.split(input_model)[0]
+    input_model_name = os.path.basename(input_model)
+    if input_model_name == '':
+        input_model_name = os.path.basename(os.path.dirname(input_model))
 
     # remove extension if exists
     input_model_name = os.path.splitext(input_model_name)[0]
