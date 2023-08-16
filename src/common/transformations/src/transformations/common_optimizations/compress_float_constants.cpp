@@ -26,10 +26,9 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
 
     auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, constant->get_shape());
     auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
-    if (!dst_data || size == 0)
+    if (!dst_data || !size)
         return nullptr;
 
-    // TODO: Speed this part up by applying code similar to Convert::evaluate
     int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
@@ -90,11 +89,6 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
         }
         if (!new_const)  // if out of range > threshold -> then new_const == nullptr
             return false;
-
-        if (postponed) {  // dispose converted const for postponed
-            new_const = const_node
-        }
-
 #else
         if (c_type == ov::element::f32) {
             auto size = shape_size(const_node->get_output_shape(0));
