@@ -1,6 +1,8 @@
 Live Object Detection with OpenVINO™
 ====================================
 
+.. _top:
+
 This notebook demonstrates live object detection with OpenVINO, using
 the `SSDLite
 MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__
@@ -12,17 +14,28 @@ Additionally, you can also upload a video file.
    **NOTE**: To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    server, the webcam will not work. However, you can still do inference
-   on a video. Table of content: - `Preparation <#1>`__ - `Install
-   requirements <#2>`__ - `Imports <#3>`__ - `The Model <#4>`__ -
-   `Download the Model <#5>`__ - `Convert the Model <#6>`__ - `Load the
-   Model <#7>`__ - `Processing <#8>`__ - `Process Results <#9>`__ -
-   `Main Processing Function <#10>`__ - `Run <#11>`__ - `Run Live Object
-   Detection <#12>`__ - `Run Object Detection on a Video File <#13>`__ -
-   `References <#14>`__
+   on a video. 
 
-## Preparation `⇑ <#0>`__
+Table of content:
 
-### Install requirements `⇑ <#0>`__
+- `Preparation <#1>`__
+- `Install requirements <#2>`__
+- `Imports <#3>`__
+- `The Model <#4>`__
+- `Download the Model <#5>`__
+- `Convert the Model <#6>`__
+- `Load the Model <#7>`__
+- `Processing <#8>`__
+- `Process Results <#9>`__
+- `Main Processing Function <#10>`__
+- `Run <#11>`__
+- `Run Live Object Detection <#12>`__
+- `Run Object Detection on a Video File <#13>`__
+- `References <#14>`__
+
+## Preparation `⇑ <#top>`__
+
+### Install requirements `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -53,7 +66,7 @@ Additionally, you can also upload a video file.
 
 
 
-### Imports `⇑ <#0>`__
+### Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -71,9 +84,9 @@ Additionally, you can also upload a video file.
     
     import notebook_utils as utils
 
-## The Model `⇑ <#0>`__
+## The Model `⇑ <#top>`__
 
-### Download the Model `⇑ <#0>`__
+### Download the Model `⇑ <#top>`__
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -115,7 +128,7 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-### Convert the Model `⇑ <#0>`__
+### Convert the Model `⇑ <#top>`__
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format, using `model conversion Python
@@ -148,7 +161,7 @@ converted, this step is skipped.
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
-### Load the Model `⇑ <#0>`__
+### Load the Model `⇑ <#top>`__
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -217,9 +230,9 @@ output.
 
 
 
-## Processing `⇑ <#0>`__
+## Processing `⇑ <#top>`__
 
-### Process Results `⇑ <#0>`__
+### Process Results `⇑ <#top>`__
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -308,7 +321,7 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-### Main Processing Function `⇑ <#0>`__
+### Main Processing Function `⇑ <#top>`__
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -418,9 +431,9 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run `⇑ <#0>`__
+## Run `⇑ <#top>`__
 
-### Run Live Object Detection `⇑ <#0>`__
+### Run Live Object Detection `⇑ <#top>`__
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -453,7 +466,7 @@ Run the object detection:
     [ERROR:0@44.255] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-### Run Object Detection on a Video File `⇑ <#0>`__
+### Run Object Detection on a Video File `⇑ <#top>`__
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -476,7 +489,7 @@ will work.
     Source ended
 
 
-## References `⇑ <#0>`__
+## References `⇑ <#top>`__
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

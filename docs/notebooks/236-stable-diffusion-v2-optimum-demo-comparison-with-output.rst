@@ -1,13 +1,16 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 ==============================================================================
 
+.. _top:
+
 |image0|
 
-Table of content: - `Showing Info Available Devices <#1>`__ - `Using
-full precision model in CPU with ``StableDiffusionPipeline`` <#2>`__ -
-`Using full precision model in CPU with
-``OVStableDiffusionPipeline`` <#3>`__ - `Using full precision model in
-dGPU with ``OVStableDiffusionPipeline`` <#4>`__
+Table of content:
+
+- `Showing Info Available Devices <#1>`__
+- `Using full precision model in CPU with StableDiffusionPipeline <#2>`__
+- `Using full precision model in CPU with OVStableDiffusionPipeline <#3>`__
+- `Using full precision model in dGPU with OVStableDiffusionPipeline <#4>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -28,7 +31,7 @@ this
     import warnings
     warnings.filterwarnings('ignore')
 
-### Showing Info Available Devices `⇑ <#0>`__
+### Showing Info Available Devices `⇑ <#top>`__
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -63,7 +66,7 @@ this
 
 
 ### Using full precision model in CPU with ``StableDiffusionPipeline``
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -115,7 +118,7 @@ this
 
 
 ### Using full precision model in CPU with ``OVStableDiffusionPipeline``
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -204,7 +207,7 @@ this
 
 
 ### Using full precision model in dGPU with
-``OVStableDiffusionPipeline`` `⇑ <#0>`__
+``OVStableDiffusionPipeline`` `⇑ <#top>`__
 
 The model in this notebook is FP32 precision. And thanks to the new
 feature of OpenVINO 2023.0 you do not need to convert the model to FP16

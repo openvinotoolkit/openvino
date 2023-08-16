@@ -1,6 +1,8 @@
 Industrial Meter Reader
 =======================
 
+.. _top:
+
 This notebook shows how to create a industrial meter reader with
 OpenVINO Runtime. We use the pre-trained
 `PPYOLOv2 <https://github.com/PaddlePaddle/PaddleDetection/tree/release/2.4/configs/ppyolo>`__
@@ -19,15 +21,22 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-Table of content: - `Import <#1>`__ - `Prepare the Model and Test
-Image <#2>`__ - `Configuration <#3>`__ - `Load the Models <#4>`__ -
-`Data Process <#5>`__ - `Main Function <#6>`__ - `Initialize the model
-and parameters. <#7>`__ - `Run meter detection model <#8>`__ - `Run
-meter segmentation model <#9>`__ - `Postprocess the models result and
-calculate the final readings <#10>`__ - `Get the reading result on the
-meter picture <#11>`__ - `Try it with your meter photos! <#12>`__
+Table of content:
 
-## Import `⇑ <#0>`__
+- `Import <#1>`__
+- `Prepare the Model and Test Image <#2>`__
+- `Configuration <#3>`__
+- `Load the Models <#4>`__
+- `Data Process <#5>`__
+- `Main Function <#6>`__
+- `Initialize the model and parameters. <#7>`__
+- `Run meter detection model <#8>`__
+- `Run meter segmentation model <#9>`__
+- `Postprocess the models result and calculate the final readings <#10>`__
+- `Get the reading result on the meter picture <#11>`__
+- `Try it with your meter photos! <#12>`__
+
+## Import `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -44,7 +53,7 @@ meter picture <#11>`__ - `Try it with your meter photos! <#12>`__
     sys.path.append("../utils")
     from notebook_utils import download_file, segmentation_map_to_image
 
-## Prepare the Model and Test Image `⇑ <#0>`__ Download PPYOLOv2 and
+## Prepare the Model and Test Image `⇑ <#top>`__ Download PPYOLOv2 and
 DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. code:: ipython3
@@ -117,7 +126,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
     Test Image Saved to "./data".
 
 
-## Configuration `⇑ <#0>`__ Add parameter configuration for reading
+## Configuration `⇑ <#top>`__ Add parameter configuration for reading
 calculation.
 
 .. code:: ipython3
@@ -144,7 +153,7 @@ calculation.
     
     SEG_LABEL = {'background': 0, 'pointer': 1, 'scale': 2}
 
-## Load the Models `⇑ <#0>`__ Define a common class for model loading
+## Load the Models `⇑ <#top>`__ Define a common class for model loading
 and inference
 
 .. code:: ipython3
@@ -185,7 +194,7 @@ and inference
             result = self.compiled_model(input_image)[self.output_layer]
             return result
 
-## Data Process `⇑ <#0>`__ Including the preprocessing and
+## Data Process `⇑ <#top>`__ Including the preprocessing and
 postprocessing tasks of each model.
 
 .. code:: ipython3
@@ -513,9 +522,9 @@ postprocessing tasks of each model.
             readings.append(reading)
         return readings
 
-## Main Function `⇑ <#0>`__
+## Main Function `⇑ <#top>`__
 
-### Initialize the model and parameters. `⇑ <#0>`__
+### Initialize the model and parameters. `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -585,7 +594,7 @@ bounds of input batch size.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_15_1.png
 
 
-### Run meter detection model `⇑ <#0>`__ Detect the location of the
+### Run meter detection model `⇑ <#top>`__ Detect the location of the
 meter and prepare the ROI images for segmentation.
 
 .. code:: ipython3
@@ -627,7 +636,7 @@ meter and prepare the ROI images for segmentation.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_17_1.png
 
 
-### Run meter segmentation model `⇑ <#0>`__ Get the results of
+### Run meter segmentation model `⇑ <#top>`__ Get the results of
 segmentation task on detected ROI.
 
 .. code:: ipython3
@@ -666,7 +675,7 @@ segmentation task on detected ROI.
 
 
 ### Postprocess the models result and calculate the final readings
-`⇑ <#0>`__ Use OpenCV function to find the location of the pointer in a
+`⇑ <#top>`__ Use OpenCV function to find the location of the pointer in a
 scale map.
 
 .. code:: ipython3
@@ -701,7 +710,7 @@ scale map.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_21_1.png
 
 
-### Get the reading result on the meter picture `⇑ <#0>`__
+### Get the reading result on the meter picture `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -731,4 +740,4 @@ scale map.
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_23_1.png
 
 
-## Try it with your meter photos! `⇑ <#0>`__
+## Try it with your meter photos! `⇑ <#top>`__

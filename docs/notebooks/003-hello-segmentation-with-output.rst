@@ -1,6 +1,8 @@
 Hello Image Segmentation
 ========================
 
+.. _top:
+
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
@@ -8,13 +10,21 @@ In this tutorial, a pre-trained
 model from the `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
-recognizes four classes: background, road, curb and mark. Table of
-content: - `Imports <#1>`__ - `Download model weights <#2>`__ - `Select
-inference device <#3>`__ - `Load the Model <#4>`__ - `Load an
-Image <#5>`__ - `Do Inference <#6>`__ - `Prepare Data for
-Visualization <#7>`__ - `Visualize data <#8>`__
+recognizes four classes: background, road, curb and mark.
 
-## Imports `⇑ <#0>`__
+Table of content:
+
+- `Imports <#1>`__
+- `Download model weights <#2>`__
+- `Select inference device <#3>`__
+- `Load the Model <#4>`__
+- `Load an Image <#5>`__
+- `Do Inference <#6>`__
+- `Prepare Data for Visualization <#7>`__
+- `Visualize data <#8>`__
+
+Imports `⇑ <#top>`__
+#########################################
 
 .. code:: ipython3
 
@@ -27,7 +37,7 @@ Visualization <#7>`__ - `Visualize data <#8>`__
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-## Download model weights `⇑ <#0>`__
+## Download model weights `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -63,7 +73,7 @@ Visualization <#7>`__ - `Visualize data <#8>`__
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -90,7 +100,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Load the Model `⇑ <#0>`__
+## Load the Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -102,7 +112,7 @@ select device from dropdown list for running inference using OpenVINO
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-## Load an Image `⇑ <#0>`__ A sample image from the `Mapillary
+## Load an Image `⇑ <#top>`__ A sample image from the `Mapillary
 Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
@@ -139,7 +149,7 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
-## Do Inference `⇑ <#0>`__
+## Do Inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -163,7 +173,7 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
-## Prepare Data for Visualization `⇑ <#0>`__
+## Prepare Data for Visualization `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -180,7 +190,7 @@ provided.
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-## Visualize data `⇑ <#0>`__
+## Visualize data `⇑ <#top>`__
 
 .. code:: ipython3
 

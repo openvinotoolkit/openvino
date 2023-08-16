@@ -1,6 +1,8 @@
 Optimize Preprocessing
 ======================
 
+.. _top:
+
 When input data does not fit the model input tensor perfectly,
 additional operations/steps are needed to transform the data to the
 format expected by the model. This tutorial demonstrates how it could be
@@ -25,26 +27,36 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-### Table of content: - `Settings <#1>`__ - `Imports <#2>`__ - `Setup
-image and device <#3>`__ - `Downloading the model <#4>`__ - `Create
-core <#5>`__ - `Check the original parameters of image <#6>`__ -
-`Convert model to OpenVINO IR and setup preprocessing steps with model
-conversion API <#7>`__ - `Prepare image <#8>`__ - `Compile model and
-perform inference <#9>`__ - `Setup preprocessing steps with
-Preprocessing API and perform inference <#10>`__ - `Convert model to
-OpenVINO IR with model conversion API <#11>`__ - `Create
-``PrePostProcessor`` Object <#12>`__ - `Declare User’s Data
-Format <#13>`__ - `Declaring Model Layout <#14>`__ - `Preprocessing
-Steps <#15>`__ - `Integrating Steps into a Model <#16>`__ - `Load model
-and perform inference <#17>`__ - `Fit image manually and perform
-inference <#18>`__ - `Load the model <#19>`__ - `Load image and fit it
-to model input <#20>`__ - `Perform inference <#21>`__ - `Compare
-results <#22>`__ - `Compare results on one image <#23>`__ - `Compare
-performance <#24>`__
+Table of content: 
 
-## Settings `⇑ <#0>`__
+- `Settings <#1>`__ 
+- `Imports <#2>`__ 
+- `Setup image and device <#3>`__ 
+- `Downloading the model <#4>`__ 
+- `Create core <#5>`__ 
+- `Check the original parameters of image <#6>`__ 
+- `Convert model to OpenVINO IR and setup preprocessing steps with model conversion API <#7>`__ 
+- `Prepare image <#8>`__ 
+- `Compile model and perform inference <#9>`__ 
+- `Setup preprocessing steps with Preprocessing API and perform inference <#10>`__ 
+- `Convert model to OpenVINO IR with model conversion API <#11>`__ 
+- `Create PrePostProcessor Object <#12>`__ 
+- `Declare User’s Data Format <#13>`__ 
+- `Declaring Model Layout <#14>`__ 
+- `Preprocessing Steps <#15>`__ 
+- `Integrating Steps into a Model <#16>`__ 
+- `Load model and perform inference <#17>`__ 
+- `Fit image manually and perform inference <#18>`__ 
+- `Load the model <#19>`__ 
+- `Load image and fit it to model input <#20>`__ 
+- `Perform inference <#21>`__ 
+- `Compare results <#22>`__ 
+- `Compare results on one image <#23>`__ 
+- `Compare performance <#24>`__
 
-## Imports `⇑ <#0>`__
+## Settings `⇑ <#top>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -67,7 +79,7 @@ performance <#24>`__
     2023-08-15 22:57:20.520711: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-### Setup image and device `⇑ <#0>`__
+### Setup image and device `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -96,7 +108,7 @@ performance <#24>`__
 
 
 
-### Downloading the model `⇑ <#0>`__
+### Downloading the model `⇑ <#top>`__
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -151,13 +163,13 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
-### Create core `⇑ <#0>`__
+### Create core `⇑ <#top>`__
 
 .. code:: ipython3
 
     core = Core()
 
-### Check the original parameters of image `⇑ <#0>`__
+### Check the original parameters of image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -178,7 +190,7 @@ and save it to the disk.
 
 
 ## Convert model to OpenVINO IR and setup preprocessing steps with model
-conversion API `⇑ <#0>`__
+conversion API `⇑ <#top>`__
 
 To convert a TensorFlow model to OpenVINO IR, use the
 ``mo.convert_model`` python function of `model conversion
@@ -225,7 +237,7 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
                                                   input_shape=[1,299,299,3])
         serialize(ov_model_mo_preprocess, str(ir_path_mo_preprocess))
 
-### Prepare image `⇑ <#0>`__
+### Prepare image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -260,7 +272,7 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
     The data type of the image is float32
 
 
-### Compile model and perform inference `⇑ <#0>`__
+### Compile model and perform inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -271,7 +283,7 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
     result = compiled_model_mo_pp(mo_pp_input_tensor)[output_layer]
 
 ## Setup preprocessing steps with Preprocessing API and perform
-inference `⇑ <#0>`__
+inference `⇑ <#top>`__
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -296,7 +308,7 @@ Pre-processing support following operations (please, see more details
 -  Color Conversion
 -  Custom Operations
 
-### Convert model to OpenVINO IR with model conversion API `⇑ <#0>`__
+### Convert model to OpenVINO IR with model conversion API `⇑ <#top>`__
 
 The options for preprocessing are not required.
 
@@ -314,7 +326,7 @@ The options for preprocessing are not required.
                                      input_shape=[1,299,299,3])
         serialize(ppp_model, str(ir_path))
 
-### Create ``PrePostProcessor`` Object `⇑ <#0>`__
+### Create ``PrePostProcessor`` Object `⇑ <#top>`__
 
 The
 ```PrePostProcessor()`` <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
@@ -327,7 +339,7 @@ a model.
     
     ppp = PrePostProcessor(ppp_model)
 
-### Declare User’s Data Format `⇑ <#0>`__
+### Declare User’s Data Format `⇑ <#top>`__
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -371,7 +383,7 @@ for mean/scale normalization.
 
 
 
-### Declaring Model Layout `⇑ <#0>`__
+### Declaring Model Layout `⇑ <#top>`__
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -399,7 +411,7 @@ may be specified is input data
 
 
 
-### Preprocessing Steps `⇑ <#0>`__
+### Preprocessing Steps `⇑ <#top>`__
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -437,7 +449,7 @@ then such conversion will be added explicitly.
 
 
 
-### Integrating Steps into a Model `⇑ <#0>`__
+### Integrating Steps into a Model `⇑ <#top>`__
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -462,7 +474,7 @@ configuration for debugging purposes.
     
 
 
-## Load model and perform inference `⇑ <#0>`__
+## Load model and perform inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -479,16 +491,16 @@ configuration for debugging purposes.
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
-## Fit image manually and perform inference `⇑ <#0>`__
+## Fit image manually and perform inference `⇑ <#top>`__
 
-### Load the model `⇑ <#0>`__
+### Load the model `⇑ <#top>`__
 
 .. code:: ipython3
 
     model = core.read_model(model=ir_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-### Load image and fit it to model input `⇑ <#0>`__
+### Load image and fit it to model input `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -521,7 +533,7 @@ configuration for debugging purposes.
     The data type of the image is float32
 
 
-### Perform inference `⇑ <#0>`__
+### Perform inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -529,9 +541,9 @@ configuration for debugging purposes.
     
     result = compiled_model(input_tensor)[output_layer]
 
-## Compare results `⇑ <#0>`__
+## Compare results `⇑ <#top>`__
 
-### Compare results on one image `⇑ <#0>`__
+### Compare results on one image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -596,7 +608,7 @@ configuration for debugging purposes.
     n02100877 Irish setter, red setter, 0.00116
 
 
-### Compare performance `⇑ <#0>`__
+### Compare performance `⇑ <#top>`__
 
 .. code:: ipython3
 

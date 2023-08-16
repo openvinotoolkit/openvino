@@ -1,6 +1,8 @@
 Image generation with Stable Diffusion XL and OpenVINO
 ======================================================
 
+.. _top:
+
 Stable Diffusion XL or SDXL is the latest image generation model that is
 tailored towards more photorealistic outputs with more detailed imagery
 and composition compared to previous Stable Diffusion models, including
@@ -65,15 +67,20 @@ The tutorial consists of the following steps:
    **Note**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
-Table of content: - `Install Prerequisites <#1>`__ - `SDXL Base
-model <#2>`__ - `Select inference device <#3>`__ - `Run Text2Image
-generation pipeline <#4>`__ - `Text2image Generation Interactive
-Demo <#5>`__ - `Run Image2Image generation pipeline <#6>`__ -
-`Image2Image Generation Interactive Demo <#7>`__ - `SDXL Refiner
-model <#8>`__ - `Select inference device <#9>`__ - `Run Text2Image
-generation with Refinement <#10>`__
+Table of content:
 
-## Install prerequisites\ `⇑ <#0>`__
+- `Install Prerequisites <#1>`__
+- `SDXL Base model <#2>`__
+- `Select inference device <#3>`__
+- `Run Text2Image generation pipeline <#4>`__
+- `Text2image Generation Interactive Demo <#5>`__
+- `Run Image2Image generation pipeline <#6>`__
+- `Image2Image Generation Interactive Demo <#7>`__
+- `SDXL Refiner model <#8>`__
+- `Select inference device <#9>`__
+- `Run Text2Image generation with Refinement <#10>`__
+
+## Install prerequisites\ `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -82,7 +89,7 @@ generation with Refinement <#10>`__
     !pip install -q --upgrade-strategy eager "diffusers>=0.18.0" "invisible-watermark>=0.2.0" "transformers>=4.30.2" "accelerate" "onnx" "onnxruntime"
     !pip install -q gradio
 
-## SDXL Base model\ `⇑ <#0>`__
+## SDXL Base model\ `⇑ <#top>`__
 
 We will start with the base model part, which is responsible for the
 generation of images of the desired output size.
@@ -128,7 +135,7 @@ You can save the model on disk using the ``save_pretrained`` method.
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
 
 
-### Select inference device\ `⇑ <#0>`__
+### Select inference device\ `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -177,7 +184,7 @@ select device from dropdown list for running inference using OpenVINO
     Compiling the vae_encoder...
 
 
-### Run Text2Image generation pipeline\ `⇑ <#0>`__
+### Run Text2Image generation pipeline\ `⇑ <#top>`__
 
 Now, we can run the model for the generation of images using text
 prompts. To speed up evaluation and reduce the required memory we
@@ -222,7 +229,7 @@ numpy random state with a specific seed for results reproducibility.
 
 
 
-### Text2image Generation Interactive Demo\ `⇑ <#0>`__
+### Text2image Generation Interactive Demo\ `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -287,7 +294,7 @@ numpy random state with a specific seed for results reproducibility.
     Closing server running on port: 7860
 
 
-### Run Image2Image generation pipeline\ `⇑ <#0>`__
+### Run Image2Image generation pipeline\ `⇑ <#top>`__
 
 We can reuse the already converted model for running the Image2Image
 generation pipeline. For that, we should replace
@@ -366,7 +373,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Image2Image Generation Interactive Demo\ `⇑ <#0>`__
+### Image2Image Generation Interactive Demo\ `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -444,7 +451,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## SDXL Refiner model\ `⇑ <#0>`__
+## SDXL Refiner model\ `⇑ <#top>`__
 
 As we discussed above, Stable Diffusion XL can be used in a 2-stages
 approach: first, the base model is used to generate latents of the
@@ -473,7 +480,7 @@ prompt for improving generated image.
         del refiner
         gc.collect()
 
-### Select inference device\ `⇑ <#0>`__
+### Select inference device\ `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -490,7 +497,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Run Text2Image generation with Refinement\ `⇑ <#0>`__
+### Run Text2Image generation with Refinement\ `⇑ <#top>`__
 
 .. code:: ipython3
 

@@ -1,6 +1,8 @@
 Text-to-Music generation using Riffusion and OpenVINO
 =====================================================
 
+.. _top:
+
 `Riffusion <https://huggingface.co/riffusion/riffusion-model-v1>`__ is a
 latent text-to-image diffusion model capable of generating spectrogram
 images given any text input. These spectrograms can be converted into
@@ -72,13 +74,18 @@ amplitudes and phases.
 
 The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
-audio generation. Table of content: - `Prerequisites <#1>`__ - `Stable
-Diffusion pipeline in Optimum Intel <#2>`__ - `Select inference
-device <#3>`__ - `Prepare postprocessing for reconstruction audio from
-spectrogram image <#4>`__ - `Run Inference pipeline <#5>`__ -
-`Interactive demo <#6>`__
+audio generation.
 
-## Prerequisites `⇑ <#0>`__
+Table of content:
+
+- `Prerequisites <#1>`__
+- `Stable Diffusion pipeline in Optimum Intel <#2>`__
+- `Select inference device <#3>`__
+- `Prepare postprocessing for reconstruction audio from spectrogram image <#4>`__
+- `Run Inference pipeline <#5>`__
+- `Interactive demo <#6>`__
+
+## Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -113,7 +120,7 @@ spectrogram image <#4>`__ - `Run Inference pipeline <#5>`__ -
     [notice] To update, run: pip install --upgrade pip
 
 
-## Stable Diffusion pipeline in Optimum Intel `⇑ <#0>`__
+## Stable Diffusion pipeline in Optimum Intel `⇑ <#top>`__
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -149,7 +156,7 @@ running.
     MODEL_ID = "riffusion/riffusion-model-v1"
     MODEL_DIR = Path("riffusion_pipeline")
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -368,7 +375,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 ## Prepare postprocessing for reconstruction audio from spectrogram
-image `⇑ <#0>`__
+image `⇑ <#top>`__
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -534,7 +541,7 @@ from a spectrogram image using Griffin-Lim Algorithm.
     
         return waveform
 
-## Run Inference pipeline `⇑ <#0>`__
+## Run Inference pipeline `⇑ <#top>`__
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -643,7 +650,7 @@ without the other. More explanation of how it works can be found in this
 
 
 
-## Interactive demo `⇑ <#0>`__
+## Interactive demo `⇑ <#top>`__
 
 .. code:: ipython3
 

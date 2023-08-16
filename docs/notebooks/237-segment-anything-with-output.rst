@@ -1,20 +1,30 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
-Table of content: - `Background <#1>`__ - `Prerequisites <#2>`__ -
-`Convert model to OpenVINO Intermediate Representation <#3>`__ -
-`Download model checkpoint and create PyTorch model <#4>`__ - `Image
-Encoder <#5>`__ - `Mask predictor <#6>`__ - `Run OpenVINO model in
-interactive segmentation mode <#7>`__ - `Example Image <#8>`__ -
-`Preprocessing and visualization utilities <#9>`__ - `Image
-encoding <#10>`__ - `Example point input <#11>`__ - `Example with
-multiple points <#12>`__ - `Example box and point input with negative
-label <#13>`__ - `Interactive segmentation <#14>`__ - `Run OpenVINO
-model in automatic mask generation mode <#15>`__ - `Optimize encoder
-using NNCF Post-training Quantization API <#16>`__ - `Prepare a
-calibration dataset <#17>`__ - `Run quantization and serialize OpenVINO
-IR model <#18>`__ - `Validate Quantized Model Inference <#19>`__ -
-`Compare Performance of the Original and Quantized Models <#20>`__
+.. _top:
+
+Table of content:
+
+- `Background <#1>`__
+- `Prerequisites <#2>`__
+- `Convert model to OpenVINO Intermediate Representation <#3>`__
+- `Download model checkpoint and create PyTorch model <#4>`__
+- `Image Encoder <#5>`__
+- `Mask predictor <#6>`__
+- `Run OpenVINO model in interactive segmentation mode <#7>`__
+- `Example Image <#8>`__
+- `Preprocessing and visualization utilities <#9>`__
+- `Image encoding <#10>`__
+- `Example point input <#11>`__
+- `Example with multiple points <#12>`__
+- `Example box and point input with negative label <#13>`__
+- `Interactive segmentation <#14>`__
+- `Run OpenVINO model in automatic mask generation mode <#15>`__
+- `Optimize encoder using NNCF Post-training Quantization API <#16>`__
+- `Prepare a calibration dataset <#17>`__
+- `Run quantization and serialize OpenVINO IR model <#18>`__
+- `Validate Quantized Model Inference <#19>`__
+- `Compare Performance of the Original and Quantized Models <#20>`__
 
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of
@@ -40,7 +50,7 @@ zero-shot transfer). This notebook shows an example of how to convert
 and use Segment Anything Model in OpenVINO format, allowing it to run on
 a variety of platforms that support an OpenVINO.
 
-## Background `⇑ <#0>`__
+## Background `⇑ <#top>`__
 
 Previously, to solve any kind of segmentation problem, there were two
 classes of approaches. The first, interactive segmentation, allowed for
@@ -107,7 +117,7 @@ post <https://ai.facebook.com/blog/segment-anything-foundation-model-image-segme
 
 .. |model_diagram| image:: https://raw.githubusercontent.com/facebookresearch/segment-anything/main/assets/model_diagram.png
 
-## Prerequisites `⇑ <#0>`__
+## Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -121,9 +131,9 @@ post <https://ai.facebook.com/blog/segment-anything-foundation-model-image-segme
     [notice] To update, run: pip install --upgrade pip
 
 
-## Convert model to OpenVINO Intermediate Representation `⇑ <#0>`__
+## Convert model to OpenVINO Intermediate Representation `⇑ <#top>`__
 
-### Download model checkpoint and create PyTorch model `⇑ <#0>`__
+### Download model checkpoint and create PyTorch model `⇑ <#top>`__
 
 There are several Segment Anything Model
 `checkpoints <https://github.com/facebookresearch/segment-anything#model-checkpoints>`__
@@ -173,7 +183,7 @@ into account this fact, we split model on 2 independent parts:
 image_encoder and mask_predictor (combination of Prompt Encoder and Mask
 Decoder).
 
-### Image Encoder `⇑ <#0>`__
+### Image Encoder `⇑ <#top>`__
 
 Image Encoder input is tensor with shape ``1x3x1024x1024`` in ``NCHW``
 format, contains image for segmentation. Image Encoder output is image
@@ -230,7 +240,7 @@ embeddings, tensor with shape ``1x256x64x64``
 
     ov_encoder = core.compile_model(ov_encoder_model, device.value)
 
-### Mask predictor `⇑ <#0>`__
+### Mask predictor `⇑ <#top>`__
 
 This notebook expects the model was exported with the parameter
 ``return_single_mask=True``. It means that model will only return the
@@ -424,9 +434,9 @@ Model outputs:
 
     ov_predictor = core.compile_model(ov_model, device.value)
 
-## Run OpenVINO model in interactive segmentation mode `⇑ <#0>`__
+## Run OpenVINO model in interactive segmentation mode `⇑ <#top>`__
 
-### Example Image `⇑ <#0>`__
+### Example Image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -456,7 +466,7 @@ Model outputs:
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_21_0.png
 
 
-### Preprocessing and visualization utilities `⇑ <#0>`__
+### Preprocessing and visualization utilities `⇑ <#top>`__
 
 To prepare input for Image Encoder we should:
 
@@ -571,7 +581,7 @@ These steps are applicable to all available models
         w, h = box[2] - box[0], box[3] - box[1]
         ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))  
 
-### Image encoding `⇑ <#0>`__
+### Image encoding `⇑ <#top>`__
 
 To start work with image, we should preprocess it and obtain image
 embeddings using ``ov_encoder``. We will use the same image for all
@@ -587,7 +597,7 @@ reuse them.
 
 Now, we can try to provide different prompts for mask generation
 
-### Example point input `⇑ <#0>`__
+### Example point input `⇑ <#top>`__
 
 In this example we select one point. The green star symbol show its
 location on the image below.
@@ -652,7 +662,7 @@ object).
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_35_0.png
 
 
-### Example with multiple points `⇑ <#0>`__
+### Example with multiple points `⇑ <#top>`__
 
 in this example, we provide additional point for cover larger object
 area.
@@ -718,7 +728,7 @@ Package inputs, then predict and threshold the mask.
 
 Great! Looks like now, predicted mask cover whole truck.
 
-### Example box and point input with negative label `⇑ <#0>`__
+### Example box and point input with negative label `⇑ <#top>`__
 
 In this example we define input prompt using bounding box and point
 inside it.The bounding box represented as set of points of its left
@@ -790,7 +800,7 @@ Package inputs, then predict and threshold the mask.
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_53_0.png
 
 
-## Interactive segmentation `⇑ <#0>`__
+## Interactive segmentation `⇑ <#top>`__
 
 Now, you can try SAM on own image. Upload image to input window and
 click on desired point, model predict segment based on your image and
@@ -897,7 +907,7 @@ point.
     <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-## Run OpenVINO model in automatic mask generation mode `⇑ <#0>`__
+## Run OpenVINO model in automatic mask generation mode `⇑ <#top>`__
 
 Since SAM can efficiently process prompts, masks for the entire image
 can be generated by sampling a large number of prompts over an image.
@@ -1263,7 +1273,7 @@ is a dictionary containing various data about the mask. These keys are:
 
 
 
-## Optimize encoder using NNCF Post-training Quantization API `⇑ <#0>`__
+## Optimize encoder using NNCF Post-training Quantization API `⇑ <#top>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -1280,7 +1290,7 @@ The optimization process contains the following steps:
 3. Serialize OpenVINO IR model, using the ``openvino.runtime.serialize``
    function.
 
-### Prepare a calibration dataset `⇑ <#0>`__
+### Prepare a calibration dataset `⇑ <#top>`__
 
 Download COCO dataset. Since the dataset is used to calibrate the
 model’s parameter instead of fine-tuning it, we don’t need to download
@@ -1356,7 +1366,7 @@ dataset and returns data that can be passed to the model for inference.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-### Run quantization and serialize OpenVINO IR model `⇑ <#0>`__
+### Run quantization and serialize OpenVINO IR model `⇑ <#top>`__
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -1838,7 +1848,7 @@ activations.
     ov_encoder_path_int8 = "sam_image_encoder_int8.xml"
     serialize(quantized_model, ov_encoder_path_int8)
 
-### Validate Quantized Model Inference `⇑ <#0>`__
+### Validate Quantized Model Inference `⇑ <#top>`__
 
 We can reuse the previous code to validate the output of ``INT8`` model.
 
@@ -1901,7 +1911,7 @@ Run ``INT8`` model in automatic mask generation mode
 
 
 
-### Compare Performance of the Original and Quantized Models `⇑ <#0>`__
+### Compare Performance of the Original and Quantized Models `⇑ <#top>`__
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``

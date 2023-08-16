@@ -1,20 +1,36 @@
 From Training to Deployment with TensorFlow and OpenVINO™
 =========================================================
 
-Table of content: - `TensorFlow Image Classification Training <#1>`__ -
-`Import TensorFlow and Other Libraries <#2>`__ - `Download and Explore
-the Dataset <#3>`__ - `Load Using keras.preprocessing <#4>`__ - `Create
-a Dataset <#5>`__ - `Visualize the Data <#6>`__ - `Configure the Dataset
-for Performance <#7>`__ - `Standardize the Data <#8>`__ - `Create the
-Model <#9>`__ - `Compile the Model <#10>`__ - `Model Summary <#11>`__ -
-`Train the Model <#12>`__ - `Visualize Training Results <#13>`__ -
-`Overfitting <#14>`__ - `Data Augmentation <#15>`__ - `Dropout <#16>`__
-- `Compile and Train the Model <#17>`__ - `Visualize Training
-Results <#18>`__ - `Predict on New Data <#19>`__ - `Save the TensorFlow
-Model <#20>`__ - `Convert the TensorFlow model with OpenVINO Model
-Optimizer <#21>`__ - `Preprocessing Image Function <#22>`__ - `OpenVINO
-Runtime Setup <#23>`__ - `Select inference device <#24>`__ - `Run the
-Inference Step <#25>`__ - `The Next Steps <#26>`__
+.. _top:
+
+Table of content:
+
+- `TensorFlow Image Classification Training <#1>`__
+- `Import TensorFlow and Other Libraries <#2>`__
+- `Download and Explore the Dataset <#3>`__
+- `Load Using keras.preprocessing <#4>`__
+- `Create a Dataset <#5>`__
+- `Visualize the Data <#6>`__
+- `Configure the Dataset for Performance <#7>`__
+- `Standardize the Data <#8>`__
+- `Create the Model <#9>`__
+- `Compile the Model <#10>`__
+- `Model Summary <#11>`__
+- `Train the Model <#12>`__
+- `Visualize Training Results <#13>`__
+- `Overfitting <#14>`__
+- `Data Augmentation <#15>`__
+- `Dropout <#16>`__
+- `Compile and Train the Model <#17>`__
+- `Visualize Training Results <#18>`__
+- `Predict on New Data <#19>`__
+- `Save the TensorFlow Model <#20>`__
+- `Convert the TensorFlow model with OpenVINO Model Optimizer <#21>`__
+- `Preprocessing Image Function <#22>`__
+- `OpenVINO Runtime Setup <#23>`__
+- `Select inference device <#24>`__
+- `Run the Inference Step <#25>`__
+- `The Next Steps <#26>`__
 
 .. code:: ipython3
 
@@ -52,7 +68,7 @@ The ``flower_ir.bin`` and ``flower_ir.xml`` (pre-trained models) can be
 obtained by executing the code with ‘Runtime->Run All’ or the
 ``Ctrl+F9`` command.
 
-## TensorFlow Image Classification Training `⇑ <#0>`__
+## TensorFlow Image Classification Training `⇑ <#top>`__
 
 The first part of the tutorial shows how to classify images of flowers
 (based on the TensorFlow’s official tutorial). It creates an image
@@ -72,7 +88,7 @@ This tutorial follows a basic machine learning workflow:
 4. Train the model
 5. Test the model
 
-## Import TensorFlow and Other Libraries `⇑ <#0>`__
+## Import TensorFlow and Other Libraries `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -104,7 +120,7 @@ This tutorial follows a basic machine learning workflow:
     2023-08-16 01:08:54.707315: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-## Download and Explore the Dataset `⇑ <#0>`__
+## Download and Explore the Dataset `⇑ <#top>`__
 
 This tutorial uses a dataset of about 3,700 photos of flowers. The
 dataset contains 5 sub-directories, one per class:
@@ -189,7 +205,7 @@ And some tulips:
 
 
 
-## Load Using keras.preprocessing `⇑ <#0>`__
+## Load Using keras.preprocessing `⇑ <#top>`__
 
 Let’s load these images off disk using the helpful
 `image_dataset_from_directory <https://www.tensorflow.org/api_docs/python/tf/keras/preprocessing/image_dataset_from_directory>`__
@@ -199,7 +215,7 @@ also write your own data loading code from scratch by visiting the `load
 images <https://www.tensorflow.org/tutorials/load_data/images>`__
 tutorial.
 
-## Create a Dataset `⇑ <#0>`__
+## Create a Dataset `⇑ <#top>`__
 
 Define some parameters for the loader:
 
@@ -266,7 +282,7 @@ datasets. These correspond to the directory names in alphabetical order.
     ['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips']
 
 
-## Visualize the Data `⇑ <#0>`__
+## Visualize the Data `⇑ <#top>`__
 
 Here are the first 9 images from the training dataset.
 
@@ -327,7 +343,7 @@ shape ``(32,)``, these are corresponding labels to the 32 images.
 You can call ``.numpy()`` on the ``image_batch`` and ``labels_batch``
 tensors to convert them to a ``numpy.ndarray``.
 
-## Configure the Dataset for Performance `⇑ <#0>`__
+## Configure the Dataset for Performance `⇑ <#top>`__
 
 Let’s make sure to use buffered prefetching so you can yield data from
 disk without having I/O become blocking. These are two important methods
@@ -352,7 +368,7 @@ guide <https://www.tensorflow.org/guide/data_performance#prefetching>`__.
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
-## Standardize the Data `⇑ <#0>`__
+## Standardize the Data `⇑ <#top>`__
 
 The RGB channel values are in the ``[0, 255]`` range. This is not ideal
 for a neural network; in general you should seek to make your input
@@ -400,7 +416,7 @@ logic in your model as well, you can use the
 `Resizing <https://www.tensorflow.org/api_docs/python/tf/keras/layers/experimental/preprocessing/Resizing>`__
 layer.
 
-## Create the Model `⇑ <#0>`__
+## Create the Model `⇑ <#top>`__
 
 The model consists of three convolution blocks with a max pool layer in
 each of them. There’s a fully connected layer with 128 units on top of
@@ -425,7 +441,7 @@ standard approach.
       layers.Dense(num_classes)
     ])
 
-## Compile the Model `⇑ <#0>`__
+## Compile the Model `⇑ <#top>`__
 
 For this tutorial, choose the ``optimizers.Adam`` optimizer and
 ``losses.SparseCategoricalCrossentropy`` loss function. To view training
@@ -438,7 +454,7 @@ argument.
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
 
-## Model Summary `⇑ <#0>`__
+## Model Summary `⇑ <#top>`__
 
 View all the layers of the network using the model’s ``summary`` method.
 
@@ -449,7 +465,7 @@ View all the layers of the network using the model’s ``summary`` method.
 
     # model.summary()
 
-## Train the Model `⇑ <#0>`__
+## Train the Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -460,7 +476,7 @@ View all the layers of the network using the model’s ``summary`` method.
     #   epochs=epochs
     # )
 
-## Visualize Training Results `⇑ <#0>`__
+## Visualize Training Results `⇑ <#top>`__
 
 Create plots of loss and accuracy on the training and validation sets.
 
@@ -495,7 +511,7 @@ accuracy on the validation set.
 Let’s look at what went wrong and try to increase the overall
 performance of the model.
 
-## Overfitting `⇑ <#0>`__
+## Overfitting `⇑ <#top>`__
 
 In the plots above, the training accuracy is increasing linearly over
 time, whereas validation accuracy stalls around 60% in the training
@@ -513,7 +529,7 @@ There are multiple ways to fight overfitting in the training process. In
 this tutorial, you’ll use *data augmentation* and add *Dropout* to your
 model.
 
-## Data Augmentation `⇑ <#0>`__
+## Data Augmentation `⇑ <#top>`__
 
 Overfitting generally occurs when there are a small number of training
 examples. `Data
@@ -568,7 +584,7 @@ augmentation to the same image several times:
 
 You will use data augmentation to train a model in a moment.
 
-## Dropout `⇑ <#0>`__
+## Dropout `⇑ <#top>`__
 
 Another technique to reduce overfitting is to introduce
 `Dropout <https://developers.google.com/machine-learning/glossary#dropout_regularization>`__
@@ -600,7 +616,7 @@ it using augmented images.
         layers.Dense(num_classes, name="outputs")
     ])
 
-## Compile and Train the Model `⇑ <#0>`__
+## Compile and Train the Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -721,7 +737,7 @@ it using augmented images.
     92/92 [==============================] - 6s 63ms/step - loss: 0.5338 - accuracy: 0.8001 - val_loss: 0.7533 - val_accuracy: 0.7193
 
 
-## Visualize Training Results `⇑ <#0>`__
+## Visualize Training Results `⇑ <#top>`__
 
 After applying data augmentation and Dropout, there is less overfitting
 than before, and training and validation accuracy are closer aligned.
@@ -755,7 +771,7 @@ than before, and training and validation accuracy are closer aligned.
 .. image:: 301-tensorflow-training-openvino-with-output_files/301-tensorflow-training-openvino-with-output_65_0.png
 
 
-## Predict on New Data `⇑ <#0>`__
+## Predict on New Data `⇑ <#top>`__
 
 Finally, let us use the model to classify an image that was not included
 in the training or validation sets.
@@ -789,7 +805,7 @@ in the training or validation sets.
     This image most likely belongs to sunflowers with a 88.60 percent confidence.
 
 
-## Save the TensorFlow Model `⇑ <#0>`__
+## Save the TensorFlow Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -851,7 +867,7 @@ in the training or validation sets.
     INFO:tensorflow:Assets written to: model/flower/saved_model/assets
 
 
-## Convert the TensorFlow model with OpenVINO Model Optimizer `⇑ <#0>`__
+## Convert the TensorFlow model with OpenVINO Model Optimizer `⇑ <#top>`__
 To convert the model to OpenVINO IR with ``FP16`` precision, use model
 conversion Python API. For more information, see this
 `page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
@@ -864,7 +880,7 @@ conversion Python API. For more information, see this
     ir_model = mo.convert_model(saved_model_dir=saved_model_dir, input_shape=[1,180,180,3], compress_to_fp16=True)
     serialize(ir_model, str(ir_model_path / "flower_ir.xml"))
 
-## Preprocessing Image Function `⇑ <#0>`__
+## Preprocessing Image Function `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -880,9 +896,9 @@ conversion Python API. For more information, see this
     
         return input_image
 
-## OpenVINO Runtime Setup `⇑ <#0>`__
+## OpenVINO Runtime Setup `⇑ <#top>`__
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -922,7 +938,7 @@ select device from dropdown list for running inference using OpenVINO
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-## Run the Inference Step `⇑ <#0>`__
+## Run the Inference Step `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -967,7 +983,7 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 301-tensorflow-training-openvino-with-output_files/301-tensorflow-training-openvino-with-output_78_1.png
 
 
-## The Next Steps `⇑ <#0>`__
+## The Next Steps `⇑ <#top>`__
 
 This tutorial showed how to train a TensorFlow model, how to convert
 that model to OpenVINO’s IR format, and how to do inference on the

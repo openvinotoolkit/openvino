@@ -1,6 +1,8 @@
 Selfie Segmentation using TFLite and OpenVINO
 =============================================
 
+.. _top:
+
 The Selfie segmentation pipeline allows developers to easily separate
 the background from users within a scene and focus on what matters.
 Adding cool effects to selfies or inserting your users into interesting
@@ -34,18 +36,23 @@ The tutorial consists of following steps:
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
 
-### Table of content: - `Prerequisites <#1>`__ - `Install required
-dependencies <#2>`__ - `Download pretrained model and test image <#3>`__
-- `Convert Tensorflow Lite model to OpenVINO IR format <#4>`__ - `Run
-OpenVINO model inference on image <#5>`__ - `Load model <#6>`__ -
-`Prepare input image <#7>`__ - `Run model inference <#8>`__ -
-`Postprocess and visualize inference results <#9>`__ - `Interactive
-background blurring demo on video <#10>`__ - `Run Live Background
-Blurring <#11>`__
+Table of content:
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__
+- `Install required dependencies <#2>`__
+- `Download pre-trained model and test image <#3>`__
+- `Convert Tensorflow Lite model to OpenVINO IR format <#4>`__
+- `Run OpenVINO model inference on image <#5>`__
+- `Load model <#6>`__
+- `Prepare input image <#7>`__
+- `Run model inference <#8>`__
+- `Postprocess and visualize inference results <#9>`__
+- `Interactive background blurring demo on video <#10>`__
+- `Run Live Background Blurring <#11>`__
 
-### Install required dependencies `⇑ <#0>`__
+## Prerequisites `⇑ <#top>`__
+
+### Install required dependencies `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -65,7 +72,7 @@ Blurring <#11>`__
         filename='notebook_utils.py'
     );
 
-### Download pretrained model and test image `⇑ <#0>`__
+### Download pretrained model and test image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -92,7 +99,7 @@ Blurring <#11>`__
 
 
 
-## Convert Tensorflow Lite model to OpenVINO IR format `⇑ <#0>`__
+## Convert Tensorflow Lite model to OpenVINO IR format `⇑ <#top>`__
 
 Starting from the 2023.0.0 release, OpenVINO supports TFLite model
 conversion. However TFLite model format can be directly passed in
@@ -170,13 +177,13 @@ and others. Each value in the output tensor represents of probability
 that the pixel belongs to the specified class. We can use the ``argmax``
 operation to get the label with the highest probability for each pixel.
 
-## Run OpenVINO model inference on image `⇑ <#0>`__
+## Run OpenVINO model inference on image `⇑ <#top>`__
 
 Let’s see the model in action. For running the inference model with
 OpenVINO we should load the model on the device first. Please use the
 next dropdown list for the selection inference device.
 
-### Load model `⇑ <#0>`__
+### Load model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -204,7 +211,7 @@ next dropdown list for the selection inference device.
 
     compiled_model = core.compile_model(ov_model, device.value)
 
-### Prepare input image `⇑ <#0>`__
+### Prepare input image `⇑ <#top>`__
 
 The model accepts an image with size 256x256, we need to resize our
 input image to fit it in the model input tensor. Usually, segmentation
@@ -258,13 +265,13 @@ Additionally, the input image is represented as an RGB image in UINT8
     # Convert input data from uint8 [0, 255] to float32 [0, 1] range and add batch dimension
     normalized_img = np.expand_dims(padded_img.astype(np.float32) / 255, 0)
 
-### Run model inference `⇑ <#0>`__
+### Run model inference `⇑ <#top>`__
 
 .. code:: ipython3
 
     out = compiled_model(normalized_img)[0]
 
-### Postprocess and visualize inference results `⇑ <#0>`__
+### Postprocess and visualize inference results `⇑ <#top>`__
 
 The model predicts segmentation probabilities mask with the size 256 x
 256, we need to apply postprocessing to get labels with the highest
@@ -369,7 +376,7 @@ Visualize obtained result
 .. image:: 243-tflite-selfie-segmentation-with-output_files/243-tflite-selfie-segmentation-with-output_25_0.png
 
 
-## Interactive background blurring demo on video `⇑ <#0>`__
+## Interactive background blurring demo on video `⇑ <#top>`__
 
 The following code runs model inference on a video:
 
@@ -491,7 +498,7 @@ The following code runs model inference on a video:
             if use_popup:
                 cv2.destroyAllWindows()
 
-### Run Live Background Blurring `⇑ <#0>`__
+### Run Live Background Blurring `⇑ <#top>`__
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

@@ -1,6 +1,8 @@
 Video Recognition using SlowFast and OpenVINO™
 ==============================================
 
+.. _top:
+
 Teaching machines to detect, understand and analyze the contents of
 images has been one of the more well-known and well-studied problems in
 computer vision. However, analyzing videos to understand what is
@@ -38,21 +40,25 @@ This tutorial consists of the following steps
 
 .. |image0| image:: https://user-images.githubusercontent.com/34324155/143044111-94676f64-7ba8-4081-9011-f8054bed7030.png
 
-### Table of content: - `Prepare PyTorch Model <#1>`__ - `Install
-necessary packages <#2>`__ - `Imports and Settings <#3>`__ - `Export to
-ONNX <#4>`__ - `Convert ONNX to OpenVINO™ Intermediate
-Representation <#5>`__ - `Select inference device <#6>`__ - `Verify
-Model Inference <#7>`__
+Table of content:
 
-## Prepare PyTorch Model `⇑ <#0>`__
+- `Prepare PyTorch Model <#1>`__
+- `Install necessary packages <#2>`__
+- `Imports and Settings <#3>`__
+- `Export to ONNX <#4>`__
+- `Convert ONNX to OpenVINO™ Intermediate Representation <#5>`__
+- `Select inference device <#6>`__
+- `Verify Model Inference <#7>`__
 
-### Install necessary packages `⇑ <#0>`__
+## Prepare PyTorch Model `⇑ <#top>`__
+
+### Install necessary packages `⇑ <#top>`__
 
 .. code:: ipython3
 
     !pip install fvcore -q
 
-### Imports and Settings `⇑ <#0>`__
+### Imports and Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -904,7 +910,7 @@ inference using the same. The top 5 predictions can be seen below.
     Predicted labels: archery, throwing axe, playing paintball, golf driving, riding or walking with horse
 
 
-## Export to ONNX `⇑ <#0>`__
+## Export to ONNX `⇑ <#top>`__
 
 Now that we have obtained our trained model and checked inference with
 it, we export the PyTorch model to Open Neural Network Exchange(ONNX)
@@ -927,7 +933,7 @@ quantization.
         export_params=True,
     )
 
-## Convert ONNX to OpenVINO™ Intermediate Representation `⇑ <#0>`__
+## Convert ONNX to OpenVINO™ Intermediate Representation `⇑ <#top>`__
 
 Now that our ONNX model is ready, we can convert it to IR format. In
 this format, the network is represented using two files: an ``xml`` file
@@ -964,7 +970,7 @@ using the ``weights`` parameter.
     # read converted model
     conv_model = core.read_model(str(IR_PATH))
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -995,7 +1001,7 @@ select device from dropdown list for running inference using OpenVINO
     # load model on device
     compiled_model = core.compile_model(model=conv_model, device_name=device.value)
 
-## Verify Model Inference `⇑ <#0>`__
+## Verify Model Inference `⇑ <#top>`__
 
 Using the compiled model, we run inference on the same sample video and
 print the top 5 predictions again.

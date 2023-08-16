@@ -1,6 +1,8 @@
 Convert a TensorFlow Model to OpenVINO™
 =======================================
 
+.. _top:
+
 | This short tutorial shows how to convert a TensorFlow
   `MobileNetV3 <https://docs.openvino.ai/2023.0/omz_models_model_mobilenet_v3_small_1_0_224_tf.html>`__
   image classification model to OpenVINO `Intermediate
@@ -10,14 +12,23 @@ Convert a TensorFlow Model to OpenVINO™
   After creating the OpenVINO IR, load the model in `OpenVINO
   Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
   and do inference with a sample image.
-| Table of content: - `Imports <#1>`__ - `Settings <#2>`__ - `Download
-  model <#3>`__ - `Convert a Model to OpenVINO IR Format <#4>`__ -
-  `Convert a TensorFlow Model to OpenVINO IR Format <#5>`__ - `Test
-  Inference on the Converted Model <#6>`__ - `Load the Model <#7>`__ -
-  `Select inference device <#8>`__ - `Get Model Information <#9>`__ -
-  `Load an Image <#10>`__ - `Do Inference <#11>`__ - `Timing <#12>`__
 
-## Imports `⇑ <#0>`__
+| Table of content:
+
+- `Imports <#1>`__
+- `Settings <#2>`__
+- `Download model <#3>`__
+- `Convert a Model to OpenVINO IR Format <#4>`__
+- `Convert a TensorFlow Model to OpenVINO IR Format <#5>`__
+- `Test Inference on the Converted Model <#6>`__
+- `Load the Model <#7>`__
+- `Select inference device <#8>`__
+- `Get Model Information <#9>`__
+- `Load an Image <#10>`__
+- `Do Inference <#11>`__
+- `Timing <#12>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -40,7 +51,7 @@ Convert a TensorFlow Model to OpenVINO™
     2023-08-15 22:26:34.746193: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-## Settings `⇑ <#0>`__
+## Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -52,7 +63,7 @@ Convert a TensorFlow Model to OpenVINO™
     
     ir_path = Path("model/v3-small_224_1.0_float.xml")
 
-## Download model `⇑ <#0>`__
+## Download model `⇑ <#top>`__
 
 Load model using `tf.keras.applications
 api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -99,9 +110,9 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
-## Convert a Model to OpenVINO IR Format `⇑ <#0>`__
+## Convert a Model to OpenVINO IR Format `⇑ <#top>`__
 
-### Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#0>`__
+### Convert a TensorFlow Model to OpenVINO IR Format `⇑ <#top>`__
 
 Use the model conversion Python API to convert the TensorFlow model to
 OpenVINO IR. The ``mo.convert_model`` function accept path to saved
@@ -129,16 +140,16 @@ models.
     Exporting TensorFlow model to IR... This may take a few minutes.
 
 
-## Test Inference on the Converted Model `⇑ <#0>`__
+## Test Inference on the Converted Model `⇑ <#top>`__
 
-### Load the Model `⇑ <#0>`__
+### Load the Model `⇑ <#top>`__
 
 .. code:: ipython3
 
     core = Core()
     model = core.read_model(ir_path)
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -168,7 +179,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-### Get Model Information `⇑ <#0>`__
+### Get Model Information `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -176,7 +187,7 @@ select device from dropdown list for running inference using OpenVINO
     output_key = compiled_model.output(0)
     network_input_shape = input_key.shape 
 
-### Load an Image `⇑ <#0>`__
+### Load an Image `⇑ <#top>`__
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -199,7 +210,7 @@ network.
 .. image:: 101-tensorflow-classification-to-openvino-with-output_files/101-tensorflow-classification-to-openvino-with-output_18_0.png
 
 
-### Do Inference `⇑ <#0>`__
+### Do Inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -223,7 +234,7 @@ network.
 
 
 
-## Timing `⇑ <#0>`__
+## Timing `⇑ <#top>`__
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the

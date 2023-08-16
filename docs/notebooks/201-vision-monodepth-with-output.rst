@@ -1,6 +1,8 @@
 Monodepth Estimation with OpenVINO
 ==================================
 
+.. _top:
+
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
 `here <https://docs.openvino.ai/2023.0/omz_models_model_midasnet.html>`__.
@@ -26,19 +28,30 @@ Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot
 Cross-dataset
 Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
-``10.1109/TPAMI.2020.3019967``. Table of content: - `Preparation <#1>`__
-- `Install requirements <#2>`__ - `Imports <#3>`__ - `Download the
-model <#4>`__ - `Functions <#5>`__ - `Select inference device <#6>`__ -
-`Load the Model <#7>`__ - `Monodepth on Image <#8>`__ - `Load, resize
-and reshape input image <#9>`__ - `Do inference on the image <#10>`__ -
-`Display monodepth image <#11>`__ - `Monodepth on Video <#12>`__ -
-`Video Settings <#13>`__ - `Load the Video <#14>`__ - `Do Inference on a
-Video and Create Monodepth Video <#15>`__ - `Display Monodepth
-Video <#16>`__
+``10.1109/TPAMI.2020.3019967``. 
 
-## Preparation `⇑ <#0>`__
+Table of content:
 
-### Install requirements `⇑ <#0>`__
+- `Preparation <#1>`__
+- `Install requirements <#2>`__
+- `Imports <#3>`__
+- `Download the model <#4>`__
+- `Functions <#5>`__
+- `Select inference device <#6>`__
+- `Load the Model <#7>`__
+- `Monodepth on Image <#8>`__
+- `Load, resize and reshape input image <#9>`__
+- `Do inference on the image <#10>`__
+- `Display monodepth image <#11>`__
+- `Monodepth on Video <#12>`__
+- `Video Settings <#13>`__
+- `Load the Video <#14>`__
+- `Do Inference on a Video and Create Monodepth Video <#15>`__
+- `Display Monodepth Video <#16>`__
+
+## Preparation `⇑ <#top>`__
+
+### Install requirements `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -61,7 +74,7 @@ Video <#16>`__
 
 
 
-### Imports `⇑ <#0>`__
+### Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -85,7 +98,7 @@ Video <#16>`__
     
     from notebook_utils import download_file, load_image
 
-### Download the model `⇑ <#0>`__
+### Download the model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -113,7 +126,7 @@ Video <#16>`__
     model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
 
 
-## Functions `⇑ <#0>`__
+## Functions `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -145,7 +158,7 @@ Video <#16>`__
         """
         return cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -172,7 +185,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Load the Model `⇑ <#0>`__
+## Load the Model `⇑ <#top>`__
 
 Load the model in OpenVINO Runtime with ``ie.read_model`` and compile it
 for the specified device with ``ie.compile_model``. Get input and output
@@ -191,9 +204,9 @@ keys and the expected input shape for the model.
     network_input_shape = list(input_key.shape)
     network_image_height, network_image_width = network_input_shape[2:]
 
-## Monodepth on Image `⇑ <#0>`__
+## Monodepth on Image `⇑ <#top>`__
 
-### Load, resize and reshape input image `⇑ <#0>`__
+### Load, resize and reshape input image `⇑ <#top>`__
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -210,7 +223,7 @@ H=height, W=width).
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
 
-### Do inference on the image `⇑ <#0>`__
+### Do inference on the image `⇑ <#top>`__
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -227,7 +240,7 @@ original image shape.
     # in (width, height), [::-1] reverses the (height, width) shape to match this.
     result_image = cv2.resize(result_image, image.shape[:2][::-1])
 
-### Display monodepth image `⇑ <#0>`__
+### Display monodepth image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -240,13 +253,13 @@ original image shape.
 .. image:: 201-vision-monodepth-with-output_files/201-vision-monodepth-with-output_18_0.png
 
 
-## Monodepth on Video `⇑ <#0>`__
+## Monodepth on Video `⇑ <#top>`__
 
 By default, only the first 100 frames are processed in order to quickly
 check that everything works. Change ``NUM_FRAMES`` in the cell below to
 modify this. Set ``NUM_FRAMES`` to 0 to process the whole video.
 
-### Video Settings `⇑ <#0>`__
+### Video Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -274,7 +287,7 @@ modify this. Set ``NUM_FRAMES`` to 0 to process the whole video.
     output_directory.mkdir(exist_ok=True)
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
 
-### Load the Video `⇑ <#0>`__
+### Load the Video `⇑ <#top>`__
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -311,7 +324,7 @@ compute values for these properties for the monodepth video.
     The monodepth video will be scaled with a factor 0.5, have width 320,  height 180, and run at 15.00 fps
 
 
-### Do Inference on a Video and Create Monodepth Video `⇑ <#0>`__
+### Do Inference on a Video and Create Monodepth Video `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -414,7 +427,7 @@ compute values for these properties for the monodepth video.
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
-### Display Monodepth Video `⇑ <#0>`__
+### Display Monodepth Video `⇑ <#top>`__
 
 .. code:: ipython3
 

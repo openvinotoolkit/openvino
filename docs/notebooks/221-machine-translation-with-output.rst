@@ -1,6 +1,8 @@
 Machine translation demo
 ========================
 
+.. _top:
+
 This demo utilizes Intel’s pre-trained model that translates from
 English to German. More information about the model can be found
 `here <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/machine-translation-nar-en-de-0002/README.md>`__.
@@ -14,11 +16,17 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 ``<pad>`` (``<pad>`` tokens pad the remaining blank spaces).
 
 **Output** After the inference, we have a sequence of up to 200 tokens.
-The structure is the same as the one for the input. Table of content: -
-`Downloading model <#1>`__ - `Load and configure the model <#2>`__ -
-`Select inference device <#3>`__ - `Load tokenizers <#4>`__ - `Perform
-translation <#5>`__ - `Translate the sentence <#6>`__ - `Test your
-translation <#7>`__
+The structure is the same as the one for the input. 
+
+Table of content:
+
+- `Downloading model <#1>`__
+- `Load and configure the model <#2>`__
+- `Select inference device <#3>`__
+- `Load tokenizers <#4>`__
+- `Perform translation <#5>`__
+- `Translate the sentence <#6>`__
+- `Test your translation <#7>`__
 
 .. code:: ipython3
 
@@ -41,7 +49,7 @@ translation <#7>`__
     import itertools
     from tokenizers import SentencePieceBPETokenizer
 
-## Downloading model `⇑ <#0>`__ The following command will download the
+## Downloading model `⇑ <#top>`__ The following command will download the
 model to the current directory. Make sure you have run
 ``pip install openvino-dev`` beforehand.
 
@@ -80,7 +88,7 @@ model to the current directory. Make sure you have run
     
 
 
-## Load and configure the model `⇑ <#0>`__ The model is now available in
+## Load and configure the model `⇑ <#top>`__ The model is now available in
 the ``intel/`` folder. Below, we load and configure its inputs and
 outputs.
 
@@ -93,7 +101,7 @@ outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -125,7 +133,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model, device.value)
 
-## Load tokenizers `⇑ <#0>`__
+## Load tokenizers `⇑ <#top>`__
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -151,7 +159,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         'intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt'
     )
 
-## Perform translation `⇑ <#0>`__ The following function translates a
+## Perform translation `⇑ <#top>`__ The following function translates a
 sentence in English to German.
 
 .. code:: ipython3
@@ -198,7 +206,7 @@ sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-## Translate the sentence `⇑ <#0>`__ The following function is a basic
+## Translate the sentence `⇑ <#top>`__ The following function is a basic
 loop that translates sentences.
 
 .. code:: ipython3
@@ -226,7 +234,7 @@ loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-### Test your translation `⇑ <#0>`__ Run the following cell with an
+### Test your translation `⇑ <#top>`__ Run the following cell with an
 English sentence to have it translated to German
 
 .. code:: ipython3

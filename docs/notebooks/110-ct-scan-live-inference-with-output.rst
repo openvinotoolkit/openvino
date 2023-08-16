@@ -1,6 +1,8 @@
 Live Inference and Benchmark CT-scan Data with OpenVINO™
 ========================================================
 
+.. _top:
+
 Kidney Segmentation with PyTorch Lightning and OpenVINO™ - Part 4
 -----------------------------------------------------------------
 
@@ -27,18 +29,26 @@ Training <110-ct-segmentation-quantize-with-output.html>`__
 notebook.
 
 For demonstration purposes, this tutorial will download one converted CT
-scan to use for inference. Table of content: - `Imports <#1>`__ -
-`Settings <#2>`__ - `Benchmark Model Performance <#3>`__ - `Download and
-Prepare Data <#4>`__ - `Show Live Inference <#5>`__ - `Load Model and
-List of Image Files <#6>`__ - `Prepare images <#7>`__ - `Specify
-device <#8>`__ - `Setting callback function <#9>`__ - `Create
-asynchronous inference queue and perform it <#10>`__
+scan to use for inference. 
+
+Table of content: 
+
+- `Imports <#1>`__ 
+- `Settings <#2>`__ 
+- `Benchmark Model Performance <#3>`__ 
+- `Download and Prepare Data <#4>`__ 
+- `Show Live Inference <#5>`__ 
+- `Load Model and List of Image Files <#6>`__ 
+- `Prepare images <#7>`__ 
+- `Specify device <#8>`__ 
+- `Setting callback function <#9>`__ 
+- `Create asynchronous inference queue and perform it <#10>`__
 
 .. code:: ipython3
 
     !pip install -q "monai>=0.9.1,<1.0.0"
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -56,7 +66,7 @@ asynchronous inference queue and perform it <#10>`__
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-## Settings `⇑ <#0>`__
+## Settings `⇑ <#top>`__
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -93,7 +103,7 @@ trained or optimized yourself, adjust the model paths.
     pretrained_model/quantized_unet_kits19.bin:   0%|          | 0.00/1.90M [00:00<?, ?B/s]
 
 
-## Benchmark Model Performance `⇑ <#0>`__ To measure the inference
+## Benchmark Model Performance `⇑ <#top>`__ To measure the inference
 performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO. Benchmark tool
@@ -214,7 +224,7 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Throughput:   97.14 FPS
 
 
-## Download and Prepare Data `⇑ <#0>`__
+## Download and Prepare Data `⇑ <#top>`__
 
 Download one validation video for live inference.
 
@@ -260,7 +270,7 @@ downloaded and extracted in the next cell.
     Downloaded and extracted data for case_00117
 
 
-## Show Live Inference `⇑ <#0>`__
+## Show Live Inference `⇑ <#top>`__
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -290,7 +300,7 @@ inference queue, there are two jobs to do:
 
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
-### Load Model and List of Image Files `⇑ <#0>`__
+### Load Model and List of Image Files `⇑ <#top>`__
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -316,7 +326,7 @@ to see the implementation.
     case_00117, 69 images
 
 
-### Prepare images `⇑ <#0>`__
+### Prepare images `⇑ <#top>`__
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -336,7 +346,7 @@ tutorial.
         framebuf.append(image)
         next_frame_id += 1
 
-### Specify device `⇑ <#0>`__
+### Specify device `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -351,7 +361,7 @@ tutorial.
 
 
 
-### Setting callback function `⇑ <#0>`__
+### Setting callback function `⇑ <#top>`__
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -386,7 +396,7 @@ The ``callback`` function will show the results of inference.
         display.clear_output(wait=True)
         display.display(i)
 
-### Create asynchronous inference queue and perform it `⇑ <#0>`__
+### Create asynchronous inference queue and perform it `⇑ <#top>`__
 
 .. code:: ipython3
 

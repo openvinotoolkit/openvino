@@ -1,21 +1,32 @@
 Interactive question answering with OpenVINO™
 =============================================
 
+.. _top:
+
 This demo shows interactive question answering with OpenVINO, using
 `small BERT-large-like
 model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002>`__
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs. Table
-of content: - `Imports <#1>`__ - `The model <#2>`__ - `Download the
-model <#3>`__ - `Load the model <#4>`__ - `Select inference
-device <#5>`__ - `Processing <#6>`__ - `Preprocessing <#7>`__ -
-`Postprocessing <#8>`__ - `Main Processing Function <#9>`__ -
-`Run <#10>`__ - `Run on local paragraphs <#11>`__ - `Run on
-websites <#12>`__
+of this notebook provides live inference results from your inputs. 
 
-## Imports `⇑ <#0>`__
+Table of content:
+
+- `Imports <#1>`__
+- `The model <#2>`__
+- `Download the model <#3>`__
+- `Load the model <#4>`__
+- `Select inference device <#5>`__
+- `Processing <#6>`__
+- `Preprocessing <#7>`__
+- `Postprocessing <#8>`__
+- `Main Processing Function <#9>`__
+- `Run <#10>`__
+- `Run on local paragraphs <#11>`__
+- `Run on websites <#12>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -29,9 +40,9 @@ websites <#12>`__
     import html_reader as reader
     import tokens_bert as tokens
 
-## The model `⇑ <#0>`__
+## The model `⇑ <#top>`__
 
-### Download the model `⇑ <#0>`__
+### Download the model `⇑ <#top>`__
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. The ``omz_downloader`` tool automatically
@@ -85,7 +96,7 @@ there is no need to use ``omz_converter``.
     
 
 
-### Load the model `⇑ <#0>`__
+### Load the model `⇑ <#top>`__
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -101,7 +112,7 @@ You can choose ``CPU`` or ``GPU`` for this model.
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
 
-#### Select inference device `⇑ <#0>`__
+#### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -158,7 +169,7 @@ for BERT-large-like model.
 
 
 
-## Processing `⇑ <#0>`__
+## Processing `⇑ <#top>`__
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -195,7 +206,7 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-### Preprocessing `⇑ <#0>`__
+### Preprocessing `⇑ <#top>`__
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -277,7 +288,7 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-### Postprocessing `⇑ <#0>`__
+### Postprocessing `⇑ <#top>`__
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -369,7 +380,7 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-### Main Processing Function `⇑ <#0>`__
+### Main Processing Function `⇑ <#top>`__
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -410,9 +421,9 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-## Run `⇑ <#0>`__
+## Run `⇑ <#top>`__
 
-### Run on local paragraphs `⇑ <#0>`__
+### Run on local paragraphs `⇑ <#top>`__
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -463,7 +474,7 @@ questions in the box.**
     Time: 0.03s
 
 
-### Run on websites `⇑ <#0>`__
+### Run on websites `⇑ <#top>`__
 
 You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the

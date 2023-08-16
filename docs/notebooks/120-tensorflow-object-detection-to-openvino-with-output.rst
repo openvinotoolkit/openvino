@@ -1,6 +1,8 @@
 Convert a TensorFlow Object Detection Model to OpenVINO™
 ========================================================
 
+.. _top:
+
 `TensorFlow <https://www.tensorflow.org/>`__, or TF for short, is an
 open-source framework for machine learning.
 
@@ -22,17 +24,27 @@ Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opset
 Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image. Table of content: -
-`Prerequisites <#1>`__ - `Imports <#2>`__ - `Settings <#3>`__ -
-`Download Model from TensorFlow Hub <#4>`__ - `Convert Model to OpenVINO
-IR <#5>`__ - `Test Inference on the Converted Model <#6>`__ - `Select
-inference device <#7>`__ - `Load the Model <#8>`__ - `Get Model
-Information <#9>`__ - `Get an Image for Test Inference <#10>`__ -
-`Perform Inference <#11>`__ - `Inference Result Visualization <#12>`__ -
-`Next Steps <#13>`__ - `Async inference pipeline <#14>`__ - `Integration
-preprocessing to model <#15>`__
+and do inference with a sample image. 
 
-## Prerequisites `⇑ <#0>`__
+Table of content: 
+
+- `Prerequisites <#1>`__ 
+- `Imports <#2>`__ 
+- `Settings <#3>`__ 
+- `Download Model from TensorFlow Hub <#4>`__ 
+- `Convert Model to OpenVINO IR <#5>`__ 
+- `Test Inference on the Converted Model <#6>`__ 
+- `Select inference device <#7>`__ 
+- `Load the Model <#8>`__ 
+- `Get Model Information <#9>`__ 
+- `Get an Image for Test Inference <#10>`__ 
+- `Perform Inference <#11>`__ 
+- `Inference Result Visualization <#12>`__ 
+- `Next Steps <#13>`__ 
+- `Async inference pipeline <#14>`__ 
+- `Integration preprocessing to model <#15>`__
+
+## Prerequisites `⇑ <#top>`__
 
 Install required packages:
 
@@ -53,7 +65,7 @@ The notebook uses utility functions. The cell below will download the
         filename="notebook_utils.py",
     );
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -72,7 +84,7 @@ The notebook uses utility functions. The cell below will download the
     from openvino.runtime import Core, serialize
     from openvino.tools import mo
 
-## Settings `⇑ <#0>`__
+## Settings `⇑ <#top>`__
 
 Define model related variables and create corresponding directories:
 
@@ -98,7 +110,7 @@ Define model related variables and create corresponding directories:
     
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
-## Download Model from TensorFlow Hub `⇑ <#0>`__
+## Download Model from TensorFlow Hub `⇑ <#top>`__
 
 Download archive with TensorFlow Object Detection model
 (`faster_rcnn_resnet50_v1_640x640 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__)
@@ -136,7 +148,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
-## Convert Model to OpenVINO IR `⇑ <#0>`__
+## Convert Model to OpenVINO IR `⇑ <#top>`__
 
 OpenVINO Model Optimizer Python API can be used to convert the
 TensorFlow model to OpenVINO IR.
@@ -169,9 +181,9 @@ support <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_conve
     # Save converted OpenVINO IR model to the corresponding directory
     serialize(ov_model, openvino_ir_path)
 
-## Test Inference on the Converted Model `⇑ <#0>`__
+## Test Inference on the Converted Model `⇑ <#top>`__
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -198,7 +210,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Load the Model `⇑ <#0>`__
+### Load the Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -206,7 +218,7 @@ select device from dropdown list for running inference using OpenVINO
     openvino_ir_model = core.read_model(openvino_ir_path)
     compiled_model = core.compile_model(model=openvino_ir_model, device_name=device.value)
 
-### Get Model Information `⇑ <#0>`__
+### Get Model Information `⇑ <#top>`__
 
 Faster R-CNN with Resnet-50 V1 object detection model has one input - a
 three-channel image of variable size. The input tensor shape is
@@ -273,7 +285,7 @@ for more information about model inputs, outputs and their formats.
        <ConstOutput: names[raw_detection_scores] shape[1,300,91] type: f32>
 
 
-### Get an Image for Test Inference `⇑ <#0>`__
+### Get an Image for Test Inference `⇑ <#top>`__
 
 Load and save an image:
 
@@ -334,7 +346,7 @@ Read the image, resize and convert it to the input shape of the network:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_25_1.png
 
 
-### Perform Inference `⇑ <#0>`__
+### Perform Inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -444,7 +456,7 @@ outputs will be used.
     image_detections_num: [300.]
 
 
-### Inference Result Visualization `⇑ <#0>`__
+### Inference Result Visualization `⇑ <#top>`__
 
 Define utility functions to visualize the inference results
 
@@ -623,12 +635,12 @@ original test image:
 .. image:: 120-tensorflow-object-detection-to-openvino-with-output_files/120-tensorflow-object-detection-to-openvino-with-output_38_0.png
 
 
-## Next Steps `⇑ <#0>`__
+## Next Steps `⇑ <#top>`__
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
 
-### Async inference pipeline `⇑ <#0>`__ The key advantage of the Async
+### Async inference pipeline `⇑ <#top>`__ The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -636,7 +648,7 @@ complete first. To understand how to perform async inference using
 openvino, refer to the `Async API
 tutorial <115-async-api-with-output.html>`__.
 
-### Integration preprocessing to model `⇑ <#0>`__
+### Integration preprocessing to model `⇑ <#top>`__
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing

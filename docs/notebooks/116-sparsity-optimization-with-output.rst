@@ -1,6 +1,8 @@
 Accelerate Inference of Sparse Transformer Models with OpenVINO™ and 4th Gen Intel® Xeon® Scalable Processors
 =============================================================================================================
 
+.. _top:
+
 This tutorial demonstrates how to improve performance of sparse
 Transformer models with `OpenVINO <https://docs.openvino.ai/>`__ on 4th
 Gen Intel® Xeon® Scalable processors.
@@ -21,20 +23,23 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
-### Table of content: - `Prerequisites <#1>`__ - `Imports <#2>`__ -
-`Download, quantize and sparsify the model, using Hugging Face Optimum
-API <#3>`__ - `Benchmark quantized dense inference performance <#4>`__ -
-`Benchmark quantized sparse inference performance <#5>`__ - `When this
-might be helpful <#6>`__
+Table of content: 
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__ 
+- `Imports <#2>`__ 
+- `Download, quantize and sparsify the model, using Hugging Face Optimum API <#3>`__ 
+- `Benchmark quantized dense inference performance <#4>`__ 
+- `Benchmark quantized sparse inference performance <#5>`__ 
+- `When this might be helpful <#6>`__
+
+## Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
     !pip install -q "openvino-dev>=2023.0.0"
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -65,7 +70,7 @@ might be helpful <#6>`__
 
 
 ### Download, quantize and sparsify the model, using Hugging Face
-Optimum API `⇑ <#0>`__
+Optimum API `⇑ <#top>`__
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -132,7 +137,7 @@ the IRs into a single folder.
 
 
 
-## Benchmark quantized dense inference performance `⇑ <#0>`__ Benchmark
+## Benchmark quantized dense inference performance `⇑ <#top>`__ Benchmark
 dense inference performance using parallel execution on four CPU cores
 to simulate a small instance in the cloud infrastructure. Sequence
 length is dependent on use cases, 16 is common for conversational AI
@@ -236,7 +241,7 @@ is recommended to tune based on your applications.
     [ INFO ] Throughput:   148.16 FPS
 
 
-## Benchmark quantized sparse inference performance `⇑ <#0>`__
+## Benchmark quantized sparse inference performance `⇑ <#top>`__
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -342,7 +347,7 @@ for which a layer will be enabled.
     [ INFO ] Throughput:   147.24 FPS
 
 
-## When this might be helpful `⇑ <#0>`__
+## When this might be helpful `⇑ <#top>`__
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

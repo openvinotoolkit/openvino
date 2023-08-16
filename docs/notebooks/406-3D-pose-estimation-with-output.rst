@@ -1,6 +1,8 @@
 Live 3D Human Pose Estimation with OpenVINO
 ===========================================
 
+.. _top:
+
 This notebook demonstrates live 3D Human Pose Estimation with OpenVINO
 via a webcam. We utilize the model
 `human-pose-estimation-3d-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/human-pose-estimation-3d-0001>`__
@@ -24,16 +26,26 @@ been using JupyterLab to run the demo as suggested in the
 
 *To ensure that the results are displayed correctly, run the code in a
 recommended browser on one of the following operating systems:* *Ubuntu,
-Windows: Chrome* *macOS: Safari* Table of content: -
-`Prerequisites <#1>`__ - `Imports <#2>`__ - `The model <#3>`__ -
-`Download the model <#4>`__ - `Convert Model to OpenVINO IR
-format <#5>`__ - `Select inference device <#6>`__ - `Load the
-model <#7>`__ - `Processing <#8>`__ - `Model Inference <#9>`__ - `Draw
-2D Pose Overlays <#10>`__ - `Main Processing Function <#11>`__ -
-`Run <#12>`__ - `Run Live Pose Estimation <#13>`__ - `Run Pose
-Estimation on a Video File <#14>`__
+Windows: Chrome* *macOS: Safari*
 
-## Prerequisites `⇑ <#0>`__
+Table of content:
+
+- `Prerequisites <#1>`__
+- `Imports <#2>`__
+- `The model <#3>`__
+- `Download the model <#4>`__
+- `Convert Model to OpenVINO IR format <#5>`__
+- `Select inference device <#6>`__
+- `Load the model <#7>`__
+- `Processing <#8>`__
+- `Model Inference <#9>`__
+- `Draw 2D Pose Overlays <#10>`__
+- `Main Processing Function <#11>`__
+- `Run <#12>`__
+- `Run Live Pose Estimation <#13>`__
+- `Run Pose Estimation on a Video File <#14>`__
+
+## Prerequisites `⇑ <#top>`__
 
 **The ``pythreejs`` extension may not display properly when using the
 latest Jupyter Notebook release (2.4.1). Therefore, it is recommended to
@@ -83,7 +95,7 @@ use Jupyter Lab instead.**
     Successfully installed ipydatawidgets-4.3.5 pythreejs-2.4.2 traittypes-0.2.1
 
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -105,9 +117,9 @@ use Jupyter Lab instead.**
     import engine.engine3js as engine
     from engine.parse_poses import parse_poses
 
-## The model `⇑ <#0>`__
+## The model `⇑ <#top>`__
 
-### Download the model `⇑ <#0>`__
+### Download the model `⇑ <#top>`__
 
 We use ``omz_downloader``, which is a command line tool from the
 ``openvino-dev`` package. ``omz_downloader`` automatically creates a
@@ -148,7 +160,7 @@ directory structure and downloads the selected model.
     
 
 
-### Convert Model to OpenVINO IR format `⇑ <#0>`__ The selected model
+### Convert Model to OpenVINO IR format `⇑ <#top>`__ The selected model
 comes from the public directory, which means it must be converted into
 OpenVINO Intermediate Representation (OpenVINO IR). We use
 ``omz_converter`` to convert the ONNX format model to the OpenVINO IR
@@ -185,7 +197,7 @@ format.
     
 
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -211,7 +223,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Load the model `⇑ <#0>`__
+### Load the model `⇑ <#top>`__
 
 Converted models are located in a fixed structure, which indicates
 vendor, model name and precision.
@@ -252,7 +264,7 @@ heat maps, PAF (part affinity fields) and features.
 
 
 
-## Processing `⇑ <#0>`__ ### Model Inference `⇑ <#0>`__ Frames captured
+## Processing `⇑ <#top>`__ ### Model Inference `⇑ <#top>`__ Frames captured
 from video files or the live webcam are used as the input for the 3D
 model. This is how you obtain the output heat maps, PAF (part affinity
 fields) and features.
@@ -288,7 +300,7 @@ fields) and features.
     
         return results
 
-### Draw 2D Pose Overlays `⇑ <#0>`__ We need to define some connections
+### Draw 2D Pose Overlays `⇑ <#top>`__ We need to define some connections
 between the joints in advance, so that we can draw the structure of the
 human body in the resulting image after obtaining the inference results.
 Joints are drawn as circles and limbs are drawn as lines. The code is
@@ -367,7 +379,7 @@ from Open Model Zoo.
     
         return frame
 
-### Main Processing Function `⇑ <#0>`__
+### Main Processing Function `⇑ <#top>`__
 
 Run 3D pose estimation on the specified source. It could be either a
 webcam feed or a video file.
@@ -530,9 +542,9 @@ webcam feed or a video file.
             if skeleton_set:
                 engine3D.scene_remove(skeleton_set)
 
-## Run `⇑ <#0>`__
+## Run `⇑ <#top>`__
 
-### Run Live Pose Estimation `⇑ <#0>`__
+### Run Live Pose Estimation `⇑ <#top>`__
 
 Run, using a webcam as the video input. By default, the primary webcam
 is set with ``source=0``. If you have multiple webcams, each one will be
@@ -557,7 +569,7 @@ picture on the left to interact.
 
     run_pose_estimation(source=0, flip=True, use_popup=False)
 
-### Run Pose Estimation on a Video File `⇑ <#0>`__
+### Run Pose Estimation on a Video File `⇑ <#top>`__
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by

@@ -1,6 +1,8 @@
 Optical Character Recognition (OCR) with OpenVINO™
 ==================================================
 
+.. _top:
+
 This tutorial demonstrates how to perform optical character recognition
 (OCR) with OpenVINO models. It is a continuation of the
 `004-hello-detection <004-hello-detection-with-output.html>`__
@@ -18,17 +20,28 @@ from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
 information, refer to the
 `104-model-tools <104-model-tools-with-output.html>`__ tutorial.
-Table of content: - `Imports <#1>`__ - `Settings <#2>`__ - `Download
-Models <#3>`__ - `Convert Models <#4>`__ - `Select inference
-device <#5>`__ - `Object Detection <#6>`__ - `Load a Detection
-Model <#7>`__ - `Load an Image <#8>`__ - `Do Inference <#9>`__ - `Get
-Detection Results <#10>`__ - `Text Recognition <#11>`__ - `Load Text
-Recognition Model <#12>`__ - `Do Inference <#13>`__ - `Show
-Results <#14>`__ - `Show Detected Text Boxes and OCR Results for the
-Image <#15>`__ - `Show the OCR Result per Bounding Box <#16>`__ - `Print
-Annotations in Plain Text Format <#17>`__
 
-## Imports `⇑ <#0>`__
+Table of content:
+
+- `Imports <#1>`__
+- `Settings <#2>`__
+- `Download Models <#3>`__
+- `Convert Models <#4>`__
+- `Select inference device <#5>`__
+- `Object Detection <#6>`__
+- `Load a Detection Model <#7>`__
+- `Load an Image <#8>`__
+- `Do Inference <#9>`__
+- `Get Detection Results <#10>`__
+- `Text Recognition <#11>`__
+- `Load Text Recognition Model <#12>`__
+- `Do Inference <#13>`__
+- `Show Results <#14>`__
+- `Show Detected Text Boxes and OCR Results for the Image <#15>`__
+- `Show the OCR Result per Bounding Box <#16>`__
+- `Print Annotations in Plain Text Format <#17>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -45,7 +58,7 @@ Annotations in Plain Text Format <#17>`__
     sys.path.append("../utils")
     from notebook_utils import load_image
 
-## Settings `⇑ <#0>`__
+## Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -58,7 +71,7 @@ Annotations in Plain Text Format <#17>`__
     
     model_dir.mkdir(exist_ok=True)
 
-## Download Models `⇑ <#0>`__
+## Download Models `⇑ <#top>`__
 
 The next cells will run Model Downloader to download the detection and
 recognition models. If the models have been downloaded before, they will
@@ -275,7 +288,7 @@ text-recognition-resnet-fc.
     # for line in download_result:
     #    print(line)
 
-## Convert Models `⇑ <#0>`__
+## Convert Models `⇑ <#top>`__
 
 The downloaded detection model is an Intel model, which is already in
 OpenVINO Intermediate Representation (OpenVINO IR) format. The text
@@ -324,7 +337,7 @@ Converting text-recognition-resnet-fc…
     
 
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -350,12 +363,12 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Object Detection `⇑ <#0>`__
+## Object Detection `⇑ <#top>`__
 
 Load a detection model, load an image, do inference and get the
 detection inference result.
 
-### Load a Detection Model `⇑ <#0>`__
+### Load a Detection Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -366,7 +379,7 @@ detection inference result.
     
     detection_input_layer = detection_compiled_model.input(0)
 
-### Load an Image `⇑ <#0>`__
+### Load an Image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -391,7 +404,7 @@ detection inference result.
 .. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_15_0.png
 
 
-### Do Inference `⇑ <#0>`__
+### Do Inference `⇑ <#top>`__
 
 Text boxes are detected in the images and returned as blobs of data in
 the shape of ``[100, 5]``. Each description of detection has the
@@ -405,7 +418,7 @@ the shape of ``[100, 5]``. Each description of detection has the
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-### Get Detection Results `⇑ <#0>`__
+### Get Detection Results `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -473,12 +486,12 @@ the shape of ``[100, 5]``. Each description of detection has the
     
         return rgb_image
 
-## Text Recognition `⇑ <#0>`__
+## Text Recognition `⇑ <#top>`__
 
 Load the text recognition model and do inference on the detected boxes
 from the detection model.
 
-### Load Text Recognition Model `⇑ <#0>`__
+### Load Text Recognition Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -494,7 +507,7 @@ from the detection model.
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
 
-### Do Inference `⇑ <#0>`__
+### Do Inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -539,9 +552,9 @@ from the detection model.
     
     boxes_with_annotations = list(zip(boxes, annotations))
 
-## Show Results `⇑ <#0>`__
+## Show Results `⇑ <#top>`__
 
-### Show Detected Text Boxes and OCR Results for the Image `⇑ <#0>`__
+### Show Detected Text Boxes and OCR Results for the Image `⇑ <#top>`__
 
 Visualize the result by drawing boxes around recognized text and showing
 the OCR result from the text recognition model.
@@ -556,7 +569,7 @@ the OCR result from the text recognition model.
 .. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_25_0.png
 
 
-### Show the OCR Result per Bounding Box `⇑ <#0>`__
+### Show the OCR Result per Bounding Box `⇑ <#top>`__
 
 Depending on the image, the OCR result may not be readable in the image
 with boxes, as displayed in the cell above. Use the code below to
@@ -616,7 +629,7 @@ center
 robert
 
 
-### Print Annotations in Plain Text Format `⇑ <#0>`__
+### Print Annotations in Plain Text Format `⇑ <#top>`__
 
 Print annotations for detected text based on their position in the input
 image, starting from the upper left corner.

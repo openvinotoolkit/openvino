@@ -1,6 +1,8 @@
 Convert a Tensorflow Lite Model to OpenVINO™
 ============================================
 
+.. _top:
+
 `TensorFlow Lite <https://www.tensorflow.org/lite/guide>`__, often
 referred to as TFLite, is an open source library developed for deploying
 machine learning models to edge devices.
@@ -13,16 +15,23 @@ Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opset
 Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image. Table of content: -
-`Preparation <#1>`__ - `Install requirements <#2>`__ - `Imports <#3>`__
-- `Download TFLite model <#4>`__ - `Convert a Model to OpenVINO IR
-Format <#5>`__ - `Load model using OpenVINO TensorFlow Lite
-Frontend <#6>`__ - `Run OpenVINO model inference <#7>`__ - `Select
-inference device <#8>`__ - `Estimate Model Performance <#9>`__
+and do inference with a sample image. 
 
-## Preparation `⇑ <#0>`__
+Table of content:
 
-### Install requirements `⇑ <#0>`__
+- `Preparation <#1>`__
+- `Install requirements <#2>`__
+- `Imports <#3>`__
+- `Download TFLite model <#4>`__
+- `Convert a Model to OpenVINO IR Format <#5>`__
+- `Load model using OpenVINO TensorFlow Lite Frontend <#6>`__
+- `Run OpenVINO model inference <#7>`__
+- `Select inference device <#8>`__
+- `Estimate Model Performance <#9>`__
+
+## Preparation `⇑ <#top>`__
+
+### Install requirements `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -36,7 +45,7 @@ inference device <#8>`__ - `Estimate Model Performance <#9>`__
         filename='notebook_utils.py'
     );
 
-### Imports `⇑ <#0>`__
+### Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -48,7 +57,7 @@ inference device <#8>`__ - `Estimate Model Performance <#9>`__
     
     from notebook_utils import download_file, load_image
 
-## Download TFLite model `⇑ <#0>`__
+## Download TFLite model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -75,7 +84,7 @@ inference device <#8>`__ - `Estimate Model Performance <#9>`__
 
 
 
-## Convert a Model to OpenVINO IR Format `⇑ <#0>`__
+## Convert a Model to OpenVINO IR Format `⇑ <#top>`__
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
 can be used. ``mo.convert_model`` function accepts the path to the
@@ -102,7 +111,7 @@ For TensorFlow Lite models support, refer to this
     Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
 
 
-## Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#0>`__
+## Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#top>`__
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
@@ -115,7 +124,7 @@ this `tutorial <../002-openvino-api>`__.
     
     ov_model = core.read_model(tflite_model_path)
 
-## Run OpenVINO model inference `⇑ <#0>`__
+## Run OpenVINO model inference `⇑ <#top>`__
 
 We can find information about model input preprocessing in its
 `description <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
@@ -129,7 +138,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -188,7 +197,7 @@ select device from dropdown list for running inference using OpenVINO
     Predicted label: n02109047 Great Dane with probability 0.715318
 
 
-## Estimate Model Performance `⇑ <#0>`__ `Benchmark
+## Estimate Model Performance `⇑ <#top>`__ `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.

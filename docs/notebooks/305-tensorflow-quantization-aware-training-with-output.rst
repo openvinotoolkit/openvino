@@ -1,6 +1,8 @@
 Quantization Aware Training with NNCF, using TensorFlow Framework
 =================================================================
 
+.. _top:
+
 The goal of this notebook to demonstrate how to use the Neural Network
 Compression Framework `NNCF <https://github.com/openvinotoolkit/nncf>`__
 8-bit quantization to optimize a TensorFlow model for inference with
@@ -21,14 +23,18 @@ Imagenette is a subset of 10 easily classified classes from the ImageNet
 dataset. Using the smaller model and dataset will speed up training and
 download time.
 
-### Table of content: - `Imports and Settings <#1>`__ - `Dataset
-Preprocessing <#2>`__ - `Define a Floating-Point Model <#3>`__ -
-`Pre-train a Floating-Point Model <#4>`__ - `Create and Initialize
-Quantization <#5>`__ - `Fine-tune the Compressed Model <#6>`__ - `Export
-Models to OpenVINO Intermediate Representation (IR) <#7>`__ - `Benchmark
-Model Performance by Computing Inference Time <#8>`__
+Table of content:
 
-## Imports and Settings `⇑ <#0>`__ Import NNCF and all auxiliary
+- `Imports and Settings <#1>`__
+- `Dataset Preprocessing <#2>`__
+- `Define a Floating-Point Model <#3>`__
+- `Pre-train a Floating-Point Model <#4>`__
+- `Create and Initialize Quantization <#5>`__
+- `Fine-tune the Compressed Model <#6>`__
+- `Export Models to OpenVINO Intermediate Representation (IR) <#7>`__
+- `Benchmark Model Performance by Computing Inference Time <#8>`__
+
+## Imports and Settings `⇑ <#top>`__ Import NNCF and all auxiliary
 packages from your Python code. Set a name for the model, input image
 size, used batch size, and the learning rate. Also, define paths where
 Frozen Graph and OpenVINO IR versions of the models will be stored.
@@ -115,7 +121,7 @@ Frozen Graph and OpenVINO IR versions of the models will be stored.
      /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/305-tensorflow-quantization-aware-training/model/ResNet-18_fp32.h5
 
 
-## Dataset Preprocessing `⇑ <#0>`__
+## Dataset Preprocessing `⇑ <#top>`__
 
 Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
 Download size: 94.18 MiB
@@ -168,7 +174,7 @@ Download size: 94.18 MiB
                                             .batch(BATCH_SIZE)
                                             .prefetch(tf.data.experimental.AUTOTUNE))
 
-## Define a Floating-Point Model `⇑ <#0>`__
+## Define a Floating-Point Model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -242,7 +248,7 @@ Download size: 94.18 MiB
     IMG_SHAPE = IMG_SIZE + (3,)
     fp32_model = ResNet18(input_shape=IMG_SHAPE)
 
-## Pre-train a Floating-Point Model `⇑ <#0>`__
+## Pre-train a Floating-Point Model `⇑ <#top>`__
 
 Using NNCF for model compression assumes that the user has a pre-trained
 model and a training pipeline.
@@ -285,7 +291,7 @@ model and a training pipeline.
     Accuracy of FP32 model: 0.822
 
 
-## Create and Initialize Quantization `⇑ <#0>`__
+## Create and Initialize Quantization `⇑ <#top>`__
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -360,7 +366,7 @@ demonstrated here.
     4/4 [==============================] - 1s 301ms/sample - loss: 0.9766 - acc@1: 0.8120
 
 
-## Fine-tune the Compressed Model `⇑ <#0>`__
+## Fine-tune the Compressed Model `⇑ <#top>`__
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -398,7 +404,7 @@ training pipeline are required. Here is a simple example.
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: 0.006
 
 
-## Export Models to OpenVINO Intermediate Representation (IR) `⇑ <#0>`__
+## Export Models to OpenVINO Intermediate Representation (IR) `⇑ <#top>`__
 
 Use model conversion Python API to convert the models to OpenVINO IR.
 
@@ -439,7 +445,7 @@ Executing this command may take a while.
     Skipping registering GPU devices...
 
 
-## Benchmark Model Performance by Computing Inference Time `⇑ <#0>`__
+## Benchmark Model Performance by Computing Inference Time `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark

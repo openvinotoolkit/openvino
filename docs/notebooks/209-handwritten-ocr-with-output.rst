@@ -1,6 +1,8 @@
 Handwritten Chinese and Japanese OCR with OpenVINO™
 ===================================================
 
+.. _top:
+
 In this tutorial, we perform optical character recognition (OCR) for
 handwritten Chinese (simplified) and Japanese. An OCR tutorial using the
 Latin alphabet is available in `notebook
@@ -16,16 +18,25 @@ To decode model outputs as readable text
 and
 ```scut_ept`` <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
 charlists are used. Both models are available on `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Table of
-content: - `Imports <#1>`__ - `Settings <#2>`__ - `Select a
-Language <#3>`__ - `Download the Model <#4>`__ - `Load the Model and
-Execute <#5>`__ - `Select inference device <#6>`__ - `Fetch Information
-About Input and Output Layers <#7>`__ - `Load an Image <#8>`__ -
-`Visualize Input Image <#9>`__ - `Prepare Charlist <#10>`__ - `Run
-Inference <#11>`__ - `Process the Output Data <#12>`__ - `Print the
-Output <#13>`__
+Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. 
 
-## Imports `⇑ <#0>`__
+Table of content:
+
+- `Imports <#1>`__
+- `Settings <#2>`__
+- `Select a Language <#3>`__
+- `Download the Model <#4>`__
+- `Load the Model and Execute <#5>`__
+- `Select inference device <#6>`__
+- `Fetch Information About Input and Output Layers <#7>`__
+- `Load an Image <#8>`__
+- `Visualize Input Image <#9>`__
+- `Prepare Charlist <#10>`__
+- `Run Inference <#11>`__
+- `Process the Output Data <#12>`__
+- `Print the Output <#13>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -38,7 +49,7 @@ Output <#13>`__
     import numpy as np
     from openvino.runtime import Core
 
-## Settings `⇑ <#0>`__
+## Settings `⇑ <#top>`__
 
 Set up all constants and folders used in this notebook
 
@@ -71,7 +82,7 @@ To group files, you have to define the collection. In this case, use
         demo_image_name="handwritten_japanese_test.png",
     )
 
-## Select a Language `⇑ <#0>`__
+## Select a Language `⇑ <#top>`__
 
 Depending on your choice you will need to change a line of code in the
 cell below.
@@ -88,7 +99,7 @@ If you want to perform OCR on a text in Japanese, set
     
     selected_language = languages.get(language)
 
-## Download the Model `⇑ <#0>`__
+## Download the Model `⇑ <#top>`__
 
 In addition to images and charlists, you need to download the model
 file. In the sections below, there are cells for downloading either the
@@ -123,7 +134,7 @@ and downloads the selected model.
     
 
 
-## Load the Model and Execute `⇑ <#0>`__
+## Load the Model and Execute `⇑ <#top>`__
 
 When all files are downloaded and language is selected, read and compile
 the network to run inference. The path to the model is defined based on
@@ -135,7 +146,7 @@ the selected language.
     path_to_model = path_to_model_weights.with_suffix(".xml")
     model = core.read_model(model=path_to_model)
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -167,7 +178,7 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-## Fetch Information About Input and Output Layers `⇑ <#0>`__
+## Fetch Information About Input and Output Layers `⇑ <#top>`__
 
 Now that the model is loaded, fetch information about the input and
 output layers (shape).
@@ -177,7 +188,7 @@ output layers (shape).
     recognition_output_layer = compiled_model.output(0)
     recognition_input_layer = compiled_model.input(0)
 
-## Load an Image `⇑ <#0>`__
+## Load an Image `⇑ <#top>`__
 
 Next, load an image. The model expects a single-channel image as input,
 so the image is read in grayscale.
@@ -221,7 +232,7 @@ keep letters proportional and meet input shape.
     # Reshape to network input shape.
     input_image = resized_image[None, None, :, :]
 
-## Visualize Input Image `⇑ <#0>`__
+## Visualize Input Image `⇑ <#top>`__
 
 After preprocessing, you can display the image.
 
@@ -236,7 +247,7 @@ After preprocessing, you can display the image.
 .. image:: 209-handwritten-ocr-with-output_files/209-handwritten-ocr-with-output_21_0.png
 
 
-## Prepare Charlist `⇑ <#0>`__
+## Prepare Charlist `⇑ <#top>`__
 
 The model is loaded and the image is ready. The only element left is the
 charlist, which is downloaded. You must add a blank symbol at the
@@ -254,7 +265,7 @@ Chinese and Japanese models.
     with open(f"{charlist_folder}/{used_charlist}", "r", encoding="utf-8") as charlist:
         letters = blank_char + "".join(line.strip() for line in charlist)
 
-## Run Inference `⇑ <#0>`__
+## Run Inference `⇑ <#top>`__
 
 Now, run inference. The ``compiled_model()`` function takes a list with
 input(s) in the same order as model input(s). Then, fetch the output
@@ -265,7 +276,7 @@ from output tensors.
     # Run inference on the model
     predictions = compiled_model([input_image])[recognition_output_layer]
 
-## Process the Output Data `⇑ <#0>`__
+## Process the Output Data `⇑ <#top>`__
 
 The output of a model is in the ``W x B x L`` format, where:
 
@@ -304,7 +315,7 @@ Finally, get the symbols from corresponding indexes in the charlist.
     # Assign letters to indexes from the output array.
     output_text = [letters[letter_index] for letter_index in output_text_indexes]
 
-## Print the Output `⇑ <#0>`__
+## Print the Output `⇑ <#top>`__
 
 Now, having a list of letters predicted by the model, you can display
 the image with predicted text printed below.

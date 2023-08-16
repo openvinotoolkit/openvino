@@ -1,6 +1,8 @@
 Speaker diarization
 ===================
 
+.. _top:
+
 Speaker diarization is the process of partitioning an audio stream
 containing human speech into homogeneous segments according to the
 identity of each speaker. It can enhance the readability of an automatic
@@ -37,13 +39,18 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-Table of content: - `Prerequisites <#1>`__ - `Prepare pipeline <#2>`__ -
-`Load test audio file <#3>`__ - `Run inference pipeline <#4>`__ -
-`Convert model to OpenVINO Intermediate Representation format <#5>`__ -
-`Select inference device <#6>`__ - `Replace segmentation model with
-OpenVINO <#7>`__ - `Run speaker diarization with OpenVINO <#8>`__
+Table of content:
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__
+- `Prepare pipeline <#2>`__
+- `Load test audio file <#3>`__
+- `Run inference pipeline <#4>`__
+- `Convert model to OpenVINO Intermediate Representation format <#5>`__
+- `Select inference device <#6>`__
+- `Replace segmentation model with OpenVINO <#7>`__
+- `Run speaker diarization with OpenVINO <#8>`__
+
+## Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -61,7 +68,7 @@ OpenVINO <#7>`__ - `Run speaker diarization with OpenVINO <#8>`__
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
     
 
-## Prepare pipeline `⇑ <#0>`__
+## Prepare pipeline `⇑ <#top>`__
 
 Traditional Speaker Diarization systems can be generalized into a
 five-step process:
@@ -135,7 +142,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
     
     pipeline = Pipeline.from_pretrained("philschmid/pyannote-speaker-diarization-endpoint")
 
-## Load test audio file `⇑ <#0>`__
+## Load test audio file `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -190,7 +197,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 .. image:: 212-pyannote-speaker-diarization-with-output_files/212-pyannote-speaker-diarization-with-output_9_1.png
 
 
-## Run inference pipeline `⇑ <#0>`__
+## Run inference pipeline `⇑ <#top>`__
 
 For running inference, we should provide a path to input audio to the
 pipeline
@@ -251,7 +258,7 @@ We can also print each time frame and corresponding speaker:
 
 
 ## Convert model to OpenVINO Intermediate Representation format
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -290,7 +297,7 @@ with ``openvino.runtime.serialize``.
     Model successfully converted to IR and saved to pyannote-segmentation.xml
 
 
-## Select inference device `⇑ <#0>`__
+## Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -316,7 +323,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Replace segmentation model with OpenVINO `⇑ <#0>`__
+## Replace segmentation model with OpenVINO `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -347,7 +354,7 @@ select device from dropdown list for running inference using OpenVINO
     
     pipeline._segmentation.infer = infer_segm
 
-## Run speaker diarization with OpenVINO `⇑ <#0>`__
+## Run speaker diarization with OpenVINO `⇑ <#top>`__
 
 .. code:: ipython3
 

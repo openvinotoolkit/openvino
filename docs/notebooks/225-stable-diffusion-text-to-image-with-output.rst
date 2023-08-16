@@ -1,6 +1,8 @@
 Text-to-Image Generation with Stable Diffusion and OpenVINO™
 ============================================================
 
+.. _top:
+
 Stable Diffusion is a text-to-image latent diffusion model created by
 the researchers and engineers from
 `CompVis <https://github.com/CompVis>`__, `Stability
@@ -39,14 +41,20 @@ Notebook contains the following steps:
    API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-### Table of content: - `Prerequisites <#1>`__ - `Create PyTorch Models
-pipeline <#2>`__ - `Convert models to OpenVINO Intermediate
-representation (IR) format <#3>`__ - `Text Encoder <#4>`__ -
-`U-net <#5>`__ - `VAE <#6>`__ - `Prepare Inference Pipeline <#7>`__ -
-`Configure Inference Pipeline <#8>`__ - `Text-to-Image
-generation <#9>`__ - `Image-to-Image generation <#10>`__
+Table of content:
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__
+- `Create PyTorch Models pipeline <#2>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#3>`__
+- `Text Encoder <#4>`__
+- `U-net <#5>`__
+- `VAE <#6>`__
+- `Prepare Inference Pipeline <#7>`__
+- `Configure Inference Pipeline <#8>`__
+- `Text-to-Image generation <#9>`__
+- `Image-to-Image generation <#10>`__
+
+## Prerequisites `⇑ <#top>`__
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -88,7 +96,7 @@ solutions based on Stable Diffusion.
     !pip install -q "huggingface-hub>=0.9.1"
 
 
-## Create PyTorch Models pipeline `⇑ <#0>`__ ``StableDiffusionPipeline``
+## Create PyTorch Models pipeline `⇑ <#top>`__ ``StableDiffusionPipeline``
 is an end-to-end inference pipeline that you can use to generate images
 from text with just a few lines of code.
 
@@ -116,7 +124,7 @@ First, load the pre-trained weights of all components of the model.
 
 
 ## Convert models to OpenVINO Intermediate representation (IR) format
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 OpenVINO supports PyTorch through export to the ONNX format. You will
 use ``torch.onnx.export`` function for obtaining ONNX model. You can
@@ -143,7 +151,7 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-### Text Encoder `⇑ <#0>`__
+### Text Encoder `⇑ <#top>`__
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -224,7 +232,7 @@ hidden states. You will use ``opset_version=14``, because model contains
 
 
 
-### U-net `⇑ <#0>`__
+### U-net `⇑ <#top>`__
 
 Unet model has three inputs:
 
@@ -299,7 +307,7 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-### VAE `⇑ <#0>`__
+### VAE `⇑ <#top>`__
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -413,7 +421,7 @@ of the pipeline, it will be better to convert them to separate models.
     VAE decoder will be loaded from vae_decoder.xml
 
 
-## Prepare Inference Pipeline `⇑ <#0>`__
+## Prepare Inference Pipeline `⇑ <#top>`__
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -775,7 +783,7 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-## Configure Inference Pipeline `⇑ <#0>`__
+## Configure Inference Pipeline `⇑ <#top>`__
 
 First, you should create instances of OpenVINO Model.
 
@@ -837,7 +845,7 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-### Text-to-Image generation `⇑ <#0>`__
+### Text-to-Image generation `⇑ <#top>`__
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -933,7 +941,7 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-### Image-to-Image generation `⇑ <#0>`__
+### Image-to-Image generation `⇑ <#top>`__
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``

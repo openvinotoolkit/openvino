@@ -1,6 +1,8 @@
 Person Tracking with OpenVINO™
 ==============================
 
+.. _top:
+
 This notebook demonstrates live person tracking with OpenVINO: it reads
 frames from an input video sequence, detects people in the frames,
 uniquely identifies each one of them and tracks all of them until they
@@ -93,13 +95,21 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-### Table of content: - `Imports <#1>`__ - `Download the Model <#2>`__ -
-`Load model <#3>`__ - `Select inference device <#4>`__ - `Data
-Processing <#5>`__ - `Test person reidentification model <#6>`__ -
-`Visualize data <#7>`__ - `Compare two persons <#8>`__ - `Main
-Processing Function <#9>`__ - `Run <#10>`__ - `Initialize
-tracker <#11>`__ - `Run Live Person Tracking <#12>`__ - `Run Person
-Tracking on a Video File <#13>`__
+Table of content:
+
+- `Imports <#1>`__
+- `Download the Model <#2>`__
+- `Load model <#3>`__
+- `Select inference device <#4>`__
+- `Data Processing <#5>`__
+- `Test person reidentification model <#6>`__
+- `Visualize data <#7>`__
+- `Compare two persons <#8>`__
+- `Main Processing Function <#9>`__
+- `Run <#10>`__
+- `Initialize tracker <#11>`__
+- `Run Live Person Tracking <#12>`__
+- `Run Person Tracking on a Video File <#13>`__
 
 .. code:: ipython3
 
@@ -113,7 +123,7 @@ Tracking on a Video File <#13>`__
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -148,7 +158,7 @@ Tracking on a Video File <#13>`__
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
 
-## Download the Model `⇑ <#0>`__ We will use pre-trained models from
+## Download the Model `⇑ <#top>`__ We will use pre-trained models from
 OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test.
@@ -231,7 +241,7 @@ replace the name of the model in the code below.
     
 
 
-## Load model `⇑ <#0>`__ Define a common class for model loading and
+## Load model `⇑ <#top>`__ Define a common class for model loading and
 predicting.
 
 There are four main steps for OpenVINO model initialization, and they
@@ -290,7 +300,7 @@ performance, but slightly longer startup time).
             result = self.compiled_model(input)[self.output_layer]
             return result
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -322,7 +332,7 @@ select device from dropdown list for running inference using OpenVINO
     # since the number of detection object is uncertain, the input batch size of reid model should be dynamic
     extractor = Model(reidentification_model_path, -1, device.value)
 
-## Data Processing `⇑ <#0>`__ Data Processing includes data preprocess
+## Data Processing `⇑ <#top>`__ Data Processing includes data preprocess
 and postprocess functions. - Data preprocess function is used to change
 the layout and shape of input data, according to requirement of the
 network input format. - Data postprocess function is used to extract the
@@ -438,12 +448,12 @@ useful information from network’s original output and visualize it.
         """
         return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
-## Test person reidentification model `⇑ <#0>`__ The reidentification
+## Test person reidentification model `⇑ <#top>`__ The reidentification
 network outputs a blob with the ``(1, 256)`` shape named
 ``reid_embedding``, which can be compared with other descriptors using
 the cosine distance.
 
-### Visualize data `⇑ <#0>`__
+### Visualize data `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -490,7 +500,7 @@ the cosine distance.
 .. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_17_3.png
 
 
-### Compare two persons `⇑ <#0>`__
+### Compare two persons `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -511,7 +521,7 @@ the cosine distance.
     Different person (confidence: 0.02726622298359871)
 
 
-## Main Processing Function `⇑ <#0>`__
+## Main Processing Function `⇑ <#top>`__
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -665,9 +675,9 @@ video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run `⇑ <#0>`__
+## Run `⇑ <#top>`__
 
-### Initialize tracker `⇑ <#0>`__ Before running a new tracking task, we
+### Initialize tracker `⇑ <#top>`__ Before running a new tracking task, we
 have to reinitialize a Tracker object
 
 .. code:: ipython3
@@ -684,7 +694,7 @@ have to reinitialize a Tracker object
         n_init=3
     )
 
-### Run Live Person Tracking `⇑ <#0>`__ Use a webcam as the video input.
+### Run Live Person Tracking `⇑ <#top>`__ Use a webcam as the video input.
 By default, the primary webcam is set with ``source=0``. If you have
 multiple webcams, each one will be assigned a consecutive number
 starting at 0. Set ``flip=True`` when using a front-facing camera. Some
@@ -707,7 +717,7 @@ experience flickering, set ``use_popup=True``.
     [ERROR:0@10.127] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-### Run Person Tracking on a Video File `⇑ <#0>`__
+### Run Person Tracking on a Video File `⇑ <#top>`__
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by

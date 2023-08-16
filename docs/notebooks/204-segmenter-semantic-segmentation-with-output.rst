@@ -1,6 +1,8 @@
 Semantic Segmentation with OpenVINO™ using Segmenter
 ====================================================
 
+.. _top:
+
 Semantic segmentation is a difficult computer vision problem with many
 applications such as autonomous driving, robotics, augmented reality,
 and many others. Its goal is to assign labels to each pixel according to
@@ -24,15 +26,22 @@ Segmenter <https://github.com/rstrudel/segmenter>`__.
 More about the model and its details can be found in the following
 paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
-`repository <https://github.com/rstrudel/segmenter>`__. Table of
-content: - `Get and prepare PyTorch model <#1>`__ -
-`Prerequisites <#2>`__ - `Loading PyTorch model <#3>`__ - `Preparing
-preprocessing and visualization functions <#4>`__ -
-`Preprocessing <#5>`__ - `Visualization <#6>`__ - `Validation of
-inference of original model <#7>`__ - `Export to ONNX <#8>`__ - `Convert
-ONNX model to OpenVINO Intermediate Representation (IR) <#9>`__ -
-`Verify converted model inference <#10>`__ - `Select inference
-device <#11>`__ - `Benchmarking performance of converted model <#12>`__
+`repository <https://github.com/rstrudel/segmenter>`__. 
+
+Table of content:
+
+- `Get and prepare PyTorch model <#1>`__
+- `Prerequisites <#2>`__
+- `Loading PyTorch model <#3>`__
+- `Preparing preprocessing and visualization functions <#4>`__
+- `Preprocessing <#5>`__
+- `Visualization <#6>`__
+- `Validation of inference of original model <#7>`__
+- `Export to ONNX <#8>`__
+- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#9>`__
+- `Verify converted model inference <#10>`__
+- `Select inference device <#11>`__
+- `Benchmarking performance of converted model <#12>`__
 
 .. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
 
@@ -47,7 +56,7 @@ notebook consists of the following steps:
 -  Validating inference of the converted model
 -  Benchmark performance of the converted model
 
-## Get and prepare PyTorch model `⇑ <#0>`__
+## Get and prepare PyTorch model `⇑ <#top>`__
 
 The first thing we’ll need to do is clone
 `repository <https://github.com/rstrudel/segmenter>`__ containing model
@@ -61,7 +70,7 @@ The code from the repository already contains functions that create
 model and load weights, but we will need to download config and trained
 weights (checkpoint) file and add some additional helper functions.
 
-### Prerequisites `⇑ <#0>`__
+### Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -148,7 +157,7 @@ config for our model.
     model/variant.yml:   0%|          | 0.00/940 [00:00<?, ?B/s]
 
 
-### Loading PyTorch model `⇑ <#0>`__
+### Loading PyTorch model `⇑ <#top>`__
 
 PyTorch models are usually an instance of
 ```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -196,12 +205,12 @@ Load normalization settings from config file.
       warnings.warn(
 
 
-## Preparing preprocessing and visualization functions `⇑ <#0>`__
+## Preparing preprocessing and visualization functions `⇑ <#top>`__
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
 
-### Preprocessing `⇑ <#0>`__
+### Preprocessing `⇑ <#top>`__
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
 format, where:
@@ -245,7 +254,7 @@ normalized with given mean and standard deviation provided in
     
         return im
 
-### Visualization `⇑ <#0>`__
+### Visualization `⇑ <#top>`__
 
 Inference output contains labels assigned to each pixel, so the output
 in our case is ``[150, H, W]`` in ``CL, H, W`` format where:
@@ -288,7 +297,7 @@ corresponding to the inferred labels.
     
         return pil_blend
 
-## Validation of inference of original model `⇑ <#0>`__
+## Validation of inference of original model `⇑ <#top>`__
 
 Now that we have everything ready, we can perform segmentation on
 example image ``coco_hollywood.jpg``.
@@ -339,7 +348,7 @@ We can see that model segments the image into meaningful parts. Since we
 are using tiny variant of model, the result is not as good as it is with
 larger models, but it already shows nice segmentation performance.
 
-## Export to ONNX `⇑ <#0>`__
+## Export to ONNX `⇑ <#top>`__
 
 Now that we’ve verified that the inference of PyTorch model works, we
 will first export it to ONNX format.
@@ -411,7 +420,7 @@ problem.
 
 
 ## Convert ONNX model to OpenVINO Intermediate Representation (IR)
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 While ONNX models are directly supported by OpenVINO runtime, it can be
 useful to convert them to IR format to take advantage of OpenVINO
@@ -431,7 +440,7 @@ OpenVINO IR format for future execution.
     # serialize model for saving IR
     serialize(model, str(MODEL_DIR / "segmenter.xml"))
 
-## Verify converted model inference `⇑ <#0>`__
+## Verify converted model inference `⇑ <#top>`__
 
 To test that model was successfully converted, we can use same inference
 function from original repository, but we need to make custom class.
@@ -501,7 +510,7 @@ any additional custom code required to process input.
 Now that we have created ``SegmenterOV`` helper class, we can use it in
 inference function.
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -561,7 +570,7 @@ select device from dropdown list for running inference using OpenVINO
 
 As we can see, we get the same results as with original model.
 
-## Benchmarking performance of converted model `⇑ <#0>`__
+## Benchmarking performance of converted model `⇑ <#top>`__
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__

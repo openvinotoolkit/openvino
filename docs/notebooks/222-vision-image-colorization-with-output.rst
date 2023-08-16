@@ -1,6 +1,8 @@
 Image Colorization with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. _top:
+
 This notebook demonstrates how to colorize images with OpenVINO using
 the Colorization model
 `colorization-v2 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/colorization-v2/README.md>`__
@@ -40,13 +42,21 @@ About Colorization-siggraph
    A- and B-channels of LAB-image as output.
 
 See the `colorization <https://github.com/richzhang/colorization>`__
-repository for more details. Table of content: - `Imports <#1>`__ -
-`Configurations <#2>`__ - `Select inference device <#3>`__ - `Download
-the model <#4>`__ - `Convert the model to OpenVINO IR <#5>`__ - `Loading
-the Model <#6>`__ - `Utility Functions <#7>`__ - `Load the Image <#8>`__
+repository for more details. 
+
+Table of content: 
+
+- `Imports <#1>`__
+- `Configurations <#2>`__
+- `Select inference device <#3>`__
+- `Download the model <#4>`__
+- `Convert the model to OpenVINO IR <#5>`__
+- `Loading the Model <#6>`__
+- `Utility Functions <#7>`__
+- `Load the Image <#8>`__
 - `Display Colorized Image <#9>`__
 
-## Imports `⇑ <#0>`__
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -62,7 +72,7 @@ the Model <#6>`__ - `Utility Functions <#7>`__ - `Load the Image <#8>`__
     sys.path.append("../utils")
     import notebook_utils as utils
 
-## Configurations `⇑ <#0>`__
+## Configurations `⇑ <#top>`__
 
 -  ``PRECISION`` - {FP16, FP32}, default: FP16.
 -  ``MODEL_DIR`` - directory where the model is to be stored, default:
@@ -80,7 +90,7 @@ the Model <#6>`__ - `Utility Functions <#7>`__ - `Load the Image <#8>`__
     MODEL_PATH = f"{MODEL_DIR}/public/{MODEL_NAME}/{PRECISION}/{MODEL_NAME}.xml"
     DATA_DIR = "data"
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -108,7 +118,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Download the model `⇑ <#0>`__
+## Download the model `⇑ <#top>`__
 
 ``omz_downloader`` downloads model files from online sources and, if
 necessary, patches them to make them more usable with Model Converter.
@@ -156,7 +166,7 @@ above.
     
 
 
-## Convert the model to OpenVINO IR `⇑ <#0>`__
+## Convert the model to OpenVINO IR `⇑ <#top>`__
 
 ``omz_converter`` converts the models that are not in the OpenVINO™ IR
 format into that format using model conversion API.
@@ -198,7 +208,7 @@ respectively
     
 
 
-## Loading the Model `⇑ <#0>`__ Load the model in OpenVINO Runtime with
+## Loading the Model `⇑ <#top>`__ Load the model in OpenVINO Runtime with
 ``ie.read_model`` and compile it for the specified device with
 ``ie.compile_model``.
 
@@ -211,7 +221,7 @@ respectively
     output_layer = compiled_model.output(0)
     N, C, H, W = list(input_layer.shape)
 
-## Utility Functions `⇑ <#0>`__
+## Utility Functions `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -287,7 +297,7 @@ respectively
     
         plt.show()
 
-## Load the Image `⇑ <#0>`__
+## Load the Image `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -352,7 +362,7 @@ respectively
     color_img_0 = colorize(test_img_0)
     color_img_1 = colorize(test_img_1)
 
-## Display Colorized Image `⇑ <#0>`__
+## Display Colorized Image `⇑ <#top>`__
 
 .. code:: ipython3
 

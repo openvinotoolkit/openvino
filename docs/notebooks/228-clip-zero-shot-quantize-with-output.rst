@@ -1,6 +1,8 @@
 Post-Training Quantization of OpenAI CLIP model with NNCF
 =========================================================
 
+.. _top:
+
 The goal of this tutorial is to demonstrate how to speed up the model by
 applying 8-bit post-training quantization from
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
@@ -21,19 +23,23 @@ The optimization process contains the following steps:
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
-Table of content: - `Prerequisites <#1>`__ - `Create and initialize
-quantization <#2>`__ - `Prepare datasets <#3>`__ - `Run quantized
-OpenVINO model <#4>`__ - `Compare File Size <#5>`__ - `Compare inference
-time of the FP16 IR and quantized models <#6>`__
+Table of content:
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__
+- `Create and initialize quantization <#2>`__
+- `Prepare datasets <#3>`__
+- `Run quantized OpenVINO model <#4>`__
+- `Compare File Size <#5>`__
+- `Compare inference time of the FP16 IR and quantized models <#6>`__
+
+## Prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
     !pip install -q datasets
     !pip install -q "git+https://github.com/openvinotoolkit/nncf.git@6c0aebadd2fcdbe1481a11b40b8cd9f66b3b6fab"
 
-## Create and initialize quantization `⇑ <#0>`__
+## Create and initialize quantization `⇑ <#top>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -50,7 +56,7 @@ The optimization process contains the following steps:
 3. Serialize the ``INT8`` model using ``openvino.runtime.serialize``
    function.
 
-### Prepare datasets `⇑ <#0>`__
+### Prepare datasets `⇑ <#top>`__
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -245,7 +251,7 @@ than quantization. See the `NNCF
 documentation <https://github.com/openvinotoolkit/nncf/#documentation>`__
 in the NNCF repository for more information.
 
-## Run quantized OpenVINO model `⇑ <#0>`__
+## Run quantized OpenVINO model `⇑ <#top>`__
 
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -297,7 +303,7 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
 .. image:: 228-clip-zero-shot-quantize-with-output_files/228-clip-zero-shot-quantize-with-output_16_0.png
 
 
-#### Compare File Size `⇑ <#0>`__
+#### Compare File Size `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -318,7 +324,7 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
 
 
 #### Compare inference time of the FP16 IR and quantized models
-`⇑ <#0>`__ To measure the inference performance of the ``FP16`` and
+`⇑ <#top>`__ To measure the inference performance of the ``FP16`` and
 ``INT8`` models, we use median inference time on calibration dataset. So
 we can approximately estimate the speed up of the dynamic quantized
 models.

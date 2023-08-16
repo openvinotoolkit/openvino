@@ -1,19 +1,26 @@
 Sentiment Analysis with OpenVINO™
 =================================
 
+.. _top:
+
 **Sentiment analysis** is the use of natural language processing, text
 analysis, computational linguistics, and biometrics to systematically
 identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
 
-Table of content: - `Imports <#1>`__ - `Initializing the Model <#2>`__ -
-`Initializing the Tokenizer <#3>`__ - `Convert Model to OpenVINO
-Intermediate Representation format <#4>`__ - `Select inference
-device <#5>`__ - `Inference <#6>`__ - `For a single input
-sentence <#7>`__ - `Read from a text file <#8>`__
+Table of content:
 
-## Imports `⇑ <#0>`__
+- `Imports <#1>`__
+- `Initializing the Model <#2>`__
+- `Initializing the Tokenizer <#3>`__
+- `Convert Model to OpenVINO Intermediate Representation format <#4>`__
+- `Select inference device <#5>`__
+- `Inference <#6>`__
+- `For a single input sentence <#7>`__
+- `Read from a text file <#8>`__
+
+## Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -25,7 +32,7 @@ sentence <#7>`__ - `Read from a text file <#8>`__
     from openvino.tools import mo
     from openvino.runtime import PartialShape, Type, serialize, Core
 
-## Initializing the Model `⇑ <#0>`__ We will use the transformer-based
+## Initializing the Model `⇑ <#top>`__ We will use the transformer-based
 `DistilBERT base uncased finetuned
 SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
 model from Hugging Face.
@@ -37,7 +44,7 @@ model from Hugging Face.
         pretrained_model_name_or_path=checkpoint
     )
 
-## Initializing the Tokenizer `⇑ <#0>`__
+## Initializing the Tokenizer `⇑ <#top>`__
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -57,7 +64,7 @@ understand the context of a sentence. Here, we will use
     )
 
 ## Convert Model to OpenVINO Intermediate Representation format
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 `Model conversion
 API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
@@ -94,7 +101,7 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
 
     core = Core()
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -139,7 +146,7 @@ select device from dropdown list for running inference using OpenVINO
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
-## Inference `⇑ <#0>`__
+## Inference `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -164,7 +171,7 @@ select device from dropdown list for running inference using OpenVINO
             probability = np.argmax(softmax(i))
         return label[probability]
 
-### For a single input sentence `⇑ <#0>`__
+### For a single input sentence `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -183,7 +190,7 @@ select device from dropdown list for running inference using OpenVINO
     Total Time:  0.04  seconds
 
 
-### Read from a text file `⇑ <#0>`__
+### Read from a text file `⇑ <#top>`__
 
 .. code:: ipython3
 

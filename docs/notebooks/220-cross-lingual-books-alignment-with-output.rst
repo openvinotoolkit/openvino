@@ -1,6 +1,8 @@
 Cross-lingual Books Alignment with Transformers and OpenVINO™
 =============================================================
 
+.. _top:
+
 Cross-lingual text alignment is the task of matching sentences in a pair
 of texts that are translations of each other. In this notebook, you’ll
 learn how to use a deep learning model to create a parallel book in
@@ -36,18 +38,18 @@ Prerequisites
    embeddings
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
-   Table of content:
--  `Get Books <#1>`__
--  `Clean Text <#2>`__
--  `Split Text <#3>`__
--  `Get Sentence Embeddings <#4>`__
 
-   -  `Optimize the Model with OpenVINO <#5>`__
+Table of content:
 
--  `Calculate Sentence Alignment <#6>`__
--  `Postprocess Sentence Alignment <#7>`__
--  `Visualize Sentence Alignment <#8>`__
--  `Speed up Embeddings Computation <#9>`__
+- `Get Books <#1>`__
+- `Clean Text <#2>`__
+- `Split Text <#3>`__
+- `Get Sentence Embeddings <#4>`__
+- `Optimize the Model with OpenVINO <#5>`__
+- `Calculate Sentence Alignment <#6>`__
+- `Postprocess Sentence Alignment <#7>`__
+- `Visualize Sentence Alignment <#8>`__
+- `Speed up Embeddings Computation <#9>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png%22
 
@@ -61,7 +63,7 @@ Prerequisites
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-## Get Books `⇑ <#0>`__
+## Get Books `⇑ <#top>`__
 
 The first step is to get the books that we will be working with. For
 this notebook, we will use English and German versions of Anna Karenina
@@ -205,7 +207,7 @@ which in a raw format looks like this:
 
 
 
-## Clean Text `⇑ <#0>`__
+## Clean Text `⇑ <#top>`__
 
 The downloaded books may contain service information before and after
 the main text. The text might have different formatting styles and
@@ -330,7 +332,7 @@ needed.
       0%|          | 0/3 [00:00<?, ?it/s]
 
 
-## Split Text `⇑ <#0>`__
+## Split Text `⇑ <#top>`__
 
 Dividing text into sentences is a challenging task in text processing.
 The problem is called `sentence boundary
@@ -369,7 +371,7 @@ languages.
 
 
 
-## Get Sentence Embeddings `⇑ <#0>`__
+## Get Sentence Embeddings `⇑ <#top>`__
 
 The next step is to transform sentences into vector representations.
 Transformer encoder models, like BERT, provide high-quality embeddings
@@ -457,7 +459,7 @@ best fit.
       0%|          | 0/34 [00:00<?, ?it/s]
 
 
-### Optimize the Model with OpenVINO `⇑ <#0>`__
+### Optimize the Model with OpenVINO `⇑ <#top>`__
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model conversion Python
@@ -534,7 +536,7 @@ model predictions remain within an acceptable tolerance:
 
 
 
-## Calculate Sentence Alignment `⇑ <#0>`__
+## Calculate Sentence Alignment `⇑ <#top>`__
 
 With the embedding matrices from the previous step, we can calculate the
 alignment: 1. Calculate sentence similarity between each pair of
@@ -658,7 +660,7 @@ will be lists of German sentence numbers.
 
 
 
-## Postprocess Sentence Alignment `⇑ <#0>`__
+## Postprocess Sentence Alignment `⇑ <#top>`__
 
 There are several gaps in the resulting alignment, such as English
 sentence #14 not mapping to any German sentence. Here are some possible
@@ -682,7 +684,7 @@ Most likely, English sentence 14 is part of either German sentence 17 or
 18. By comparing the similarity using the model, you can choose the most
 suitable alignment.
 
-## Visualize Sentence Alignment `⇑ <#0>`__
+## Visualize Sentence Alignment `⇑ <#top>`__
 
 To evaluate the final alignment and choose the best way to improve the
 results of the pipeline, we will create an interactive table with HTML
@@ -840,7 +842,7 @@ To read the model from disk, use the ``read_model`` method of the
 
     ov_model = core.read_model(ov_model_path)
 
-## Speed up Embeddings Computation `⇑ <#0>`__
+## Speed up Embeddings Computation `⇑ <#top>`__
 
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using

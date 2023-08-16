@@ -1,6 +1,8 @@
 Video Subtitle Generation using Whisper and OpenVINO™
 =====================================================
 
+.. _top:
+
 `Whisper <https://openai.com/blog/whisper/>`__ is an automatic speech
 recognition (ASR) system trained on 680,000 hours of multilingual and
 multitask supervised data collected from the web. It is a multi-task
@@ -24,14 +26,19 @@ Download the model. 2. Instantiate the PyTorch model pipeline. 3. Export
 the ONNX model and convert it to OpenVINO IR, using model conversion
 API. 4. Run the Whisper pipeline with OpenVINO models.
 
-### Table of content: - `Prerequisites <#1>`__ - `Instantiate
-model <#2>`__ - `Convert model to OpenVINO Intermediate Representation
-(IR) format. <#3>`__ - `Convert Whisper Encoder to OpenVINO IR <#4>`__ -
-`Convert Whisper decoder to OpenVINO IR <#5>`__ - `Prepare inference
-pipeline <#6>`__ - `Select inference device <#7>`__ - `Define audio
-preprocessing <#8>`__ - `Run video transcription pipeline <#9>`__
+Table of content:
 
-## Prerequisites `⇑ <#0>`__
+- `Prerequisites <#1>`__
+- `Instantiate model <#2>`__
+- `Convert model to OpenVINO Intermediate Representation (IR) format. <#3>`__
+- `Convert Whisper Encoder to OpenVINO IR <#4>`__
+- `Convert Whisper decoder to OpenVINO IR <#5>`__
+- `Prepare inference pipeline <#6>`__
+- `Select inference device <#7>`__
+- `Define audio preprocessing <#8>`__
+- `Run video transcription pipeline <#9>`__
+
+## Prerequisites `⇑ <#top>`__
 
 Clone and install the model repository.
 
@@ -125,7 +132,7 @@ Clone and install the model repository.
     Successfully installed ffmpeg-python-0.2.0 more-itertools-10.1.0 openai-whisper-20230124
 
 
-## Instantiate model `⇑ <#0>`__ Whisper is a Transformer based
+## Instantiate model `⇑ <#top>`__ Whisper is a Transformer based
 encoder-decoder model, also referred to as a sequence-to-sequence model.
 It maps a sequence of audio spectrogram features to a sequence of text
 tokens. First, the raw audio inputs are converted to a log-Mel
@@ -156,7 +163,7 @@ Whisper family.
     pass
 
 ### Convert model to OpenVINO Intermediate Representation (IR) format.
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -168,7 +175,7 @@ Python function returns an OpenVINO model ready to load on device and
 start making predictions. We can save it on disk for next usage with
 ``openvino.runtime.serialize``.
 
-### Convert Whisper Encoder to OpenVINO IR `⇑ <#0>`__
+### Convert Whisper Encoder to OpenVINO IR `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -195,7 +202,7 @@ start making predictions. We can save it on disk for next usage with
       assert x.shape[1:] == self.positional_embedding.shape, "incorrect audio shape"
 
 
-### Convert Whisper decoder to OpenVINO IR `⇑ <#0>`__
+### Convert Whisper decoder to OpenVINO IR `⇑ <#top>`__
 
 To reduce computational complexity, the decoder uses cached key/value
 projections in attention modules from the previous steps. We need to
@@ -392,7 +399,7 @@ input shapes.
         input=input_shapes)
     serialize(decoder_model, "whisper_decoder.xml")
 
-## Prepare inference pipeline `⇑ <#0>`__
+## Prepare inference pipeline `⇑ <#top>`__
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -627,7 +634,7 @@ original models with OpenVINO IR versions.
 
     core = Core()
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -685,7 +692,7 @@ select device from dropdown list for running inference using OpenVINO
     
     model.logits = partial(logits, model)
 
-#### Define audio preprocessing `⇑ <#0>`__
+#### Define audio preprocessing `⇑ <#top>`__
 
 The model expects mono-channel audio with a 16000 Hz sample rate,
 represented in floating point range. When the audio from the input video
@@ -751,7 +758,7 @@ does not meet these requirements, we will need to apply preprocessing.
         resampled_audio = resample(audio, sample_rate, 16000)
         return resampled_audio
 
-## Run video transcription pipeline `⇑ <#0>`__
+## Run video transcription pipeline `⇑ <#top>`__
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may

@@ -1,6 +1,8 @@
 Stable Diffusion Text-to-Image Demo
 ===================================
 
+.. _top:
+
 Stable Diffusion is an innovative generative AI technique that allows us
 to generate and manipulate images in interesting ways, including
 generating image from text and restoring missing parts of pictures
@@ -20,15 +22,19 @@ convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
 like to see the full implementation of stable diffusion for text to
 image, please visit
 `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
-Table of content: - `Step 0: Install and import prerequisites <#1>`__ -
-`Step 1: Stable Diffusion v2 Fundamental components <#2>`__ - `Step 1.1:
-Retrieve components from HuggingFace <#3>`__ - `Step 2: Convert the
-models to OpenVINO <#4>`__ - `3. Text-to-Image Generation Inference
-Pipeline <#5>`__ - `Step 3.1: Load and Understand Text to Image OpenVINO
-models <#6>`__ - `Select inference device <#7>`__ - `Step 3.3: Run
-Text-to-Image generation <#8>`__
 
-## Step 0: Install and import prerequisites `⇑ <#0>`__
+Table of content:
+
+- `Step 0: Install and import prerequisites <#1>`__
+- `Step 1: Stable Diffusion v2 Fundamental components <#2>`__
+- `Step 1.1: Retrieve components from HuggingFace <#3>`__
+- `Step 2: Convert the models to OpenVINO <#4>`__
+- `3. Text-to-Image Generation Inference Pipeline <#5>`__
+- `Step 3.1: Load and Understand Text to Image OpenVINO models <#6>`__
+- `Select inference device <#7>`__
+- `Step 3.3: Run Text-to-Image generation <#8>`__
+
+## Step 0: Install and import prerequisites `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -46,7 +52,7 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
     !pip install -q "diffusers>=0.14.0" openvino-dev openvino "transformers >= 4.25.1" accelerate
 
-## Step 1: Stable Diffusion v2 Fundamental components `⇑ <#0>`__
+## Step 1: Stable Diffusion v2 Fundamental components `⇑ <#top>`__
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -60,7 +66,7 @@ of three important parts:
 Depending on the pipeline, the parameters for these parts can differ,
 which we’ll explore in this demo!
 
-### Step 1.1: Retrieve components from HuggingFace `⇑ <#0>`__
+### Step 1.1: Retrieve components from HuggingFace `⇑ <#top>`__
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -92,7 +98,7 @@ using ``stable-diffusion-2-1``.
     text_encoder\model.safetensors not found
 
 
-## Step 2: Convert the models to OpenVINO `⇑ <#0>`__
+## Step 2: Convert the models to OpenVINO `⇑ <#top>`__
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
@@ -150,12 +156,12 @@ pipelines in OpenVINO on our own data!
     WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
 
 
-## 3. Text-to-Image Generation Inference Pipeline `⇑ <#0>`__
+## 3. Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
 
 ### Step 3.1: Load and Understand Text to Image OpenVINO models
-`⇑ <#0>`__
+`⇑ <#top>`__
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -236,7 +242,7 @@ As part of the ``OVStableDiffusionPipeline()`` class:
       from diffusers.pipeline_utils import DiffusionPipeline
 
 
-### Step 3.3: Run Text-to-Image generation `⇑ <#0>`__
+### Step 3.3: Run Text-to-Image generation `⇑ <#top>`__
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.

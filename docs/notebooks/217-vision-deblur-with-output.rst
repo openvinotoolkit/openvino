@@ -1,14 +1,24 @@
 Deblur Photos with DeblurGAN-v2 and OpenVINO™
 =============================================
 
-Table of content: - `What is deblurring? <#1>`__ - `Preparations <#2>`__
-- `Imports <#3>`__ - `Settings <#4>`__ - `Select inference
-device <#5>`__ - `Download DeblurGAN-v2 Model <#6>`__ - `Prepare
-model <#7>`__ - `Convert DeblurGAN-v2 Model to OpenVINO IR
-format <#8>`__ - `Load the Model <#9>`__ - `Deblur Image <#10>`__ -
-`Load, resize and reshape input image <#11>`__ - `Do Inference on the
-Input Image <#12>`__ - `Display results <#13>`__ - `Save the deblurred
-image <#14>`__
+.. _top:
+
+Table of content:
+
+- `What is deblurring? <#1>`__
+- `Preparations <#2>`__
+- `Imports <#3>`__
+- `Settings <#4>`__
+- `Select inference device <#5>`__
+- `Download DeblurGAN-v2 Model <#6>`__
+- `Prepare model <#7>`__
+- `Convert DeblurGAN-v2 Model to OpenVINO IR format <#8>`__
+- `Load the Model <#9>`__
+- `Deblur Image <#10>`__
+- `Load, resize and reshape input image <#11>`__
+- `Do Inference on the Input Image <#12>`__
+- `Display results <#13>`__
+- `Save the deblurred image <#14>`__
 
 This tutorial demonstrates Single Image Motion Deblurring with
 DeblurGAN-v2 in OpenVINO, by first converting the
@@ -17,7 +27,7 @@ model to OpenVINO Intermediate Representation (OpenVINO IR) format. For
 more information about the model, see the
 `documentation <https://docs.openvino.ai/2023.0/omz_models_model_deblurgan_v2.html>`__.
 
-### What is deblurring? `⇑ <#0>`__
+### What is deblurring? `⇑ <#top>`__
 
 Deblurring is the task of removing motion blurs that usually occur in
 photos shot with hand-held cameras when there are moving objects in the
@@ -32,9 +42,9 @@ better. <https://openaccess.thecvf.com/content_ICCV_2019/html/Kupyn_DeblurGAN-v2
 In Proceedings of the IEEE/CVF International Conference on Computer
 Vision (pp. 8878-8887).
 
-## Preparations `⇑ <#0>`__
+## Preparations `⇑ <#top>`__
 
-### Imports `⇑ <#0>`__
+### Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -50,7 +60,7 @@ Vision (pp. 8878-8887).
     sys.path.append("../utils")
     from notebook_utils import load_image
 
-### Settings `⇑ <#0>`__
+### Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -65,7 +75,7 @@ Vision (pp. 8878-8887).
     
     precision = "FP16"
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -93,7 +103,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Download DeblurGAN-v2 Model `⇑ <#0>`__
+### Download DeblurGAN-v2 Model `⇑ <#top>`__
 
 Model defined in
 `VITA-Group/DeblurGANv2 <https://github.com/VITA-Group/DeblurGANv2>`__
@@ -148,7 +158,7 @@ Downloading deblurgan-v2…
     
 
 
-### Prepare model `⇑ <#0>`__
+### Prepare model `⇑ <#top>`__
 
 DeblurGAN-v2 is PyTorch model for converting it to OpenVINO Intermediate
 Representation format, we should first instantiate model class and load
@@ -179,7 +189,7 @@ checkpoint weights.
             out = (out + 1) / 2
             return out
 
-### Convert DeblurGAN-v2 Model to OpenVINO IR format `⇑ <#0>`__
+### Convert DeblurGAN-v2 Model to OpenVINO IR format `⇑ <#top>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. To convert the PyTorch model, we will use model
@@ -204,7 +214,7 @@ Model conversion may take a while.
         ov_model = mo.convert_model(deblur_gan_model, input_shape=[[1,3,736,1312]], compress_to_fp16=(precision == "FP16"))
         serialize(ov_model, model_xml_path)
 
-## Load the Model `⇑ <#0>`__
+## Load the Model `⇑ <#top>`__
 
 Load and compile the DeblurGAN-v2 model in the OpenVINO Runtime with
 ``ie.read_model`` and compile it for the specified device with
@@ -248,9 +258,9 @@ shape for the model.
 
 
 
-## Deblur Image `⇑ <#0>`__
+## Deblur Image `⇑ <#top>`__
 
-### Load, resize and reshape input image `⇑ <#0>`__
+### Load, resize and reshape input image `⇑ <#top>`__
 
 The input image is read by using the default ``load_image`` function
 from ``notebooks.utils``. Then, resized to meet the network expected
@@ -295,7 +305,7 @@ height, and ``W`` is the width.
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_24_0.png
 
 
-### Do Inference on the Input Image `⇑ <#0>`__
+### Do Inference on the Input Image `⇑ <#top>`__
 
 Do the inference, convert the result to an image shape and resize it to
 the original image size.
@@ -322,7 +332,7 @@ the original image size.
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_27_0.png
 
 
-### Display results `⇑ <#0>`__
+### Display results `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -342,7 +352,7 @@ the original image size.
 .. image:: 217-vision-deblur-with-output_files/217-vision-deblur-with-output_29_0.png
 
 
-### Save the deblurred image `⇑ <#0>`__
+### Save the deblurred image `⇑ <#top>`__
 
 Save the output image of the DeblurGAN-v2 model in the current
 directory.

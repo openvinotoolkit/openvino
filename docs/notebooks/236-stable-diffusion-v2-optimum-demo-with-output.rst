@@ -1,12 +1,16 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 ==================================================
 
+.. _top:
+
 |image0|
 
-Table of content: - `Showing Info Available Devices <#1>`__ - `Download
-Pre-Converted Stable Diffusion 2.1 IR <#2>`__ - `Save the pre-trained
-models, Select the inference device and compile it <#3>`__ - `Be
-creative, add the prompt and enjoy the result <#4>`__
+Table of content:
+
+- `Showing Info Available Devices <#1>`__
+- `Download Pre-Converted Stable Diffusion 2.1 IR <#2>`__
+- `Save the pre-trained models, Select the inference device and compile it <#3>`__
+- `Be creative, add the prompt and enjoy the result <#4>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
@@ -49,7 +53,7 @@ Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
 (IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 
-### Showing Info Available Devices `⇑ <#0>`__
+### Showing Info Available Devices `⇑ <#top>`__
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -84,7 +88,7 @@ this
     GPU.1: Intel(R) Arc(TM) A770 Graphics (dGPU)
 
 
-### Download Pre-Converted Stable Diffusion 2.1 IR `⇑ <#0>`__
+### Download Pre-Converted Stable Diffusion 2.1 IR `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -175,7 +179,7 @@ this
 
 
 ### Save the pre-trained models, Select the inference device and compile
-it `⇑ <#0>`__
+it `⇑ <#top>`__
 
 You can save the model locally in order to avoid downloading process
 later. The model will also saved in the cache.
@@ -194,7 +198,7 @@ later. The model will also saved in the cache.
     Compiling the unet...
 
 
-### Be creative, add the prompt and enjoy the result `⇑ <#0>`__
+### Be creative, add the prompt and enjoy the result `⇑ <#top>`__
 
 .. code:: ipython3
 

@@ -1,6 +1,8 @@
 Instruction following using Databricks Dolly 2.0 and OpenVINO
 =============================================================
 
+.. _top:
+
 The instruction following is one of the cornerstones of the current
 generation of large language models(LLMs). Reinforcement learning with
 human preferences (`RLHF <https://arxiv.org/abs/1909.08593>`__) and
@@ -79,15 +81,21 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-### Table of content: - `Prerequisites <#1>`__ - `Select inference
-device <#2>`__ - `Download and Convert Model <#3>`__ - `Create an
-instruction-following inference pipeline <#4>`__ - `Setup
-imports <#5>`__ - `Prepare template for user prompt <#6>`__ - `Helpers
-for output parsing <#7>`__ - `Main generation function <#8>`__ -
-`Helpers for application <#9>`__ - `Run instruction-following
-pipeline <#10>`__
 
-## Prerequisites `⇑ <#0>`__
+Table of content:
+
+- `Prerequisites <#1>`__
+- `Select inference device <#2>`__
+- `Download and Convert Model <#3>`__
+- `Create an instruction-following inference pipeline <#4>`__
+- `Setup imports <#5>`__
+- `Prepare template for user prompt <#6>`__
+- `Helpers for output parsing <#7>`__
+- `Main generation function <#8>`__
+- `Helpers for application <#9>`__
+- `Run instruction-following pipeline <#10>`__
+
+## Prerequisites `⇑ <#top>`__
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -113,7 +121,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     [notice] To update, run: pip install --upgrade pip
 
 
-### Select inference device `⇑ <#0>`__
+### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -142,7 +150,7 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Download and Convert Model `⇑ <#0>`__
+## Download and Convert Model `⇑ <#top>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -255,7 +263,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     Set CACHE_DIR to /tmp/tmpndw8_20n/model_cache
 
 
-## Create an instruction-following inference pipeline `⇑ <#0>`__
+## Create an instruction-following inference pipeline `⇑ <#top>`__
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -358,7 +366,7 @@ generated tokens without waiting until when the whole generation is
 finished using Streaming API, it adds a new token to the output queue
 and then prints them when they are ready.
 
-### Setup imports `⇑ <#0>`__
+### Setup imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -369,7 +377,7 @@ and then prints them when they are ready.
     from transformers import AutoTokenizer, TextIteratorStreamer
     import numpy as np
 
-### Prepare template for user prompt `⇑ <#0>`__
+### Prepare template for user prompt `⇑ <#top>`__
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -399,7 +407,7 @@ into model with providing additional context.
         response_key=RESPONSE_KEY,
     )
 
-### Helpers for output parsing `⇑ <#0>`__
+### Helpers for output parsing `⇑ <#top>`__
 
 Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
@@ -438,7 +446,7 @@ the code below find its id for using it as generation stop-criteria.
         except ValueError:
             pass
 
-### Main generation function `⇑ <#0>`__
+### Main generation function `⇑ <#top>`__
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -497,7 +505,7 @@ parameter and returns model response.
             start = perf_counter()
         return model_output, perf_text
 
-### Helpers for application `⇑ <#0>`__
+### Helpers for application `⇑ <#top>`__
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -562,7 +570,7 @@ elements.
                 ov_model.compile()
         return current_text
 
-## Run instruction-following pipeline `⇑ <#0>`__
+## Run instruction-following pipeline `⇑ <#top>`__
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text

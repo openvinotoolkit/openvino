@@ -1,6 +1,8 @@
 Quantization Aware Training with NNCF, using PyTorch framework
 ==============================================================
 
+.. _top:
+
 This notebook is based on `ImageNet training in
 PyTorch <https://github.com/pytorch/examples/blob/master/imagenet/main.py>`__.
 
@@ -29,16 +31,21 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
    **NOTE**: This notebook requires a C++ compiler.
 
-### Table of content: - `Imports and Settings <#1>`__ - `Pre-train
-Floating-Point Model <#2>`__ - `Train Function <#3>`__ - `Validate
-Function <#4>`__ - `Helpers <#5>`__ - `Get a Pre-trained FP32
-Model <#6>`__ - `Create and Initialize Quantization <#7>`__ - `Fine-tune
-the Compressed Model <#8>`__ - `Export INT8 Model to ONNX <#9>`__ -
-`Convert ONNX models to OpenVINO Intermediate Representation
-(IR) <#10>`__ - `Benchmark Model Performance by Computing Inference
-Time <#11>`__
+Table of content:
 
-## Imports and Settings `⇑ <#0>`__
+- `Imports and Settings <#1>`__
+- `Pre-train Floating-Point Model <#2>`__
+- `Train Function <#3>`__
+- `Validate Function <#4>`__
+- `Helpers <#5>`__
+- `Get a Pre-trained FP32 Model <#6>`__
+- `Create and Initialize Quantization <#7>`__
+- `Fine-tune the Compressed Model <#8>`__ 
+- `Export INT8 Model to ONNX <#9>`__ 
+- `Convert ONNX models to OpenVINO Intermediate Representation (IR) <#10>`__
+- `Benchmark Model Performance by Computing Inference Time <#11>`__
+
+## Imports and Settings `⇑ <#top>`__
 
 On Windows, add the required C++ directories to the system PATH.
 
@@ -239,7 +246,7 @@ Download Tiny ImageNet dataset
     Successfully downloaded and prepared dataset at: data/tiny-imagenet-200
 
 
-## Pre-train Floating-Point Model `⇑ <#0>`__ Using NNCF for model
+## Pre-train Floating-Point Model `⇑ <#top>`__ Using NNCF for model
 compression assumes that a pre-trained model and a training pipeline are
 already in use.
 
@@ -250,7 +257,7 @@ classes from Tiny-ImageNet.
 Subsequently, the training and validation functions will be reused as is
 for quantization-aware training.
 
-### Train Function `⇑ <#0>`__
+### Train Function `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -294,7 +301,7 @@ for quantization-aware training.
             if i % print_frequency == 0:
                 progress.display(i)
 
-### Validate Function `⇑ <#0>`__
+### Validate Function `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -335,7 +342,7 @@ for quantization-aware training.
             print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
         return top1.avg
 
-### Helpers `⇑ <#0>`__
+### Helpers `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -397,7 +404,7 @@ for quantization-aware training.
                 res.append(correct_k.mul_(100.0 / batch_size))
             return res
 
-### Get a Pre-trained FP32 Model `⇑ <#0>`__
+### Get a Pre-trained FP32 Model `⇑ <#top>`__
 
 А pre-trained floating-point model is a prerequisite for quantization.
 It can be obtained by tuning from scratch with the code below. However,
@@ -522,7 +529,7 @@ Toolkit, to benchmark it in comparison with the ``INT8`` model.
     FP32 ONNX model was exported to output/resnet18_fp32.onnx.
 
 
-## Create and Initialize Quantization `⇑ <#0>`__
+## Create and Initialize Quantization `⇑ <#top>`__
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -582,7 +589,7 @@ demonstrated here.
     Accuracy of initialized INT8 model: 55.540
 
 
-## Fine-tune the Compressed Model `⇑ <#0>`__
+## Fine-tune the Compressed Model `⇑ <#top>`__
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -636,7 +643,7 @@ training pipeline are required. Here is a simple example.
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.800
 
 
-## Export INT8 Model to ONNX `⇑ <#0>`__
+## Export INT8 Model to ONNX `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -660,7 +667,7 @@ training pipeline are required. Here is a simple example.
 
 
 ## Convert ONNX models to OpenVINO Intermediate Representation (IR)
-`⇑ <#0>`__
+`⇑ <#top>`__
 
 Use model conversion Python API to convert the ONNX model to OpenVINO
 IR, with ``FP16`` precision. Then, add the mean values to the model and
@@ -693,7 +700,7 @@ For more information about model conversion, see this
         )
         serialize(model, str(int8_ir_path))
 
-## Benchmark Model Performance by Computing Inference Time `⇑ <#0>`__
+## Benchmark Model Performance by Computing Inference Time `⇑ <#top>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark

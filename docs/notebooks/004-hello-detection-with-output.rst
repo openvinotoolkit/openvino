@@ -1,6 +1,8 @@
 Hello Object Detection
 ======================
 
+.. _top:
+
 A very basic introduction to using object detection models with
 OpenVINO™.
 
@@ -14,12 +16,20 @@ shape of ``[100, 5]``. Each detected text box is stored in the
 ``(x_min, y_min)`` are the coordinates of the top left bounding box
 corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
-class. Table of content: - `Imports <#1>`__ - `Download model
-weights <#2>`__ - `Select inference device <#3>`__ - `Load the
-Model <#4>`__ - `Load an Image <#5>`__ - `Do Inference <#6>`__ -
-`Visualize Results <#7>`__
+class. 
 
-## Imports `⇑ <#0>`__
+Table of content: 
+
+- `Imports <#imports>`__ 
+- `Download model weights <#download-model-weights>`__ 
+- `Select inference device <#select-inference-device>`__ 
+- `Load the Model <#load-the-model>`__ 
+- `Load an Image <#load-an-image>`__ 
+- `Do Inference <#do-inference>`__ 
+- `Visualize Results <#visualize-results>`__
+
+Imports `⇑ <#top>`__
+########################################
 
 .. code:: ipython3
 
@@ -33,7 +43,8 @@ Model <#4>`__ - `Load an Image <#5>`__ - `Do Inference <#6>`__ -
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-## Download model weights `⇑ <#0>`__
+Download model weights `⇑ <#top>`__
+#######################################################
 
 .. code:: ipython3
 
@@ -68,7 +79,8 @@ Model <#4>`__ - `Load an Image <#5>`__ - `Do Inference <#6>`__ -
     model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
-## Select inference device `⇑ <#0>`__
+Select inference device `⇑ <#top>`__
+###########################################################
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -95,7 +107,8 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Load the Model `⇑ <#0>`__
+Load the Model `⇑ <#top>`__
+###############################################
 
 .. code:: ipython3
 
@@ -107,7 +120,8 @@ select device from dropdown list for running inference using OpenVINO
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output("boxes")
 
-## Load an Image `⇑ <#0>`__
+Load an Image `⇑ <#top>`__
+##############################################
 
 .. code:: ipython3
 
@@ -130,7 +144,8 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_10_0.png
 
 
-## Do Inference `⇑ <#0>`__
+Do Inference `⇑ <#top>`__
+##############################################
 
 .. code:: ipython3
 
@@ -140,7 +155,8 @@ select device from dropdown list for running inference using OpenVINO
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-## Visualize Results `⇑ <#0>`__
+Visualize Results `⇑ <#top>`__
+##################################################
 
 .. code:: ipython3
 
