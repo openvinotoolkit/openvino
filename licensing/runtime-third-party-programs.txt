@@ -4,7 +4,7 @@ This file is the "third-party-programs.txt" file specified in the associated Int
 
 Third party programs and their corresponding required notices and/or license terms are listed below.
 
--------------------------------------------------------------
+--------------------------------------------------------------
 1. oneAPI Deep Neural Network Library (oneDNN)
   Copyright 2016-2019 Intel Corporation
   Copyright 2018 YANDEX LLC
