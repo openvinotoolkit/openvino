@@ -195,7 +195,7 @@ Step 1: Download and Install the OpenVINO Core Components
    .. code-block:: sh
 
       cd /opt/intel/openvino_2023.0.1
-      python3 -m pip install -r ./python/python3.<x>/requirements.txt
+      python3 -m pip install -r ./python/requirements.txt
 
 7. For simplicity, it is useful to create a symbolic link as below:
    

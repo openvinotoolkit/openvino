@@ -113,12 +113,12 @@ Step 1: Download and Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2023.0.1\python\python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2023.0.1\python`` folder:
 
    .. code-block:: sh
 
       cd "C:\Program Files (x86)\Intel\openvino_2023.0.1"
-      python -m pip install -r .\python\python3.<x>\requirements.txt
+      python -m pip install -r .\python\requirements.txt
 
 
 5. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
