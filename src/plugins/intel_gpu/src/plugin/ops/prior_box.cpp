@@ -126,10 +126,10 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
         cldnn::tensor img_size_tensor{};
         // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
         if (image_size_constant) {
-        const auto image_size = image_size_constant->cast_vector<int64_t>();
-        const auto image_width = image_size[0];
-        const auto image_height = image_size[1];
-        img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+            const auto image_size = image_size_constant->cast_vector<int64_t>();
+            const auto image_width = image_size[0];
+            const auto image_height = image_size[1];
+            img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
         }
 
         auto priorBoxPrim = cldnn::prior_box(layerName,
@@ -198,10 +198,10 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
         cldnn::tensor img_size_tensor{};
         // When image size is constant, set the value for primitive construction. Others don't have to set it. It will be determined in execute_impl time.
         if (image_size_constant) {
-        const auto image_size = image_size_constant->cast_vector<int64_t>();
-        const auto image_width = image_size[0];
-        const auto image_height = image_size[1];
-        img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
+            const auto image_size = image_size_constant->cast_vector<int64_t>();
+            const auto image_width = image_size[0];
+            const auto image_height = image_size[1];
+            img_size_tensor = (cldnn::tensor) cldnn::spatial(image_width, image_height);
         }
 
         const cldnn::prior_box prior_box{layer_name,
