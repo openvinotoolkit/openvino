@@ -27,10 +27,13 @@ If not than required reorder is added to the network.
 /*
 Add a reorder in between node and usr
 */
-void add_required_reorders::add_reorder(program& p, program_node* node, program_node* usr) {
+void add_required_reorders::add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt) {
     layout reorder_layout = node->get_output_layout();
     reorder_layout.format = usr->get_output_layout().format;
     reorder_layout.data_type = usr->get_output_layout().data_type;
+
+    if (keep_original_dt)
+        reorder_layout.data_type = node->get_output_layout().data_type;
 
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
@@ -197,6 +200,7 @@ void add_required_reorders::run(program& p) {
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
                             p.add_intermediate(new_reorder_node, *usr, idx);
+                            new_reorder_node.recalc_output_layout(false);
                         } else {
                             continue;
                         }
@@ -376,8 +380,16 @@ void add_required_reorders::run(program& p) {
                         continue;
                 }
 
-                if (usr->get_output_layout() != node.first->get_output_layout())
-                    add_reorder(p, node.first, usr);
+                if (usr->get_output_layout() != node.first->get_output_layout()) {
+                    // Preserve original data type to prevent Convolution input data type from changing
+                    // in the following sequence: Node(U8, unsupported format) -> Conv(FP16, bfyx).
+                    // Without this condition, inserted reorder will change Conv's input to FP16, instead of
+                    // expected U8 format.
+                    bool keep_original_dt = false;
+                    if (usr->is_type<convolution>())
+                        keep_original_dt = true;
+                    add_reorder(p, node.first, usr, keep_original_dt);
+                }
             }
         }
     }
