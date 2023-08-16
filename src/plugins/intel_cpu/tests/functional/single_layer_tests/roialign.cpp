@@ -147,12 +147,15 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto float_params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[1] });
-        auto int_params = ngraph::builder::makeDynamicParams(ngraph::element::i32, { inputDynamicShapes[2] });
+        ov::ParameterVector float_params;
+        for (auto&& shape : { inputDynamicShapes[0], inputDynamicShapes[1] }) {
+            float_params.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, shape));
+        }
+        auto int_params = std::make_shared<ov::op::v0::Parameter>(ngraph::element::i32, inputDynamicShapes[2]);
         auto pooling_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::PoolingMode>::as_enum(mode);
         auto aligned_mode = ngraph::EnumNames<ngraph::opset9::ROIAlign::AlignedMode>::as_enum(alignedMode);
 
-        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_params[0], pooledH, pooledW,
+        auto roialign = std::make_shared<ngraph::opset9::ROIAlign>(float_params[0], float_params[1], int_params, pooledH, pooledW,
                                                                    samplingRatio, spatialScale, pooling_mode, aligned_mode);
 
         selectedType = makeSelectedTypeStr(selectedType, inputPrecision);
@@ -160,7 +163,7 @@ protected:
             rel_threshold = 1e-2;
         }
 
-        ngraph::ParameterVector params{ float_params[0], float_params[1], int_params[0] };
+        ngraph::ParameterVector params{ float_params[0], float_params[1], int_params };
         function = makeNgraphFunction(inputPrecision, params, roialign, "ROIAlign");
     }
 };

@@ -33,16 +33,6 @@ using CTCGreedyDecoderSeqLenLayerCPUTestParams = std::tuple<InputShapeParams,   
                                                             ElementType,         // Index Type
                                                             bool                 // mergeRepeated
                                                             >;
-inline ngraph::ParameterVector makeDynamicParams(const std::vector<ElementType>& types,
-                                          const std::vector<ov::PartialShape>& shapes) {
-    ngraph::ParameterVector outs;
-    NGRAPH_CHECK(types.size() == shapes.size());
-    for (size_t i = 0; i < types.size(); i++) {
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], shapes[i]);
-        outs.push_back(paramNode);
-    }
-    return outs;
-}
 
 class CTCGreedyDecoderSeqLenLayerCPUTest : public testing::WithParamInterface<CTCGreedyDecoderSeqLenLayerCPUTestParams>,
                                            virtual public SubgraphBaseTest,
@@ -107,7 +97,11 @@ protected:
                 targetStaticShapes.push_back({{N, T, C}, {N}, {1}});
         }
 
-        auto params = makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (size_t i = 0; i < inType.size(); i++) {
+            auto paramNode = std::make_shared<ov::op::v0::Parameter>(inType[i], inputDynamicShapes[i]);
+            params.push_back(paramNode);
+        }
         auto ctcGreedyDecoderSeqLen = std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(params[0],
                                                                                            params[1],
                                                                                            params[2],

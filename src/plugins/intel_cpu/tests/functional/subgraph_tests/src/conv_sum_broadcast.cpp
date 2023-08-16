@@ -61,7 +61,11 @@ public:
     }
 
     virtual ngraph::ParameterVector makeParams() {
-        return ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
+        return params;
     }
 
     virtual std::shared_ptr<ngraph::Node> makeConv(const ngraph::ParameterVector& inputParams) {
@@ -162,10 +166,10 @@ public:
 
     std::shared_ptr<ngraph::Node> makeConv(const ngraph::ParameterVector& inputParams) override {
         using namespace ngraph;
-        auto inputParamsFP32 = builder::makeDynamicParams(element::f32, { inputParams.front()->get_partial_shape() });
+        auto inputParamsFP32 = std::make_shared<ov::op::v0::Parameter>(element::f32, inputParams.front()->get_partial_shape());
 
         auto convolutionNodeRelaxed = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
-                *as_type_ptr<opset1::Convolution>(builder::makeConvolution(inputParamsFP32.front(), element::f32, _kernel, _stride, _padBegin,
+                *as_type_ptr<opset1::Convolution>(builder::makeConvolution(inputParamsFP32, element::f32, _kernel, _stride, _padBegin,
                                                                           _padEnd, _dilation, ngraph::op::PadType::EXPLICIT, _convOutChannels)),
                 element::f32);
 
