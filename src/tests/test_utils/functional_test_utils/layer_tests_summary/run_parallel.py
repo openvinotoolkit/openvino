@@ -532,7 +532,7 @@ class TestParallelRunner:
         h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
-    def postprocess_logs(self):
+    def postprocess_logs(self, split_unit: str):
         test_results = dict()
         logger.info(f"Log analize is started")
         saved_tests = list()
@@ -584,6 +584,7 @@ class TestParallelRunner:
             with open(log_filename, "r") as log_file:
                 test_name = None
                 test_log = list()
+                test_suites = set()
                 dir = None
                 test_cnt_expected = test_cnt_real_saved_now = 0
                 ref_k = None
@@ -617,6 +618,8 @@ class TestParallelRunner:
                     if (constants.PG_ERR in line) or (constants.PG_WARN in line):
                         test_log.append(line)
                     if test_name is not None:
+                        test_suite = test_name[:test_name.find(".")]
+                        test_suites.add(test_suite)
                         test_log.append(line)
                         if dir:
                             if __save_log(logs_dir, dir, test_name):
@@ -641,11 +644,17 @@ class TestParallelRunner:
                     dir = INTERAPTED_DIR
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
-                test_cnt_real = test_cnt_real_saved_now
+
+                if (split_unit == "suite") :
+                    test_cnt_real = len(test_suites)
+                else :
+                    test_cnt_real = test_cnt_real_saved_now
+
                 if test_cnt_real < test_cnt_expected:
                     logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
                 else:
                     os.remove(log_filename)
+
         if len(list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"))) == 0:
             rmtree(os.path.join(self._working_dir, "temp"))
         for test_name in interapted_tests:
@@ -749,7 +758,7 @@ class TestParallelRunner:
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
         with open(not_run_tests_path, "w") as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
-            diff_set = set(test_list_runtime).difference(set(saved_tests)).difference(self._orig_excluded_tests)
+            diff_set = set(saved_tests).intersection(tests_runtime).difference(set(saved_tests)).difference(self._orig_excluded_tests)
             diff_list = list()
             for item in diff_set:
                 diff_list.append(f"{item}\n")
@@ -791,7 +800,7 @@ if __name__ == "__main__":
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.repeat_failed, args.parallel_devices)
     conformance.run()
-    if args.post_progress and not conformance.postprocess_logs():
+    if args.post_progress and not conformance.postprocess_logs(args.split_unit):
         logger.error("Run is not successful")
         sys.exit(-1)
     else:
