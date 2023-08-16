@@ -107,6 +107,9 @@ public:
     /// Returns new nodes for inputs inlined in the op itself
     // Used in Torch.FX decoder
     virtual OutputVector inlined_inputs(size_t start_index) const = 0;
+
+    /// Returns the id of the deccoder type (0: TorchFX, 1: TorchScript)
+    virtual const std::string& decoder_type_name() const = 0;
 };
 
 }  // namespace pytorch

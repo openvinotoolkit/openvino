@@ -41,6 +41,7 @@ public:
     void set_element_type(const frontend::Place::Ptr& place, const ov::element::Type& type) override;
     ov::element::Type get_element_type(const frontend::Place::Ptr& place) const override;
     void set_tensor_value(const frontend::Place::Ptr& place, const void* value) override;
+    const std::string& decoder_type_name() const;
 
 private:
     std::shared_ptr<TorchDecoder> m_model_decoder;
