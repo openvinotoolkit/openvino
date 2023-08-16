@@ -21,7 +21,10 @@ def get_convert_model_help_specifics():
                  'in converted model will match the order of '
                  'specified inputs. The shape is specified as comma-separated list. '
                  'Example, to set `input_1` input with shape [1,100] and `sequence_len` input '
-                 'with shape [1,?]: \"input_1[1,100],sequence_len[1,?]\", where "?" is dynamic dimension. '
+                 'with shape [1,?]: \"input_1[1,100],sequence_len[1,?]\", where "?" is a dynamic dimension, '
+                 'which means that such a dimension can be specified later in the runtime. '
+                 'If the dimension is set as an integer (like 100 in [1,100]), such a dimension is not supposed '
+                 'to be changed later, during a model conversion it is treated as a static value. '
                  'Example with unnamed inputs: \"[1,100],[1,?]\".'},
         'extension':
             {'description':
