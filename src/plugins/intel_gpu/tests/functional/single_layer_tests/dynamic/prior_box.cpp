@@ -28,6 +28,7 @@ typedef std::tuple<
         InputShape,
         InputShape,
         ElementType,                // Net precision
+        std::vector<float>,
         priorbox_type
 > PriorBoxLayerGPUTestParamsSet;
 class PriorBoxLayerGPUTest : public testing::WithParamInterface<PriorBoxLayerGPUTestParamsSet>,
@@ -37,8 +38,9 @@ public:
         InputShape input1Shape;
         InputShape input2Shape;
         ElementType netPrecision;
+        std::vector<float> max_size;
         priorbox_type priorboxType;
-        std::tie(input1Shape, input2Shape, netPrecision, priorboxType) = obj.param;
+        std::tie(input1Shape, input2Shape, netPrecision, max_size, priorboxType) = obj.param;
 
         std::ostringstream result;
         switch (priorboxType) {
@@ -67,6 +69,7 @@ public:
         for (const auto& shape : input2Shape.second) {
             result << ov::test::utils::vec2str(shape) << "_";
         }
+        result << "max_size=" << ov::test::utils::vec2str(max_size) << "_";
         result << ")";
         return result.str();
     }
@@ -77,8 +80,9 @@ protected:
         auto netPrecision = ElementType::undefined;
         InputShape input1Shape;
         InputShape input2Shape;
+        std::vector<float> max_size;
         priorbox_type priorboxType;
-        std::tie(input1Shape, input2Shape, netPrecision, priorboxType) = this->GetParam();
+        std::tie(input1Shape, input2Shape, netPrecision, max_size, priorboxType) = this->GetParam();
 
 
         init_input_shapes({input1Shape, input2Shape});
@@ -125,7 +129,7 @@ protected:
                 ngraph::op::v0::PriorBox::Attributes attributes_v0;
 
                 attributes_v0.min_size = {64};
-                attributes_v0.max_size = {300};
+                attributes_v0.max_size = max_size;
                 attributes_v0.aspect_ratio = {2};
                 attributes_v0.variance = {0.1, 0.1, 0.2, 0.2};
                 attributes_v0.step = 16;
@@ -145,7 +149,7 @@ protected:
                 ngraph::op::v8::PriorBox::Attributes attributes_v8;
 
                 attributes_v8.min_size = {64};
-                attributes_v8.max_size = {300};
+                attributes_v8.max_size = max_size;
                 attributes_v8.aspect_ratio = {2};
                 attributes_v8.variance = {0.1, 0.1, 0.2, 0.2};
                 attributes_v8.step = 16;
@@ -203,12 +207,16 @@ std::vector<ov::test::InputShape> imgShapesDynamic = {
         },
 };
 
+std::vector<std::vector<float>> max_size = {
+        {}, {300}
+};
 INSTANTIATE_TEST_SUITE_P(smoke_prior_box_full_dynamic,
     PriorBoxLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(inShapesDynamic),
         ::testing::ValuesIn(imgShapesDynamic),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(max_size),
         ::testing::ValuesIn(mode)),
     PriorBoxLayerGPUTest::getTestCaseName);
 } // namespace
