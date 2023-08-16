@@ -25,7 +25,6 @@ def main():
     model_path = get_model_name_from_args(argv)
 
     compress_to_fp16 = 'compress_to_fp16' in argv and argv.compress_to_fp16
-    print('HERE', compress_to_fp16)
     save_model(ngraph_function, model_path.encode('utf-8'), compress_to_fp16)
 
     print('[ SUCCESS ] XML file: {}'.format(model_path))
