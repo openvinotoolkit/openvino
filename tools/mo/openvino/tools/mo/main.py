@@ -14,7 +14,7 @@ from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.pipeline.common import get_ir_version
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import serialize
+from openvino.runtime import save_model
 
 
 def main(cli_parser: argparse.ArgumentParser, framework=None):
@@ -26,7 +26,8 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     model_path_no_ext = os.path.normpath(os.path.join(output_dir, argv.model_name))
     model_path = model_path_no_ext + '.xml'
 
-    serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
+    compress_to_fp16 = 'compress_to_fp16' in argv and argv.compress_to_fp16
+    save_model(ngraph_function, model_path.encode('utf-8'), compress_to_fp16)
 
     print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
     print('[ SUCCESS ] XML file: {}'.format(model_path))

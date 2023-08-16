@@ -13,7 +13,7 @@ from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.cli_parser import get_model_name_from_args
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import serialize
+from openvino.runtime import save_model
 
 
 def main():
@@ -24,12 +24,9 @@ def main():
 
     model_path = get_model_name_from_args(argv)
 
-    # TODO: replace compress_model + serialize with save_model
-    if argv.compress_to_fp16:
-        from openvino.tools.ovc.moc_frontend.offline_transformations import compress_model
-        compress_model(ngraph_function)
-
-    serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
+    compress_to_fp16 = 'compress_to_fp16' in argv and argv.compress_to_fp16
+    print('HERE', compress_to_fp16)
+    save_model(ngraph_function, model_path.encode('utf-8'), compress_to_fp16)
 
     print('[ SUCCESS ] XML file: {}'.format(model_path))
     print('[ SUCCESS ] BIN file: {}'.format(model_path.replace('.xml', '.bin')))
