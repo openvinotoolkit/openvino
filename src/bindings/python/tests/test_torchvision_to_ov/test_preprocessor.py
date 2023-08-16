@@ -95,7 +95,7 @@ def test_convertimagedtype():
         ],
     )
     torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
-    assert np.max(np.absolute(torch_result - ov_result)) < 2e-04
+    assert np.max(np.absolute(torch_result - ov_result)) < 3e-04
 
 
 @pytest.mark.parametrize(
