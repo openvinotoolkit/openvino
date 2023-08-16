@@ -15,8 +15,6 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 
-#define POSTPONED_FP16_COMPRESSION 1
-
 namespace {
 template <ov::element::Type_t PREC_FROM>
 std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::op::v0::Constant>& constant,
@@ -33,7 +31,6 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
 
     // TODO: Speed this part up by applying code similar to Convert::evaluate
     int num_out_of_range = 0;
-    //#pragma parallel for reduction(+ : num_out_of_range)
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
         if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
