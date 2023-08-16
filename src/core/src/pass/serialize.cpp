@@ -94,24 +94,15 @@ public:
 
     FilePosition write(const char* ptr,
                        size_t size,
+                       size_t* new_size,
                        bool compress_to_fp16 = false,
-                       ov::element::Type src_type = ov::element::dynamic,
-                       int64_t* new_size = nullptr) {
+                       ov::element::Type src_type = ov::element::dynamic) {
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
         *new_size = size;
 
-        if (compress_to_fp16) {
-            // TODO: Remove this duplicate
-            if (src_type == ov::element::f32) {
-                *new_size = size / 2;
-            } else if (src_type == ov::element::f64) {
-                *new_size = size / 4;
-            }
-        }
-
         if (!m_enable_compression) {
-            write_with_optional_fp16_compression(ptr, size, compress_to_fp16, src_type);
+            write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
             return offset;
         }
         // TODO: When FP16 compression is turned on, we can avoid comparing FP32
@@ -129,7 +120,7 @@ public:
             return found->second.first;
         }
 
-        write_with_optional_fp16_compression(ptr, size, compress_to_fp16, src_type);
+        write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
         m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
 
         return offset;
@@ -138,17 +129,15 @@ public:
 private:
     void write_with_optional_fp16_compression(const char* ptr,
                                               size_t size,
+                                              size_t* new_size,
                                               bool compress_to_fp16 = false,
                                               ov::element::Type src_type = ov::element::dynamic) {
         if (!compress_to_fp16) {
             m_binary_output.write(ptr, size);
         } else {
-            assert(size % 2 == 0);
-            size_t compressed_size;
-            // std::unique_ptr<char[]> fp16_buffer(new char[compressed_size]); // TODO: works?
-            // auto compressed_ptr = fp16_buffer.get();
-            auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, &compressed_size);
-            m_binary_output.write(fp16_buffer.get(), compressed_size);
+            OPENVINO_ASSERT(size % ov::element::f16.size() == 0);
+            auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+            m_binary_output.write(fp16_buffer.get(), *new_size);
             // Compressed data is disposed
         }
     }
@@ -157,22 +146,21 @@ private:
                                                   size_t size,
                                                   ov::element::Type src_type,
                                                   size_t* compressed_size) {
+        auto num_src_elements = size / src_type.size();
+        *compressed_size = num_src_elements * ov::element::f16.size();
         if (src_type == ov::element::f32) {
-            *compressed_size = size / 2;
-            auto new_ptr = std::unique_ptr<char[]>(new char[size / 2]);
+            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
-            ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size / 4);
+            ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, num_src_elements);
             return new_ptr;
         } else if (src_type == ov::element::f64) {
-            *compressed_size = size / 4;
-            auto new_ptr = std::unique_ptr<char[]>(new char[size / 4]);
+            auto new_ptr = std::unique_ptr<char[]>(new char[*compressed_size]);
             auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());
             auto src_data = reinterpret_cast<const float*>(ptr);
 
-            // FIXME: This is SLOW stub implemenation!
-            //#pragma omp parallel for
-            for (size_t i = 0; i < size / 8; ++i) {
+            // Reference implementation for fp64 to fp16 conversoin
+            for (size_t i = 0; i < num_src_elements; ++i) {
                 // if abs value is smaller than the smallest positive fp16, but not zero
                 if (std::abs(src_data[i]) < ov::float16::from_bits(0x0001) && src_data[i] != 0.0f) {
                     dst_data[i] = 0;
@@ -526,12 +514,12 @@ public:
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 const int64_t size = a->get()->size();
-                int64_t new_size;
+                size_t new_size;
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
                                                                 size,
+                                                                &new_size,
                                                                 m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                &new_size);
+                                                                m_output_element_type);
 
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
