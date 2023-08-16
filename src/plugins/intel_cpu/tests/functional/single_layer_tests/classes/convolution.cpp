@@ -6,11 +6,13 @@
 
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ngraph::helpers;
 using namespace ov::test;
+using namespace ov::intel_cpu;
 
 namespace CPULayerTestsDefinitions {
 std::string ConvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInfo<convLayerCPUTestParamsSet>& obj) {
@@ -34,17 +36,17 @@ std::string ConvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInf
 
     std::ostringstream result;
     result << "IS=";
-    result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
+    result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
     result << "TS=(";
     for (const auto& shape : inputShape.second) {
-        result << CommonTestUtils::vec2str(shape) << "_";
+        result << ov::test::utils::vec2str(shape) << "_";
     }
     result << ")_";
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
+    result << "K" << ov::test::utils::vec2str(kernel) << "_";
+    result << "S" << ov::test::utils::vec2str(stride) << "_";
+    result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    result << "D=" << ov::test::utils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << "netPRC=" << netType << "_";
@@ -200,8 +202,13 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     if (!priority.empty()) {
+        // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].
+        // This convolution test code has already covered brgconv avx2 primitive.
+        // @todo: Remove this once brgconv_avx2 is enabled for convolution node.
+        if (priority[0].find("brgconv_avx2") != std::string::npos)
+                GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
         // Skip tests for brgconv convolution where kernel size = 1x1
-        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+        if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;
                 for (const auto &i : kernel) {
                 if (i != 1) {
@@ -322,6 +329,7 @@ const std::vector<CPUSpecificParams>& CPUParams_2D() {
             conv_avx512_2D,
             conv_sse42_2D_nspc,
             conv_avx2_2D_nspc,
+            conv_avx2_2D_nspc_brgconv,
             conv_avx512_2D_nspc,
             conv_avx512_2D_nspc_brgconv
     #endif
@@ -453,6 +461,7 @@ const std::vector<CPUSpecificParams>& CPUParams_1x1_1D() {
             conv_avx512_1D_1x1,
             conv_sse42_1D_1x1_nspc,
             conv_avx2_1D_1x1_nspc,
+            conv_avx2_1D_1x1_nspc_brgconv,
             conv_avx512_1D_1x1_nspc,
             conv_avx512_1D_1x1_nspc_brgconv
     };
@@ -538,6 +547,7 @@ const std::vector<CPUSpecificParams>& CPUParams_1x1_2D() {
             conv_avx512_2D_1x1,
             conv_sse42_2D_1x1_nspc,
             conv_avx2_2D_1x1_nspc,
+            conv_avx2_2D_1x1_nspc_brgconv,
             conv_avx512_2D_1x1_nspc,
             conv_avx512_2D_1x1_nspc_brgconv
     };
