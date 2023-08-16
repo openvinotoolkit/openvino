@@ -99,7 +99,7 @@ void pull_reshape_through_optional_concat_and_bea(const ov::pass::pattern::Patte
             auto bea_node = vm.at(bea_label).get_node_shared_ptr();
             auto idx_of_non_scalar_data = bea_node->input_value(0) == vm.at(concat_label) ? 0 : 1;
             bea_node->input(idx_of_non_scalar_data).replace_source_output(new_concat);
-            nodes_for_revalidation.push_back(bea_node.get());
+            nodes_for_revalidation.insert(nodes_for_revalidation.begin(), bea_node.get());
         } else {
             matmul_input.replace_source_output(new_concat);
         }
@@ -158,11 +158,14 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
             auto output_pshape = out.get_partial_shape();
             ov::TensorLabel output_labels, input_0_labels, input_1_labels;
             if (get_labels(input_0_pshape, input_0_labels) && get_labels(input_1_pshape, input_1_labels) &&
-                get_labels(output_pshape, output_labels))
+                get_labels(output_pshape, output_labels)) {
+                if (input_0_pshape.size() != 3 || input_1_pshape.size() != 3 || output_pshape.size() != 3)
+                    return false;
                 return are_unique_and_equal_labels(input_0_labels, output_labels) ||
                        are_unique_and_equal_labels(input_1_labels, output_labels);
-            else
+            } else {
                 return false;
+            }
         });
 
     auto matmul_or_add = std::make_shared<pattern::op::Or>(OutputVector{matmul, add});
@@ -190,6 +193,16 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
         }
         // reshapes check: END
 
+        if (vm.count(add)) {
+            const auto& in_reshape_0_in_pshape = in_reshape_0->get_input_partial_shape(0);
+            if (in_reshape_0_in_pshape.size() != 4 || in_reshape_0_in_pshape[1].is_dynamic())
+                return false;
+            // we only allow MatMul -> Add pattern to be optimized in case of 4d -> 3d -> 4d DeReshaping
+        }
+
+        if (vm.count(add) && (in_reshape_0->get_input_partial_shape(0).size() != 4 || in_reshape_0->get_input_partial_shape(0)[1].is_dynamic()))
+            return false;
+
         // preventing wrong matches
         if (vm.count(lhs_concat) && !ov::as_type_ptr<ov::op::v0::Concat>(pm.at(lhs_concat)))
             return false;
@@ -208,6 +221,28 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
                                                      in_reshape_1,
                                                      pm.at(matmul)->input(1),
                                                      nodes_for_revalidation);
+
+        if (vm.count(add)) {
+            auto add_node = pm.at(add);
+            size_t matmul_port = (add_node->input_value(0) == vm.at(matmul) ? 0 : 1);
+            size_t non_matmul_port = static_cast<size_t>(!matmul_port);
+
+            auto first_batch_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+                    add->input_value(matmul_port), {0}, {in_reshape_0, in_reshape_1});
+            auto divisor = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+                    in_reshape_0->input_value(0), {1}, {in_reshape_0, in_reshape_1});
+            first_batch_dim = std::make_shared<ov::op::v1::Divide>(first_batch_dim, divisor, true);
+            auto minus_one = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+            auto non_batch_dims = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(
+                    add->input_value(non_matmul_port), {2, 3}, {in_reshape_0, in_reshape_1});
+            auto pattern = std::make_shared<ov::op::v0::Concat>(
+                    OutputVector{first_batch_dim, minus_one, non_batch_dims}, 0);
+            auto other_input_reshape = op::util::make_try_fold<ov::op::v1::Reshape>(
+                    add->input_value(non_matmul_port), pattern, true);
+            add->input(non_matmul_port).replace_source_output(other_input_reshape->output(0));
+            ov::copy_runtime_info({in_reshape_0, in_reshape_1}, {first_batch_dim, minus_one, other_input_reshape});
+            nodes_for_revalidation.push_back(add_node.get());
+        }
         ov::replace_output_update_name(out_reshape->output(0), out_reshape->input_value(0));
 
         for (auto& node : nodes_for_revalidation)
