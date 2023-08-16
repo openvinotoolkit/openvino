@@ -113,13 +113,13 @@ void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
 
-// Convert values from f32 to f16 with claming to f16 min/max when value is out of normal finite numbers range
-void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 // Count how many f32 values is out of normal finite numbers range when converted to f16
 size_t count_out_of_f16_range(const float* arg, size_t count);
 
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+// Convert values from f32 to f16 with claming to f16 min/max when value is out of normal finite numbers range
+void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
 
 // overload to handle ngraph::boolean (it is stored as char)
 template <typename TI, typename TO>

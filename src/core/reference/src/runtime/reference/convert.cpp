@@ -5,12 +5,13 @@
 #include "ngraph/runtime/reference/convert.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-
 #    include "jit_generator.hpp"
+#endif
 
 namespace ngraph {
 namespace runtime {
 namespace reference {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 namespace {
 template <typename src_t, typename dst_t, bool clamp = false>
 void jit_convert_vec(jit::Generator&, const Xbyak::RegExp&, const Xbyak::RegExp&);
@@ -256,39 +257,6 @@ void convert_impl<float, float16, true>(const float* arg, float16* out, size_t c
     }
 }
 
-}  // namespace
-
-template <>
-void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
-}
-
-template <>
-void convert<float16, float>(const float16* arg, float* out, size_t count) {
-    convert_impl(arg, out, count);
-}
-
-template <>
-void convert<float, float16>(const float* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
-}
-
-template <>
-void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
-}
-
-template <>
-void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
-}
-
-void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
-    convert_impl<float, float16, true>(arg, out, count);
-}
-
-namespace {
-
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_prepare(jit::Generator&) {}
 
@@ -490,31 +458,74 @@ public:
 
 }  // namespace
 
+template <>
+void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float16, float>(const float16* arg, float* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float, float16>(const float* arg, float16* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+
+void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    convert_impl<float, float16, true>(arg, out, count);
+#else
+    // FIXME: dublicate and stub for ARM, provide more optimized solution
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
+#endif  // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+}
+
 size_t count_out_of_f16_range(const float* arg, size_t count) {
     size_t num_out_of_range = 0;
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     auto converter = jit_count_out_of_range::get<float, float16>();
     if (converter) {
         jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
         converter(&args);
-    } else {
-        for (size_t i = 0; i < count; ++i) {
-            // if abs value is smaller than the smallest positive fp16, but not zero
-            if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
-                num_out_of_range++;
-            } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
-                num_out_of_range++;
-            } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
-                num_out_of_range++;
-            }
+        return num_out_of_range;
+    }
+#endif
+    for (size_t i = 0; i < count; ++i) {
+        // if abs value is smaller than the smallest positive fp16, but not zero
+        if (std::abs(arg[i]) < ov::float16::from_bits(0x0001) && arg[i] != 0.0f) {
+            num_out_of_range++;
+        } else if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            num_out_of_range++;
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            num_out_of_range++;
         }
     }
-
     return num_out_of_range;
 }
 
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
-
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
