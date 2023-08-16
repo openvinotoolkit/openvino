@@ -24,7 +24,7 @@ Model conversion API parameters
 
 Model conversion API provides ``input`` and ``output`` command-line options to specify new entry and exit nodes, while ignoring the rest of the model:
 
-* ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Supported Model Formats <Supported_Model_Formats>` page.
+* ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Model Conversion Python API <openvino_docs_MO_DG_Python_API>` page.
 * ``output`` option accepts a list of layer names of the input model that should be treated as new exit points from the model.
 
 The ``input`` option is required for cases unrelated to model cutting. For example, when the model contains several inputs and ``input_shape`` or ``mean_values`` options are used, the ``input`` option specifies the order of input nodes for correct mapping between multiple items provided in ``input_shape`` and ``mean_values`` and the inputs in the model.
