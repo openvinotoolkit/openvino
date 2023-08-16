@@ -781,7 +781,7 @@ jobs:
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests-parallel.xml"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3s
+        uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
