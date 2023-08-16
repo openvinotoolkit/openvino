@@ -50,6 +50,8 @@ public:
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("CompressFloatConstants", "0");
+    /// @brief Transformation constructor
+    /// @param postponed Postponed compression, see ov::pass::CompressFloatConstantsImpl for details.
     CompressFloatConstants(bool postponed = false) {
         add_matcher<ov::pass::CompressFloatConstantsImpl>(postponed);
         add_matcher<ov::pass::AddOldApiMapToParameters>();
