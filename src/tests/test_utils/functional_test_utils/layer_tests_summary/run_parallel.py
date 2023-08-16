@@ -485,8 +485,6 @@ class TestParallelRunner:
                 if not has_status:
                     interapted_tests.append(test_name)
                 log_file.close()
-        # split_unit_tmp = self._split_unit
-        # self._split_unit = "test"
         test_list_runtime = set(self.__get_test_list_by_runtime())
         not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
         interapted_tests = set(interapted_tests).difference(self._excluded_tests_re)
@@ -501,17 +499,16 @@ class TestParallelRunner:
         t_start = datetime.datetime.now()
 
         filters_cache, filters_runtime = self.__get_filters()
-
+        # it is better to reuse workes for both cached and runtime tasks
+        test_filters = filters_cache + filters_runtime
         worker_cnt = 0
-        if len(filters_cache):
-            logger.info(f"Execute jobs taken from cache")
-            worker_cnt += self.__execute_tests(filters_cache, worker_cnt)
+        if len(test_filters):
+            logger.info(f"Execute jobs taken from cache and runtime")
+            worker_cnt += self.__execute_tests(test_filters, worker_cnt)
         # 15m for one test in one process
         if TaskManager.process_timeout == -1 or TaskManager.process_timeout == DEFAULT_PROCESS_TIMEOUT:
             TaskManager.process_timeout = DEFAULT_SUITE_TIMEOUT if self._split_unit == "suite" else DEFAULT_TEST_TIMEOUT
-        if len(filters_runtime):
-            logger.info(f"Execute jobs taken from runtime")
-            worker_cnt += self.__execute_tests(filters_runtime, worker_cnt)
+
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
         if (self._repeat_failed == True) :
             if len(not_runned_tests) > 0:
@@ -649,7 +646,7 @@ class TestParallelRunner:
                     test_cnt_real = test_cnt_real_saved_now
 
                 if test_cnt_real < test_cnt_expected:
-                    logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
+                    logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {split_unit}")
                 else:
                     os.remove(log_filename)
 
@@ -762,10 +759,10 @@ class TestParallelRunner:
                 diff_list.append(f"{item}\n")
             not_run_tests_path_file.writelines(diff_list)
             not_run_tests_path_file.close()
-            logger.info(f"Not run test list is saved to: {not_run_tests_path}")
             l = len(diff_list)
             if l > 0:
                 logger.warning(f"Not run test test counter is: {len(diff_list)}")
+                logger.info(f"Not run test list is saved to: {not_run_tests_path}")
 
         is_successfull_run = True
         test_cnt = 0
