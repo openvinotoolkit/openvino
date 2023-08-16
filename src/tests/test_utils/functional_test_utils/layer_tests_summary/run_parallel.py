@@ -437,12 +437,12 @@ class TestParallelRunner:
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
             cached_test_list = self.__prepare_smart_filters(cached_test_dict)
+            cached_test_list.reverse()
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
             runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
+            runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
-        cached_test_list.reverse()
-        runtime_test_list.reverse()
         return cached_test_list, runtime_test_list
 
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
