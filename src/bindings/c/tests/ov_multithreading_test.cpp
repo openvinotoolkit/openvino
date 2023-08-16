@@ -46,7 +46,7 @@ public:
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_multithreading_test, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(ov_capi, ov_multithreading_test, ::testing::Values("CPU"));
 
 TEST_P(ov_multithreading_test, get_property) {
     auto device_name = GetParam();
