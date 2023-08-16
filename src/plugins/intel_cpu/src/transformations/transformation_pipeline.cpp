@@ -203,7 +203,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InitNodeInfo);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkShapeOfSubgraphs);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
+
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            const auto outputs = node->get_output_target_inputs(0);
+            return outputs.size() != 1 || !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+        },
+        ov::pass::KeepConstAndDecompression);
 
     const bool useLpt = !defaultPrecisions.empty();
     if (useLpt) {
@@ -249,7 +256,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::i4,      ov::element::i8},
             {ov::element::u4,      ov::element::u8}
         };
-
+        // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
             map.insert({ov::element::bf16, ov::element::f32});
 
@@ -434,7 +441,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
        AUGRUCell node (see AUGRUCellFusion pass). In such cases, some constant paths will be unfolded, which can lead to crashes in the plugin. To avoid this,
        we re-mark decompression converts again and finally do CF for those constant paths that are not inputs to MatMul node */
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompressionForMatMul);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
 
     manager.run_passes(model);
