@@ -29,12 +29,12 @@ concurrency:
 
 jobs:
   Build:
+    # TODO: remove. Temporary measure to prevent the workflow from scheduling on forks.
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     defaults:
       run:
         shell: bash
     runs-on: ubuntu-20.04-8-cores
-    permissions:
-      actions: write
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
