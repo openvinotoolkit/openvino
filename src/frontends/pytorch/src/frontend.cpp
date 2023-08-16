@@ -119,8 +119,13 @@ FrontEnd::FrontEnd() {
     }
 }
 
-std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
+std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    std::shared_ptr<Model> converted_model;
+    {
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        converted_model = translate_session.get_converted_model();
+    }
 
     std::string norm_err;
     try {
@@ -146,14 +151,19 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    try {
+    std::shared_ptr<Model> partial_model;
+    {
         TranslateSession translate_session(model, m_op_translators, m_telemetry);
-        return translate_session.get_converted_model();
-    } catch (const std::runtime_error& e) {
-        std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
-        std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
-        throw;
+        partial_model = translate_session.get_converted_model();
     }
+    try {
+        normalize(partial_model);
+    } catch (...) {
+        // normalize can fail on transformation, but the model is still valid. We can return such model.
+        // If model can be validated we suppress normalize exception.
+        partial_model->validate_nodes_and_infer_types();
+    }
+    return partial_model;
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
@@ -254,6 +264,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                             "PyTorch Frontend supports exactly one parameter in model representation, got ",
                             std::to_string(variants.size()),
                             " instead.");
+    FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<IDecoder>>(),
+                            "PyTorch Frontend doesn't support provided model type. Please provide supported model "
+                            "object using Python API.");
     auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
     auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
     FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast ov::Any to TorchDecoder");

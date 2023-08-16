@@ -588,7 +588,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return num_iter != 1;
                 return num_iter >= 16;
             });
-        manager.register_pass<ov::pass::ResolveNameCollisions>();
+        manager.register_pass<ov::pass::ResolveNameCollisions>(true);
 
         manager.run_passes(func);
     }

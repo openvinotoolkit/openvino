@@ -10,7 +10,8 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-VectorBuffer::VectorBuffer(const ov::element::Type element_type) : Op(), m_element_type(std::move(element_type)) {
+VectorBuffer::VectorBuffer(const ov::element::Type element_type)
+    : Op(), m_element_type(std::move(element_type)) {
     constructor_validate_and_infer_types();
 }
 
@@ -23,6 +24,12 @@ std::shared_ptr<Node> VectorBuffer::clone_with_new_inputs(const OutputVector& ne
 void VectorBuffer::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(VectorBuffer_validate_and_infer_types);
     set_output_type(0, m_element_type, Shape{1lu});
+}
+
+bool VectorBuffer::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(VectorBuffer_visit_attributes);
+    visitor.on_attribute("element_type", m_element_type);
+    return true;
 }
 
 } // namespace op

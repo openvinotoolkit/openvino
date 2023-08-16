@@ -86,6 +86,9 @@ make_reshape_view(const InferenceEngine::Blob::Ptr &blob, InferenceEngine::SizeV
  */
 size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
 
+ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc);
+
+
 template<typename T>
 inline void fill_roi_raw_ptr(T* data, size_t data_size, const uint32_t range, const int32_t height, const int32_t width, const float omega,
                              const bool is_roi_max_mode, const int32_t seed = 1) {
@@ -263,8 +266,7 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
  * - With k = 2 numbers resolution will 1/2 so outputs only .0 or .50
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
-void fill_tensor_random(ov::Tensor& tensor, const uint32_t range = 10, int32_t start_from = 0,
-                               const int32_t k = 1, const int seed = 1);
+void fill_tensor_random(ov::Tensor& tensor, const double range = 10, const double start_from = 0, const int32_t k = 1, const int seed = 1);
 
 /** @brief Fill blob with random data.
  *
@@ -480,7 +482,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov
 
 
-// openvino_contrib and vpu repo use CommonTestUtils::
+// openvino_contrib and NPU repo use CommonTestUtils::
 // so we need to add these names to CommonTestUtils namespace
 namespace CommonTestUtils {
 using ov::test::utils::ie_abs;

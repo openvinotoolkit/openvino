@@ -154,28 +154,6 @@ class TorchFXPythonDecoder (Decoder):
         else:
             return OVAny(OVType.f32)
 
-    def get_input_transpose_order(self, index):
-        return []
-        # TODO TBD
-
-        input = self._raw_input(index)
-        if input.type() is not None and input.type().kind() == 'TensorType':
-            strides = input.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
-    def get_output_transpose_order(self, index):
-        return []
-
-        # old code
-        output = self._raw_output(index)
-        if output.type() is not None and output.type().kind() == 'TensorType':
-            strides = output.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
     def get_subgraph_size(self):
         if issubclass(type(self.pt_module), torch.fx.Node):
             return 0

@@ -12,6 +12,7 @@
 #include "itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -260,6 +261,134 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
     return graph_rewritten;
 }
 
+struct SliceAttrs {
+    int64_t start, stop, axis;
+};
+
+struct SliceWithAttrs {
+    std::shared_ptr<op::v8::Slice> slice;
+    SliceAttrs attrs;
+};
+
+bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>& op, SliceAttrs& attrs) {
+    const auto& data_rank = op->get_input_partial_shape(0).rank();
+    if (op->get_input_size() != 5 || data_rank.is_dynamic())
+        return false;
+
+    for (size_t i = 1; i < 5; ++i) {
+        auto input_as_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        if (!input_as_constant)
+            return false;
+        if (shape_size(input_as_constant->get_shape()) != 1)
+            return false;
+
+        int64_t value = input_as_constant->cast_vector<int64_t>()[0];
+
+        if (((i == 1 || i == 2) && value < 0) || (i == 3 && value != 1))
+            return false;
+        else if (i == 1)
+            attrs.start = value;
+        else if (i == 2)
+            attrs.stop = value;
+        else if (i == 4)
+            attrs.axis = value >= 0 ? value : value + data_rank.get_length();
+    }
+    if (attrs.axis < 0 || op->get_input_partial_shape(0)[attrs.axis].is_dynamic())
+        return false;
+    return true;
+}
+
+bool ov::pass::GroupedSliceToVSplitOptimization::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(GroupedSliceToVSplitOptimization);
+    bool graph_rewritten = false;
+
+    using OutputWithAxis = std::pair<ov::Output<ov::Node>, int64_t>;
+
+    std::map<OutputWithAxis, std::vector<SliceWithAttrs>> source_to_op_with_attrs;
+
+    std::vector<OutputWithAxis> ordered_outputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                if (sub_graph)
+                    graph_rewritten |= run_on_model(sub_graph);
+            }
+        }
+        if (auto op = ov::as_type_ptr<op::v8::Slice>(node)) {
+            SliceAttrs attributes{};
+            if (slice_is_suitable_for_optimization(op, attributes)) {
+                OutputWithAxis current_output = {op->input_value(0), attributes.axis};
+                source_to_op_with_attrs[current_output].push_back({op, attributes});
+                if (std::find(ordered_outputs.begin(), ordered_outputs.end(), current_output) == ordered_outputs.end())
+                    ordered_outputs.push_back(current_output);
+            }
+        }
+    }
+    // optimizing in reverse topological order for case if such VSplit-like Slices are chained
+    std::reverse(ordered_outputs.begin(), ordered_outputs.end());
+    for (const auto& output_with_axis : ordered_outputs) {
+        const auto& output = output_with_axis.first;
+        const auto& axis = output_with_axis.second;
+        auto attributes = source_to_op_with_attrs[output_with_axis];
+
+        std::sort(attributes.begin(), attributes.end(), [](const SliceWithAttrs& lhs, const SliceWithAttrs& rhs) {
+            if (lhs.attrs.start == rhs.attrs.start)
+                return lhs.attrs.stop < rhs.attrs.stop;
+            return lhs.attrs.start < rhs.attrs.start;
+        });
+
+        const int64_t& dimension = output.get_partial_shape()[axis].get_length();
+        int64_t dimension_length_left = dimension;
+        std::vector<int64_t> split_lengths;
+
+        int64_t prev_stop = 0;
+        bool valid_for_replacement = true;
+
+        // they shouldn't overlap and no holes while slicing
+        for (auto& slice_with_attrs : attributes) {
+            const auto &start = slice_with_attrs.attrs.start, &stop = slice_with_attrs.attrs.stop;
+            if (prev_stop != start) {
+                valid_for_replacement = false;
+                break;
+            }
+            int64_t sliced = stop - start;
+            split_lengths.push_back((sliced > dimension_length_left ? -1 : sliced));
+            dimension_length_left -= sliced;
+            prev_stop = stop;
+        }
+        if (!valid_for_replacement)
+            continue;
+        if (std::count(split_lengths.begin(), split_lengths.end(), -1) > 1)
+            continue;
+
+        int64_t current_sum = 0;
+        for (const auto& i : split_lengths)
+            if (i != -1)
+                current_sum += i;
+        for (auto& i : split_lengths)
+            if (i == -1) {
+                i = dimension - current_sum;
+                current_sum = dimension;  // we resolve -1 into actual value since we can use shape data
+            }
+        if (current_sum != dimension)
+            continue;
+        auto split_lengths_const =
+            op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
+        auto axis_const = op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+        auto variadic_split = std::make_shared<op::v1::VariadicSplit>(output, axis_const, split_lengths_const);
+
+        auto i = 0;
+        for (auto& slice_with_attrs : attributes) {
+            graph_rewritten |=
+                ov::replace_output_update_name(slice_with_attrs.slice->output(0), variadic_split->output(i));
+            ov::copy_runtime_info(slice_with_attrs.slice, variadic_split);
+            ++i;
+        }
+    }
+    return graph_rewritten;
+}
+
 ov::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
     m_use_shapes = use_shapes;
 }
@@ -278,6 +407,7 @@ bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ngra
         // Execution of other passes is also needed even if 'rewritten' is already 'true'
         rewritten = SharedStridedSliceEraser().run_on_model(f) || rewritten;
         rewritten = GroupedStridedSliceOptimizer().run_on_model(f) || rewritten;
+        rewritten = GroupedSliceToVSplitOptimization().run_on_model(f) || rewritten;
     }
     return rewritten;
 }

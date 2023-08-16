@@ -188,11 +188,15 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
 }
 
 std::string generateTestFilePrefix();
+
+size_t getVmSizeInKB();
+
+size_t getVmRSSInKB();
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
 
-// openvino_contrib and vpu repo use CommonTestUtils::
+// openvino_contrib and NPU repo use CommonTestUtils::
 // so we need to add these names to CommonTestUtils namespace
 namespace CommonTestUtils {
 using ov::test::utils::vec2str;
