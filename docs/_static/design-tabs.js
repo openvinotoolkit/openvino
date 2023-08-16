@@ -71,8 +71,8 @@ function saveLanguageState(language) {
   window.localStorage.setItem('sphinx-design-language-state', language)
 }
 
-function getPageHash(labels) {
-  return labels.split('').map(v=>v.charCodeAt(0)).reduce((a,v)=>a+((a<<7)+(a<<3))^v).toString(16);
+function getPageHash(url) {
+  return url.split('').map(v=>v.charCodeAt(0)).reduce((a,v)=>a+((a<<7)+(a<<3))^v).toString(16);
 }
 
 // document.addEventListener("DOMContentLoaded", ready, false);
