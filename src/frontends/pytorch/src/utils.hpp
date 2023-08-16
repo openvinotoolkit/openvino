@@ -136,7 +136,7 @@ inline OutputVector return_false_scalar(const NodeContext& context) {
 }
 
 inline OutputVector skip_node(const NodeContext& context) {
-    return {context.get_input(0).get_node_shared_ptr()};
+    return {context.get_input(0)};
 }
 
 }  // namespace op
