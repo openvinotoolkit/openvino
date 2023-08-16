@@ -31,6 +31,10 @@ FusedNamesExtractor::FusedNamesExtractor() {
     device = *(core->get_available_devices().begin());
 }
 
+FusedNamesExtractor::~FusedNamesExtractor() {
+    core.reset();
+}
+
 std::list<ExtractedPattern>
 FusedNamesExtractor::extract(const std::shared_ptr<ov::Model> &model,
                              bool is_extract_body) {

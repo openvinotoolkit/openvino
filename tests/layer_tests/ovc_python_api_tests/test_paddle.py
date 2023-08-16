@@ -77,7 +77,7 @@ def create_paddle_static_module(tmp_dir):
     pd_model, x, y = make_pd_static_graph_model(shape)
     ref_model = make_ref_graph_model(shape)
 
-    return pd_model, ref_model, {"example_input": [x], "example_output": [y]}
+    return pd_model, ref_model, {"example_input": [x], "output": [y]}
 
 def create_paddle_hapi_module(tmp_dir):
     shape = [2,3,4]
@@ -97,7 +97,7 @@ class TestMoConvertPaddle(CommonMOConvertTest):
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
-        test_params = {'input_model': fw_model, 'use_new_frontend': True}
+        test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)

@@ -112,8 +112,13 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
 
 FrontEnd::FrontEnd() {}
 
-std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
-    auto converted_model = convert_partially(model);
+std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    std::shared_ptr<Model> converted_model;
+    {
+        TranslateSession translate_session(model, m_op_translators, m_telemetry);
+        converted_model = translate_session.get_converted_model();
+    }
 
     std::string norm_err;
     try {
@@ -138,6 +143,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
     if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
         supported_ops = get_supported_ops_fx();
@@ -146,15 +152,19 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
     for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
         supported_ops[i->first] = i->second;
 
-    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
-    try {
+    std::shared_ptr<Model> partial_model;
+    {
         TranslateSession translate_session(model, supported_ops, m_telemetry);
-        return translate_session.get_converted_model();
-    } catch (const std::runtime_error& e) {
-        std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
-        std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
-        throw;
+        partial_model = translate_session.get_converted_model();
     }
+    try {
+        normalize(partial_model);
+    } catch (...) {
+        // normalize can fail on transformation, but the model is still valid. We can return such model.
+        // If model can be validated we suppress normalize exception.
+        partial_model->validate_nodes_and_infer_types();
+    }
+    return partial_model;
 }
 
 std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {

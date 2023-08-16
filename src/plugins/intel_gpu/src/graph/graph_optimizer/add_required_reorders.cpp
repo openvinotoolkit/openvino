@@ -200,6 +200,7 @@ void add_required_reorders::run(program& p) {
                             auto new_reorder = std::make_shared<reorder>(input.id() + "_padding_reorder_" + usr->id(), input.id(), layout_wo_padding);
                             auto& new_reorder_node = p.get_or_create(new_reorder);
                             p.add_intermediate(new_reorder_node, *usr, idx);
+                            new_reorder_node.recalc_output_layout(false);
                         } else {
                             continue;
                         }
