@@ -29,6 +29,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (!dst_data || !size)
         return nullptr;
 
+// slow implementation: is used when optimized implementations are not available: f64 or for ARM (both for f64 and f32)
     int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if abs value is smaller than the smallest positive fp16, but not zero
