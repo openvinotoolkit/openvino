@@ -115,7 +115,7 @@ public:
             return offset;
         }
         // TODO: When FP16 compression is turned on, we can avoid comparing FP32
-        // weigts, but it would require comparing with data from a file, because
+        // weights, but it would require comparing with data from a file, because
         // on-the-fly converted FP16 constants are not kept in memory.
 
         // This hash is weak (but efficient) and must be replace with some other
