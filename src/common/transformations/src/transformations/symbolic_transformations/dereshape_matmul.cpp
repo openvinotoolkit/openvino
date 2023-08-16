@@ -5,10 +5,8 @@
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 
 #include <openvino/core/dimension_tracker.hpp>
-#include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/matmul.hpp>
-#include <openvino/op/multiply.hpp>
 #include <openvino/op/reshape.hpp>
 #include <openvino/op/util/binary_elementwise_arithmetic.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
@@ -178,8 +176,6 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
                                             }));
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        std::cout << " MATCHED! " << std::endl;
-
         const auto& pm = m.get_pattern_map();
         const auto& vm = m.get_pattern_value_map();
         std::vector<Node*> nodes_for_revalidation{pm.at(matmul).get()};

@@ -104,6 +104,14 @@ ov::Output<ov::Node> get_shape_from_sources(const ov::Output<ov::Node>& batch_di
     return target_shape->output(0);
 }
 
+PartialShape make_concat_input_pshape(const DimensionTestHelper& dims, const vector<size_t>& dims_indices) {
+    auto another_pshape = dims.make_shape(dims_indices);
+    size_t rank = dims_indices.size();
+    // To reduce test graph we avoid changing Concat axis dimension with this Concat
+    another_pshape[rank - 1] = Dimension(0);
+    return another_pshape;
+}
+
 static std::ostream& operator<<(std::ostream& os, const vector<size_t>& vals) {
     bool first = true;
     for (const auto& val : vals) {
@@ -188,11 +196,8 @@ public:
         auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
         auto lhs_output = dims.make_reshape(lhs_input, lhs_reshape_idx);
 
-        if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
-            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
-
         if (set<size_t>{10, 11, 300, 301, 310, 311}.count(concat_mode)) {
-            const auto& another_pshape = dims.make_shape(lhs_reshape_idx);
+            const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
             if (set<size_t>{10, 300, 301}.count(concat_mode)) { // reshape on 0 port
@@ -206,15 +211,15 @@ public:
             outputs.emplace_back(lhs_output);
         }
 
+        if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
+            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+
         // RHS input of MatMul
         auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
         auto rhs_output = dims.make_reshape(rhs_input, rhs_reshape_idx);
 
-        if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
-            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
-
         if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) {
-            const auto& another_pshape = dims.make_shape(rhs_reshape_idx);
+            const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
             if (set<size_t>{20, 300, 310}.count(concat_mode)) { // reshape on 0 port
                 rhs_output = make_shared<v0::Concat>(OutputVector{rhs_output, another_input}, -1);
@@ -226,6 +231,9 @@ public:
             inputs.push_back(another_input);
             outputs.emplace_back(rhs_output);
         }
+
+        if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
+            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
@@ -262,16 +270,11 @@ public:
         auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
         auto lhs_output = lhs_input->output(0);
 
-        if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
-            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
-
         if (set<size_t>{10, 11, 300, 301, 310, 311}.count(concat_mode)) {
-            const auto source_of_target_shapes = lhs_output.get_node_shared_ptr();
-
-            const auto& another_pshape = dims.make_shape(lhs_reshape_idx);
+            const auto& another_pshape = make_concat_input_pshape(dims, lhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
-            auto target_shape_of_input = get_shape_from_sources(source_of_target_shapes, another_input);
+            auto target_shape_of_input = get_shape_from_sources(lhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{10, 300, 301}.count(concat_mode)) { // reshape on 0 port
@@ -282,27 +285,25 @@ public:
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
 
-            auto target_shape_of_output = get_shape_from_sources(source_of_target_shapes, lhs_output);
+            auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), lhs_output);
             auto output_reshape = make_shared<v1::Reshape>(lhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);
             outputs.emplace_back(output_reshape);
         }
 
+        if (bea_scalar_mode == 1 || bea_scalar_mode == 3)
+            lhs_output = make_shared<v1::Multiply>(lhs_output, v0::Constant::create(element::f32, {}, {0.125}));
+
         // RHS input of MatMul
         auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
         auto rhs_output = rhs_input->output(0);
 
-        if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
-            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
-
-        if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) { // TODO: insert Reshape before and after
-            const auto source_of_target_shapes = rhs_output.get_node_shared_ptr();
-
-            const auto& another_pshape = dims.make_shape(rhs_reshape_idx);
+        if (set<size_t>{20, 21, 300, 301, 310, 311}.count(concat_mode)) {
+            const auto& another_pshape = make_concat_input_pshape(dims, rhs_reshape_idx);
             const auto& another_input = make_shared<v0::Parameter>(element::f32, another_pshape);
 
-            auto target_shape_of_input = get_shape_from_sources(source_of_target_shapes, another_input);
+            auto target_shape_of_input = get_shape_from_sources(rhs_output, another_input);
             auto input_reshape = make_shared<v1::Reshape>(another_input, target_shape_of_input, false);
 
             if (set<size_t>{20, 300, 310}.count(concat_mode)) { // reshape on 0 port
@@ -312,12 +313,15 @@ public:
             } else {
                 ASSERT_TRUE(false) << "Unknown mode of concat: " << concat_mode;
             }
-            auto target_shape_of_output = get_shape_from_sources(source_of_target_shapes, rhs_output);
+            auto target_shape_of_output = get_shape_from_sources(input_reshape->input_value(0), rhs_output);
             auto output_reshape = make_shared<v1::Reshape>(rhs_output, target_shape_of_output, false);
 
             inputs.push_back(another_input);
             outputs.emplace_back(output_reshape);
         }
+
+        if (bea_scalar_mode == 2 || bea_scalar_mode == 3)
+            rhs_output = make_shared<v1::Multiply>(rhs_output, v0::Constant::create(element::f32, {}, {0.125}));
 
         Output<Node> matmul = make_shared<v0::MatMul>(lhs_output, rhs_output);
 
@@ -362,166 +366,23 @@ public:
 
 const auto shape_test_cases = vector<tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>>> {
         {{0, 1, 2, 3}, {5, 2, 3}, {0, 1, 3, 4}, {5, 3, 4}, {0, 1, 2, 4}},                   // 4D -> 3D -> 4D
-//        {{5, 2, 3}, {0, 1, 2, 3}, {5, 3, 4}, {0, 1, 3, 4}, {5, 2, 4}},                      // 3D -> 4D -> 3D
-//        {{0, 1, 2, 3, 4}, {0, 6, 3, 4}, {0, 1, 2, 4, 5}, {0, 6, 4, 5}, {0, 1, 2, 3, 5}},    // 5D -> 4D -> 5D
+        {{5, 2, 3}, {0, 1, 2, 3}, {5, 3, 4}, {0, 1, 3, 4}, {5, 2, 4}},                      // 3D -> 4D -> 3D
+        {{0, 1, 2, 3, 4}, {0, 6, 3, 4}, {0, 1, 2, 4, 5}, {0, 6, 4, 5}, {0, 1, 2, 3, 5}},    // 5D -> 4D -> 5D
 };
 
-//const auto bea_scalar_modes = vector<size_t>{0, 1, 2, 3};
-const auto bea_scalar_modes = vector<size_t>{0};
-//const auto concat_modes = vector<size_t>{0, 10, 11, 20, 21, 300, 301, 310, 311};
-const auto concat_modes = vector<size_t>{10};
-const auto final_add_modes = vector<size_t>{0};//, 1, 2};
+const auto bea_scalar_modes = vector<size_t>{0, 1, 2, 3};
+const auto concat_modes = vector<size_t>{0, 10, 11, 20, 21, 300, 301, 310, 311};
+const auto final_add_modes = vector<size_t>{0, 1, 2};
 
 TEST_P(DeReshapeMatMulTest, DeReshapeTests) {}
 
 INSTANTIATE_TEST_SUITE_P(
         TransformationTestsF,
         DeReshapeMatMulTest,
-        // lhs_idx, rhs_idx, reshape_idx, reshape_idx, reshape_idx
         testing::Combine(
-                // Initial shapes, input reshapes and output reshape
-                testing::ValuesIn(shape_test_cases),
+                testing::ValuesIn(shape_test_cases), // lhs_idx, rhs_idx, reshape_idx, reshape_idx, reshape_idx
                 testing::ValuesIn(bea_scalar_modes),
                 testing::ValuesIn(concat_modes),
                 testing::ValuesIn(final_add_modes)
         ),
         DeReshapeMatMulTest::getTestCaseName);
-
-//TEST_F(TransformationTestsF, DeReshapeMatMulSimple_5_4_5) {
-//    // Optimizing Reshapes: 5D -> 4D -> 5D
-//    const DimensionTestHelper dims(7);
-//
-//    PartialShape lhs_original_pshape = dims.make_shape({0, 1, 2, 3, 4});
-//    PartialShape rhs_original_pshape = dims.make_shape({0, 1, 2, 5, 4});
-//
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_reshape = reshape(lhs_input, {0, 6, 3, 4}, dims);
-//
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_reshape = reshape(rhs_input, {0, 6, 5, 4}, dims);
-//
-//        auto matmul = make_shared<v0::MatMul>(lhs_reshape, rhs_reshape, false, true);
-//
-//        auto output_reshape = reshape(matmul, {0, 1, 2, 3, 5}, dims);
-//
-//        model =
-//            make_shared<Model>(NodeVector{output_reshape}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//        manager.register_pass<pass::DeReshapeMatMul>();
-//    }
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto matmul = make_shared<v0::MatMul>(lhs_input, rhs_input);
-//        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//    }
-//}
-//
-//// Tests for graph with binary operation
-///* Example:
-// *      Reshape    scalar  Reshape             scalar
-// *          \      /        /              \     /
-// *         Multiply        /              Multiply
-// *             \          /                   \       /
-// *                MatMul           ->           MatMul
-// *                  |                             |
-// *                Reshape
-// * */
-//
-//TEST_F(TransformationTestsF, DeReshapeMatMulWithScalarBEA_LHS_4_3_4) {
-//    // Optimizing Reshapes: 4D -> 3D -> 4D
-//    const DimensionTestHelper dims(6);
-//
-//    PartialShape lhs_original_pshape = dims.make_shape({0, 1, 2, 3});
-//    PartialShape rhs_original_pshape = dims.make_shape({0, 1, 2, 4});
-//
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_reshape = reshape(lhs_input, {5, 2, 3}, dims);
-//        auto lhs_bea = make_shared<v1::Multiply>(lhs_reshape, v0::Constant::create(element::f32, {}, {0.125}));
-//
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_reshape = reshape(rhs_input, {5, 2, 4}, dims);
-//
-//        auto matmul = make_shared<v0::MatMul>(lhs_bea, rhs_reshape, true, false);
-//
-//        auto output_reshape = reshape(matmul, {0, 1, 3, 4}, dims);
-//
-//        model =
-//            make_shared<Model>(NodeVector{output_reshape}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//        manager.register_pass<pass::DeReshapeMatMul>();
-//    }
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_bea = make_shared<v1::Multiply>(lhs_input, v0::Constant::create(element::f32, {}, {0.125}));
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto matmul = make_shared<v0::MatMul>(lhs_bea, rhs_input);
-//        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//    }
-//}
-//
-//TEST_F(TransformationTestsF, DeReshapeMatMulWithScalarBEA_RHS_4_3_4) {
-//    // Optimizing Reshapes: 4D -> 3D -> 4D
-//    const DimensionTestHelper dims(6);
-//
-//    PartialShape lhs_original_pshape = dims.make_shape({0, 1, 2, 3});
-//    PartialShape rhs_original_pshape = dims.make_shape({0, 1, 2, 4});
-//
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_reshape = reshape(lhs_input, {5, 2, 3}, dims);
-//
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_reshape = reshape(rhs_input, {5, 2, 4}, dims);
-//        auto rhs_bea = make_shared<v1::Multiply>(rhs_reshape, v0::Constant::create(element::f32, {}, {0.125}));
-//
-//        auto matmul = make_shared<v0::MatMul>(lhs_reshape, rhs_bea, true, false);
-//
-//        auto output_reshape = reshape(matmul, {0, 1, 3, 4}, dims);
-//
-//        model =
-//            make_shared<Model>(NodeVector{output_reshape}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//        manager.register_pass<pass::DeReshapeMatMul>();
-//    }
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_bea = make_shared<v1::Multiply>(rhs_input, v0::Constant::create(element::f32, {}, {0.125}));
-//        auto matmul = make_shared<v0::MatMul>(lhs_input, rhs_bea);
-//        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//    }
-//}
-//
-//TEST_F(TransformationTestsF, DeReshapeMatMulWithScalarBEA_Both_4_3_4) {
-//    // Optimizing Reshapes: 4D -> 3D -> 4D
-//    const DimensionTestHelper dims(6);
-//
-//    PartialShape lhs_original_pshape = dims.make_shape({0, 1, 2, 3});
-//    PartialShape rhs_original_pshape = dims.make_shape({0, 1, 2, 4});
-//
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_reshape = reshape(lhs_input, {5, 2, 3}, dims);
-//        auto lhs_bea = make_shared<v1::Multiply>(lhs_reshape, v0::Constant::create(element::f32, {}, {0.125}));
-//
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_reshape = reshape(rhs_input, {5, 2, 4}, dims);
-//        auto rhs_bea = make_shared<v1::Multiply>(rhs_reshape, v0::Constant::create(element::f32, {}, {0.125}));
-//
-//        auto matmul = make_shared<v0::MatMul>(lhs_bea, rhs_bea, true, false);
-//
-//        auto output_reshape = reshape(matmul, {0, 1, 3, 4}, dims);
-//
-//        model =
-//            make_shared<Model>(NodeVector{output_reshape}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//        manager.register_pass<pass::DeReshapeMatMul>();
-//    }
-//    {
-//        auto lhs_input = make_shared<v0::Parameter>(element::f32, lhs_original_pshape);
-//        auto lhs_bea = make_shared<v1::Multiply>(lhs_input, v0::Constant::create(element::f32, {}, {0.125}));
-//        auto rhs_input = make_shared<v0::Parameter>(element::f32, rhs_original_pshape);
-//        auto rhs_bea = make_shared<v1::Multiply>(rhs_input, v0::Constant::create(element::f32, {}, {0.125}));
-//        auto matmul = make_shared<v0::MatMul>(lhs_bea, rhs_bea);
-//        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{lhs_input, rhs_input, dims.get_parameter()});
-//    }
-//}
