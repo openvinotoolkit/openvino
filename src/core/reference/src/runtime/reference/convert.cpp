@@ -283,10 +283,14 @@ void jit_count_out_of_range_vec_prepare<float, float16>(jit::Generator& gen) {
     static const float f16_min_neg = -ov::float16::from_bits(0x0001);
     static const int32_t i32_one = 1;
 
-    static const float max_pos_bounds[8] = {f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos};
-    static const float max_neg_bounds[8] = {f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg};
-    static const float min_pos_bounds[8] = {f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos};
-    static const float min_neg_bounds[8] = {f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg};
+    static const float max_pos_bounds[8] =
+        {f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos, f16_max_pos};
+    static const float max_neg_bounds[8] =
+        {f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg, f16_max_neg};
+    static const float min_pos_bounds[8] =
+        {f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos, f16_min_pos};
+    static const float min_neg_bounds[8] =
+        {f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg, f16_min_neg};
     static const int32_t i32_ones[8] = {i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one, i32_one};
 
     auto load_vec = [&gen, &addr](Xbyak::Ymm vec, size_t ptr) {
@@ -323,7 +327,7 @@ void jit_count_out_of_range_vec<float, float16>(jit::Generator& gen, const Xbyak
 
     // std::abs(data) < ov::float16::from_bits(0x0001)
     gen.vmovups(data_vec, gen.yword[data]);
-    gen.vcmpps(tmp_vec,  data_vec, f16_min_pos_vec, _cmp_lt_os);
+    gen.vcmpps(tmp_vec, data_vec, f16_min_pos_vec, _cmp_lt_os);
     gen.vcmpps(mask_vec, data_vec, f16_min_neg_vec, _cmp_gt_os);
     gen.vandps(mask_vec, mask_vec, tmp_vec);
 
@@ -349,8 +353,8 @@ void jit_count_out_of_range_vec<float, float16>(jit::Generator& gen, const Xbyak
 
 template <>
 void jit_count_out_of_range_vec_finalize<float, float16>(jit::Generator& gen, const Xbyak::RegExp& dst) {
-    auto tmp_vec_xmm0 = gen.xmm2; // reuse mask_vec
-    auto tmp_vec_xmm1 = gen.xmm3; // reuse tmp_vec
+    auto tmp_vec_xmm0 = gen.xmm2;  // reuse mask_vec
+    auto tmp_vec_xmm1 = gen.xmm3;  // reuse tmp_vec
     auto accum_vec_ymm = gen.ymm4;
     auto accum_vec_xmm = gen.xmm4;
 
@@ -400,7 +404,8 @@ class jit_count_out_of_range : public jit::Generator {
         foreach (rsi, 1, r8, [&, this](const Xbyak::Reg64& idx) {
             ctx.count_out_of_range(*this, reg_src);
             add(reg_src, static_cast<uint32_t>(ctx.data.type_size * vlen));
-        });
+        })
+            ;
 
         L(tail);
 
@@ -413,7 +418,7 @@ class jit_count_out_of_range : public jit::Generator {
         sub(rsp, vlen * sizeof(float));
         mov(r8, rsp);
 
-        auto tmp_vec = ymm2; // reuse mask_vec
+        auto tmp_vec = ymm2;  // reuse mask_vec
         vpxor(tmp_vec, tmp_vec, tmp_vec);
         vmovups(yword[r8], tmp_vec);
 
@@ -443,10 +448,11 @@ public:
     template <typename data_t, typename range_t>
     static fn_t get() {
         if (is_x64() && mayiuse(avx2)) {
-            static const jit_count_out_of_range::context_t context{{sizeof(data_t), &jit::Generator::copy<data_t>},
-                                                                   jit_count_out_of_range_vec_prepare<data_t, range_t>,
-                                                                   jit_count_out_of_range_vec<data_t, range_t>,
-                                                                   jit_count_out_of_range_vec_finalize<data_t, range_t>};
+            static const jit_count_out_of_range::context_t context{
+                {sizeof(data_t), &jit::Generator::copy<data_t>},
+                jit_count_out_of_range_vec_prepare<data_t, range_t>,
+                jit_count_out_of_range_vec<data_t, range_t>,
+                jit_count_out_of_range_vec_finalize<data_t, range_t>};
 
             static jit_count_out_of_range generator(context);
 
