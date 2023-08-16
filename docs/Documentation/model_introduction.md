@@ -27,7 +27,7 @@ The ``read_model()`` method reads a model from a file and produces `openvino.run
 
 You can also convert a model from original framework to `openvino.runtime.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__ using ``convert_model()`` method. More details about ``convert_model()`` are provided in :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` .
 
-``ov.Model`` can be serialized to IR using the ``ov.serialize()`` method. The serialized IR can be further optimized using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` that applies post-training quantization methods.
+``ov.Model`` can be saved to IR using the ``ov.save_model()`` method. The saved IR can be further optimized using :doc:`Neural Network Compression Framework (NNCF) <ptq_introduction>` that applies post-training quantization methods.
 
 .. note::
 

@@ -17,7 +17,7 @@ TensorFlow Lite models are supported via FrontEnd API. You may skip conversion t
 
 .. important::
 
-   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or serialize into a file for subsequent use.
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or save to a file for subsequent use.
 
 Supported TensorFlow Lite Layers
 ###################################

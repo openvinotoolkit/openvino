@@ -36,7 +36,7 @@ Model conversion process assumes you have an ONNX model that was directly downlo
 
       .. important::
 
-         The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
+         The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or save to a file for subsequent use.
 
    .. tab-item:: CLI
       :sync: cli

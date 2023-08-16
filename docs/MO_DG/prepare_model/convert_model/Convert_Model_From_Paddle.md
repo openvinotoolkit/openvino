@@ -111,7 +111,7 @@ When you convert certain PaddlePaddle models, you may need to set the ``example_
 
 .. important::
 
-   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or serialize into a file for subsequent use.
+   The ``convert_model()`` method returns ``ov.model`` that you can optimize, compile, or save to a file for subsequent use.
 
 
 Supported PaddlePaddle Layers
