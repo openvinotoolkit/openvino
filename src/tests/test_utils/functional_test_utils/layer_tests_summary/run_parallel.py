@@ -434,10 +434,12 @@ class TestParallelRunner:
         cached_test_dict, runtime_test_dist = self.__generate_test_lists(test_dict_cache, test_dict_runtime)
 
         self._total_test_cnt = 0
+        cached_test_list = list()
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
             cached_test_list = self.__prepare_smart_filters(cached_test_dict)
             cached_test_list.reverse()
+        runtime_test_list = list()
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
             runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
