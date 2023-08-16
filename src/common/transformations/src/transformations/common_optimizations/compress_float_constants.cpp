@@ -47,8 +47,8 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     }
 
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    float keep_threshold = 0.75f;
-    float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+    const float keep_threshold = 0.75f;
+    const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
     if (out_of_range_proportion >= keep_threshold) {
         return nullptr;
@@ -99,8 +99,8 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-            float keep_threshold = 0.75f;
-            float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
+            const float keep_threshold = 0.75f;
+            const float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
             if (out_of_range_proportion >= keep_threshold)
                 return false;
 
