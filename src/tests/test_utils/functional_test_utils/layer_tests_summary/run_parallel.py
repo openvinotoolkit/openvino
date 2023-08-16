@@ -398,7 +398,7 @@ class TestParallelRunner:
 
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_item in tests_sorted :
-            test_pattern = f'"{self.__replace_restricted_symbols(test_item[0])}"'
+            test_pattern = f'{self.__replace_restricted_symbols(test_item[0])}'
             test_pattern += ":" if self._split_unit == "test" else "*:"
             test_time = test_item[1]
 
@@ -420,7 +420,7 @@ class TestParallelRunner:
         # logging for debug
         for i in range(len(res_test_filters)):
             filter = res_test_filters[i]
-            cnt = filter.count('\":')
+            cnt = filter.count(':')
             self._total_test_cnt += cnt
             # logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
@@ -435,6 +435,7 @@ class TestParallelRunner:
 
         cached_test_dict, runtime_test_dist = self.__generate_test_lists(test_dict_cache, test_dict_runtime)
 
+        self._total_test_cnt = 0
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
             cached_test_dict = self.__prepare_smart_filters(cached_test_dict)
@@ -564,7 +565,7 @@ class TestParallelRunner:
             with open(test_log_filename, "w") as log:
                 log.writelines(test_log)
                 log.close()
-            saved_tests.append(f'\"{test_name}\":')
+            saved_tests.append(test_name)
             return True
 
         logs_dir = os.path.join(self._working_dir, "logs")
