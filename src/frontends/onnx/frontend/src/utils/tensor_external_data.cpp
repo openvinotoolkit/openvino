@@ -12,6 +12,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
@@ -34,7 +35,8 @@ TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor
     }
 }
 
-Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir) const {
+Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
+                                                                     MappedMemoryHandles cache) const {
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto full_path = file_util::path_join(model_dir, m_data_location);
     NGRAPH_SUPPRESS_DEPRECATED_END
@@ -42,13 +44,21 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
     }
-    auto mapped_memory = ov::load_mmap_object(full_path, m_data_length, m_offset);
+    auto cached_mapped_memory = cache->find(full_path);
+    std::shared_ptr<ov::MappedMemory> mapped_memory;
+    if (cached_mapped_memory != cache->end()) {
+        mapped_memory = cached_mapped_memory->second;
+    } else {
+        mapped_memory = ov::load_mmap_object(full_path);
+        (*cache)[full_path] = mapped_memory;
+    }
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
     }
-    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                              mapped_memory->size(),
-                                                                                              mapped_memory);
+    return std::make_shared<ngraph::runtime::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        mapped_memory->data() + m_offset,
+        m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset,
+        mapped_memory);
 }
 
 Buffer<ngraph::runtime::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {

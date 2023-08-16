@@ -32,7 +32,7 @@
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-#include <utils/shape_inference/shape_inference_cpu.hpp>
+#include <shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 
@@ -652,7 +652,7 @@ protected:
     void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
 
     bool isDynamic = false;
 

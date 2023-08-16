@@ -1738,8 +1738,8 @@ TEST(fully_connected_onednn, impl_replacement_with_cldnn) {
     ASSERT_EQ(-2.25f, output_ptr[2]);
     ASSERT_EQ(3.0f, output_ptr[3]);
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();
@@ -2512,7 +2512,9 @@ TEST(fully_connected_gpu, has_cached_weights_reorder) {
     auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
     ASSERT_TRUE(reorder_kernel_params != nullptr);
     auto reorder_impl = network.get_program()->get_implementations_cache().get(*reorder_kernel_params);
-    ASSERT_TRUE(reorder_impl != nullptr);
+    // cldnn shape agnostic kernel reorder is done in build time
+    // therefore the reorder is no longer in cache, but the program_node of weight data is in the preferred format
+    ASSERT_TRUE(reorder_impl == nullptr);
 
     auto out_l = network.get_output_layout(outputs.begin()->first);
     ASSERT_EQ(output_prim_mem->get_layout().batch(), align_to(input_b, 8)); // fake_alignment
