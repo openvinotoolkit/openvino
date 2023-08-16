@@ -198,6 +198,11 @@ std::vector<TRShape> shape_infer(const Node* op,
             const auto min_selected_boxes =
                 std::min(num_boxes.get_length(), static_cast<V>(max_out_boxes_per_class_val));
             selected_boxes = static_output ? TDim{min_selected_boxes} : TDim{0, min_selected_boxes};
+        } else if (scores_rank.is_static() && num_boxes.get_max_length() != -1 &&
+                   scores_shape[0].get_max_length() != -1 && scores_shape[1].get_max_length() != -1) {
+            const auto min_selected_boxes =
+                std::min(num_boxes.get_max_length(), static_cast<V>(max_out_boxes_per_class_val));
+            selected_boxes = static_output ? TDim{min_selected_boxes} : TDim{0, min_selected_boxes};
         }
 
         if (scores_rank.is_static()) {
