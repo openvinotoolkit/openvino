@@ -70,7 +70,7 @@ public:
         using Ptr = std::shared_ptr<VariableState>;
 
         VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { mem }, is_set { false } {
+            memory { std::move(mem) }, is_set { false } {
         }
         void set_memory(cldnn::memory_ptr new_mem) {
             memory = new_mem;

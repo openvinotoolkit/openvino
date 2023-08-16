@@ -52,6 +52,7 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,

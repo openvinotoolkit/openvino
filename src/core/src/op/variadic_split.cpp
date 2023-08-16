@@ -51,6 +51,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace variadic_split {
 namespace {
 inline bool evaluate(const HostTensorPtr& in,

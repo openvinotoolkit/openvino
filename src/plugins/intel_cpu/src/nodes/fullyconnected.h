@@ -56,6 +56,15 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeExecutedInInt8() const override;
+    void keepWeightsNonTransposed(bool weightsNonTransposed) {
+        this->weightsNonTransposed = weightsNonTransposed;
+    }
+
+    void fuseDecompressionMultiply(const NodePtr& constData);
+    const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
+
+    void fuseDecompressionSubtract(const NodePtr& constData);
+    const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -93,6 +102,7 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
+    void fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues);
 
     // sparse weights
     bool useSparseWeights = false;
@@ -100,6 +110,21 @@ private:
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
     VectorDims expectedBiasDims {};
+    bool useMlas = false;
+#ifdef OV_CPU_WITH_MLAS
+    int64_t M, N, K;
+    MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
+#endif
+
+    bool useWeightsDecompressionImpl = false;
+    std::vector<float> decompressionSubtract;
+    std::vector<float> decompressionMultiply;
+
+    // FC with transposed weights
+    bool weightsNonTransposed = false;
+    DnnlMemoryDescPtr makeTransposedWeightDescriptor();
 };
 
 }   // namespace node

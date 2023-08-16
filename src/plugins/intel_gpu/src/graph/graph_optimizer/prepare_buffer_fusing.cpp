@@ -12,6 +12,7 @@
 #include "depth_to_space_inst.h"
 #include "resample_inst.h"
 #include "loop_inst.h"
+#include "strided_slice_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
@@ -58,7 +59,8 @@ auto available_pred = [](const program_node& input) {
     if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()))
+        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
+        !input.is_type<strided_slice>())
         return false;
     return true;
 };
@@ -69,6 +71,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                          bool is_runtime) {
     if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
         return false;
+    bool do_runtime_buffer_fusing = true;
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        do_runtime_buffer_fusing = false;
+    }
     auto pred_nodes = concat_node.get_dependencies();
     for (auto p : pred_nodes) {
         // TODO : In dynamic shape only one user is allowed for optimzied concat
@@ -79,9 +86,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // for simple patterns where the concat is the only user of all the preds.
         // Also cascaded concat is not handled for dynamic shape. for now.
         // If we have more flexible exec order handling in the future we'll be able to remove this condition below
-        if (p.first->is_dynamic() && p.first->get_users().size() > 1)
+        if (p.first->is_dynamic() && (!do_runtime_buffer_fusing || p.first->get_users().size() > 1))
             return false;
-        if (concat_node.is_dynamic() && !p.first->is_dynamic())
+        if (concat_node.is_dynamic() && (!do_runtime_buffer_fusing || !p.first->is_dynamic()))
             return false;
     }
     // if this is called in primitive_inst::execute() and concat is static, that concat should already be optimized in build time, not in runtime.
@@ -110,7 +117,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if (pred.first->is_dynamic() && is_runtime) {
+        if (!pred.first->is_dynamic() || is_runtime) {
             if (!pred.first->is_padding_supported(concat_axis, lower_padd_in_axis))
                 return false;
         }

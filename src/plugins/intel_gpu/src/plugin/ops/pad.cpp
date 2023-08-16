@@ -44,7 +44,8 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
         auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         if (const_node) {
-            OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value),
+            const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
+            OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),
                             "Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
             is_value_const = true;
         }

@@ -18,6 +18,7 @@ PG_WARN = "PG WARN"
 REF_COEF = "[ CONFORMANCE ] Influence coefficient: "
 
 IS_WIN = "windows" in platform or "win32" in platform
+IS_MACOS = "darwin" in platform
 
 OS_SCRIPT_EXT = ".bat" if IS_WIN else ""
 OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
@@ -27,7 +28,7 @@ PIP_NAME = "pip" if IS_WIN else "pip3"
 LD_LIB_PATH_NAME = "PATH" if IS_WIN else "LD_LIBRARY_PATH"
 
 OPENVINO_NAME = 'openvino'
-PY_OPENVINO = "python_api"
+PY_OPENVINO = "python"
 
 DEBUG_DIR = "Debug"
 RELEASE_DIR = "Release"

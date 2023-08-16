@@ -36,7 +36,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> get_framework_node_with_out_name(co
 }  // namespace
 
 TEST(ONNXFeConvertPartially, insert_framework_node_if_unsupported) {
-    const auto path = CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
+    const auto path = ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
                                                                 "unsupported_ops/add_unsupported.onnx");
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = convert_partially(path));
@@ -50,7 +50,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_unsupported) {
 }
 
 TEST(ONNXFeConvertPartially, insert_more_framework_nodes_if_unsupported) {
-    const auto path = CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
+    const auto path = ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) +
                                                                 "unsupported_ops/two_unsupported_nodes.onnx");
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = convert_partially(path));
@@ -69,7 +69,7 @@ TEST(ONNXFeConvertPartially, insert_more_framework_nodes_if_unsupported) {
 // validation error - onnx/instance_norm_bad_scale_type.onnx
 TEST(ONNXFeConvertPartially, insert_framework_node_if_onnx_validation_exception) {
     const auto path =
-        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "instance_norm_bad_scale_type.onnx");
+        ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "instance_norm_bad_scale_type.onnx");
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = convert_partially(path));
     ASSERT_TRUE(model);
@@ -81,7 +81,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_onnx_validation_exception)
 
 TEST(ONNXFeConvertPartially, insert_framework_node_if_other_translation_exception) {
     const auto path =
-        CommonTestUtils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "depth_to_space_bad_mode.onnx");
+        ov::test::utils::getModelFromTestModelZoo(std::string(ONNX_TEST_MODELS) + "depth_to_space_bad_mode.onnx");
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = convert_partially(path));
     ASSERT_TRUE(model);
@@ -92,7 +92,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_other_translation_exceptio
 }
 
 TEST(ONNXFeConvertPartially, insert_framework_nodes_if_both_unsupported_and_other_translation_exception) {
-    const auto path = CommonTestUtils::getModelFromTestModelZoo(
+    const auto path = ov::test::utils::getModelFromTestModelZoo(
         std::string(ONNX_TEST_MODELS) + "unsupported_ops/unsupported_add_and_incorrect_dts.onnx");
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = convert_partially(path));

@@ -505,6 +505,18 @@ def two_params_function_reference(shapes, const_value):
     return Model([mul], parameter_list, "test")
 
 
+def two_params_function_reference_fp16_compressed(shapes, const_value):
+    param1 = ov.opset8.parameter(shapes[0], dtype=np.float32)
+    param2 = ov.opset8.parameter(shapes[1], dtype=np.float32)
+    const_value = ov.opset8.constant(const_value, dtype=np.float16)
+    const_decompress = ov.opset8.convert(const_value, np.float32)
+    sigm = ov.opset8.sigmoid(param1)
+    add = ov.opset8.add(sigm, param2)
+    mul = ov.opset8.multiply(add, const_decompress)
+    parameter_list = [param1, param2]
+    return Model([mul], parameter_list, "test")
+
+
 def create_keras_layer_with_example_input_1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
     example_input = (np.random.rand(1,2,3).astype(np.float32), np.random.rand(1,2,3).astype(np.float32))
@@ -550,6 +562,22 @@ def create_keras_layer_with_tf_function_call(tmp_dir):
             return sigm * self.var1
     model = LayerModel()
     model_ref = two_params_function_reference([[1, 2], [1, 2]], [[5.0]])
+    return model, model_ref, {'compress_to_fp16': False}
+
+
+def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir):
+    import tensorflow as tf
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.var1 = tf.Variable(5.0)
+
+        @tf.function(input_signature=[tf.TensorSpec([1, 2], tf.float32), tf.TensorSpec([1, 2], tf.float32)])
+        def __call__(self, input1, input2):
+            sigm = tf.nn.sigmoid(input1) + input2
+            return sigm * self.var1
+    model = LayerModel()
+    model_ref = two_params_function_reference([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {}
 
 
@@ -568,7 +596,7 @@ def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
     example_input = [np.random.rand(2, 3).astype(np.float32), np.random.rand(2, 3).astype(np.float32)]
 
     model_ref = two_params_function_reference([[2, 3], [2, 3]], [[5.0]])
-    return model, model_ref, {'example_input': example_input}
+    return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
 def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
@@ -586,7 +614,7 @@ def create_keras_layer_with_tf_function_call_no_signature_single_input(tmp_dir):
     example_input = np.random.rand(2, 3).astype(np.float32)
 
     model_ref = single_param_function_reference([2, 3], [[5.0]])
-    return model, model_ref, {'example_input': example_input}
+    return model, model_ref, {'example_input': example_input, 'compress_to_fp16': False}
 
 
 def create_keras_layer_with_string_tensor(tmp_dir):
@@ -611,6 +639,86 @@ def create_keras_layer_with_string_tensor(tmp_dir):
 
     return model, model_ref, {}
 
+def shape_of_const_fold_test(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    shape_const = ov.opset8.constant([1, 4, 10, 10], dtype=np.int32)
+    reshape = ov.opset8.reshape(param1, shape_const, False)
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, reshape)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {}
+
+
+def static_shape_true(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, param1)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {'use_convert_model_from_mo': True, 'static_shape': True}
+
+def static_shape_false(temp_dir):
+    import tensorflow as tf
+
+    tf.keras.backend.clear_session()
+    tf.compat.v1.reset_default_graph()
+
+    # TF model
+    x1 = tf.keras.Input(shape=[4, 10, 10], name="Input", batch_size=1)
+    shape = tf.shape(x1)
+    rank = tf.cast(tf.shape(shape), dtype=tf.float32)
+    reshape = tf.reshape(x1, shape)
+    mul = rank * reshape
+    keras_net = tf.keras.Model(inputs=[x1], outputs=[mul])
+
+    # Ref model
+    param1 = ov.opset8.parameter(PartialShape([1, 4, 10, 10]))
+    shape_const = ov.opset8.constant([1, 4, 10, 10], dtype=np.int32)
+    reshape = ov.opset8.reshape(param1, shape_const, False)
+    mul_const = ov.opset8.constant([[[[4]]]], dtype=np.float32)
+    mul = ov.opset8.multiply(mul_const, reshape)
+
+    parameter_list = [param1]
+    model_ref = Model([mul], parameter_list, "test")
+    tf.keras.backend.clear_session()
+
+    return keras_net, model_ref, {'use_convert_model_from_mo': True, 'static_shape': False}
 
 class TestMoConvertTF(CommonMOConvertTest):
     test_data = [
@@ -631,9 +739,13 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case3,
         create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
+        create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
+        shape_of_const_fold_test,
+        static_shape_true,
+        static_shape_false,
 
         # TF1
         create_tf_graph,
@@ -641,7 +753,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf1_wrap_function,
         create_tf_session,
     ]
-
     test_data_legacy = [
         # TF2
         create_keras_model,
@@ -671,6 +782,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
         test_params = {'input_model': fw_model}
+        test_params.update({'use_convert_model_from_mo': True})
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
@@ -681,6 +793,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         saved_model_dir, graph_ref = create_tf_saved_model_dir(temp_dir)
 
         test_params = {'input_model': saved_model_dir}
+        test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
 
         test_params = {'input_model': saved_model_dir}
@@ -710,7 +823,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         test_input = np.array(7.).astype(np.float32)
 
         # Convert model to OV
-        ov_model = convert_model(keras_model, input_shape=[1])
+        ov_model = convert_model(keras_model, input=[1], share_weights=True)
         cmp_model = compile_model(ov_model)
 
         # Check model inference
@@ -728,13 +841,12 @@ class TestMoConvertTF(CommonMOConvertTest):
             arr[2] = 2
 
         # Check model inference
+        cmp_model = compile_model(ov_model)
         ov_infer2 = cmp_model(test_input)
         fw_infer2 = keras_model(test_input).numpy()
 
         assert np.array_equal(ov_infer2['Identity:0'], fw_infer2)
         assert np.array_equal(ov_infer2['Identity:0'], [ 0., 8., 16.])
-
-
 
     def test_memory_loss(self, ie_device, precision, ir_version, temp_dir):
         # This test checks that the memory allocated for constants
@@ -742,7 +854,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         import tensorflow as tf
         tf.compat.v1.reset_default_graph()
 
-        from openvino.tools.ovc import convert_model
+        from openvino.tools.mo import convert_model
         from openvino.runtime import compile_model
         import gc
 
@@ -781,6 +893,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         gc.collect()
 
         # Check model inference
+        cmp_model = compile_model(ov_model)
         ov_infer2 = cmp_model(test_input, ie_device)
 
         feed_dict = {"Input:0": test_input}
@@ -790,13 +903,45 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer2, {"add:0": fw_infer2}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer1, {"add:0": [2.6, 9.6, 12.4]}, eps)
 
+    def test_tensor_names(self, ie_device, precision, ir_version, temp_dir):
+        import tensorflow as tf
+        class LayerModel(tf.Module):
+            def __init__(self):
+                super(LayerModel, self).__init__()
+                self.var1 = tf.Variable([7., 5., 6.], name='var1')
+                self.var2 = tf.Variable([5., 7., 3.], name='var2')
+                self.var3 = tf.Variable([5., 7., 3.], name='var2')
+
+
+            @tf.function
+            def sub_function(self, input):
+                return input + self.var1 + self.var2 + self.var3
+
+            @tf.function()
+            def __call__(self, input):
+                return self.sub_function(input)
+
+        from openvino.tools.ovc import convert_model
+        model = LayerModel()
+        ov_model = convert_model(model)
+
+        ov_model.outputs[0].get_tensor().set_names({"name1"})
+        assert ov_model.outputs[0].names == {"name1"}
+
+        ov_model.validate_nodes_and_infer_types()
+        assert ov_model.outputs[0].names == {"name1"}
+
+        ov_model.outputs[0].get_tensor().set_names({"name2"})
+        assert ov_model.outputs[0].names == {"name2"}
+
+
 
 class TFConvertTest(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_function_no_signature(self):
         import tensorflow as tf
-        from openvino.tools.ovc import convert_model
+        from openvino.tools.mo import convert_model
 
         @tf.function()
         def function(x1, x2):
@@ -823,7 +968,7 @@ class TestTFLoadByModel(unittest.TestCase):
             return tf_net
         from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
         from openvino.frontend import FrontEndManager
-        model = GraphIteratorTFGraph(simple_tf_model())
+        model = GraphIteratorTFGraph(simple_tf_model(), True)
         fem = FrontEndManager()
         fe = fem.load_by_model(model)
         assert fe is not None

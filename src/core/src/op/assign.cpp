@@ -82,6 +82,7 @@ bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs,
                               const EvaluationContext& evaluation_context) const {
@@ -93,7 +94,6 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 
     const auto& variable_values = variable_context.get_variable_values();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     // automatically allocate memory if not provided by user
     if (variable_values.find(m_variable) == variable_values.end()) {
         auto host_tensor =
@@ -104,7 +104,6 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     const auto var_value = variable_values.find(m_variable)->second;
     var_value->set_reset(false);
     const auto& buffer = var_value->get_value();
-    OPENVINO_SUPPRESS_DEPRECATED_END
     buffer->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
@@ -114,6 +113,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v6::Assign::has_evaluate() const {
     OV_OP_SCOPE(v1_Assign_has_evaluate);

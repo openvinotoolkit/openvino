@@ -17,7 +17,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
     ngraph::Shape strides(2, 1);
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const Shape const_shape {channels, channels, 3, 3};
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(const_shape), -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(const_shape), -10., 10.);
     auto weights = std::make_shared<op::v0::Constant>(precision, const_shape, const_values);
     auto conv = std::make_shared<op::v1::Convolution>(conv_param, weights, strides, pad_begin, pad_end, strides);
 
@@ -39,7 +39,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     std::vector<ptrdiff_t> pad_begin(2, 1), pad_end(2, 1);
     const auto channels = static_cast<size_t>(input_shapes[0][1].get_length());
     const Shape const_shape {channels, channels, 3, 3};
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(const_shape), -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(const_shape), -10., 10.);
     auto weights = std::make_shared<op::v0::Constant>(precision, const_shape, const_values);
     auto conv = std::make_shared<op::v1::Convolution>(conv_param, weights, strides, pad_begin, pad_end, strides);
 

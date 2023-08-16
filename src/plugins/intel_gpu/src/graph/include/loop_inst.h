@@ -254,7 +254,7 @@ public:
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
-                body_output_prim.reset(new mutable_data(body_output->first, mem));
+                body_output_prim.reset(new mutable_data(body_output->first, std::move(mem)));
             }
         }
     }
@@ -351,9 +351,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             std::vector<memory::ptr> _from_mems, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = CONCAT_OUTPUT):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
+            to_primitive(std::move(_to_primitive)),
             from_mems(_from_mems),
-            initial_mem(_initial_mem),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -364,9 +364,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            from_mems{_from_mem},
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            from_mems{std::move(_from_mem)},
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -377,8 +377,8 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -402,7 +402,7 @@ public:
                     mem1->copy_from(stream, *initial_mem);
                 } else {
                     memory::ptr mem2 = from_primitive->output_memory_ptr();
-                    to_primitive->set_output_memory(mem2);
+                    to_primitive->set_output_memory(std::move(mem2));
                     from_primitive->set_output_memory(mem1);
                 }
             }
