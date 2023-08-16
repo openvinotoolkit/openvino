@@ -2,6 +2,7 @@ const { addon: ov } = require('openvinojs-node');
 
 const args = require('args');
 const cv2 = require('opencv.js');
+const util = require('node:util');
 const { getImageData } = require('../helpers.js');
 
 args.options([{
@@ -12,22 +13,16 @@ args.options([{
 }, {
   name: 'device',
 }]);
-const parsedArgs = args.parse(process.argv);
-
-// Parsing and validation of input arguments
-// if (process.argv.length !== 5)
-//   throw new Error(`Usage: ${process.argv[1]} <path_to_model> `
-//     + '<path_to_image> <device_name>');
-
-const { model: modelPath, device: deviceName, images } = parsedArgs;
+const { model: modelPath, device: deviceName, img: images } =
+  args.parse(process.argv);
 
 main(modelPath, images, deviceName);
 
-function completionCallback(inferRequest, imagePath) {
-  const [resultInfer] = inferRequest.getTensors();
-  const predictions = Array.from(resultInfer.data);
-
-  // TODO: add sorting by probability
+function completionCallback(result, imagePath) {
+  const predictions = Array.from(result.data)
+    .map((prediction, classId) => ({ prediction, classId }))
+    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
+      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
 
   console.log(`Image path: ${imagePath}`);
   console.log('Top 10 results:');
@@ -39,7 +34,7 @@ function completionCallback(inferRequest, imagePath) {
   console.log();
 }
 
-async function main(modelPath, imagePath, deviceName) {
+async function main(modelPath, images, deviceName) {
   //----------------- Step 1. Initialize OpenVINO Runtime Core -----------------
   console.log('Creating OpenVINO Runtime Core');
   const core = new ov.Core();
@@ -59,7 +54,7 @@ async function main(modelPath, imagePath, deviceName) {
   // Read input image
   const imagesData = [];
 
-  for (const imagePath in images)
+  for (const imagePath of images)
     imagesData.push(await getImageData(imagePath));
 
   const tensors = imagesData.map((imgData) => {
@@ -68,6 +63,7 @@ async function main(modelPath, imagePath, deviceName) {
     const image = new cv2.Mat();
     // The MobileNet model expects images in RGB format.
     cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
+    cv2.resize(image, image, new cv2.Size(224, 224));
 
     const tensorData = new Float32Array(image.data);
     const shape = [1, image.rows, image.cols, 3];
@@ -88,20 +84,27 @@ async function main(modelPath, imagePath, deviceName) {
   //----------------- Step 5. Loading model to the device ----------------------
   console.log('Loading the model to the plugin');
   const compiledModel = core.compileModel(model, deviceName);
+  const outputName = compiledModel.output(0).toString();
 
   //----------------- Step 6. Create infer request queue -----------------------
   console.log('Starting inference in asynchronous mode');
 
-  // create async queue with optimal number of infer requests
-  const inferQueue = ov.AsyncInferQueue(compiledModel);
-  inferQueue.setCallback(completionCallback);
+  // Create infer request
+  const inferRequest = compiledModel.createInferRequest();
+
+  const promises = tensors.map((t, i) => {
+    const promisifiedAsyncInfer = util.promisify(ov.asyncInfer);
+    const inferPromise = promisifiedAsyncInfer(inferRequest, [t]);
+
+    inferPromise.then(result =>
+      completionCallback(result[outputName], images[i]));
+
+    return inferPromise;
+  });
 
   //----------------- Step 7. Do inference -------------------------------------
 
-  const inferencePromises = tensors.map((t, i) =>
-    inferQueue.startAsync({ 0: t }, images[i]));
-
-  await Promise.all(inferencePromises);
+  await Promise.all(promises);
   console.log('All inferences executed');
 
   console.log('\nThis sample is an API example, for any performance '
