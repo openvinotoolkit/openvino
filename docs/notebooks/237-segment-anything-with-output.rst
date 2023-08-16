@@ -1833,11 +1833,6 @@ activations.
     model quantization finished
 
 
-.. parsed-literal::
-
-    
-
-
 .. code:: ipython3
 
     ov_encoder_path_int8 = "sam_image_encoder_int8.xml"

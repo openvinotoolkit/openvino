@@ -1244,11 +1244,3 @@ select device from dropdown list for running inference using OpenVINO
 
     <div><iframe src="https://6927b0a05729fd4297.gradio.live" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
-
-
-
-.. parsed-literal::
-
-    
-
-

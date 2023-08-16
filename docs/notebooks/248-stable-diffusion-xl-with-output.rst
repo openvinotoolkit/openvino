@@ -275,14 +275,6 @@ numpy random state with a specific seed for results reproducibility.
     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-
-
-.. parsed-literal::
-
-    
-
-
-
 .. code:: ipython3
 
     demo.close()
@@ -430,14 +422,6 @@ select device from dropdown list for running inference using OpenVINO
 .. raw:: html
 
     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
-
-
-
-.. parsed-literal::
-
-    
-
 
 
 .. code:: ipython3

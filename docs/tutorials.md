@@ -123,9 +123,6 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `109-throughput-tricks <notebooks/109-throughput-tricks-with-output.html>`__                                                                       | Performance tricks for throughput mode in OpenVINO™.                                                                             |
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
-
-
-
    | `110-ct-segmentation-quantize <notebooks/110-ct-scan-live-inference-with-output.html>`__ |br| |n110|                                               | Live inference of a kidney segmentation model and benchmark CT-scan data with OpenVINO.                                          |
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `110-ct-segmentation-quantize <notebooks/110-ct-segmentation-quantize-nncf-with-output.html>`__                                                    | Quantize a kidney segmentation model and show live inference.                                                                    |

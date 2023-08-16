@@ -28,18 +28,19 @@ format to OpenVINO Intermediate Representation (IR). Contents:
 -  `Convert Models Represented as Python
    Objects <#convert-models-represented-as-python-objects>`__
 
-.. code:: ipython3
+.. code-block:: ipython3
+   :force:
 
-    # Required imports. Please execute this cell first.
-    ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
-    "openvino-dev>=2023.0.1" \
-    "requests" \
-    "tqdm" \
-    "transformers[onnx]>=4.21.1" \
-    "torch==1.13.1; sys_platform == 'darwin'" \
-    "torch==1.13.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'" \
-    "torchvision==0.14.1; sys_platform == 'darwin'" \
-    "torchvision==0.14.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'"
+   # Required imports. Please execute this cell first.
+   ! pip install -q --find-links https://download.pytorch.org/whl/torch_stable.html \
+   "openvino-dev>=2023.0.1" \
+   "requests" \
+   "tqdm" \
+   "transformers[onnx]>=4.21.1" \
+   "torch==1.13.1; sys_platform == 'darwin'" \
+   "torch==1.13.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'" \
+   "torchvision==0.14.1; sys_platform == 'darwin'" \
+   "torchvision==0.14.1+cpu; sys_platform == 'linux' or platform_system == 'Windows'"
 
 OpenVINO IR format
 ------------------

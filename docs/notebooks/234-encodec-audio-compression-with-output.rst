@@ -559,11 +559,3 @@ like with the original PyTorch models.
 
     <div><iframe src="http://10.211.120.12:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
-
-
-
-.. parsed-literal::
-
-    
-
-

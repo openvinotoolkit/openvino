@@ -203,7 +203,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-.. parsed-literal::
+.. code::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
     comet_ml is installed but `COMET_API_KEY` is not set.

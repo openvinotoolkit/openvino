@@ -200,14 +200,14 @@ your model.
         model.save_pretrained(model_dir)
 
 
-.. parsed-literal::
+.. code::
 
-    Framework not specified. Using pt to export to ONNX.
-    Using framework PyTorch: 1.13.1+cpu
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      op1 = operator(*args, **kwargs)
-    Compiling the model...
-    Set CACHE_DIR to /tmp/tmpmevydbbe/model_cache
+   Framework not specified. Using pt to export to ONNX.
+   Using framework PyTorch: 1.13.1+cpu
+   /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:74: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+     op1 = operator(*args, **kwargs)
+   Compiling the model...
+   Set CACHE_DIR to /tmp/tmpmevydbbe/model_cache
 
 
 Load the tokenizer

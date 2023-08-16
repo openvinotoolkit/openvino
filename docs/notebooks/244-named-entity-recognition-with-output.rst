@@ -328,27 +328,26 @@ corresponding ``OVModelForXxx`` class. So we use
     if `fn` already had 0-th `self` argument bound or never had it in the first place.
 
 
-.. parsed-literal::
+.. code::
 
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/nncf_network.py:938: FutureWarning: Old style of accessing NNCF-specific attributes and methods on NNCFNetwork objects is deprecated. Access the NNCF-specific attrs through the NNCFInterface, which is set up as an `nncf` attribute on the compressed model object.
-    For instance, instead of `compressed_model.get_graph()` you should now write `compressed_model.nncf.get_graph()`.
-    The old style will be removed after NNCF v2.5.0
-      warning_deprecated(
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      return self._level_low.item()
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      return self._level_high.item()
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:81: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      result = operator(*args, **kwargs)
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
-      output = g.op(
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_node_shape_type_inference(
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-    /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/nncf_network.py:938: FutureWarning: Old style of accessing NNCF-specific attributes and methods on NNCFNetwork objects is deprecated. Access the NNCF-specific attrs through the NNCFInterface, which is set up as an `nncf` attribute on the compressed model object.
+   For instance, instead of `compressed_model.get_graph()` you should now write `compressed_model.nncf.get_graph()`.
+   The old style will be removed after NNCF v2.5.0
+     warning_deprecated(
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:338: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+     return self._level_low.item()
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/layers.py:346: TracerWarning: Converting a tensor to a Python number might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+     return self._level_high.item()
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:81: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+     result = operator(*args, **kwargs)
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/nncf/torch/quantization/quantize_functions.py:140: FutureWarning: 'torch.onnx._patch_torch._graph_op' is deprecated in version 1.13 and will be removed in version 1.14. Please note 'g.op()' is to be removed from torch.Graph. Please open a GitHub issue if you need this functionality..
+     output = g.op(
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/_patch_torch.py:81: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+     _C._jit_pass_onnx_node_shape_type_inference(
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+     _C._jit_pass_onnx_graph_shape_type_inference(
+   /home/ea/work/notebooks_convert/notebooks_conv_env/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of org.openvinotoolkit::FakeQuantize type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+     _C._jit_pass_onnx_graph_shape_type_inference(
 
 .. parsed-literal::
 
