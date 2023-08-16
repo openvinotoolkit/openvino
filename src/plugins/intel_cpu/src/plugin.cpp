@@ -489,7 +489,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     auto nGraphFunc = clonedNetwork.getFunction();
 
-    DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
+    DEBUG_DUMP_MODEL(nGraphFunc, "ngraph_org.cpp");
 
     Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
@@ -509,7 +509,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
     transformations.CpuSpecificOpSet();
 
-    DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));
+    DEBUG_DUMP_MODEL(nGraphFunc, "ngraph_cpu.cpp");
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
