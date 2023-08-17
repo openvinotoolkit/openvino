@@ -333,7 +333,7 @@ class TestParallelRunner:
                     pos = line.find(":")
                     time = int(line[:pos])
                     test_name = line[pos+1:].replace("\n", "")
-                    test_suite = test_name[1:test_name.find(".")]
+                    test_suite = test_name[:test_name.find(".")]
 
                     if (self._split_unit == "test") :
                         if not constants.DISABLED_PREFIX in test_name:
@@ -393,7 +393,6 @@ class TestParallelRunner:
         real_worker_num = self._worker_num * len(self._available_devices)
 
         tasks = [{"time": 0, "pattern": ""}] * real_worker_num
-
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_item in tests_sorted :
             test_pattern = f'{self.__replace_restricted_symbols(test_item[0])}'
@@ -672,7 +671,7 @@ class TestParallelRunner:
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:
-                cache_file.writelines([f"{time}:\"" + test_name + "\n" for time, test_name in test_times])
+                cache_file.writelines([f"{time}:" + test_name + "\n" for time, test_name in test_times])
                 cache_file.close()
                 logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
