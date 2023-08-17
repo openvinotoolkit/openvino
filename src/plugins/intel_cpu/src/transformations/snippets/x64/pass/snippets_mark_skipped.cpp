@@ -254,7 +254,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     ov::PartialShape matmul_shape;
     for (const auto &parent_out : node->input_values()) {
         const auto parent = parent_out.get_node_shared_ptr();
-        if (ov::op::util::is_on_constant_path(parent)) {
+        if (ov::op::util::is_on_constant_path(parent->output(0))) {
             bias_shape = parent_out.get_shape();
             num_non_const_inputs++;
         } else {
