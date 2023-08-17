@@ -8,7 +8,7 @@ import os
 
 import numpy as np
 from common.constants import test_device, test_precision
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
@@ -65,13 +65,17 @@ class PytorchLayerTest:
         else:
             custom_eps = 1e-4
 
-        def use_ts_backend():
-            return(os.environ.get('USE_TS_BACKEND', False))
+        def use_torch_compile_backend():
+            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+            if torch_compile_env is not None:
+                if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
+                    return True
+            return False
 
         ov_inputs = flattenize_inputs(inputs)
 
-        if use_ts_backend():
-            self.ts_backend_test(model, torch_inputs, custom_eps)
+        if use_torch_compile_backend():
+            self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
             with torch.no_grad():
                 model.eval()
@@ -132,7 +136,7 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
@@ -151,8 +155,8 @@ class PytorchLayerTest:
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(
-                        fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
@@ -218,7 +222,7 @@ class PytorchLayerTest:
         om.validate_nodes_and_infer_types()
         return om
 
-    def ts_backend_test(self, model, inputs, custom_eps):
+    def torch_compile_backend_test(self, model, inputs, custom_eps):
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()

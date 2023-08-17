@@ -550,6 +550,11 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphCutIdentity) {
     }
 }
 
+TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
+    { model = convert_model("metagraph_variables/graph.meta"); }
+    { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests

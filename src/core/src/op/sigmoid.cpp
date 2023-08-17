@@ -25,6 +25,7 @@ ov::op::v0::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmet
     constructor_validate_and_infer_types();
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace sigmoid {
 namespace {
 template <element::Type_t ET>

@@ -27,12 +27,12 @@ ov_add_test_target(
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 
-if(OpenCV_FOUND)
+if(OpenCV_FOUND AND OpenCV_VERSION VERSION_GREATER_EQUAL 3.4)
     message("-- Reference preprocessing: OpenCV tests are enabled")
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
 else()
-    message("-- Reference preprocessing: OpenCV tests are disabled")
+    message("-- Reference preprocessing: OpenCV tests are disabled, because OpenCV ver. 3.4+ is not found")
 endif()
 
 if (ENABLE_INTEL_CPU)

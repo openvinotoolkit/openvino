@@ -2,25 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import sys
 
 import numpy as np
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Tensor, Type, PartialShape
-from openvino.runtime.utils.types import get_element_type_str
+from openvino.runtime import Tensor, PartialShape
 
-from openvino.tools.mo.utils.cli_parser import input_to_input_cut_info, input_shape_to_input_cut_info
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape
 
 
 def get_pytorch_decoder(model, input_shape, example_inputs, args):
     try:
-        from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    inputs = prepare_torch_inputs(example_inputs, input_shape, args.get("input"), allow_none=True)
-    decoder = TorchScriptPythonDecoder(model, example_input=inputs)
+    try:
+        if 'nncf' in sys.modules:
+            from nncf.torch.nncf_network import NNCFNetwork # pylint: disable=undefined-variable
+            from packaging import version
+
+            if isinstance(model, NNCFNetwork):
+                if version.parse(nncf.__version__) < version.parse("2.6"): # pylint: disable=undefined-variable
+                    raise RuntimeError(
+                        "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
+    except:
+        pass
+    inputs = prepare_torch_inputs(example_inputs)
+    decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
     args['input_model'] = decoder
     args["framework"] = "pytorch"
     args["example_input"] = inputs
@@ -57,7 +66,7 @@ def get_value_from_list_or_dict(container, name, idx):
 
 def extract_input_info_from_example(args, inputs):
     try:
-        from openvino.frontend.pytorch.decoder import pt_to_ov_type_map # pylint: disable=no-name-in-module,import-error
+        from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
@@ -140,36 +149,7 @@ def to_torch_tensor(tensor):
                     "Got {}".format(type(tensor)))
 
 
-def get_torch_dtype(dtype):
-    import torch
-    ov_str_to_torch = {
-        "boolean": torch.bool,
-        "f16": torch.float16,
-        "f32": torch.float32,
-        "f64": torch.float64,
-        "i8": torch.int8,
-        "i16": torch.int16,
-        "i32": torch.int32,
-        "i64": torch.int64,
-        "u8": torch.uint8,
-    }
-    if dtype is None:
-        return torch.float
-    if isinstance(dtype, torch.dtype):
-        return dtype
-    if isinstance(dtype, (type, np.dtype)):
-        dtype = get_element_type_str(dtype)
-    if isinstance(dtype, Type):
-        dtype = dtype.get_type_name()
-    if isinstance(dtype, str):
-        str_dtype = ov_str_to_torch.get(dtype)
-        if str_dtype is None:
-            raise Error(f"Unexpected data type '{dtype}' for input")
-        return str_dtype
-    raise Error(f"Unexpected data type for input. Supported torch.dtype, numpy.dtype, ov.Type and str. Got {type(dtype)}")
-
-
-def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_none=False):
+def prepare_torch_inputs(example_inputs):
     import torch
     inputs = None
     if example_inputs is not None:
@@ -190,29 +170,7 @@ def prepare_torch_inputs(example_inputs, input_shape, input_info=None, allow_non
                 inputs[name] = to_torch_tensor(tensor)
         else:
             inputs = to_torch_tensor(inputs)
-    elif input_info is not None or input_shape is not None:
-        input_info = input_to_input_cut_info(input_info) or []
-        input_shape_to_input_cut_info(input_shape, input_info)
-        inputs = []
-        inputs_with_names = {}
-        for inp in input_info:
-            shape = inp.shape
-            if shape is None:
-                if not allow_none:
-                    raise Error("Please provide input_shape or example_input for all inputs converting PyTorch model.")
-                inputs = None
-                break
-            dtype = get_torch_dtype(inp.type)
-            static_shape = get_static_shape(shape, dynamic_value=1)
-            input_tensor = torch.zeros(static_shape, dtype=dtype)  # pylint: disable=no-member
-            if inp.name is not None:
-                inputs_with_names[inp.name] = input_tensor
-            inputs.append(input_tensor)
-        if isinstance(inputs, list):
-            inputs = tuple(inputs)
-        if inputs is not None and len(inputs) == len(inputs_with_names):
-            inputs = inputs_with_names
     else:
-        if not allow_none:
-            raise Error("Please provide input_shape or example_input for converting PyTorch model.")
+        # No example_input were provided, decoder will use scripting
+        return None
     return inputs

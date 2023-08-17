@@ -19,6 +19,7 @@ using namespace ngraph;
 
 // ------------------------------------ v0 -------------------------------------
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace maximumop {
 namespace {
 template <element::Type_t ET>

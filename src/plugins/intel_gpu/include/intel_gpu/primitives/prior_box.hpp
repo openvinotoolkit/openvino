@@ -40,7 +40,7 @@ struct prior_box : public primitive_base<prior_box> {
     /// @param clip If true, will clip the prior so that it is within [0, 1].
     /// @param variance Variance for adjusting the prior boxes.
     /// @param step_width Step.
-        /// @param offset Offset to the top left corner of each cell.
+    /// @param offset Offset to the top left corner of each cell.
     prior_box(const primitive_id& id,
               const std::vector<input_info>& inputs,
               const tensor& output_size,
@@ -312,7 +312,7 @@ struct prior_box : public primitive_base<prior_box> {
     }
 
 private:
-    bool clustered;
+    bool clustered = false;
 
     void init(const std::vector<float>& ratios, const std::vector<float>& variances) {
         constexpr auto default_aspect_ratio = 1.0f;

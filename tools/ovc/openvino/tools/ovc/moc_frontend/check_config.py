@@ -17,13 +17,15 @@ def any_extensions_used(argv: argparse.Namespace):
     # Checks that extensions are provided.
     # Allowed types are string containing path to legacy extension directory
     # or path to new extension .so file, or classes inherited from BaseExtension.
-    if not hasattr(argv, 'extensions') or argv.extensions is None:
+    if not hasattr(argv, 'extension') or argv.extension is None:
         return False
+    if not isinstance(argv.extension, (list, tuple)):
+        argv.extension = [argv.extension]
 
-    if isinstance(argv.extensions, list) and len(argv.extensions) > 0:
+    if isinstance(argv.extension, (list, tuple)) and len(argv.extension) > 0:
         has_non_default_path = False
         has_non_str_objects = False
-        for ext in argv.extensions:
+        for ext in argv.extension:
             if not isinstance(ext, str):
                 has_non_str_objects = True
                 continue
@@ -33,12 +35,12 @@ def any_extensions_used(argv: argparse.Namespace):
 
         return has_non_default_path or has_non_str_objects
 
-    raise Exception("Expected list of extensions, got {}.".format(type(argv.extensions)))
+    raise Exception("Expected list of extensions, got {}.".format(type(argv.extension)))
 
 
 def legacy_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
-        extensions = argv.extensions
+        extensions = argv.extension
         legacy_ext_counter = 0
         for extension in extensions:
             if not isinstance(extension, str):
@@ -58,8 +60,8 @@ def legacy_extensions_used(argv: argparse.Namespace):
 
 def new_extensions_used(argv: argparse.Namespace):
     if any_extensions_used(argv):
-        extensions = argv.extensions
-        if not isinstance(extensions, list):
+        extensions = argv.extension
+        if not isinstance(extensions, (list, tuple)):
             extensions = [extensions]
         new_ext_counter = 0
         for extension in extensions:
@@ -95,8 +97,3 @@ def legacy_transformations_config_used(argv: argparse.Namespace):
 def tensorflow_custom_operations_config_update_used(argv: argparse.Namespace):
     return hasattr(argv, 'tensorflow_custom_operations_config_update') and \
            argv.tensorflow_custom_operations_config_update is not None
-
-
-def input_freezig_used(argv):
-    return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
-           and len(argv.freeze_placeholder_with_value) > 0

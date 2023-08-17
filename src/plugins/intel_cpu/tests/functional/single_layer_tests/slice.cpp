@@ -41,18 +41,18 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << ")_TS=(";
         for (const auto& shape : shapes) {
             for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
+                result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "start="  << CommonTestUtils::vec2str(params.start) << "_";
-        result << "stop="   << CommonTestUtils::vec2str(params.stop) << "_";
-        result << "step="   << CommonTestUtils::vec2str(params.step) << "_";
-        result << "axes="   << CommonTestUtils::vec2str(params.axes) << "_";
+        result << "start="  << ov::test::utils::vec2str(params.start) << "_";
+        result << "stop="   << ov::test::utils::vec2str(params.stop) << "_";
+        result << "step="   << ov::test::utils::vec2str(params.step) << "_";
+        result << "axes="   << ov::test::utils::vec2str(params.axes) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "secondaryInputType=" << secondaryInputType << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -87,7 +87,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         std::vector<InputShape> input_shapes = {shapes};
         init_input_shapes({input_shapes});
         for (auto& targetShapes : targetStaticShapes) {

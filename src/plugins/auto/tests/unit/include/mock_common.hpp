@@ -8,6 +8,10 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 #define IE_SET_METRIC(key, name,  ...)                                                            \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
@@ -31,6 +35,21 @@ namespace internal {
             });
 
 namespace ov {
+class MockPluginBase : public ov::IPlugin {
+public:
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, compile_model, ((const std::shared_ptr<const ov::Model>&), (const ov::AnyMap&)), (const, override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, compile_model,
+                ((const std::shared_ptr<const ov::Model>&), (const ov::AnyMap&), (const ov::SoPtr<ov::IRemoteContext>&)), (const, override));
+    MOCK_METHOD(void, set_property, (const AnyMap&), (override));
+    MOCK_METHOD(ov::Any, get_property, ((const std::string&), (const ov::AnyMap&)), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, create_context, (const ov::AnyMap&), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap&), (const, override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, ((std::istream&), (const ov::AnyMap&)), (const, override));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model,
+                ((std::istream&), (const ov::SoPtr<ov::IRemoteContext>&), (const ov::AnyMap&)), (const, override));
+    MOCK_METHOD(ov::SupportedOpsMap, query_model, ((const std::shared_ptr<const ov::Model>&), (const ov::AnyMap&)), (const, override));
+};
+
 class MockCompiledModel : public ICompiledModel {
 public:
     MockCompiledModel(const std::shared_ptr<const ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
@@ -71,5 +90,56 @@ public:
 
 private:
     void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor, const ov::element::Type& element_type, const ov::Shape& shape);
+};
+
+class MockRemoteTensor : public ov::IRemoteTensor {
+    ov::AnyMap m_properties;
+    std::string m_dev_name;
+
+public:
+    MockRemoteTensor(const std::string& name, const ov::AnyMap& props) : m_properties(props), m_dev_name(name) {}
+    const ov::AnyMap& get_properties() const override {
+        return m_properties;
+    }
+    const std::string& get_device_name() const override {
+        return m_dev_name;
+    }
+    void set_shape(ov::Shape shape) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::element::Type& get_element_type() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::Shape& get_shape() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    const ov::Strides& get_strides() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
+class MockRemoteContext : public ov::IRemoteContext {
+    ov::AnyMap m_property = {{"IS_DEFAULT", true}};
+    std::string m_dev_name;
+
+public:
+    MockRemoteContext(const std::string& dev_name) : m_dev_name(dev_name) {}
+    const std::string& get_device_name() const override {
+        return m_dev_name;
+    }
+
+    const ov::AnyMap& get_property() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                               const ov::Shape& shape,
+                                               const ov::AnyMap& params = {}) override {
+        auto remote_tensor = std::make_shared<MockRemoteTensor>(m_dev_name, m_property);
+        return {remote_tensor, nullptr};
+    }
 };
 } // namespace ov

@@ -17,7 +17,9 @@
 #include <string>
 #include <vector>
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 enum class OpType { SCALAR, VECTOR };
 
@@ -186,4 +188,19 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
 }
 
 std::string generateTestFilePrefix();
-}  // namespace CommonTestUtils
+
+size_t getVmSizeInKB();
+
+size_t getVmRSSInKB();
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
+// openvino_contrib and NPU repo use CommonTestUtils::
+// so we need to add these names to CommonTestUtils namespace
+namespace CommonTestUtils {
+using ov::test::utils::vec2str;
+using ov::test::utils::combineParams;
+using ov::test::utils::OpType;
+using ov::test::utils::GetTimestamp;
+} // namespace CommonTestUtils

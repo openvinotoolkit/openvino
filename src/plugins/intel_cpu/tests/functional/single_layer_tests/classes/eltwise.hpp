@@ -38,10 +38,10 @@ private:
 
 namespace Eltwise {
 
-const ov::AnyMap& additional_config();
+const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
-const std::vector<CommonTestUtils::OpType>& opTypes();
+const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<ngraph::helpers::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<ngraph::helpers::InputLayerType>& secondaryInputTypes();
 

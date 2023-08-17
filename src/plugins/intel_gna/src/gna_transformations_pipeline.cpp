@@ -34,6 +34,7 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fuse_conv_bias_activation.hpp"
 #include "transformations/gather_sinking.hpp"
+#include "transformations/gather_sinking_transpose.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -139,6 +140,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
         manager.register_pass<ov::intel_gna::pass::TSConcatForward>();

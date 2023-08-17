@@ -83,6 +83,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx2();
 
 /**
+ * @brief      Checks whether CPU supports AVX2_VNNI capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is AVX2_VNNI instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx2_vnni();
+
+/**
  * @brief      Checks whether CPU supports AVX 512 capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX512F (foundation) instructions are available, `false` otherwise
@@ -221,8 +228,9 @@ enum ColumnOfProcessorTypeTable {
  * @brief      Definition of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum ProcessorUseStatus {
-    NOT_USED = -1,  //!< Processor is not bound to thread
-    CPU_USED = 1,   //!< CPU is in using
+    CPU_BLOCKED = -100,  //!< Processor is blocked to use
+    NOT_USED = -1,       //!< Processor is not bound to thread
+    CPU_USED = 1,        //!< CPU is in using
 };
 
 /**

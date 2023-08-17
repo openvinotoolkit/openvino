@@ -347,7 +347,7 @@ class Config(Dict):
             aliases = {'symmetric': 'performance', 'asymmetric': 'accuracy'}
             preset = aliases.get(preset, preset)
             presets_aliases_by_device = {
-                'VPU': {'accuracy': 'accuracy'},
+                'NPU': {'accuracy': 'accuracy'},
                 'GNA': {'accuracy': 'accuracy', 'mixed': 'accuracy'},
                 'GNA3': {'accuracy': 'accuracy', 'mixed': 'accuracy'},
                 'GNA3.5': {'accuracy': 'accuracy', 'mixed': 'accuracy'},

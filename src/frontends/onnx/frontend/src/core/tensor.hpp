@@ -108,11 +108,13 @@ public:
     };
 
     Tensor() = delete;
-    explicit Tensor(const ONNX_NAMESPACE::TensorProto& tensor, const std::string& model_dir, const bool enable_mmap)
+    Tensor(const ONNX_NAMESPACE::TensorProto& tensor,
+           const std::string& model_dir,
+           detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
-          m_enable_mmap{enable_mmap} {
+          m_mmap_cache{mmap_cache} {
         if (m_shape == Shape{0}) {
             // It's possible to construct a tensor in ONNX with "dims: 0" property
             // Such tensor contains a scalar. This results in a Shape{0} stored in m_shape.
@@ -241,10 +243,11 @@ private:
         size_t data_size = get_data_size();
         if (has_external_data()) {
             const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
-            if (m_enable_mmap) {
-                constant = std::make_shared<ngraph::op::Constant>(type,
-                                                                  m_shape,
-                                                                  ext_data.load_external_mmap_data(m_model_dir));
+            if (m_mmap_cache) {
+                constant =
+                    std::make_shared<ngraph::op::Constant>(type,
+                                                           m_shape,
+                                                           ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
             } else {
                 constant =
                     std::make_shared<ngraph::op::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
@@ -299,13 +302,15 @@ private:
     template <typename T>
     std::vector<T> get_external_data() const {
         const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+        OPENVINO_SUPPRESS_DEPRECATED_START
         std::shared_ptr<ngraph::runtime::AlignedBuffer> buffer = nullptr;
-        if (m_enable_mmap) {
-            buffer = ext_data.load_external_mmap_data(m_model_dir);
+        if (m_mmap_cache) {
+            buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
         } else {
             buffer = ext_data.load_external_data(m_model_dir);
         }
         return std::vector<T>(buffer->get_ptr<char>(), buffer->get_ptr<char>() + buffer->size());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     const void* get_data_ptr() const {
@@ -349,7 +354,7 @@ private:
     const ONNX_NAMESPACE::TensorProto* m_tensor_proto;
     Shape m_shape;
     std::string m_model_dir;
-    bool m_enable_mmap = true;
+    detail::MappedMemoryHandles m_mmap_cache;
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const Tensor& tensor) {

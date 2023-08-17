@@ -29,11 +29,11 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << inType << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inShape.first}) << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({inShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : inShape.second) {
             result << "(";
-            result << CommonTestUtils::vec2str(shape);
+            result << ov::test::utils::vec2str(shape);
             result << ")_";
         }
         result << "axis=" << axis << "_";
@@ -41,7 +41,7 @@ public:
     }
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_GPU;
+        targetDevice = ov::test::utils::DEVICE_GPU;
         ElementType inType;
         ov::test::InputShape inShape;
         int64_t axis;

@@ -24,7 +24,6 @@ except:
     if PY_OPENVINO in os.listdir(ov_bin_path):
         env = os.environ
         py_ov = os.path.join(ov_bin_path, PY_OPENVINO)
-        py_ov = os.path.join(py_ov, find_latest_dir(py_ov))
 
         env = set_env_variable(env, "PYTHONPATH", py_ov)
         env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
@@ -180,7 +179,7 @@ def create_hash(in_dir_path: Path, operations=dict()):
                         pass
             except:
                 logger.error(f"Impossible to create hash for {model_path}")
-        ports_info = ET.parse(meta_path).getroot().find("ports_info")
+        ports_info = ET.parse(meta_path).getroot().find("input_info")
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
         old_name = model_path

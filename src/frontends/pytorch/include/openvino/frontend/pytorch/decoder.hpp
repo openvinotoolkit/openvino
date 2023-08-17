@@ -44,9 +44,6 @@ public:
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
 
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_input_transpose_order(size_t index) const = 0;
-
     // Return debug name of the input tensor
     virtual const std::string& get_output_debug_name(size_t index) const = 0;
 
@@ -56,9 +53,6 @@ public:
     // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
-
-    // TODO: Consider deleting this method, probably it doesn't make sence outside Torch JIT execution
-    virtual const std::vector<size_t>& get_output_transpose_order(size_t index) const = 0;
     // ------------------------------
 
     // TODO: required? can be implemented in the context of a single node?
@@ -109,6 +103,13 @@ public:
 
     /// \brief Returns if output may contain alias of input in AliasDB
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const = 0;
+
+    /// Returns new nodes for inputs inlined in the op itself
+    // Used in Torch.FX decoder
+    virtual OutputVector inlined_inputs(size_t start_index) const = 0;
+
+    /// Returns the id of the deccoder type (0: TorchFX, 1: TorchScript)
+    virtual const std::string& decoder_type_name() const = 0;
 };
 
 }  // namespace pytorch
