@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<net name="TensorFlow_Frontend_IR" version="11">
+	<layers>
+		<layer id="1" name="in1" type="Parameter" version="opset1">
+			<data shape="2,3" element_type="i32" />
+			<output>
+				<port id="0" precision="I32" names="in1,in1:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="in2" type="Parameter" version="opset1">
+			<data shape="2,3" element_type="i32" />
+			<output>
+				<port id="0" precision="I32" names="in2,in2:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="add" type="Multiply" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="I32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1" precision="I32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="I32" names="add,add:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="add:0" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="I32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info>
+		<Runtime_version value="2023.1.0-11880-0818380bc4a-fast_fp16_compression" />
+		<conversion_parameters>
+			<input_model value="DIR/model_int32.pbtxt" />
+			<is_python_object value="False" />
+			<log_level value="INFO" />
+		</conversion_parameters>
+	</rt_info>
+</net>
