@@ -91,6 +91,18 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [ov.Type.f32, ov.Type.f32]},
          'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
         {'params_test': {'input': [([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32]},
+         'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}},
+        {'params_test': {'input': (PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)])},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+        {'params_test': {'input': (PartialShape([1, 3, -1, -1]), [1, 3, -1, -1])},
+         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1,Input2'}},
+        {'params_test': {'input': ((2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4)))},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+        {'params_test': {'input': (np.int32, Type(np.int32), np.int32)},
+         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
+        {'params_test': {'input': (ov.Type.f32, ov.Type.f32)},
+         'params_ref': {'input': 'Input1{f32},Input2{f32}'}},
+        {'params_test': {'input': (([1, 3, -1, -1], ov.Type.i32), ov.Type.i32, ov.Type.i32)},
          'params_ref': {'input': 'Input1[1,3,?,?]{i32},Input2{i32},Input3{i32}'}}
     ]
 
