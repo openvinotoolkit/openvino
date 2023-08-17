@@ -757,7 +757,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
     {
         auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
 
-        auto transpose_order = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{0, 3, 1, 2});
+        auto transpose_order = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 3, 1, 2});
         auto transpose = make_shared<Transpose>(input, transpose_order);
 
         auto filter = make_shared<Constant>(element::f32, Shape{6, 6, 3, 3}, vector<float>(6 * 6 * 3 * 3, 0.0f));
@@ -769,7 +769,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
                                              Strides{1, 1},
                                              op::PadType::SAME_UPPER);
 
-        auto transpose_order_back = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{0, 1, 2, 3});
+        auto transpose_order_back = make_shared<Constant>(i64, Shape{4}, vector<int32_t>{0, 2, 3, 1});
         auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
 
         model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
