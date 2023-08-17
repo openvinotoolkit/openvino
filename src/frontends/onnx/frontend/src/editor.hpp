@@ -39,7 +39,9 @@ public:
                              const bool enable_mmap = false,
                              frontend::ExtensionHolder extensions = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ONNXModelEditor(const std::wstring& model_path, const bool enable_mmap, frontend::ExtensionHolder extensions = {});
+    ONNXModelEditor(const std::wstring& model_path,
+                    const bool enable_mmap = false,
+                    frontend::ExtensionHolder extensions = {});
 #endif
 
     /// \brief Creates an editor from a model stream. The stream is parsed and loaded

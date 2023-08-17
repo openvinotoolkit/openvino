@@ -310,8 +310,7 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
 #endif
 };
 
