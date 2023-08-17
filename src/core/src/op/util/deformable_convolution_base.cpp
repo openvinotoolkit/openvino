@@ -6,8 +6,6 @@
 
 #include "itt.hpp"
 
-using namespace std;
-
 ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
                                                                    const Strides& strides,
                                                                    const CoordinateDiff& pads_begin,

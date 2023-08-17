@@ -5,16 +5,11 @@ test('Test for number of arguments in tensor', () => {
 });
 
 describe('Tensor data', () => {
+
     test('Set tensor data with Float32Array', () => {
         const data = Float32Array.from({length: 150528}, () => Math.random() ); //fill with random data
         var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], data);
         expect(Float32Array.from(tensor.data)).toEqual(data); // tensor.data returns Float32Array{ "0": 0.7377, "1": 0.4859, (...)}, instead of Float32Array[0.7377, 0.4859, (...)]       
-    });
-
-    test('Cannot set tensor data with Float64Array', () => {
-        const data = Float64Array.from({length: 150528}, () => Math.random() ); //fill with random data
-        
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], data)).toThrow('Third argument of a tensor must be of type Float32Array.');
     });
 
     test('Set tensor data with Float32Array created from ArrayBuffer', () => {
@@ -35,7 +30,7 @@ describe('Tensor data', () => {
         const view = new Float32Array(buffer);
         const data = Float32Array.from({length: 150528}, () => Math.random() );
         view.set(data);
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], view)).toThrow('Shape and Float32Array size mismatch');
+        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], view)).toThrow('Invalid tensor argument. Memory allocated using shape and element::type mismatch passed data\'s size');
     });
 
     test('Expect Javascript to throw error when Arraybuffer is too small', () => {
@@ -50,11 +45,11 @@ describe('Tensor data', () => {
       
       
     test('Third argument of a tensor cannot be ArrayBuffer', () => {
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], new ArrayBuffer(1234))).toThrow('Third argument of a tensor must be of type Float32Array.');
+        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], new ArrayBuffer(1234))).toThrow('Third argument of a tensor must be of type TypedArray.');
     });
 
     test('Third argument of a tensor cannot be Array object', () => {
-        expect(() => new ov.Tensor( ov.element.f32, [1,3,224,224], [1,2,3,4])).toThrow('Third argument of a tensor must be of type Float32Array.');
+        expect(() => new ov.Tensor( ov.element.f32, [1,3,224,224], [1,2,3,4])).toThrow('Third argument of a tensor must be of type TypedArray.');
     });
 
 

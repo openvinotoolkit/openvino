@@ -8,15 +8,16 @@
 #include "tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
-    static const std::vector<std::string> supported_element_types = {"i8"
-                                                               "u8",
-                                                               "i16",
-                                                               "u16",
-                                                               "i32",
-                                                               "u32",
-                                                               "f32",
-                                                               "f64",
-                                                               "i64"};
+    static const std::vector<std::string> supported_element_types = {"i8",
+                                                                     "u8",
+                                                                     "i16",
+                                                                     "u16",
+                                                                     "i32",
+                                                                     "u32",
+                                                                     "f32",
+                                                                     "f64",
+                                                                     "i64",
+                                                                     "u64"};
     return supported_element_types;
 }
 
@@ -173,8 +174,22 @@ ov::Tensor get_request_tensor(ov::InferRequest infer_request, size_t idx) {
     return infer_request.get_input_tensor(idx);
 }
 
-ov::Tensor value_to_tensor(Napi::Object obj) {
+ov::Tensor cast_to_tensor(Napi::Object obj) {
     // Check of object type
     auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(obj);
     return tensor_wrap->get_tensor();
+}
+
+ov::Tensor cast_to_tensor(Napi::TypedArray typed_array, const ov::Shape& shape, const ov::element::Type_t& type) {
+    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
+    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
+    if (typed_array.ByteOffset() != 0) {
+        throw std::invalid_argument("TypedArray.byteOffset has to be equal to zero.");
+    }
+    auto array_buffer = typed_array.ArrayBuffer();
+    auto tensor = ov::Tensor(type, shape, array_buffer.Data());
+    if (tensor.get_byte_size() != array_buffer.ByteLength()) {
+        throw std::invalid_argument("Memory allocated using shape and element::type mismatch passed data's size");
+    }
+    return tensor;
 }

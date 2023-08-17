@@ -107,7 +107,21 @@ Step 1: Download and Install OpenVINO Core Components
       move openvino_2023.0.1 "C:\Program Files (x86)\Intel"
 
 
-4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
+4. (Optional) Install *numpy* Python Library:
+
+   .. note::
+
+      This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2023.0.1\python`` folder:
+
+   .. code-block:: sh
+
+      cd "C:\Program Files (x86)\Intel\openvino_2023.0.1"
+      python -m pip install -r .\python\requirements.txt
+
+
+5. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
 
    .. code-block:: sh
 
@@ -155,7 +169,7 @@ OpenVINO Development Tools is a set of utilities for working with OpenVINO and O
 
 See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`.
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`__ .
 
 .. _optional-steps-windows:
 
@@ -219,7 +233,25 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 Uninstalling OpenVINO Runtime
 #############################
 
-To uninstall OpenVINO, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`
+If you have installed OpenVINO Runtime from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+Uninstallation removes all Intel® Distribution of OpenVINO™ Toolkit component files but does not affect user files in the installation directory. 
+
+If you have created the symbolic link, remove the link first.
+
+Use either of the following methods to delete the files:
+
+* Use Windows Explorer to remove the files.
+* Open a Command Prompt and run:
+
+.. code-block:: sh
+
+   rmdir /s <extracted_folder>
+   del <path_to_archive>
+
+
+
+
+
 
 Additional Resources
 ####################

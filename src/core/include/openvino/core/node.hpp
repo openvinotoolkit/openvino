@@ -61,9 +61,11 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
+OPENVINO_SUPPRESS_DEPRECATED_START
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;

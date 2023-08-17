@@ -8,16 +8,17 @@ import numpy as np
 import os
 from pathlib import Path
 
-from openvino.runtime import (
+from openvino import (
     Model,
     Core,
-    CompiledModel,
     Tensor,
     PartialShape,
-    Extension,
+    CompiledModel,
     tensor_from_file,
     compile_model,
 )
+
+from openvino.runtime import Extension
 
 from tests.conftest import (
     model_path,
@@ -301,9 +302,7 @@ def test_unload_plugin(device):
     core.unload_plugin(device)
 
 
-@pytest.mark.template_plugin()
-@pytest.mark.skip(reason="Sporadically failed on mac with error:  Cannot add extension."
-                         "Cannot find entry point to the extension library")
+@pytest.mark.template_extension()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

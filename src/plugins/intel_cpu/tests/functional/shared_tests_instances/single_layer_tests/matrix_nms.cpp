@@ -62,7 +62,7 @@ const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::st
                                                 ::testing::ValuesIn(normalized),
                                                 ::testing::ValuesIn(decayFunction),
                                                 ::testing::ValuesIn(outStaticShape),
-                                                ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                                ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),
@@ -77,7 +77,7 @@ const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicSh
                                                  ::testing::ValuesIn(normalized),
                                                  ::testing::ValuesIn(decayFunction),
                                                 ::testing::ValuesIn(outStaticShape),
-                                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)
+                                                 ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_static, MatrixNmsLayerTest, nmsParamsStatic, MatrixNmsLayerTest::getTestCaseName);

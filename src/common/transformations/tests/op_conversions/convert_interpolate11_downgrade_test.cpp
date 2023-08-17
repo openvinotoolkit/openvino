@@ -74,23 +74,28 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(scales));
         output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
         if (with_axes) {
-            output_shape =
-                std::make_shared<ov::opset4::Broadcast>(output_shape, std::make_shared<ov::opset4::ShapeOf>(axes));
-        } else {
-            output_shape = std::make_shared<ov::opset4::Broadcast>(
+            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
                 output_shape,
-                std::make_shared<ov::opset4::ShapeOf>(std::make_shared<ov::opset4::ShapeOf>(input)));
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+        } else {
+            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+                output_shape,
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
+                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(output_shape));
         scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
         if (with_axes) {
-            scales = std::make_shared<ov::opset4::Broadcast>(scales, std::make_shared<ov::opset4::ShapeOf>(axes));
-        } else {
-            scales = std::make_shared<ov::opset4::Broadcast>(
+            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
                 scales,
-                std::make_shared<ov::opset4::ShapeOf>(std::make_shared<ov::opset4::ShapeOf>(input)));
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+        } else {
+            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+                scales,
+                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
+                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     }
 

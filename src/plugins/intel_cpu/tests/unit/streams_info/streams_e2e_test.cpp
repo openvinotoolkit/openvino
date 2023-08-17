@@ -54,7 +54,7 @@ void make_config(StreamGenerateionTestCase& test_data, ov::intel_cpu::Config& co
     config.streamExecutorConfig._threadBindingType = test_data.input_binding_type;
 }
 
-class StreamGenerationTests : public CommonTestUtils::TestsCommon,
+class StreamGenerationTests : public ov::test::TestsCommon,
                               public testing::WithParamInterface<std::tuple<StreamGenerateionTestCase>> {
 public:
     void SetUp() override {
@@ -273,7 +273,7 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_4 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{12, 6, 0, 6, 0, 0}},
-    {{1, MAIN_CORE_PROC, 12, 0, 0}},
+    {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
 StreamGenerateionTestCase generation_latency_1sockets_14cores_5 = {
@@ -365,7 +365,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 48, -1, -1}},
+    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
 StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
@@ -388,7 +388,7 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
     false,
     ov::hint::PerformanceMode::LATENCY,
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 48, -1, -1}},
+    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
 StreamGenerateionTestCase generation_tput_1sockets_14cores_2 = {

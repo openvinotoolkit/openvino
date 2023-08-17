@@ -14,6 +14,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ov;
@@ -116,6 +117,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -231,6 +233,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                 aligned_weights_buffer);
         }
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return create_input_model();
 }
@@ -238,11 +241,19 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto ir_model = std::dynamic_pointer_cast<InputModel>(model);
     OPENVINO_ASSERT(ir_model != nullptr);
-    return ir_model->convert();
+    const auto& converted_model = ir_model->convert();
+    normalize(converted_model);
+    return converted_model;
 }
 
 std::string FrontEnd::get_name() const {
     return "ir";
+}
+
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    ov::pass::Manager manager;
+    manager.register_pass<pass::ResolveNameCollisions>();
+    manager.run_passes(model);
 }
 
 }  // namespace ir

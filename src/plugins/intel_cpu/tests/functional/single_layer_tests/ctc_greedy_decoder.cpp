@@ -42,7 +42,7 @@ public:
         InputShapeParams shapes;
         std::tie(shapes, inType, mergeRepeated) = obj.param;
         std::ostringstream results;
-        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
             size_t T;
@@ -66,7 +66,7 @@ protected:
         InputShapeParams shapes;
         std::tie(shapes, inType, mergeRepeated) = GetParam();
         selectedType = "ref_any_FP32";
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         // construct input shapes
         ASSERT_EQ(shapes.first.size(), 3);
         const auto& in_dyn_T = shapes.first[0];

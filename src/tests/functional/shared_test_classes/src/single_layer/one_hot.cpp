@@ -18,7 +18,7 @@ std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHot
     std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, netPrecision, inputShape, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "depthType=" << depth_type << "_";
     result << "depth=" << depth_val << "_";
     result << "SetValueType=" << set_type << "_";

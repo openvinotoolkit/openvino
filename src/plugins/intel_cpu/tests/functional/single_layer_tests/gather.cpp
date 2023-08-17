@@ -37,13 +37,13 @@ public:
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
-            result << CommonTestUtils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::partialShape2str({inputShapes[i].first}) << (i < inputShapes.size() - 1lu ? "_" : "");
         }
         result << ")_TS=";
         for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
             result << "{";
             for (size_t j = 0lu; j < inputShapes.size(); j++) {
-                result << CommonTestUtils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+                result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
             }
             result << "}_";
         }
@@ -78,7 +78,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         axis = std::get<0>(axisAndBatchDims);
         const int batchDims = std::get<1>(axisAndBatchDims);
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -148,7 +148,7 @@ protected:
 
 typedef std::tuple<
         InputShape,                        // Input shapes
-        std::vector<size_t>,               // Indices
+        std::vector<int64_t>,              // Indices
         int,                               // Axis
         ElementType,                       // Network precision
         CPUSpecificParams                 // CPU specific params
@@ -159,7 +159,7 @@ class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPla
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherInPlaceLayerTestCPUParams> obj) {
         InputShape inputShapes;
-        std::vector<size_t> indices;
+        std::vector<int64_t> indices;
         int axis;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
@@ -169,15 +169,15 @@ public:
         std::ostringstream result;
         result << "IS=(";
 
-        result << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_TS=";
+        result << ov::test::utils::partialShape2str({inputShapes.first}) << ")_TS=";
 
         result << "{";
         for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
-            result << CommonTestUtils::vec2str(inputShapes.second[i]) << (i < inputShapes.second.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(inputShapes.second[i]) << (i < inputShapes.second.size() - 1lu ? "_" : "");
         }
         result << "}_";
         result << "axis=" << axis << "_";
-        result << "indices=" << CommonTestUtils::vec2str(indices) << "_";
+        result << "indices=" << ov::test::utils::vec2str(indices) << "_";
         result << "netPrc=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -187,7 +187,7 @@ public:
 protected:
     void SetUp() override {
         InputShape inputShapes;
-        std::vector<size_t> indices;
+        std::vector<int64_t> indices;
         int axis;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
@@ -196,7 +196,7 @@ protected:
 
         std::tie(inputShapes, indices, axis, netPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({ inputShapes });
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -924,31 +924,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_4D_ref8_Bmax, GatherLayerTestCPU,
 // InPlace
 
 const std::vector<ov::test::InputShape> shapesInPlace4D_0 = {
-    { {}, { {5, 4, 4, 19} } },   // Static shapes
-    { {5, 4, -1, -1}, { {5, 4, 4, 19}, {5, 4, 4, 25}, {5, 4, 2, 19} } },   // Static shapes
+    { {}, { {5, 4, 4, 19} } },
+    { {5, 4, -1, -1}, { {5, 4, 4, 19}, {5, 4, 4, 25}, {5, 4, 2, 19} } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_0, GatherInPlaceLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(shapesInPlace4D_0),
-                    ::testing::Values(std::vector<size_t>{ 2 }),
+                    ::testing::Values(std::vector<int64_t>{ 2 }),
                     ::testing::Values(0),
                     ::testing::Values(ElementType::f32),
                     ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
                 GatherInPlaceLayerTestCPU::getTestCaseName);
 
 const std::vector<ov::test::InputShape> shapesInPlace4D_1 = {
-    { {}, { {1, 9, 4, 19} } },   // Static shapes
-    { {1, 9, -1, -1}, { {1, 9, 4, 19}, {1, 9, 4, 25}, {1, 9, 2, 19} } },   // Static shapes
+    { {}, { {1, 9, 4, 19} } },
+    { {1, 9, -1, -1}, { {1, 9, 4, 19}, {1, 9, 4, 25}, {1, 9, 2, 19} } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_inplace_4D_1, GatherInPlaceLayerTestCPU,
                 ::testing::Combine(
                     ::testing::ValuesIn(shapesInPlace4D_1),
-                    ::testing::Values(std::vector<size_t>{ 4 }),
+                    ::testing::Values(std::vector<int64_t>{ -4 }, std::vector<int64_t>{ 5 }),
                     ::testing::Values(1),
                     ::testing::Values(ElementType::f32),
                     ::testing::Values(CPUSpecificParams{{}, {}, {}, "unknown"})),
+                GatherInPlaceLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_4D_out_of_range, GatherInPlaceLayerTestCPU,
+                ::testing::Combine(
+                    ::testing::ValuesIn(shapesInPlace4D_1),
+                    ::testing::Values(std::vector<int64_t>{ 10 }, std::vector<int64_t>{ -15 }),
+                    ::testing::Values(1),
+                    ::testing::Values(ElementType::f32),
+                    ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_any"})),
                 GatherInPlaceLayerTestCPU::getTestCaseName);
 
 } // namespace

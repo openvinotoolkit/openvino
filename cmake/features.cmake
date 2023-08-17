@@ -120,8 +120,6 @@ ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON "NOT EMSCRIPTEN" OFF)
 
-ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
-
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
@@ -145,13 +143,6 @@ else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
 endif()
 
-# try to search TBB from brew by default
-if(APPLE AND AARCH64)
-    set(ENABLE_SYSTEM_TBB_DEFAULT ON)
-else()
-    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
-endif()
-
 if(BUILD_SHARED_LIBS)
     set(ENABLE_SYSTEM_PUGIXML_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 else()
@@ -173,6 +164,8 @@ endif()
 # users wants to use his own TBB version, specific either via env vars or cmake options
 if(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR DEFINED TBB_DIR OR DEFINED TBBROOT)
     set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
 ie_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
