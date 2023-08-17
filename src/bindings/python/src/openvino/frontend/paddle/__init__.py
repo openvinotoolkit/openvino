@@ -8,11 +8,6 @@ Low level wrappers for the FrontEnd C++ API.
 
 # flake8: noqa
 
-from openvino.utils import _add_openvino_libs_to_search_path
-
-_add_openvino_libs_to_search_path()
-
-
 try:
     from openvino.frontend.paddle.py_paddle_frontend import ConversionExtensionPaddle as ConversionExtension
     from openvino.frontend.paddle.py_paddle_frontend import OpExtensionPaddle as OpExtension
