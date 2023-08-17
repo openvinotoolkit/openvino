@@ -191,7 +191,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2023.0.1/python/python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2023.0.1/python/python.<x>`` folder:
 
    .. code-block:: sh
 
