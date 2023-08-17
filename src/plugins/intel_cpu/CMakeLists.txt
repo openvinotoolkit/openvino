@@ -22,7 +22,7 @@ endif()
 
 if(ARM)
     set(OV_CPU_ARM_TARGET_ARCH_DEFAULT armv7a)
-else()
+elseif(AARCH64)
     if(APPLE)
         # Apple M1 / M2 is assumed
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
@@ -34,7 +34,8 @@ endif()
 set(OV_CPU_ARM_TARGET_ARCH ${OV_CPU_ARM_TARGET_ARCH_DEFAULT})
 
 if(X86 OR X86_64 OR AARCH64)
-    if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+    # disable mlas with webassembly
+    if(EMSCRIPTEN OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)
@@ -115,8 +116,8 @@ endif()
 ie_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
-                                             ov_shape_inference
-                                             inference_engine_snippets)
+                                             openvino::shape_inference
+                                             openvino::snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -160,8 +161,8 @@ if(BUILD_SHARED_LIBS)
         PRIVATE
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_snippets,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)

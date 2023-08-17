@@ -117,11 +117,7 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> normalize_axis(const NodeContext& context,
-                                     const Output<Node>& axis,
-                                     const Output<Node>& input_node) {
-    Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input_node);
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
     auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
     auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
     auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
@@ -185,7 +181,7 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
-            auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
+            auto node = concat_list_construct(list_inputs[i]);
             auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }

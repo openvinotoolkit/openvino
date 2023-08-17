@@ -32,13 +32,9 @@ public:
  * in order to avoid time-consuming reading and reduce memory consumption.
  *
  * @param path Path to a file which memory will be mmaped.
- * @param data_size Number of bytes to map (zero, if all file will be mmaped).
- * @param offset Number of bytes to skip from beginning of the file.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path,
-                                                   const size_t data_size = 0,
-                                                   const size_t offset = 0);
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -48,13 +44,9 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path,
  * in order to avoid time-consuming reading and reduce memory consumption.
  *
  * @param path Path to a file which memory will be mmaped.
- * @param data_size Number of bytes to map (zero, if all file will be mmaped).
- * @param offset Number of bytes to skip from beginning of the file.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path,
-                                                   const size_t data_size = 0,
-                                                   const size_t offset = 0);
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

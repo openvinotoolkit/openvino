@@ -131,17 +131,17 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     const auto squeezed_x = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(X_body_param, axis_1);
     const auto squeezed_w = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(W, axis_0);
     std::shared_ptr<ov::op::v0::Parameter> W_body_param;
-    if (!ov::is_type<ov::op::v0::Constant>(squeezed_w))
+    if (!ov::op::util::is_on_constant_path(squeezed_w))
         W_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_w->get_element_type(),
                                                                squeezed_w->get_output_partial_shape(0));
     const auto squeezed_r = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(R, axis_0);
     std::shared_ptr<ov::op::v0::Parameter> R_body_param;
-    if (!ov::is_type<ov::op::v0::Constant>(squeezed_r))
+    if (!ov::op::util::is_on_constant_path(squeezed_r))
         R_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_r->get_element_type(),
                                                                squeezed_r->get_output_partial_shape(0));
     const auto squeezed_b = ov::op::util::make_try_fold<ov::op::v0::Squeeze>(B, axis_0);
     std::shared_ptr<ov::op::v0::Parameter> B_body_param;
-    if (!ov::is_type<ov::op::v0::Constant>(squeezed_b))
+    if (!ov::op::util::is_on_constant_path(squeezed_b))
         B_body_param = std::make_shared<ov::op::v0::Parameter>(squeezed_b->get_element_type(),
                                                                squeezed_b->get_output_partial_shape(0));
 
