@@ -152,7 +152,6 @@ jobs:
       - name: Setup ccache
         run: |
           mkdir -p $CCACHE_DIR
-          touch $CCACHE_DIR/testtest
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
@@ -182,7 +181,7 @@ jobs:
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
             -S ${OPENVINO_REPO} \
-            -B ${{ env.BUILD_DIR }}
+            -B ${BUILD_DIR}
 
       - name: Clean ccache stats
         run: ccache --zero-stats --show-config
