@@ -126,10 +126,10 @@ jobs:
 
       - name: Get tools versions
         run: |
-          ninja --version || exit 1
-          ccache --version || exit 1
-          python3 --version || exit 1
-          cmake --version || exit 1
+          ninja --version
+          ccache --version
+          python3 --version
+          cmake --version
 
       - name: Install conan and dependencies
         run: |
