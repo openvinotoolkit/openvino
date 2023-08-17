@@ -192,56 +192,56 @@ jobs:
         run: ccache --zero-stats --show-config
 
       - name: Build
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
+        run: cmake --build ${BUILD_DIR} --parallel ${{ steps.cpu-cores.outputs.count }} --config Release
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake Layer Tests
-        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/layer_tests -B ${{ env.BUILD_DIR }}/layer_tests
+        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/layer_tests -B ${BUILD_DIR}/layer_tests
 
       - name: Build Layer Tests
-        run: cmake --build ${{ env.BUILD_DIR }}/layer_tests --parallel --config Release
+        run: cmake --build ${BUILD_DIR}/layer_tests --parallel --config Release
 
       - name: Install wheel packages
-        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Install Layer Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/layer_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/layer_tests/cmake_install.cmake
 
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
 
       - name: Install tests
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Install OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: CMake Samples Tests
-        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/samples_tests -B ${{ env.BUILD_DIR }}/samples_tests
+        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/samples_tests -B ${BUILD_DIR}/samples_tests
 
       - name: Build Samples Tests
-        run: cmake --build ${{ env.BUILD_DIR }}/samples_tests --config Release
+        run: cmake --build ${BUILD_DIR}/samples_tests --config Release
 
       - name: Install Samples Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/samples_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/samples_tests/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
           pushd ${{ env.INSTALL_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_package.tar.gz --exclude=tests *
+            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz --exclude=tests *
           popd
 
           pushd ${{ env.INSTALL_DIR }}
-            tar -czvf ${{ env.BUILD_DIR }}/openvino_tests.tar.gz tests/
+            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz tests/
           popd
 
       - name: Build cpp samples
-        run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
+        run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/cpp_samples
 
       - name: Build c samples
-        run: ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+        run: ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/c_samples
 
       #
       # Tests
