@@ -67,11 +67,11 @@ struct border : public primitive_base<border> {
     /// @brief Sizes of border that needs to be added from right (in X dimension) and from bottom (in Y dimension).
     ov::CoordinateDiff pads_end;
     /// @brief Type of border that needs to be added to the input.
-    ov::op::PadMode pad_mode;
+    ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT;
     /// @brief Border value that is used in constant mode.
-    float pad_value;
+    float pad_value = 0.0f;
     /// @brief Bit mask whether input is non-constant or not. Position is defined at PAD_NON_CONST_INPUT.
-    int32_t non_constant_input_mask;
+    int32_t non_constant_input_mask = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

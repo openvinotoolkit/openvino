@@ -81,9 +81,9 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @brief Primitive id containing bias data.
     primitive_id bias;
     /// @brief Primitive dimension size.
-    size_t input_size;
+    size_t input_size = 2;
     /// @brief Primitive weights rank.
-    size_t weights_rank;
+    size_t weights_rank = 2;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

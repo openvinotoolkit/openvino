@@ -31,7 +31,7 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
         : primitive_base(id, {data, idx, idupd}, {output_padding}), indices_rank(indices_rank) {}
 
     /// @brief ScatterNDUpdate indices_rank
-    size_t indices_rank;
+    size_t indices_rank = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

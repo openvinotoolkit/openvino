@@ -63,9 +63,9 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    int groups;
+    int groups = 1;
     /// @brief Logical value of padding. Can be one of 3 values: 1 - pad bits equal to 1; -1 -> pad bits equal to 0; 0 -> pad is not counted
-    float pad_value;
+    float pad_value = 0.0f;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 

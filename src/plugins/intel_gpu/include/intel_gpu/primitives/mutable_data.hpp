@@ -50,7 +50,7 @@ struct mutable_data : public primitive_base<mutable_data> {
     memory::ptr mem;
 
     /// @brief Specifies function which will be used to fill weights.
-    filler_type fill_type;
+    filler_type fill_type = filler_type::no_fill;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

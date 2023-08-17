@@ -31,7 +31,7 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// @brief Defines a scope of a reorg yolo normalization
     /// @details
     /// Specific behaviour is determined by these parameters, as follows:
-    uint32_t stride;
+    uint32_t stride = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

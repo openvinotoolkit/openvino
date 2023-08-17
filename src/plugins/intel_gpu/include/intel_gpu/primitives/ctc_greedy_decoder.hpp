@@ -32,7 +32,7 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         , output_tensor(output_tensor) {}
 
     uint32_t blank_index;
-    bool ctc_merge_repeated;
+    bool ctc_merge_repeated = false;
     tensor output_tensor;
     primitive_id second_output;
 

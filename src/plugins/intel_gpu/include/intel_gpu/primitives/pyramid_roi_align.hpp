@@ -58,10 +58,10 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
         , pyramid_starting_level(pyramid_starting_level)
     {}
 
-    int output_size;
-    int sampling_ratio;
+    int output_size = 0;
+    int sampling_ratio = 0;
     std::vector<int> pyramid_scales;
-    int pyramid_starting_level;
+    int pyramid_starting_level = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

@@ -52,9 +52,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     }
 
     /// @brief The axis which is partially reversed.
-    int32_t seq_axis;
+    int32_t seq_axis = 0;
     /// @brief The axis along which reversal is performed.
-    int32_t batch_axis;
+    int32_t batch_axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

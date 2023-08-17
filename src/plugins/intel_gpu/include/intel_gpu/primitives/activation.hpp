@@ -79,7 +79,8 @@ struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
     activation() : primitive_base("", {}),
-                   activation_function(activation_func::none) {}
+                   activation_function(activation_func::none),
+                   additional_params({0.f, 0.f}) {}
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 

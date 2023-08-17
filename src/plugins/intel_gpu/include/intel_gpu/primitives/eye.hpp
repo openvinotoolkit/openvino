@@ -33,7 +33,7 @@ struct eye : public primitive_base<eye> {
           shift{shift} {}
 
     tensor output_shape;
-    int32_t shift;
+    int32_t shift = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

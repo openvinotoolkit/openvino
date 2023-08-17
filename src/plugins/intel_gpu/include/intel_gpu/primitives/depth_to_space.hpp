@@ -39,9 +39,9 @@ struct depth_to_space : public primitive_base<depth_to_space> {
         , mode(mode) {}
 
     /// @brief Block size.
-    size_t block_size;
+    size_t block_size = 0;
     /// @brief depth division mode
-    depth_to_space_mode mode;
+    depth_to_space_mode mode = depth_to_space_mode::blocks_first;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
