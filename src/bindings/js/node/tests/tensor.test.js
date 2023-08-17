@@ -1,6 +1,6 @@
 var ov = require('../build/Release/ov_node_addon.node');
-const assert = require("assert");
-const {test, describe, it} = require("node:test");
+const assert = require('assert');
+const { test, describe, it } = require('node:test');
 
 const shape = [1, 3, 224, 224];
 const elemNum = 1 * 3 * 224 * 224;
@@ -104,7 +104,7 @@ describe('Tensor element type', () => {
     });
   });
 
-  ets.forEach(([elemType, ..._]) => {
+  ets.forEach(([elemType]) => {
     it(`Comparison of ov.element ${elemType} got from Tensor object`, () => {
       const tensor = new ov.Tensor(elemType, shape, data);
       assert.strictEqual(tensor.getPrecision(), elemType);

@@ -1,6 +1,6 @@
-let ov = require('../build/Release/ov_node_addon.node');
+const ov = require('../build/Release/ov_node_addon.node');
 const assert = require('assert');
-const {describe, it} = require('node:test');
+const { describe, it } = require('node:test');
 const path = require('path');
 
 function getModelPath(isFP16=false) {
