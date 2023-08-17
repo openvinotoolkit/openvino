@@ -749,3 +749,32 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
         model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{y, ind});
     }
 }
+
+TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
+    // This test aims to check conversion of a model with convolution of dynamic input channel
+    // Namely, the resulted model must contain the regular convolution, not grouped convolution
+    {
+        bool cond_value = false;
+        model = convert_model("conv_with_dynamic_input_channel");
+    }
+    {
+        auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
+
+        auto transpose_order = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{0, 3, 1, 2});
+        auto transpose = make_shared<Transpose>(input, transpose_order);
+
+        auto filter = make_shared<Constant>(element::f32, Shape{6, 6, 3, 3}, vector<float>(6 * 6 * 3 * 3, 0.0f));
+        auto conv = make_shared<Convolution>(transpose,
+                                             filter,
+                                             Strides{1, 1},
+                                             CoordinateDiff{0, 0},
+                                             CoordinateDiff{0, 0},
+                                             Strides{1, 1},
+                                             op::PadType::SAME_UPPER);
+
+        auto transpose_order_back = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{0, 1, 2, 3});
+        auto transpose_back = make_shared<Transpose>(conv, transpose_order_back);
+
+        model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
+    }
+}
