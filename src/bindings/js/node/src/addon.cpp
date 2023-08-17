@@ -15,6 +15,7 @@
 #include "shape.hpp"
 #include "tensor.hpp"
 #include "resize_algorithm.hpp"
+#include "async_infer.hpp"
 
 Napi::String Method(const Napi::CallbackInfo& info) {
     ov::Version version = ov::get_openvino_version();
@@ -41,6 +42,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     exports.DefineProperty(preprocess);
 
     exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));
+    exports.Set(Napi::String::New(env, "asyncInfer"), Napi::Function::New(env, asyncInfer));
 
     return exports;
 }
