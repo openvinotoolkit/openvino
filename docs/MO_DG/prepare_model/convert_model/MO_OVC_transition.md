@@ -1,7 +1,16 @@
 # Transition guide from MO / mo.convert_model() to OVC / ov.convert_model() {#openvino_docs_MO_DG_prepare_model_convert_model_MO_OVC_transition}
 
+@sphinxdirective
+
+.. meta::
+   :description: Transition guide from MO / mo.convert_model() to OVC / ov.convert_model().
+
+
 In 2023.1 OpenVino release new OVC (OpenVino Conversion) tool was introduced with corresponding Python API (ov.convert_model() method). OVC and ov.convert_model() represent 
 lightweight analog of MO and mo.convert_model() (openvino.tools.mo.convert_model()). In this article all the differences between MO and OVC are summarized and transition guide from MO to OVC is presented.
+
+MO vs OVC parameters comparison
+###############################
 
 The comparison of parameters between ov.convert_model() / OVC and mo.convert_model() / MO.
 
@@ -180,6 +189,7 @@ The comparison of parameters between ov.convert_model() / OVC and mo.convert_mod
 
     
 Preprocessing of model using mo.convert_model() vs using ov.convert_model().
+############################################################################
 
 mo.convert_model() provides a wide range of preprocessing parameters. Most of these parameters have analogs in ``ov.PrePostProcessor`` class.
 Here is the list of MO parameters which can be replaced with usage of ``ov.PrePostProcessor`` class.
@@ -367,8 +377,8 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
              
              from openvino.preprocess import PrePostProcessor
              prep = PrePostProcessor(ov_model)
-             prep.input('input.1').model().set_layout(Layout("nchw"))
-             prep.input('input.1').tensor().set_layout(Layout("nhwc"))
+             prep.input(input_name).model().set_layout(Layout("nchw"))
+             prep.input(input_name).tensor().set_layout(Layout("nhwc"))
              ov_model = prep.build()
 
        .. tab-item:: mo.convert_model()
@@ -380,3 +390,10 @@ Here is the list of MO parameters which can be replaced with usage of ``ov.PrePo
              from openvino import Layout
              from openvino.tools.mo import convert_model, LayoutMap
              ov_model = convert_model(model, layout={input_name: LayoutMap("nchw", "nhwc")})
+
+
+MO vs OVC model formats
+####################### 
+
+ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
+Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.

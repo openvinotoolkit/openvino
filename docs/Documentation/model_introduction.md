@@ -44,7 +44,7 @@ Model conversion API, specifically, the ``ov.convert_model()`` method converts a
    :alt: model conversion diagram
 
 Convert a model with ``ovc`` (OpenVino Conversion) command-line tool
-#############################################
+####################################################################
 
 Another option to convert a model is to use ``ovc`` command-line tool. ``ovc`` is a cross-platform tool that facilitates the transition between training and deployment environments, performs static model analysis, and adjusts deep learning models for optimal execution on end-point target devices in the same measure, as the ``ov.convert_model`` method.
 
