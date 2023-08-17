@@ -66,17 +66,16 @@ async function main(modelPath, images, deviceName) {
     cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
     cv2.resize(image, image, new cv2.Size(w, h));
 
-    const tensorData = new Float32Array(image.data);
+    const tensorData = new Uint8Array(image.data);
     const shape = [1, h, w, 3];
 
-    return new ov.Tensor(ov.element.f32, shape, tensorData);
+    return new ov.Tensor(ov.element.u8, shape, tensorData);
   });
 
   //----------------- Step 4. Apply preprocessing ------------------------------
 
   new ov.PrePostProcessor(model)
-    // FIXME: Uncomment after support tensor in not f32 precision
-    // .set_input_element_type(ov.element.u8)
+    .setInputElementType(0, ov.element.u8)
     .setInputTensorLayout('NHWC')
     .setInputModelLayout('NCHW')
     // TODO: add output tensor element type setup
