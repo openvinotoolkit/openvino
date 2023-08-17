@@ -218,6 +218,8 @@ the main text. The text might have different formatting styles and
 markup, for example, phrases from a different language enclosed in
 underscores for potential emphasis or italicization:
 
+..
+
    Yes, Alabin was giving a dinner on glass tables, and the tables sang,
    \ *Il mio tesoro*—not *Il mio tesoro*\  though, but something better,
    and there were some sort of little decanters on the table, and they
@@ -226,16 +228,18 @@ underscores for potential emphasis or italicization:
 The next stages of the pipeline will be difficult to complete without
 cleaning and normalizing the text. Since formatting may differ, manual
 work is required at this stage. For example, the main content in the
-German version is enclosed in ``*       *       *       *       *``, so
+German version is enclosed in ``* * * * *``, so
 it is safe to remove everything before the first occurrence and after
 the last occurrence of these asterisks.
 
-   **Hint**: There are text-cleaning libraries that clean up common
+.. hint::
+
+   There are text-cleaning libraries that clean up common
    flaws. If the source of the text is known, you can look for a library
    designed for that source, for example
    `gutenberg_cleaner <https://github.com/kiasar/gutenberg_cleaner>`__.
    These libraries can reduce manual work and even automate the
-   process.process.
+   process
 
 .. code:: ipython3
 
