@@ -31,7 +31,9 @@ this
     import warnings
     warnings.filterwarnings('ignore')
 
-### Showing Info Available Devices `⇑ <#top>`__
+Showing Info Available Devices `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -65,8 +67,8 @@ this
     GPU: Intel(R) Data Center GPU Flex 170 (dGPU)
 
 
-### Using full precision model in CPU with ``StableDiffusionPipeline``
-`⇑ <#top>`__
+Using full precision model in CPU with ``StableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -117,8 +119,9 @@ this
 
 
 
-### Using full precision model in CPU with ``OVStableDiffusionPipeline``
-`⇑ <#top>`__
+Using full precision model in CPU with ``OVStableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -206,8 +209,9 @@ this
 
 
 
-### Using full precision model in dGPU with
-``OVStableDiffusionPipeline`` `⇑ <#top>`__
+Using full precision model in dGPU with ``OVStableDiffusionPipeline``. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The model in this notebook is FP32 precision. And thanks to the new
 feature of OpenVINO 2023.0 you do not need to convert the model to FP16

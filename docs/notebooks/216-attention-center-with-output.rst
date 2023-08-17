@@ -61,7 +61,9 @@ Table of content:
 - `Load input image <#6>`__
 - `Get result with OpenVINO IR model <#7>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -84,7 +86,9 @@ Table of content:
     2023-08-15 23:14:52.969814: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-## Download the attention-center model `⇑ <#top>`__
+Download the attention-center model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Download the model as part of `attention-center
 repo <https://github.com/google/attention-center/tree/main>`__. The repo
@@ -107,7 +111,9 @@ include model in folder ``./model``.
     Resolving deltas: 100% (73/73), done.
 
 
-### Convert Tensorflow Lite model to OpenVINO IR format `⇑ <#top>`__
+Convert Tensorflow Lite model to OpenVINO IR format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The attention-center model is pre-trained model in TensorFlow Lite
 format. In this Notebook the model will be converted to OpenVINO IR
@@ -143,7 +149,9 @@ find example in
     IR model saved to model/ir_center_model.xml
 
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -173,7 +181,9 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-## Prepare image to use with attention-center model `⇑ <#top>`__
+Prepare image to use with attention-center model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The attention-center model takes an RGB image with shape (480, 640) as
 input.
@@ -223,7 +233,9 @@ input.
     
             plt.imshow(cv2.cvtColor(image_to_print, cv2.COLOR_BGR2RGB))
 
-## Load input image `⇑ <#top>`__
+Load input image `⇑ <#top>`__
+###############################################################################################################################
+
 
 Upload input image using file loading button
 
@@ -269,7 +281,9 @@ Upload input image using file loading button
 .. image:: 216-attention-center-with-output_files/216-attention-center-with-output_14_1.png
 
 
-## Get result with OpenVINO IR model `⇑ <#top>`__
+Get result with OpenVINO IR model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 

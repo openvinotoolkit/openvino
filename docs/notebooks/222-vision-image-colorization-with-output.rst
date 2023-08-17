@@ -56,7 +56,9 @@ Table of content:
 - `Load the Image <#8>`__
 - `Display Colorized Image <#9>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -72,7 +74,9 @@ Table of content:
     sys.path.append("../utils")
     import notebook_utils as utils
 
-## Configurations `⇑ <#top>`__
+Configurations `⇑ <#top>`__
+###############################################################################################################################
+
 
 -  ``PRECISION`` - {FP16, FP32}, default: FP16.
 -  ``MODEL_DIR`` - directory where the model is to be stored, default:
@@ -90,7 +94,9 @@ Table of content:
     MODEL_PATH = f"{MODEL_DIR}/public/{MODEL_NAME}/{PRECISION}/{MODEL_NAME}.xml"
     DATA_DIR = "data"
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -118,7 +124,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Download the model `⇑ <#top>`__
+Download the model `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``omz_downloader`` downloads model files from online sources and, if
 necessary, patches them to make them more usable with Model Converter.
@@ -166,7 +174,9 @@ above.
     
 
 
-## Convert the model to OpenVINO IR `⇑ <#top>`__
+Convert the model to OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``omz_converter`` converts the models that are not in the OpenVINO™ IR
 format into that format using model conversion API.
@@ -208,7 +218,9 @@ respectively
     
 
 
-## Loading the Model `⇑ <#top>`__ Load the model in OpenVINO Runtime with
+Loading the Model `⇑ <#top>`__
+###############################################################################################################################
+ Load the model in OpenVINO Runtime with
 ``ie.read_model`` and compile it for the specified device with
 ``ie.compile_model``.
 
@@ -221,7 +233,9 @@ respectively
     output_layer = compiled_model.output(0)
     N, C, H, W = list(input_layer.shape)
 
-## Utility Functions `⇑ <#top>`__
+Utility Functions `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -297,7 +311,9 @@ respectively
     
         plt.show()
 
-## Load the Image `⇑ <#top>`__
+Load the Image `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -362,7 +378,9 @@ respectively
     color_img_0 = colorize(test_img_0)
     color_img_1 = colorize(test_img_1)
 
-## Display Colorized Image `⇑ <#top>`__
+Display Colorized Image `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 

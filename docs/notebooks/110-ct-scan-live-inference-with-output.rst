@@ -48,7 +48,9 @@ Table of content:
 
     !pip install -q "monai>=0.9.1,<1.0.0"
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -66,7 +68,9 @@ Table of content:
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-## Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 To use the pre-trained models, set ``IR_PATH`` to
 ``"pretrained_model/unet44.xml"`` and ``COMPRESSED_MODEL_PATH`` to
@@ -103,7 +107,9 @@ trained or optimized yourself, adjust the model paths.
     pretrained_model/quantized_unet_kits19.bin:   0%|          | 0.00/1.90M [00:00<?, ?B/s]
 
 
-## Benchmark Model Performance `⇑ <#top>`__ To measure the inference
+Benchmark Model Performance `⇑ <#top>`__
+###############################################################################################################################
+ To measure the inference
 performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO. Benchmark tool
@@ -224,7 +230,9 @@ is a command-line application that can be run in the notebook with
     [ INFO ] Throughput:   97.14 FPS
 
 
-## Download and Prepare Data `⇑ <#top>`__
+Download and Prepare Data `⇑ <#top>`__
+###############################################################################################################################
+
 
 Download one validation video for live inference.
 
@@ -270,7 +278,9 @@ downloaded and extracted in the next cell.
     Downloaded and extracted data for case_00117
 
 
-## Show Live Inference `⇑ <#top>`__
+Show Live Inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 To show live inference on the model in the notebook, use the
 asynchronous processing feature of OpenVINO Runtime.
@@ -300,7 +310,9 @@ inference queue, there are two jobs to do:
 
 Everything else will be handled by the ``AsyncInferQueue`` instance.
 
-### Load Model and List of Image Files `⇑ <#top>`__
+Load Model and List of Image Files `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Load the segmentation model to OpenVINO Runtime with
 ``SegmentationModel``, based on the Model API from `Open Model
@@ -326,7 +338,9 @@ to see the implementation.
     case_00117, 69 images
 
 
-### Prepare images `⇑ <#top>`__
+Prepare images `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use the ``reader = LoadImage()`` function to read the images in the same
 way as in the
@@ -346,7 +360,9 @@ tutorial.
         framebuf.append(image)
         next_frame_id += 1
 
-### Specify device `⇑ <#top>`__
+Specify device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -361,7 +377,9 @@ tutorial.
 
 
 
-### Setting callback function `⇑ <#top>`__
+Setting callback function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 When ``callback`` is set, any job that ends the inference, calls the
 Python function. The ``callback`` function must have two arguments: one
@@ -396,7 +414,9 @@ The ``callback`` function will show the results of inference.
         display.clear_output(wait=True)
         display.display(i)
 
-### Create asynchronous inference queue and perform it `⇑ <#top>`__
+Create asynchronous inference queue and perform it `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

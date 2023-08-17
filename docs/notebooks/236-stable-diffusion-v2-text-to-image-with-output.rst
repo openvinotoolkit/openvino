@@ -91,7 +91,9 @@ Table of content:
 - `Configure Inference Pipeline <#9>`__
 - `Run Text-to-Image generation <#10>`__
 
-## Prerequisites `⇑ <#top>`__ install required packages
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+ install required packages
 
 .. code:: ipython3
 
@@ -105,7 +107,9 @@ Table of content:
     [notice] To update, run: pip install --upgrade pip
 
 
-## Stable Diffusion v2 for Text-to-Image Generation `⇑ <#top>`__
+Stable Diffusion v2 for Text-to-Image Generation `⇑ <#top>`__
+###############################################################################################################################
+
 
 To start, let’s look on Text-to-Image process for Stable Diffusion v2.
 We will use `Stable Diffusion
@@ -119,7 +123,9 @@ post <https://stability.ai/blog/stablediffusion2-1-release7-dec-2022>`__
 and original model
 `repository <https://github.com/Stability-AI/stablediffusion>`__.
 
-### Stable Diffusion in Diffusers library `⇑ <#top>`__ To work with Stable
+Stable Diffusion in Diffusers library `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ To work with Stable
 Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
@@ -156,8 +162,9 @@ using ``stable-diffusion-2-1``:
     2023-07-16 16:09:32.584374: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-### Convert models to OpenVINO Intermediate representation (IR) format
-`⇑ <#top>`__
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 OpenVINO supports PyTorch through export to the ONNX format. We will use
 the ``torch.onnx.export`` function to obtain the ONNX model, we can
@@ -183,7 +190,9 @@ The pipeline consists of three important parts:
 
 Let us convert each part:
 
-### Text Encoder `⇑ <#top>`__
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -262,7 +271,9 @@ this opset.
     Text encoder will be loaded from sd2.1/text_encoder.xml
 
 
-### U-Net `⇑ <#top>`__
+U-Net `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -345,7 +356,9 @@ such use cases required to modify number of input channels.
     U-Net will be loaded from sd2.1/unet.xml
 
 
-### VAE `⇑ <#top>`__
+VAE `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -468,7 +481,9 @@ RAM (recommended at least 32GB).
     VAE decoder will be loaded from sd2.1/vae_decoder.xml
 
 
-### Prepare Inference Pipeline `⇑ <#top>`__
+Prepare Inference Pipeline `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -882,7 +897,9 @@ but there is some small difference in details:
       from diffusers.pipeline_utils import DiffusionPipeline
 
 
-### Configure Inference Pipeline `⇑ <#top>`__
+Configure Inference Pipeline `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -937,7 +954,9 @@ Let us define them and put all components together.
         scheduler=scheduler
     )
 
-### Run Text-to-Image generation `⇑ <#top>`__
+Run Text-to-Image generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator

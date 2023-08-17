@@ -49,7 +49,9 @@ Table of content:
     import itertools
     from tokenizers import SentencePieceBPETokenizer
 
-## Downloading model `⇑ <#top>`__ The following command will download the
+Downloading model `⇑ <#top>`__
+###############################################################################################################################
+ The following command will download the
 model to the current directory. Make sure you have run
 ``pip install openvino-dev`` beforehand.
 
@@ -88,7 +90,9 @@ model to the current directory. Make sure you have run
     
 
 
-## Load and configure the model `⇑ <#top>`__ The model is now available in
+Load and configure the model `⇑ <#top>`__
+###############################################################################################################################
+ The model is now available in
 the ``intel/`` folder. Below, we load and configure its inputs and
 outputs.
 
@@ -101,7 +105,9 @@ outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -133,7 +139,9 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model, device.value)
 
-## Load tokenizers `⇑ <#top>`__
+Load tokenizers `⇑ <#top>`__
+###############################################################################################################################
+
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -159,7 +167,9 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         'intel/machine-translation-nar-en-de-0002/tokenizer_tgt/merges.txt'
     )
 
-## Perform translation `⇑ <#top>`__ The following function translates a
+Perform translation `⇑ <#top>`__
+###############################################################################################################################
+ The following function translates a
 sentence in English to German.
 
 .. code:: ipython3
@@ -206,7 +216,9 @@ sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-## Translate the sentence `⇑ <#top>`__ The following function is a basic
+Translate the sentence `⇑ <#top>`__
+###############################################################################################################################
+ The following function is a basic
 loop that translates sentences.
 
 .. code:: ipython3
@@ -234,7 +246,9 @@ loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-### Test your translation `⇑ <#top>`__ Run the following cell with an
+Test your translation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Run the following cell with an
 English sentence to have it translated to German
 
 .. code:: ipython3

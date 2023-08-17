@@ -39,7 +39,9 @@ Table of content:
 - `Convert SpeakerEncoder <#5>`__
 - `Convert Decoder <#6>`__
 
-## Pre-requisites `⇑ <#top>`__ This steps can be done manually or will be
+Pre-requisites `⇑ <#top>`__
+###############################################################################################################################
+ This steps can be done manually or will be
 performed automatically during the execution of the notebook, but in
 minimum necessary scope. 1. Clone this repo: git clone
 https://github.com/OlaWod/FreeVC.git. 2. Download
@@ -161,7 +163,9 @@ Check if FreeVC is installed and append its path to ``sys.path``
     p226_002.wav:   0%|          | 0.00/135k [00:00<?, ?B/s]
 
 
-## Imports and settings `⇑ <#top>`__
+Imports and settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -275,7 +279,9 @@ using ``compile_model`` or can be saved on a disk using the
 ``serialize`` function. The ``read_model`` method loads a saved model
 from a disk. For more information about model conversion, see this
 `page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
-### Convert Prior Encoder. `⇑ <#top>`__ First we convert WavLM model, as a
+Convert Prior Encoder. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ First we convert WavLM model, as a
 part of Convert Prior Encoder, to the ONNX format, then to OpenVINO’s IR
 format. We keep the original name of the model in code: ``cmodel``.
 
@@ -376,7 +382,9 @@ Select device from dropdown list for running inference using OpenVINO
     
     compiled_cmodel = core.compile_model(ir_cmodel, device.value)
 
-### Convert ``SpeakerEncoder`` `⇑ <#top>`__ Converting to ONNX format.
+Convert ``SpeakerEncoder`` `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Converting to ONNX format.
 
 .. code:: ipython3
 
@@ -557,7 +565,9 @@ Then compile model.
 
     compiled_smodel = core.compile_model(ir_smodel, device.value)
 
-### Convert Decoder `⇑ <#top>`__
+Convert Decoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 In the same way export ``SynthesizerTrn`` model, that implements decoder
 function, to ONNX format and convert it to OpenVINO IR format.

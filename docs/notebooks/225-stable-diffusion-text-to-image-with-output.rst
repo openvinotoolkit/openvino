@@ -54,7 +54,9 @@ Table of content:
 - `Text-to-Image generation <#9>`__
 - `Image-to-Image generation <#10>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
@@ -96,7 +98,9 @@ solutions based on Stable Diffusion.
     !pip install -q "huggingface-hub>=0.9.1"
 
 
-## Create PyTorch Models pipeline `⇑ <#top>`__ ``StableDiffusionPipeline``
+Create PyTorch Models pipeline `⇑ <#top>`__
+###############################################################################################################################
+ ``StableDiffusionPipeline``
 is an end-to-end inference pipeline that you can use to generate images
 from text with just a few lines of code.
 
@@ -123,8 +127,8 @@ First, load the pre-trained weights of all components of the model.
     Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
 
 
-## Convert models to OpenVINO Intermediate representation (IR) format
-`⇑ <#top>`__
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
+###############################################################################################################################
 
 OpenVINO supports PyTorch through export to the ONNX format. You will
 use ``torch.onnx.export`` function for obtaining ONNX model. You can
@@ -151,7 +155,9 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-### Text Encoder `⇑ <#top>`__
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -232,7 +238,9 @@ hidden states. You will use ``opset_version=14``, because model contains
 
 
 
-### U-net `⇑ <#top>`__
+U-net `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Unet model has three inputs:
 
@@ -307,7 +315,9 @@ Model predicts the ``sample`` state for the next step.
 
 
 
-### VAE `⇑ <#top>`__
+VAE `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -421,7 +431,9 @@ of the pipeline, it will be better to convert them to separate models.
     VAE decoder will be loaded from vae_decoder.xml
 
 
-## Prepare Inference Pipeline `⇑ <#top>`__
+Prepare Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Putting it all together, let us now take a closer look at how the model
 works in inference by illustrating the logical flow.
@@ -783,7 +795,9 @@ of the variational auto encoder.
     
             return timesteps, num_inference_steps - t_start 
 
-## Configure Inference Pipeline `⇑ <#top>`__
+Configure Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 First, you should create instances of OpenVINO Model.
 
@@ -845,7 +859,9 @@ Let us define them and put all components together
         scheduler=lms
     )
 
-### Text-to-Image generation `⇑ <#top>`__
+Text-to-Image generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
@@ -941,7 +957,9 @@ Now is show time!
 
 Nice. As you can see, the picture has quite a high definition 🔥.
 
-### Image-to-Image generation `⇑ <#top>`__
+Image-to-Image generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``

@@ -85,7 +85,9 @@ Table of content:
 - `Run Inference pipeline <#5>`__
 - `Interactive demo <#6>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -120,7 +122,9 @@ Table of content:
     [notice] To update, run: pip install --upgrade pip
 
 
-## Stable Diffusion pipeline in Optimum Intel `⇑ <#top>`__
+Stable Diffusion pipeline in Optimum Intel `⇑ <#top>`__
+###############################################################################################################################
+
 
 As the riffusion model architecture is the same as Stable Diffusion, we
 can use it with the Stable Diffusion pipeline for text-to-image
@@ -156,7 +160,9 @@ running.
     MODEL_ID = "riffusion/riffusion-model-v1"
     MODEL_DIR = Path("riffusion_pipeline")
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -374,8 +380,8 @@ select device from dropdown list for running inference using OpenVINO
     Using framework PyTorch: 1.13.1+cpu
 
 
-## Prepare postprocessing for reconstruction audio from spectrogram
-image `⇑ <#top>`__
+Prepare postprocessing for reconstruction audio from spectrogram image. `⇑ <#top>`__
+###############################################################################################################################
 
 The riffusion model generates an audio spectrogram image, which can be
 used to reconstruct audio. However, the spectrogram images from the
@@ -541,7 +547,9 @@ from a spectrogram image using Griffin-Lim Algorithm.
     
         return waveform
 
-## Run Inference pipeline `⇑ <#top>`__
+Run Inference pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The diagram below briefly describes the workflow of our pipeline
 
@@ -650,7 +658,9 @@ without the other. More explanation of how it works can be found in this
 
 
 
-## Interactive demo `⇑ <#top>`__
+Interactive demo `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 

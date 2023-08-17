@@ -46,7 +46,9 @@ Table of content:
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
-## Prepare the Model `⇑ <#top>`__
+Prepare the Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Model preparation stage has the following steps:
 
@@ -105,7 +107,9 @@ can be found on this
     
     serialize(ov_model, MODEL_DIR / "mobilenet_v2.xml") 
 
-## Prepare Dataset `⇑ <#top>`__
+Prepare Dataset `⇑ <#top>`__
+###############################################################################################################################
+
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -146,7 +150,9 @@ Preprocessing for model obtained from training
     Extracting ../data/datasets/cifar10/cifar-10-python.tar.gz to ../data/datasets/cifar10
 
 
-## Perform Quantization `⇑ <#top>`__
+Perform Quantization `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -159,7 +165,9 @@ MobileNetV2. The optimization process contains the following steps:
 3. Serialize an OpenVINO IR model, using the
    ``openvino.runtime.serialize`` function.
 
-### Create Dataset for Validation `⇑ <#top>`__
+Create Dataset for Validation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -183,7 +191,9 @@ model during quantization, in our case, to pick input tensor from pair
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-## Run nncf.quantize for Getting an Optimized Model `⇑ <#top>`__
+Run nncf.quantize for Getting an Optimized Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -203,7 +213,9 @@ about supported parameters can be found on this
     Biases correction: 100%|██████████| 36/36 [00:01<00:00, 19.40it/s]
 
 
-## Serialize an OpenVINO IR model `⇑ <#top>`__
+Serialize an OpenVINO IR model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Similar to ``mo.convert_model``, quantized model is
 ``openvino.runtime.Model`` object which ready to be loaded into device
@@ -213,7 +225,9 @@ and can be serialized on disk using ``openvino.runtime.serialize``.
 
     serialize(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
 
-## Compare Accuracy of the Original and Quantized Models `⇑ <#top>`__
+Compare Accuracy of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -230,7 +244,9 @@ and can be serialized on disk using ``openvino.runtime.serialize``.
             total += 1
         return correct / total
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -295,7 +311,9 @@ select device from dropdown list for running inference using OpenVINO
     Accuracy of the optimized model: 93.51%
 
 
-## Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -467,7 +485,9 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Throughput:   12079.70 FPS
 
 
-## Compare results on four pictures `⇑ <#top>`__
+Compare results on four pictures `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 

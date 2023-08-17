@@ -29,9 +29,13 @@ Table of content:
 - `Select inference device <#8>`__
 - `Estimate Model Performance <#9>`__
 
-## Preparation `⇑ <#top>`__
+Preparation `⇑ <#top>`__
+###############################################################################################################################
 
-### Install requirements `⇑ <#top>`__
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -45,7 +49,9 @@ Table of content:
         filename='notebook_utils.py'
     );
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -57,7 +63,9 @@ Table of content:
     
     from notebook_utils import download_file, load_image
 
-## Download TFLite model `⇑ <#top>`__
+Download TFLite model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -84,7 +92,9 @@ Table of content:
 
 
 
-## Convert a Model to OpenVINO IR Format `⇑ <#top>`__
+Convert a Model to OpenVINO IR Format `⇑ <#top>`__
+###############################################################################################################################
+
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
 can be used. ``mo.convert_model`` function accepts the path to the
@@ -111,7 +121,9 @@ For TensorFlow Lite models support, refer to this
     Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
 
 
-## Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#top>`__
+Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#top>`__
+###############################################################################################################################
+
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
@@ -124,7 +136,9 @@ this `tutorial <../002-openvino-api>`__.
     
     ov_model = core.read_model(tflite_model_path)
 
-## Run OpenVINO model inference `⇑ <#top>`__
+Run OpenVINO model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 We can find information about model input preprocessing in its
 `description <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
@@ -138,7 +152,9 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -197,7 +213,9 @@ select device from dropdown list for running inference using OpenVINO
     Predicted label: n02109047 Great Dane with probability 0.715318
 
 
-## Estimate Model Performance `⇑ <#top>`__ `Benchmark
+Estimate Model Performance `⇑ <#top>`__
+###############################################################################################################################
+ `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.

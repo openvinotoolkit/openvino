@@ -37,7 +37,9 @@ Table of content:
 - `Compare performance <#6>`__
 - `Compare size of the models <#7>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -66,7 +68,9 @@ Table of content:
     [notice] To update, run: pip install --upgrade pip
 
 
-## Download the NER model `⇑ <#top>`__
+Download the NER model `⇑ <#top>`__
+###############################################################################################################################
+
 
 We load the
 ```distilbert-base-cased-finetuned-conll03-english`` <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
@@ -121,7 +125,9 @@ method.
     Downloading (…)cial_tokens_map.json:   0%|          | 0.00/112 [00:00<?, ?B/s]
 
 
-## Quantize the model, using Hugging Face Optimum API `⇑ <#top>`__
+Quantize the model, using Hugging Face Optimum API `⇑ <#top>`__
+###############################################################################################################################
+
 
 Post-training static quantization introduces an additional calibration
 step where data is fed through the network in order to compute the
@@ -373,7 +379,9 @@ corresponding ``OVModelForXxx`` class. So we use
     Compiling the model...
 
 
-## Prepare demo for Named Entity Recognition OpenVINO Runtime `⇑ <#top>`__
+Prepare demo for Named Entity Recognition OpenVINO Runtime `⇑ <#top>`__
+###############################################################################################################################
+
 
 As the Optimum Inference models are API compatible with Hugging Face
 Transformers models, we can just use ``pipleine()`` from `Hugging Face
@@ -438,14 +446,18 @@ text.
     Keyboard interruption in main thread... closing server.
 
 
-## Compare the Original and Quantized Models `⇑ <#top>`__
+Compare the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 Compare the original
 ```distilbert-base-cased-finetuned-conll03-english`` <https://huggingface.co/elastic/distilbert-base-cased-finetuned-conll03-english>`__
 model with quantized and converted to OpenVINO IR format models to see
 the difference.
 
-### Compare performance `⇑ <#top>`__
+Compare performance `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -483,7 +495,9 @@ the difference.
     Median inference time of quantized model: 0.008888308017048985 
 
 
-### Compare size of the models `⇑ <#top>`__
+Compare size of the models `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

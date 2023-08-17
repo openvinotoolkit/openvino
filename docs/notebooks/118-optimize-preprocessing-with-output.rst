@@ -54,9 +54,13 @@ Table of content:
 - `Compare results on one image <#23>`__ 
 - `Compare performance <#24>`__
 
-## Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
+###############################################################################################################################
 
-## Imports `⇑ <#top>`__
+
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -79,7 +83,9 @@ Table of content:
     2023-08-15 22:57:20.520711: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
-### Setup image and device `⇑ <#top>`__
+Setup image and device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -108,7 +114,9 @@ Table of content:
 
 
 
-### Downloading the model `⇑ <#top>`__
+Downloading the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -163,13 +171,17 @@ and save it to the disk.
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
-### Create core `⇑ <#top>`__
+Create core `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
     core = Core()
 
-### Check the original parameters of image `⇑ <#top>`__
+Check the original parameters of image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -189,8 +201,8 @@ and save it to the disk.
 .. image:: 118-optimize-preprocessing-with-output_files/118-optimize-preprocessing-with-output_13_1.png
 
 
-## Convert model to OpenVINO IR and setup preprocessing steps with model
-conversion API `⇑ <#top>`__
+Convert model to OpenVINO IR and setup preprocessing steps with model conversion API. `⇑ <#top>`__
+###############################################################################################################################
 
 To convert a TensorFlow model to OpenVINO IR, use the
 ``mo.convert_model`` python function of `model conversion
@@ -237,7 +249,9 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
                                                   input_shape=[1,299,299,3])
         serialize(ov_model_mo_preprocess, str(ir_path_mo_preprocess))
 
-### Prepare image `⇑ <#top>`__
+Prepare image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -272,7 +286,9 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
     The data type of the image is float32
 
 
-### Compile model and perform inference `⇑ <#top>`__
+Compile model and perform inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -282,8 +298,8 @@ article <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Additional_Optimiza
     
     result = compiled_model_mo_pp(mo_pp_input_tensor)[output_layer]
 
-## Setup preprocessing steps with Preprocessing API and perform
-inference `⇑ <#top>`__
+Setup preprocessing steps with Preprocessing API and perform inference. `⇑ <#top>`__
+###############################################################################################################################
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -308,7 +324,9 @@ Pre-processing support following operations (please, see more details
 -  Color Conversion
 -  Custom Operations
 
-### Convert model to OpenVINO IR with model conversion API `⇑ <#top>`__
+Convert model to OpenVINO IR with model conversion API `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The options for preprocessing are not required.
 
@@ -326,7 +344,9 @@ The options for preprocessing are not required.
                                      input_shape=[1,299,299,3])
         serialize(ppp_model, str(ir_path))
 
-### Create ``PrePostProcessor`` Object `⇑ <#top>`__
+Create ``PrePostProcessor`` Object `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The
 ```PrePostProcessor()`` <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
@@ -339,7 +359,9 @@ a model.
     
     ppp = PrePostProcessor(ppp_model)
 
-### Declare User’s Data Format `⇑ <#top>`__
+Declare User’s Data Format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -383,7 +405,9 @@ for mean/scale normalization.
 
 
 
-### Declaring Model Layout `⇑ <#top>`__
+Declaring Model Layout `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -411,7 +435,9 @@ may be specified is input data
 
 
 
-### Preprocessing Steps `⇑ <#top>`__
+Preprocessing Steps `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -449,7 +475,9 @@ then such conversion will be added explicitly.
 
 
 
-### Integrating Steps into a Model `⇑ <#top>`__
+Integrating Steps into a Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -474,7 +502,9 @@ configuration for debugging purposes.
     
 
 
-## Load model and perform inference `⇑ <#top>`__
+Load model and perform inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -491,16 +521,22 @@ configuration for debugging purposes.
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
-## Fit image manually and perform inference `⇑ <#top>`__
+Fit image manually and perform inference `⇑ <#top>`__
+###############################################################################################################################
 
-### Load the model `⇑ <#top>`__
+
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
     model = core.read_model(model=ir_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-### Load image and fit it to model input `⇑ <#top>`__
+Load image and fit it to model input `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -533,7 +569,9 @@ configuration for debugging purposes.
     The data type of the image is float32
 
 
-### Perform inference `⇑ <#top>`__
+Perform inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -541,9 +579,13 @@ configuration for debugging purposes.
     
     result = compiled_model(input_tensor)[output_layer]
 
-## Compare results `⇑ <#top>`__
+Compare results `⇑ <#top>`__
+###############################################################################################################################
 
-### Compare results on one image `⇑ <#top>`__
+
+Compare results on one image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -608,7 +650,9 @@ configuration for debugging purposes.
     n02100877 Irish setter, red setter, 0.00116
 
 
-### Compare performance `⇑ <#top>`__
+Compare performance `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

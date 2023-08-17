@@ -39,9 +39,13 @@ Table of content:
 - `Do Inference <#19>`__
 - `Save superresolution image and the bicubic image <#20>`__
 
-## Preparation `⇑ <#top>`__
+Preparation `⇑ <#top>`__
+###############################################################################################################################
 
-### Install requirements `⇑ <#top>`__
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -49,7 +53,9 @@ Table of content:
     !pip install -q opencv-python
     !pip install -q pillow matplotlib
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -75,9 +81,13 @@ Table of content:
         path.parent.mkdir(parents=True, exist_ok=True)
         urllib.request.urlretrieve(url, path)
 
-### Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-#### Select inference device `⇑ <#top>`__
+
+Select inference device `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -127,7 +137,9 @@ select device from dropdown list for running inference using OpenVINO
     else:
         print(f'{model_name} already downloaded to {base_model_dir}')
 
-### Functions `⇑ <#top>`__
+Functions `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -187,7 +199,9 @@ select device from dropdown list for running inference using OpenVINO
         """
         return cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB)
 
-## Load the Superresolution Model `⇑ <#top>`__
+Load the Superresolution Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The Super Resolution model expects two inputs: the input image and a
 bicubic interpolation of the input image to the target size of
@@ -234,7 +248,9 @@ about the network inputs and outputs.
     The image sides are upsampled by a factor of 4. The new image is 16 times as large as the original image
 
 
-## Load and Show the Input Image `⇑ <#top>`__
+Load and Show the Input Image `⇑ <#top>`__
+###############################################################################################################################
+
 
    **NOTE**: For the best results, use raw images (like ``TIFF``,
    ``BMP`` or ``PNG``). Compressed images (like ``JPEG``) may appear
@@ -268,9 +284,13 @@ about the network inputs and outputs.
 .. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_15_1.png
 
 
-## Superresolution on a Crop of the Image `⇑ <#top>`__
+Superresolution on a Crop of the Image `⇑ <#top>`__
+###############################################################################################################################
 
-### Crop the Input Image once. `⇑ <#top>`__
+
+Crop the Input Image once. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Crop the network input size. Give the X (width) and Y (height)
 coordinates for the top left corner of the crop. Set the ``CROP_FACTOR``
@@ -318,7 +338,9 @@ as the crop size.
 .. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_17_1.png
 
 
-### Reshape/Resize Crop for Model Input `⇑ <#top>`__
+Reshape/Resize Crop for Model Input `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The input image is resized to a network input size, and reshaped to
 (N,C,H,W) (N=number of images, C=number of channels, H=height, W=width).
@@ -340,7 +362,9 @@ interpolation. This bicubic image is the second input to the network.
     input_image_original = np.expand_dims(image_crop.transpose(2, 0, 1), axis=0)
     input_image_bicubic = np.expand_dims(bicubic_image.transpose(2, 0, 1), axis=0)
 
-### Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Do inference and convert the inference result to an ``RGB`` image.
 
@@ -356,7 +380,9 @@ Do inference and convert the inference result to an ``RGB`` image.
     # Get inference result as numpy array and reshape to image shape and data type
     result_image = convert_result_to_image(result)
 
-### Show and Save Results `⇑ <#top>`__
+Show and Save Results `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Show the bicubic image and the enhanced superresolution image.
 
@@ -381,7 +407,9 @@ Show the bicubic image and the enhanced superresolution image.
 .. image:: 202-vision-superresolution-image-with-output_files/202-vision-superresolution-image-with-output_23_1.png
 
 
-#### Save Superresolution and Bicubic Image Crop `⇑ <#top>`__
+Save Superresolution and Bicubic Image Crop `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -412,7 +440,7 @@ Show the bicubic image and the enhanced superresolution image.
     Images written to directory: output
 
 
-#### Write Animated GIF with Bicubic/Superresolution Comparison
+Write Animated GIF with Bicubic/Superresolution Comparison
 `⇑ <#top>`__
 
 .. code:: ipython3
@@ -450,7 +478,7 @@ Show the bicubic image and the enhanced superresolution image.
 
 
 
-#### Create a Video with Sliding Bicubic/Superresolution Comparison
+Create a Video with Sliding Bicubic/Superresolution Comparison
 `⇑ <#top>`__
 
 This may take a while. For the video, the superresolution and bicubic
@@ -518,7 +546,9 @@ the ``Files`` tool.
     The video has been saved to output/flag_crop_comparison_2x.avi<br>
 
 
-## Superresolution on full input image `⇑ <#top>`__
+Superresolution on full input image `⇑ <#top>`__
+###############################################################################################################################
+
 
 Superresolution on the full image is done by dividing the image into
 patches of equal size, doing superresolution on each path, and then
@@ -528,7 +558,9 @@ near the border of the image are ignored.
 Adjust the ``CROPLINES`` setting in the next cell if you see boundary
 effects.
 
-### Compute patches `⇑ <#top>`__
+Compute patches `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -572,7 +604,9 @@ effects.
     The output image will have a width of 11280 and a height of 7280
 
 
-### Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The code below reads one patch of the image at a time. Each patch is
 reshaped to the network input shape and upsampled with bicubic
@@ -693,7 +727,9 @@ as total time to process each patch.
     Inference patches per second: 17.27 
 
 
-### Save superresolution image and the bicubic image `⇑ <#top>`__
+Save superresolution image and the bicubic image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

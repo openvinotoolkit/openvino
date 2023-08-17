@@ -63,7 +63,9 @@ Table of content:
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-## Get Books `⇑ <#top>`__
+Get Books `⇑ <#top>`__
+###############################################################################################################################
+
 
 The first step is to get the books that we will be working with. For
 this notebook, we will use English and German versions of Anna Karenina
@@ -207,7 +209,9 @@ which in a raw format looks like this:
 
 
 
-## Clean Text `⇑ <#top>`__
+Clean Text `⇑ <#top>`__
+###############################################################################################################################
+
 
 The downloaded books may contain service information before and after
 the main text. The text might have different formatting styles and
@@ -332,7 +336,9 @@ needed.
       0%|          | 0/3 [00:00<?, ?it/s]
 
 
-## Split Text `⇑ <#top>`__
+Split Text `⇑ <#top>`__
+###############################################################################################################################
+
 
 Dividing text into sentences is a challenging task in text processing.
 The problem is called `sentence boundary
@@ -371,7 +377,9 @@ languages.
 
 
 
-## Get Sentence Embeddings `⇑ <#top>`__
+Get Sentence Embeddings `⇑ <#top>`__
+###############################################################################################################################
+
 
 The next step is to transform sentences into vector representations.
 Transformer encoder models, like BERT, provide high-quality embeddings
@@ -459,7 +467,9 @@ best fit.
       0%|          | 0/34 [00:00<?, ?it/s]
 
 
-### Optimize the Model with OpenVINO `⇑ <#top>`__
+Optimize the Model with OpenVINO `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model conversion Python
@@ -536,7 +546,9 @@ model predictions remain within an acceptable tolerance:
 
 
 
-## Calculate Sentence Alignment `⇑ <#top>`__
+Calculate Sentence Alignment `⇑ <#top>`__
+###############################################################################################################################
+
 
 With the embedding matrices from the previous step, we can calculate the
 alignment: 1. Calculate sentence similarity between each pair of
@@ -660,7 +672,9 @@ will be lists of German sentence numbers.
 
 
 
-## Postprocess Sentence Alignment `⇑ <#top>`__
+Postprocess Sentence Alignment `⇑ <#top>`__
+###############################################################################################################################
+
 
 There are several gaps in the resulting alignment, such as English
 sentence #14 not mapping to any German sentence. Here are some possible
@@ -684,7 +698,9 @@ Most likely, English sentence 14 is part of either German sentence 17 or
 18. By comparing the similarity using the model, you can choose the most
 suitable alignment.
 
-## Visualize Sentence Alignment `⇑ <#top>`__
+Visualize Sentence Alignment `⇑ <#top>`__
+###############################################################################################################################
+
 
 To evaluate the final alignment and choose the best way to improve the
 results of the pipeline, we will create an interactive table with HTML
@@ -842,7 +858,9 @@ To read the model from disk, use the ``read_model`` method of the
 
     ov_model = core.read_model(ov_model_path)
 
-## Speed up Embeddings Computation `⇑ <#top>`__
+Speed up Embeddings Computation `⇑ <#top>`__
+###############################################################################################################################
+
 
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using

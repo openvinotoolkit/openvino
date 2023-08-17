@@ -41,7 +41,9 @@ Table of content:
 - `Show the OCR Result per Bounding Box <#16>`__
 - `Print Annotations in Plain Text Format <#17>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -58,7 +60,9 @@ Table of content:
     sys.path.append("../utils")
     from notebook_utils import load_image
 
-## Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -71,7 +75,9 @@ Table of content:
     
     model_dir.mkdir(exist_ok=True)
 
-## Download Models `⇑ <#top>`__
+Download Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 The next cells will run Model Downloader to download the detection and
 recognition models. If the models have been downloaded before, they will
@@ -288,7 +294,9 @@ text-recognition-resnet-fc.
     # for line in download_result:
     #    print(line)
 
-## Convert Models `⇑ <#top>`__
+Convert Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 The downloaded detection model is an Intel model, which is already in
 OpenVINO Intermediate Representation (OpenVINO IR) format. The text
@@ -337,7 +345,9 @@ Converting text-recognition-resnet-fc…
     
 
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -363,12 +373,16 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Object Detection `⇑ <#top>`__
+Object Detection `⇑ <#top>`__
+###############################################################################################################################
+
 
 Load a detection model, load an image, do inference and get the
 detection inference result.
 
-### Load a Detection Model `⇑ <#top>`__
+Load a Detection Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -379,7 +393,9 @@ detection inference result.
     
     detection_input_layer = detection_compiled_model.input(0)
 
-### Load an Image `⇑ <#top>`__
+Load an Image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -404,7 +420,9 @@ detection inference result.
 .. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_15_0.png
 
 
-### Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Text boxes are detected in the images and returned as blobs of data in
 the shape of ``[100, 5]``. Each description of detection has the
@@ -418,7 +436,9 @@ the shape of ``[100, 5]``. Each description of detection has the
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
-### Get Detection Results `⇑ <#top>`__
+Get Detection Results `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -486,12 +506,16 @@ the shape of ``[100, 5]``. Each description of detection has the
     
         return rgb_image
 
-## Text Recognition `⇑ <#top>`__
+Text Recognition `⇑ <#top>`__
+###############################################################################################################################
+
 
 Load the text recognition model and do inference on the detected boxes
 from the detection model.
 
-### Load Text Recognition Model `⇑ <#top>`__
+Load Text Recognition Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -507,7 +531,9 @@ from the detection model.
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
 
-### Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -552,9 +578,13 @@ from the detection model.
     
     boxes_with_annotations = list(zip(boxes, annotations))
 
-## Show Results `⇑ <#top>`__
+Show Results `⇑ <#top>`__
+###############################################################################################################################
 
-### Show Detected Text Boxes and OCR Results for the Image `⇑ <#top>`__
+
+Show Detected Text Boxes and OCR Results for the Image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Visualize the result by drawing boxes around recognized text and showing
 the OCR result from the text recognition model.
@@ -569,7 +599,9 @@ the OCR result from the text recognition model.
 .. image:: 208-optical-character-recognition-with-output_files/208-optical-character-recognition-with-output_25_0.png
 
 
-### Show the OCR Result per Bounding Box `⇑ <#top>`__
+Show the OCR Result per Bounding Box `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Depending on the image, the OCR result may not be readable in the image
 with boxes, as displayed in the cell above. Use the code below to
@@ -629,7 +661,9 @@ center
 robert
 
 
-### Print Annotations in Plain Text Format `⇑ <#top>`__
+Print Annotations in Plain Text Format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Print annotations for detected text based on their position in the input
 image, starting from the upper left corner.

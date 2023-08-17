@@ -41,7 +41,9 @@ Table of content:
 - `III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) <#12>`__ 
 - `IV. Compare performance of INT8 model and FP32 model in OpenVINO <#13>`__
 
-## Preparations `⇑ <#top>`__
+Preparations `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -80,7 +82,9 @@ Table of content:
             os.environ["LIB"] = os.pathsep.join(b.library_dirs)
             print(f"Added {vs_dir} to PATH")
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -116,7 +120,9 @@ Table of content:
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-### Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -162,7 +168,9 @@ Table of content:
 
 
 
-### Download and Prepare Tiny ImageNet dataset `⇑ <#top>`__
+Download and Prepare Tiny ImageNet dataset `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 -  100k images of shape 3x64x64,
 -  200 different classes: snake, spider, cat, truck, grasshopper, gull,
@@ -221,7 +229,9 @@ Table of content:
     Successfully downloaded and extracted dataset to: output
 
 
-### Helpers classes and functions `⇑ <#top>`__ The code below will help to
+Helpers classes and functions `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ The code below will help to
 count accuracy and visualize validation process.
 
 .. code:: ipython3
@@ -284,7 +294,9 @@ count accuracy and visualize validation process.
     
             return res
 
-### Validation function `⇑ <#top>`__
+Validation function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -336,7 +348,9 @@ count accuracy and visualize validation process.
             )
         return top1.avg
 
-### Create and load original uncompressed model `⇑ <#top>`__
+Create and load original uncompressed model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 ResNet-50 from the ```torchivision``
 repository <https://github.com/pytorch/vision>`__ is pre-trained on
@@ -363,7 +377,9 @@ values.
     
     model = create_model(MODEL_DIR / fp32_checkpoint_filename)
 
-### Create train and validation DataLoaders `⇑ <#top>`__
+Create train and validation DataLoaders `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -412,12 +428,16 @@ values.
     
     train_loader, val_loader = create_dataloaders()
 
-## Model quantization and benchmarking `⇑ <#top>`__ With the validation
+Model quantization and benchmarking `⇑ <#top>`__
+###############################################################################################################################
+ With the validation
 pipeline, model files, and data-loading procedures for model calibration
 now prepared, it’s time to proceed with the actual post-training
 quantization using NNCF.
 
-### I. Evaluate the loaded model `⇑ <#top>`__
+I. Evaluate the loaded model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -439,7 +459,9 @@ quantization using NNCF.
     Test accuracy of FP32 model: 60.740
 
 
-### II. Create and initialize quantization `⇑ <#top>`__ NNCF enables
+II. Create and initialize quantization `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ NNCF enables
 post-training quantization by adding the quantization layers into the
 model graph and then using a subset of the training dataset to
 initialize the parameters of these additional quantization layers. The
@@ -520,8 +542,8 @@ added to the model by NNCF. However, the model’s performance will
 significantly improve when it is in the OpenVINO Intermediate
 Representation (IR) format.
 
-### III. Convert the models to OpenVINO Intermediate Representation
-(OpenVINO IR) `⇑ <#top>`__
+III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To convert the Pytorch models to OpenVINO IR, use model conversion
 Python API . The models will be saved to the ‘OUTPUT’ directory for
@@ -636,8 +658,8 @@ Evaluate the FP32 and INT8 models.
     Accuracy of INT8 IR model: 60.930
 
 
-### IV. Compare performance of INT8 model and FP32 model in OpenVINO
-⇑ <#top>`__
+IV. Compare performance of INT8 model and FP32 model in OpenVINO `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark

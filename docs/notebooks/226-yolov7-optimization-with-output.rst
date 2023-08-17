@@ -60,7 +60,9 @@ Table of content:
 - `Validate quantized model accuracy <#16>`__
 - `Compare Performance of the Original and Quantized Models <#17>`__
 
-## Get Pytorch model `⇑ <#top>`__
+Get Pytorch model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Generally, PyTorch models represent an instance of the
 ```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -77,7 +79,9 @@ to obtain pre-trained model:
 In this case, the model creators provide a tool that enables converting
 the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -132,7 +136,9 @@ the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 
 
 
-## Check model inference `⇑ <#top>`__
+Check model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``detect.py`` script run pytorch model inference and save image as
 result,
@@ -171,7 +177,9 @@ result,
 
 
 
-## Export to ONNX `⇑ <#top>`__
+Export to ONNX `⇑ <#top>`__
+###############################################################################################################################
+
 
 To export an ONNX format of the model, we will use ``export.py`` script.
 Let us check its arguments.
@@ -266,8 +274,10 @@ an end2end ONNX model, you can check this
     Export complete (2.53s). Visualize with https://github.com/lutzroeder/netron.
 
 
-## Convert ONNX Model to OpenVINO Intermediate Representation (IR)
-`⇑ <#top>`__ While ONNX models are directly supported by OpenVINO runtime,
+Convert ONNX Model to OpenVINO Intermediate Representation (IR). `⇑ <#top>`__
+###############################################################################################################################
+
+While ONNX models are directly supported by OpenVINO runtime,
 it can be useful to convert them to IR format to take the advantage of
 OpenVINO optimization tools and features. The ``mo.convert_model``
 python function in OpenVINO Model Optimizer can be used for converting
@@ -284,13 +294,17 @@ to OpenVINO IR format for future execution.
     # serialize model for saving IR
     serialize(model, 'model/yolov7-tiny.xml')
 
-## Verify model inference `⇑ <#top>`__
+Verify model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
 OpenVINO model, and results post-processing to get bounding boxes.
 
-### Preprocessing `⇑ <#top>`__
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -369,7 +383,9 @@ To keep specific shape, preprocessing automatically enables padding.
     COLORS = {name: [np.random.randint(0, 255) for _ in range(3)]
               for i, name in enumerate(NAMES)}
 
-### Postprocessing `⇑ <#top>`__
+Postprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -449,7 +465,9 @@ algorithm and rescale boxes coordinates to original image size.
     # read converted model
     model = core.read_model('model/yolov7-tiny.xml')
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -494,9 +512,13 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Verify model accuracy `⇑ <#top>`__
+Verify model accuracy `⇑ <#top>`__
+###############################################################################################################################
 
-### Download dataset `⇑ <#top>`__
+
+Download dataset `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 YOLOv7 tiny is pre-trained on the COCO dataset, so in order to evaluate
 the model accuracy, we need to download it. According to the
@@ -538,7 +560,9 @@ the original model evaluation scripts.
     coco2017labels-segments.zip:   0%|          | 0.00/169M [00:00<?, ?B/s]
 
 
-### Create dataloader `⇑ <#top>`__
+Create dataloader `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -567,7 +591,9 @@ the original model evaluation scripts.
     val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2979.40it/s]
 
 
-### Define validation function `⇑ <#top>`__
+Define validation function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 We will reuse validation metrics provided in the YOLOv7 repo with a
 modification for this case (removing extra steps). The original model
@@ -732,7 +758,9 @@ Validation function reports following list of accuracy metrics:
                      all        5000       36335       0.651       0.506       0.544       0.359
 
 
-## Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
+Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -804,7 +832,9 @@ asymmetric quantization of activations.
     Biases correction: 100%|██████████| 58/58 [00:04<00:00, 14.15it/s]
 
 
-## Validate Quantized model inference `⇑ <#top>`__
+Validate Quantized model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -833,7 +863,9 @@ asymmetric quantization of activations.
 
 
 
-## Validate quantized model accuracy `⇑ <#top>`__
+Validate quantized model accuracy `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -866,7 +898,9 @@ As we can see, model accuracy slightly changed after quantization.
 However, if we look at the output image, these changes are not
 significant.
 
-## Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``

@@ -41,7 +41,9 @@ Table of content:
 - `Unet <#6>`__
 - `Prepare Inference Pipeline <#7>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 Install necessary packages
 
@@ -102,7 +104,9 @@ Install necessary packages
     [notice] To update, run: pip install --upgrade pip
 
 
-## Create Pytorch Models pipeline `⇑ <#top>`__
+Create Pytorch Models pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
@@ -138,7 +142,9 @@ First, we load the pre-trained weights of all components of the model.
     Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
 
 
-## Convert Models to OpenVINO IR `⇑ <#top>`__
+Convert Models to OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 OpenVINO supports PyTorch through export to the ONNX format. We will use
 ``torch.onnx.export`` function for obtaining an ONNX model. For more
@@ -171,7 +177,9 @@ The model consists of three important parts:
 
 Let us convert each part.
 
-### Text Encoder `⇑ <#top>`__
+Text Encoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -249,7 +257,9 @@ hidden states. You will use ``opset_version=14``, since model contains
     Text encoder will be loaded from text_encoder.xml
 
 
-### VAE `⇑ <#top>`__
+VAE `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The VAE model consists of two parts: an encoder and a decoder.
 
@@ -367,7 +377,9 @@ into two independent models.
     VAE decoder successfully converted to IR
 
 
-### Unet `⇑ <#top>`__
+Unet `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The Unet model has three inputs:
 
@@ -432,7 +444,9 @@ Model predicts the ``sample`` state for the next step.
     Unet successfully loaded from unet.xml
 
 
-## Prepare Inference Pipeline `⇑ <#top>`__
+Prepare Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Putting it all together, let us now take a closer look at how the model
 inference works by illustrating the logical flow.

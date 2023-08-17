@@ -123,7 +123,9 @@ Table of content:
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -158,7 +160,9 @@ Table of content:
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
     from deepsort_utils.detection import Detection, compute_color_for_labels, xywh_to_xyxy, xywh_to_tlwh, tlwh_to_xyxy
 
-## Download the Model `⇑ <#top>`__ We will use pre-trained models from
+Download the Model `⇑ <#top>`__
+###############################################################################################################################
+ We will use pre-trained models from
 OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test.
@@ -241,7 +245,9 @@ replace the name of the model in the code below.
     
 
 
-## Load model `⇑ <#top>`__ Define a common class for model loading and
+Load model `⇑ <#top>`__
+###############################################################################################################################
+ Define a common class for model loading and
 predicting.
 
 There are four main steps for OpenVINO model initialization, and they
@@ -300,7 +306,9 @@ performance, but slightly longer startup time).
             result = self.compiled_model(input)[self.output_layer]
             return result
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -332,7 +340,10 @@ select device from dropdown list for running inference using OpenVINO
     # since the number of detection object is uncertain, the input batch size of reid model should be dynamic
     extractor = Model(reidentification_model_path, -1, device.value)
 
-## Data Processing `⇑ <#top>`__ Data Processing includes data preprocess
+Data Processing `⇑ <#top>`__
+###############################################################################################################################
+
+ Data Processing includes data preprocess
 and postprocess functions. - Data preprocess function is used to change
 the layout and shape of input data, according to requirement of the
 network input format. - Data postprocess function is used to extract the
@@ -448,12 +459,17 @@ useful information from network’s original output and visualize it.
         """
         return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
-## Test person reidentification model `⇑ <#top>`__ The reidentification
+Test person reidentification model `⇑ <#top>`__
+###############################################################################################################################
+
+ The reidentification
 network outputs a blob with the ``(1, 256)`` shape named
 ``reid_embedding``, which can be compared with other descriptors using
 the cosine distance.
 
-### Visualize data `⇑ <#top>`__
+Visualize data `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -500,7 +516,9 @@ the cosine distance.
 .. image:: 407-person-tracking-with-output_files/407-person-tracking-with-output_17_3.png
 
 
-### Compare two persons `⇑ <#top>`__
+Compare two persons `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -521,7 +539,9 @@ the cosine distance.
     Different person (confidence: 0.02726622298359871)
 
 
-## Main Processing Function `⇑ <#top>`__
+Main Processing Function `⇑ <#top>`__
+###############################################################################################################################
+
 
 Run person tracking on the specified source. Either a webcam feed or a
 video file.
@@ -675,9 +695,13 @@ video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run `⇑ <#top>`__
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-### Initialize tracker `⇑ <#top>`__ Before running a new tracking task, we
+
+Initialize tracker `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Before running a new tracking task, we
 have to reinitialize a Tracker object
 
 .. code:: ipython3
@@ -694,7 +718,9 @@ have to reinitialize a Tracker object
         n_init=3
     )
 
-### Run Live Person Tracking `⇑ <#top>`__ Use a webcam as the video input.
+Run Live Person Tracking `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Use a webcam as the video input.
 By default, the primary webcam is set with ``source=0``. If you have
 multiple webcams, each one will be assigned a consecutive number
 starting at 0. Set ``flip=True`` when using a front-facing camera. Some
@@ -717,7 +743,9 @@ experience flickering, set ``use_popup=True``.
     [ERROR:0@10.127] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-### Run Person Tracking on a Video File `⇑ <#top>`__
+Run Person Tracking on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by

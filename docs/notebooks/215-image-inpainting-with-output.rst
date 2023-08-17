@@ -41,7 +41,9 @@ Table of content:
     sys.path.append("../utils")
     import notebook_utils as utils
 
-### Download the Model `⇑ <#top>`__ Download ``gmcnn-places2-tf``\ model
+Download the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Download ``gmcnn-places2-tf``\ model
 (this step will be skipped if the model is already downloaded) and then
 unzip it. Downloaded model stored in TensorFlow frozen graph format. The
 steps how this frozen graph can be obtained from original model
@@ -71,7 +73,9 @@ checkpoint can be found in this
     Already downloaded
 
 
-### Convert Tensorflow model to OpenVINO IR format `⇑ <#top>`__
+Convert Tensorflow model to OpenVINO IR format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format with model conversion API. For more
@@ -97,7 +101,9 @@ This step is also skipped if the model is already converted.
     model/public/ir/frozen_model.xml already exists.
 
 
-### Load the model `⇑ <#top>`__
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, load the OpenVINO IR model and perform as follows:
 
@@ -146,7 +152,9 @@ Only a few lines of code are required to run the model:
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
 
-### Determine the input shapes of the model `⇑ <#top>`__
+Determine the input shapes of the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Note that both input shapes are the same. However, the second input has
 1 channel (monotone).
@@ -155,7 +163,9 @@ Note that both input shapes are the same. However, the second input has
 
     N, H, W, C = input_layer.shape
 
-### Create a square mask `⇑ <#top>`__
+Create a square mask `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Next, create a single channeled mask that will be laid on top of the
 original image.
@@ -197,7 +207,9 @@ original image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_14_0.png
 
 
-### Load and Resize the Image `⇑ <#top>`__
+Load and Resize the Image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 This image will be altered by using the mask. You can process any image
 you like. Just change the URL below.
@@ -225,7 +237,9 @@ you like. Just change the URL below.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_16_0.png
 
 
-### Generating the Masked Image `⇑ <#top>`__
+Generating the Masked Image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 This multiplication of the image and the mask gives the result of the
 masked image layered on top of the original image. The ``masked_image``
@@ -243,7 +257,9 @@ will be the first input to the GMCNN model.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_18_0.png
 
 
-### Preprocessing `⇑ <#top>`__
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The model expects the input dimensions to be ``NHWC``.
 
@@ -255,7 +271,9 @@ The model expects the input dimensions to be ``NHWC``.
     masked_image = masked_image[None, ...]
     mask = mask[None, ...]
 
-### Inference `⇑ <#top>`__
+Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Do inference with the given masked image and the mask. Then, show the
 restored image.
@@ -272,7 +290,9 @@ restored image.
 .. image:: 215-image-inpainting-with-output_files/215-image-inpainting-with-output_22_0.png
 
 
-### Save the Restored Image `⇑ <#top>`__
+Save the Restored Image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Save the restored image to the data directory to download it.
 

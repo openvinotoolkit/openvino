@@ -85,7 +85,9 @@ Prerequisites
     sys.path.append("../utils")
     import notebook_utils as utils
 
-## Data `⇑ <#top>`__
+Data `⇑ <#top>`__
+###############################################################################################################################
+
 
 We will use the same image of the dog sitting on a bicycle for all
 experiments below. The image is resized and preprocessed to fulfill the
@@ -124,7 +126,9 @@ requirements of this particular object detection model.
 
 
 
-## Model `⇑ <#top>`__
+Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 We decided to go with
 `YOLOv5n <https://github.com/ultralytics/yolov5>`__, one of the
@@ -180,7 +184,9 @@ PyTorch Hub and small enough to see the difference in performance.
     Adding AutoShape... 
 
 
-## Hardware `⇑ <#top>`__
+Hardware `⇑ <#top>`__
+###############################################################################################################################
+
 
 The code below lists the available hardware we will use in the
 benchmarking process.
@@ -206,7 +212,9 @@ benchmarking process.
     CPU: Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
 
 
-## Helper functions `⇑ <#top>`__
+Helper functions `⇑ <#top>`__
+###############################################################################################################################
+
 
 We’re defining a benchmark model function to use for all optimized
 models below. It runs inference 1000 times, averages the latency time,
@@ -340,13 +348,17 @@ the image.
     
         utils.show_array(output_img)
 
-## Optimizations `⇑ <#top>`__
+Optimizations `⇑ <#top>`__
+###############################################################################################################################
+
 
 Below, we present the performance tricks for faster inference in the
 latency mode. We release resources after every benchmarking to be sure
 the same amount of resource is available for every experiment.
 
-### PyTorch model `⇑ <#top>`__
+PyTorch model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 First, we’re benchmarking the original PyTorch model without any
 optimizations applied. We will treat it as our baseline.
@@ -371,7 +383,9 @@ optimizations applied. We will treat it as our baseline.
     PyTorch model on CPU: 0.0191 seconds per image (52.34 FPS)
 
 
-### ONNX model `⇑ <#top>`__
+ONNX model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The first optimization is exporting the PyTorch model to ONNX and
 running it in OpenVINO. It’s possible, thanks to the ONNX frontend. It
@@ -419,7 +433,9 @@ Representation (IR) to leverage the OpenVINO Runtime.
     ONNX model on CPU: 0.0135 seconds per image (74.31 FPS)
 
 
-### OpenVINO IR model `⇑ <#top>`__
+OpenVINO IR model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Let’s convert the ONNX model to OpenVINO Intermediate Representation
 (IR) FP16 and run it. Reducing the precision is one of the well-known
@@ -456,7 +472,9 @@ accuracy drop. That’s why we skip that step in this notebook.
     OpenVINO model on CPU: 0.0134 seconds per image (74.40 FPS)
 
 
-### OpenVINO IR model on GPU `⇑ <#top>`__
+OpenVINO IR model on GPU `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Usually, a GPU device is faster than a CPU, so let’s run the above model
 on the GPU. Please note you need to have an Intel GPU and `install
@@ -479,7 +497,9 @@ execution.
     
         del ov_gpu_model  # release resources
 
-### OpenVINO IR model + more inference threads `⇑ <#top>`__
+OpenVINO IR model + more inference threads `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
@@ -511,7 +531,9 @@ our case.
     OpenVINO model + more threads on CPU: 0.0134 seconds per image (74.36 FPS)
 
 
-### OpenVINO IR model in latency mode `⇑ <#top>`__
+OpenVINO IR model in latency mode `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 OpenVINO offers a virtual device called
 `AUTO <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
@@ -540,7 +562,9 @@ devices as well.
     OpenVINO model on AUTO: 0.0136 seconds per image (73.57 FPS)
 
 
-### OpenVINO IR model in latency mode + shared memory `⇑ <#top>`__
+OpenVINO IR model in latency mode + shared memory `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 OpenVINO is a C++ toolkit with Python wrappers (API). The default
 behavior in the Python API is copying the input to the additional buffer
@@ -573,7 +597,9 @@ performance!
     OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (184.61 FPS)
 
 
-### Other tricks `⇑ <#top>`__
+Other tricks `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 There are other tricks for performance improvement, such as quantization
 and pre-post-processing or dedicated to throughput mode. To get even
@@ -582,7 +608,9 @@ more from your model, please visit
 `118-optimize-preprocessing <../118-optimize-preprocessing>`__, and
 `109-throughput-tricks <109-throughput-tricks.ipynb>`__.
 
-## Performance comparison `⇑ <#top>`__
+Performance comparison `⇑ <#top>`__
+###############################################################################################################################
+
 
 The following graphical comparison is valid for the selected model and
 hardware simultaneously. If you cannot see any improvement between some
@@ -618,7 +646,9 @@ steps, just skip them.
 .. image:: 109-latency-tricks-with-output_files/109-latency-tricks-with-output_30_0.png
 
 
-## Conclusions `⇑ <#top>`__
+Conclusions `⇑ <#top>`__
+###############################################################################################################################
+
 
 We already showed the steps needed to improve the performance of an
 object detection model. Even if you experience much better performance

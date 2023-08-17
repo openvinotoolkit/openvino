@@ -32,14 +32,18 @@ Table of content:
 - `Compare File Size <#5>`__
 - `Compare inference time of the FP16 IR and quantized models <#6>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
     !pip install -q datasets
     !pip install -q "git+https://github.com/openvinotoolkit/nncf.git@6c0aebadd2fcdbe1481a11b40b8cd9f66b3b6fab"
 
-## Create and initialize quantization `⇑ <#top>`__
+Create and initialize quantization `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -56,7 +60,9 @@ The optimization process contains the following steps:
 3. Serialize the ``INT8`` model using ``openvino.runtime.serialize``
    function.
 
-### Prepare datasets `⇑ <#top>`__
+Prepare datasets `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -251,7 +257,9 @@ than quantization. See the `NNCF
 documentation <https://github.com/openvinotoolkit/nncf/#documentation>`__
 in the NNCF repository for more information.
 
-## Run quantized OpenVINO model `⇑ <#top>`__
+Run quantized OpenVINO model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -303,7 +311,9 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
 .. image:: 228-clip-zero-shot-quantize-with-output_files/228-clip-zero-shot-quantize-with-output_16_0.png
 
 
-#### Compare File Size `⇑ <#top>`__
+Compare File Size `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -323,7 +333,7 @@ notebook <228-clip-zero-shot-image-classification.ipynb>`__.
     Model compression rate: 1.697
 
 
-#### Compare inference time of the FP16 IR and quantized models
+Compare inference time of the FP16 IR and quantized models
 `⇑ <#top>`__ To measure the inference performance of the ``FP16`` and
 ``INT8`` models, we use median inference time on calibration dataset. So
 we can approximately estimate the speed up of the dynamic quantized

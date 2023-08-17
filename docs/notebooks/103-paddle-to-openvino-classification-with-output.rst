@@ -29,9 +29,13 @@ Table of content:
 - `Select inference device <#9>`__ 
 - `References <#10>`__
 
-## Preparation `⇑ <#top>`__
+Preparation `⇑ <#top>`__
+###############################################################################################################################
 
-### Imports `⇑ <#top>`__
+
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -78,7 +82,9 @@ Table of content:
     2023-08-15 22:28:07 INFO: Successfully loaded faiss with AVX2 support.
 
 
-### Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
 ``MODEL_NAME`` to the PaddlePaddle model to download from PaddleHub.
@@ -122,7 +128,9 @@ PaddleHub. This may take a while.
     Model Extracted to "./model".
 
 
-## Show Inference on PaddlePaddle Model `⇑ <#top>`__
+Show Inference on PaddlePaddle Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 In the next cell, we load the model, load and display an image, do
 inference on that image, and then show the top three prediction results.
@@ -243,7 +251,9 @@ OpenVINO model.
             partition = line.split("\n")[0].partition(" ")
             class_id_map[int(partition[0])] = str(partition[-1])
 
-## Convert the Model to OpenVINO IR Format `⇑ <#top>`__
+Convert the Model to OpenVINO IR Format `⇑ <#top>`__
+###############################################################################################################################
+
 
 Call the OpenVINO Model Optimizer Python API to convert the PaddlePaddle
 model to OpenVINO IR, with FP32 precision. ``mo.convert_model`` function
@@ -266,7 +276,9 @@ for more information about Model Optimizer.
     else:
         print(f"{model_xml} already exists.")
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -293,7 +305,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Show Inference on OpenVINO Model `⇑ <#top>`__
+Show Inference on OpenVINO Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Load the IR model, get model information, load the image, do inference,
 convert the inference to a meaningful result, and show the output. See
@@ -340,7 +354,9 @@ information.
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_23_1.png
 
 
-## Timing and Comparison `⇑ <#top>`__
+Timing and Comparison `⇑ <#top>`__
+###############################################################################################################################
+
 
 Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
@@ -407,7 +423,9 @@ Note that many optimizations are possible to improve the performance.
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_27_1.png
 
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+###############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -468,7 +486,9 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 103-paddle-to-openvino-classification-with-output_files/103-paddle-to-openvino-classification-with-output_30_1.png
 
 
-## References `⇑ <#top>`__
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle

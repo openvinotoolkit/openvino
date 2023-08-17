@@ -32,7 +32,9 @@ Table of content:
 - `Setting Callback <#14>`__ 
 - `Test the performance with AsyncInferQueue <#15>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -58,9 +60,13 @@ Table of content:
     
     import notebook_utils as utils
 
-## Prepare model and data processing `⇑ <#top>`__
+Prepare model and data processing `⇑ <#top>`__
+###############################################################################################################################
 
-### Download test model `⇑ <#top>`__ We use a pre-trained model from
+
+Download test model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ We use a pre-trained model from
 OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test. In this case, the model will be executed to detect the person in
@@ -97,7 +103,9 @@ each frame of the video.
     
 
 
-### Load the model `⇑ <#top>`__
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -116,7 +124,9 @@ each frame of the video.
     N, C, H, W = input_layer_ir.shape
     shape = (H, W)
 
-### Create functions for data processing `⇑ <#top>`__
+Create functions for data processing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -157,17 +167,23 @@ each frame of the video.
                 cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3) 
         return image
 
-### Get the test video `⇑ <#top>`__
+Get the test video `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
     video_path = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4'
 
-## How to improve the throughput of video processing `⇑ <#top>`__ Below,
+How to improve the throughput of video processing `⇑ <#top>`__
+###############################################################################################################################
+ Below,
 we compare the performance of the synchronous and async-based
 approaches:
 
-### Sync Mode (default) `⇑ <#top>`__ Let us see how video processing works
+Sync Mode (default) `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Let us see how video processing works
 with the default approach. Using the synchronous approach, the frame is
 captured with OpenCV and then immediately processed:
 
@@ -254,7 +270,9 @@ captured with OpenCV and then immediately processed:
                 player.stop()
             return sync_fps
 
-### Test performance in Sync Mode `⇑ <#top>`__
+Test performance in Sync Mode `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -272,7 +290,9 @@ captured with OpenCV and then immediately processed:
     average throuput in sync mode: 37.71 fps
 
 
-### Async Mode `⇑ <#top>`__
+Async Mode `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Let us see how the OpenVINO Async API can improve the overall frame rate
 of an application. The key advantage of the Async approach is as
@@ -386,7 +406,9 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 player.stop()
             return async_fps
 
-### Test the performance in Async Mode `⇑ <#top>`__
+Test the performance in Async Mode `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -404,7 +426,9 @@ pipeline (decoding vs inference) and not by the sum of the stages.
     average throuput in async mode: 73.36 fps
 
 
-### Compare the performance `⇑ <#top>`__
+Compare the performance `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -431,7 +455,9 @@ pipeline (decoding vs inference) and not by the sum of the stages.
 .. image:: 115-async-api-with-output_files/115-async-api-with-output_21_0.png
 
 
-## ``AsyncInferQueue`` `⇑ <#top>`__
+``AsyncInferQueue`` `⇑ <#top>`__
+###############################################################################################################################
+
 
 Asynchronous mode pipelines can be supported with the
 ```AsyncInferQueue`` <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
@@ -440,7 +466,9 @@ wrapper class. This class automatically spawns the pool of
 synchronization mechanisms to control the flow of the pipeline. It is a
 simpler way to manage the infer request queue in Asynchronous mode.
 
-### Setting Callback `⇑ <#top>`__
+Setting Callback `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 When ``callback`` is set, any job that ends inference calls upon the
 Python function. The ``callback`` function must have two arguments: one
@@ -516,7 +544,9 @@ the possibility of passing runtime values.
             infer_queue.wait_all()
             player.stop()
 
-### Test the performance with ``AsyncInferQueue`` `⇑ <#top>`__
+Test the performance with ``AsyncInferQueue`` `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

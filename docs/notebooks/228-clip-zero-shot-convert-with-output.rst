@@ -39,7 +39,9 @@ Table of content:
 - `Select inference device <#5>`__
 - `Next Steps <#6>`__
 
-## Instantiate model `⇑ <#top>`__
+Instantiate model `⇑ <#top>`__
+###############################################################################################################################
+
 
 CLIP (Contrastive Language-Image Pre-Training) is a neural network
 trained on various (image, text) pairs. It can be instructed in natural
@@ -134,7 +136,9 @@ tokenizer and preparing the images.
     Downloading (…)cial_tokens_map.json:   0%|          | 0.00/389 [00:00<?, ?B/s]
 
 
-## Run PyTorch model inference `⇑ <#top>`__
+Run PyTorch model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -167,8 +171,8 @@ similarity score for the final result.
 .. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_4_0.png
 
 
-### Convert model to OpenVINO Intermediate Representation (IR) format.
-`⇑ <#top>`__
+Convert model to OpenVINO Intermediate Representation (IR) format. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. figure:: https://user-images.githubusercontent.com/29454499/208048580-8264e54c-151c-43ef-9e25-1302cd0dd7a2.png
    :alt: conversion_path
@@ -242,7 +246,9 @@ for the next usage with ``openvino.runtime.serialize``.
     ov_model = mo.convert_model('clip-vit-base-patch16.onnx', compress_to_fp16=True)
     serialize(ov_model, 'clip-vit-base-patch16.xml')
 
-## Run OpenVINO model `⇑ <#top>`__
+Run OpenVINO model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The steps for making predictions with the OpenVINO CLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -256,7 +262,9 @@ same input data from the example above with PyTorch.
     # create OpenVINO core object instance
     core = Core()
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -365,7 +373,9 @@ Run the next cell to get the result for your submitted data:
 .. image:: 228-clip-zero-shot-convert-with-output_files/228-clip-zero-shot-convert-with-output_17_0.png
 
 
-## Next Steps `⇑ <#top>`__
+Next Steps `⇑ <#top>`__
+###############################################################################################################################
+
 
 Open the
 `228-clip-zero-shot-quantize <228-clip-zero-shot-quantize.ipynb>`__

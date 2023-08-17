@@ -34,7 +34,9 @@ Table of content:
 - `Select inference device <#7>`__
 - `Step 3.3: Run Text-to-Image generation <#8>`__
 
-## Step 0: Install and import prerequisites `⇑ <#top>`__
+Step 0: Install and import prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -52,7 +54,9 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
     !pip install -q "diffusers>=0.14.0" openvino-dev openvino "transformers >= 4.25.1" accelerate
 
-## Step 1: Stable Diffusion v2 Fundamental components `⇑ <#top>`__
+Step 1: Stable Diffusion v2 Fundamental components `⇑ <#top>`__
+###############################################################################################################################
+
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -66,7 +70,9 @@ of three important parts:
 Depending on the pipeline, the parameters for these parts can differ,
 which we’ll explore in this demo!
 
-### Step 1.1: Retrieve components from HuggingFace `⇑ <#top>`__
+Step 1.1: Retrieve components from HuggingFace `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -98,7 +104,9 @@ using ``stable-diffusion-2-1``.
     text_encoder\model.safetensors not found
 
 
-## Step 2: Convert the models to OpenVINO `⇑ <#top>`__
+Step 2: Convert the models to OpenVINO `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
@@ -156,12 +164,16 @@ pipelines in OpenVINO on our own data!
     WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
 
 
-## 3. Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
+3. Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
+###############################################################################################################################
 
-### Step 3.1: Load and Understand Text to Image OpenVINO models
-`⇑ <#top>`__
 
-### Select inference device `⇑ <#top>`__
+Step 3.1: Load and Understand Text to Image OpenVINO models `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -242,7 +254,9 @@ As part of the ``OVStableDiffusionPipeline()`` class:
       from diffusers.pipeline_utils import DiffusionPipeline
 
 
-### Step 3.3: Run Text-to-Image generation `⇑ <#top>`__
+Step 3.3: Run Text-to-Image generation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.

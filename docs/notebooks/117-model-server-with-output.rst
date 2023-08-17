@@ -51,7 +51,10 @@ Table of content:
 
 .. |ovms_diagram| image:: https://user-images.githubusercontent.com/91237924/215658773-4720df00-3b95-4a84-85a2-40f06138e914.png
 
-## Serving with OpenVINO Model Server `⇑ <#top>`__ OpenVINO Model Server
+Serving with OpenVINO Model Server `⇑ <#top>`__
+###############################################################################################################################
+
+ OpenVINO Model Server
 (OVMS) is a high-performance system for serving models. Implemented in
 C++ for scalability and optimized for deployment on Intel architectures,
 the model server uses the same architecture and API as TensorFlow
@@ -66,7 +69,9 @@ algorithms and AI experiments easy.
 
 To quickly start using OpenVINO™ Model Server, follow these steps:
 
-## Step 1: Prepare Docker `⇑ <#top>`__ Install `Docker
+Step 1: Prepare Docker `⇑ <#top>`__
+###############################################################################################################################
+ Install `Docker
 Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
@@ -104,7 +109,9 @@ image and a message.
     
 
 
-## Step 2: Preparing a Model Repository `⇑ <#top>`__ The models need to be
+Step 2: Preparing a Model Repository `⇑ <#top>`__
+###############################################################################################################################
+ The models need to be
 placed and mounted in a particular directory structure and according to
 the following rules:
 
@@ -186,7 +193,9 @@ the following rules:
     Model Copied to "./models/detection/1".
 
 
-## Step 3: Start the Model Server Container `⇑ <#top>`__ Pull and start
+Step 3: Start the Model Server Container `⇑ <#top>`__
+###############################################################################################################################
+ Pull and start
 the container:
 
 .. code:: ipython3
@@ -633,7 +642,9 @@ openvino/model_server:latest
 If the serving port ``9000`` is already in use, please switch it to
 another available port on your system. For example:\ ``-p 9020:9000``
 
-## Step 4: Prepare the Example Client Components `⇑ <#top>`__ OpenVINO
+Step 4: Prepare the Example Client Components `⇑ <#top>`__
+###############################################################################################################################
+ OpenVINO
 Model Server exposes two sets of APIs: one compatible with
 ``TensorFlow Serving`` and another one, with ``KServe API``, for
 inference. Both APIs work on ``gRPC`` and ``REST``\ interfaces.
@@ -642,7 +653,9 @@ into existing systems the already leverage one of these APIs for
 inference. This example will demonstrate how to write a TensorFlow
 Serving API client for object detection.
 
-### Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Install necessary packages.
 
@@ -676,7 +689,9 @@ Install necessary packages.
     You should consider upgrading via the '/home/adrian/repos/openvino_notebooks_adrian/venv/bin/python -m pip install --upgrade pip' command.
     
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -685,7 +700,9 @@ Install necessary packages.
     import matplotlib.pyplot as plt
     from ovmsclient import make_grpc_client
 
-### Request Model Status `⇑ <#top>`__
+Request Model Status `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -702,7 +719,9 @@ Install necessary packages.
     {1: {'state': 'AVAILABLE', 'error_code': 0, 'error_message': 'OK'}}
 
 
-### Request Model Metadata `⇑ <#top>`__
+Request Model Metadata `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -715,7 +734,9 @@ Install necessary packages.
     {'model_version': 1, 'inputs': {'image': {'shape': [1, 3, 704, 704], 'dtype': 'DT_FLOAT'}}, 'outputs': {'1469_1470.0': {'shape': [-1], 'dtype': 'DT_FLOAT'}, '1078_1079.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1330_1331.0': {'shape': [36], 'dtype': 'DT_FLOAT'}, 'labels': {'shape': [-1], 'dtype': 'DT_INT32'}, '1267_1268.0': {'shape': [121], 'dtype': 'DT_FLOAT'}, '1141_1142.0': {'shape': [1000], 'dtype': 'DT_FLOAT'}, '1204_1205.0': {'shape': [484], 'dtype': 'DT_FLOAT'}, 'boxes': {'shape': [-1, 5], 'dtype': 'DT_FLOAT'}}}
 
 
-### Load input image `⇑ <#top>`__
+Load input image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -745,7 +766,9 @@ Install necessary packages.
 .. image:: 117-model-server-with-output_files/117-model-server-with-output_20_1.png
 
 
-### Request Prediction on a Numpy Array `⇑ <#top>`__
+Request Prediction on a Numpy Array `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -769,7 +792,9 @@ Install necessary packages.
      [2.2261986e+01 4.5406548e+01 1.8868817e+02 1.0225631e+02 3.0407205e-01]]
 
 
-### Visualization `⇑ <#top>`__
+Visualization `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -851,7 +876,9 @@ command:
     ovms
 
 
-## References `⇑ <#top>`__
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 1. `OpenVINO™ Model Server
    documentation <https://docs.openvino.ai/2023.0/ovms_what_is_openvino_model_server.html>`__

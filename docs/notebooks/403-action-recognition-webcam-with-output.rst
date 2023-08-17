@@ -52,7 +52,9 @@ Table of content:
 - `Run Action Recognition on a Video File <#11>`__
 - `Run Action Recognition Using a Webcam <#12>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -71,9 +73,13 @@ Table of content:
     sys.path.append("../utils")
     import notebook_utils as utils
 
-## The models `⇑ <#top>`__
+The models `⇑ <#top>`__
+###############################################################################################################################
 
-### Download the models `⇑ <#top>`__
+
+Download the models `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. It automatically creates a directory structure
@@ -133,7 +139,9 @@ and the system automatically downloads the two models
     
 
 
-### Load your labels `⇑ <#top>`__
+Load your labels `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
@@ -158,7 +166,9 @@ also provides the text file embedded into this notebook.
     ['abseiling', 'air drumming', 'answering questions', 'applauding', 'applying cream', 'archery', 'arm wrestling', 'arranging flowers', 'assembling computer'] (400,)
 
 
-### Load the models `⇑ <#top>`__
+Load the models `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Load the two models for this particular architecture, Encoder and
 Decoder. Downloaded models are located in a fixed structure, indicating
@@ -197,7 +207,9 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-#### Model Initialization function `⇑ <#top>`__
+Model Initialization function `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -228,7 +240,9 @@ Select device from dropdown list for running inference using OpenVINO
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-#### Initialization for Encoder and Decoder `⇑ <#top>`__
+Initialization for Encoder and Decoder `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -242,7 +256,9 @@ Select device from dropdown list for running inference using OpenVINO
     # Get input size - Decoder.
     frames2decode = list(input_key_de.shape)[0:][1]
 
-### Helper functions `⇑ <#top>`__
+Helper functions `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use the following helper functions for preprocessing and postprocessing
 frames:
@@ -362,7 +378,9 @@ frames:
         cv2.putText(frame, display_text, text_loc2, FONT_STYLE, FONT_SIZE, FONT_COLOR2)
         cv2.putText(frame, display_text, text_loc, FONT_STYLE, FONT_SIZE, FONT_COLOR)
 
-### AI Functions `⇑ <#top>`__
+AI Functions `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Following the pipeline above, you will use the next functions to:
 
@@ -451,7 +469,9 @@ Following the pipeline above, you will use the next functions to:
         exp = np.exp(x)
         return exp / np.sum(exp, axis=None)
 
-### Main Processing Function `⇑ <#top>`__
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Running action recognition function will run in different operations,
 either a webcam or a video file. See the list of procedures below:
@@ -601,7 +621,9 @@ either a webcam or a video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-### Run Action Recognition on a Video File `⇑ <#top>`__
+Run Action Recognition on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Find out how the model works in a video file. `Any format
 supported <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
@@ -629,7 +651,9 @@ step.
     Source ended
 
 
-### Run Action Recognition Using a Webcam `⇑ <#top>`__
+Run Action Recognition Using a Webcam `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, try to see yourself in your webcam.
 

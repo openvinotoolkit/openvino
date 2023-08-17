@@ -33,9 +33,13 @@ Table of content:
 - `Run Object Detection on a Video File <#13>`__
 - `References <#14>`__
 
-## Preparation `⇑ <#top>`__
+Preparation `⇑ <#top>`__
+###############################################################################################################################
 
-### Install requirements `⇑ <#top>`__
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -66,7 +70,9 @@ Table of content:
 
 
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -84,9 +90,13 @@ Table of content:
     
     import notebook_utils as utils
 
-## The Model `⇑ <#top>`__
+The Model `⇑ <#top>`__
+###############################################################################################################################
 
-### Download the Model `⇑ <#top>`__
+
+Download the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -128,7 +138,9 @@ Representation (OpenVINO IR).
     model/ssdlite_mobilenet_v2_coco_2018_05_09.tar.gz:   0%|          | 0.00/48.7M [00:00<?, ?B/s]
 
 
-### Convert the Model `⇑ <#top>`__
+Convert the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The pre-trained model is in TensorFlow format. To use it with OpenVINO,
 convert it to OpenVINO IR format, using `model conversion Python
@@ -161,7 +173,9 @@ converted, this step is skipped.
     [ WARNING ]  The Preprocessor block has been removed. Only nodes performing mean value subtraction and scaling (if applicable) are kept.
 
 
-### Load the Model `⇑ <#top>`__
+Load the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Only a few lines of code are required to run the model. First,
 initialize OpenVINO Runtime. Then, read the network architecture and
@@ -230,9 +244,13 @@ output.
 
 
 
-## Processing `⇑ <#top>`__
+Processing `⇑ <#top>`__
+###############################################################################################################################
 
-### Process Results `⇑ <#top>`__
+
+Process Results `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 First, list all available classes and create colors for them. Then, in
 the post-process stage, transform boxes with normalized coordinates
@@ -321,7 +339,9 @@ threshold (0.5). Finally, draw boxes and labels inside them.
     
         return frame
 
-### Main Processing Function `⇑ <#top>`__
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run object detection on the specified source. Either a webcam or a video
 file.
@@ -431,9 +451,13 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run `⇑ <#top>`__
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-### Run Live Object Detection `⇑ <#top>`__
+
+Run Live Object Detection `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -466,7 +490,9 @@ Run the object detection:
     [ERROR:0@44.255] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-### Run Object Detection on a Video File `⇑ <#top>`__
+Run Object Detection on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by
@@ -489,7 +515,9 @@ will work.
     Source ended
 
 
-## References `⇑ <#top>`__
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 1. `SSDLite
    MobileNetV2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssdlite_mobilenet_v2>`__

@@ -46,9 +46,13 @@ Table of content:
 - `Run Style Transfer on a Video File <#12>`__
 - `References <#13>`__
 
-## Preparation `⇑ <#top>`__
+Preparation `⇑ <#top>`__
+###############################################################################################################################
 
-### Install requirements `⇑ <#top>`__
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -62,7 +66,9 @@ Table of content:
         filename='notebook_utils.py'
     )
 
-### Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -92,9 +98,13 @@ Pointilism to do the style transfer.
        
     interactive(lambda option: print(option), option=styleButtons)
 
-## The Model `⇑ <#top>`__
+The Model `⇑ <#top>`__
+###############################################################################################################################
 
-### Download the Model `⇑ <#top>`__
+
+Download the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The style transfer model, selected in the previous step, will be
 downloaded to ``model_path`` if you have not already downloaded it. The
@@ -115,7 +125,9 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
 
-### Convert ONNX Model to OpenVINO IR Format `⇑ <#top>`__
+Convert ONNX Model to OpenVINO IR Format `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 In the next step, you will convert the ONNX model to OpenVINO IR format
 with ``FP16`` precision. While ONNX models are directly supported by
@@ -143,7 +155,9 @@ this step.
     ir_path = Path(f"model/{styleButtons.value.lower()}-9.xml")
     onnx_path = Path(f"model/{model_path}")
 
-### Load the Model `⇑ <#top>`__
+Load the Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Both the ONNX model(s) and converted IR model(s) are stored in the
 ``model`` directory.
@@ -213,7 +227,9 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
 
-### Preprocess the image `⇑ <#top>`__ Preprocess the input image before
+Preprocess the image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ Preprocess the input image before
 running the model. Prepare the dimensions and channel order for the
 image to match the original image with the input tensor
 
@@ -240,7 +256,9 @@ image to match the original image with the input tensor
         image = np.expand_dims(image, axis=0)
         return image
 
-### Helper function to postprocess the stylized image `⇑ <#top>`__ The
+Helper function to postprocess the stylized image `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ The
 converted IR model outputs a NumPy ``float32`` array of the `(1, 3, 224,
 224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
 shape .
@@ -264,7 +282,9 @@ shape .
         stylized_image = cv2.cvtColor(stylized_image, cv2.COLOR_BGR2RGB)
         return stylized_image
 
-### Main Processing Function `⇑ <#top>`__
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The style transfer function can be run in different operating modes,
 either using a webcam or a video file.
@@ -360,7 +380,9 @@ either using a webcam or a video file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-### Run Style Transfer Using a Webcam `⇑ <#top>`__
+Run Style Transfer Using a Webcam `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Now, try to apply the style transfer model using video from your webcam.
 By default, the primary webcam is set with ``source=0``. If you have
@@ -378,7 +400,9 @@ experience flickering, set ``use_popup=True``.
 
     run_style_transfer(source=0, flip=True, use_popup=False)
 
-### Run Style Transfer on a Video File `⇑ <#top>`__
+Run Style Transfer on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 You can find out how the model works with a video file. For that, use
 any `formats supported by
@@ -406,7 +430,9 @@ is running.
     Source ended
 
 
-## References `⇑ <#top>`__
+References `⇑ <#top>`__
+###############################################################################################################################
+
 
 1. `ONNX Model Zoo <https://github.com/onnx/models>`__
 2. `Fast Neural Style

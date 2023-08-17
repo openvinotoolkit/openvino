@@ -31,7 +31,9 @@ Table of content:
 - `Run Live Pose Estimation <#11>`__
 - `Run Pose Estimation on a Video File <#12>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -51,9 +53,13 @@ Table of content:
     sys.path.append("../utils")
     import notebook_utils as utils
 
-## The model `⇑ <#top>`__
+The model `⇑ <#top>`__
+###############################################################################################################################
 
-### Download the model `⇑ <#top>`__
+
+Download the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use the ``download_file``, a function from the ``notebook_utils`` file.
 It automatically creates a directory structure and downloads the
@@ -94,7 +100,9 @@ precision in the code below.
     model/intel/human-pose-estimation-0001/FP16-INT8/human-pose-estimation-0001.bin:   0%|          | 0.00/4.03M […
 
 
-### Load the model `⇑ <#top>`__
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, the name of the model and a precision.
@@ -162,9 +170,13 @@ there is 1 input and 2 outputs: PAFs and keypoints heatmap.
 
 
 
-## Processing `⇑ <#top>`__
+Processing `⇑ <#top>`__
+###############################################################################################################################
 
-### OpenPose Decoder `⇑ <#top>`__
+
+OpenPose Decoder `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To transform the raw results from the neural network into pose
 estimations, you need OpenPose Decoder. It is provided in the `Open
@@ -182,7 +194,9 @@ of Open Model Zoo.
 
     decoder = OpenPoseDecoder()
 
-### Process Results `⇑ <#top>`__
+Process Results `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 A bunch of useful functions to transform results into poses.
 
@@ -252,7 +266,9 @@ factor.
         poses[:, :, :2] *= output_scale
         return poses, scores
 
-### Draw Pose Overlays `⇑ <#top>`__
+Draw Pose Overlays `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Draw pose overlays on the image to visualize estimated poses. Joints are
 drawn as circles and limbs are drawn as lines. The code is based on the
@@ -289,7 +305,9 @@ from Open Model Zoo.
         cv2.addWeighted(img, 0.4, img_limbs, 0.6, 0, dst=img)
         return img
 
-### Main Processing Function `⇑ <#top>`__
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run pose estimation on the specified source. Either a webcam or a video
 file.
@@ -383,9 +401,13 @@ file.
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run `⇑ <#top>`__
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-### Run Live Pose Estimation `⇑ <#top>`__
+
+Run Live Pose Estimation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
@@ -418,7 +440,9 @@ Run the pose estimation:
     [ERROR:0@2.649] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 
 
-### Run Pose Estimation on a Video File `⇑ <#top>`__
+Run Pose Estimation on a Video File `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 If you do not have a webcam, you can still run this demo with a video
 file. Any `format supported by

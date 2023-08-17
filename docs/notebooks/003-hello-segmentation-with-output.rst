@@ -37,7 +37,9 @@ Imports `⇑ <#top>`__
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-## Download model weights `⇑ <#top>`__
+Download model weights `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -73,7 +75,9 @@ Imports `⇑ <#top>`__
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-## Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
+#############################################################################################################################
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -100,7 +104,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Load the Model `⇑ <#top>`__
+Load the Model `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -112,7 +118,9 @@ select device from dropdown list for running inference using OpenVINO
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-## Load an Image `⇑ <#top>`__ A sample image from the `Mapillary
+Load an Image `⇑ <#top>`__
+#############################################################################################################################
+ A sample image from the `Mapillary
 Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
@@ -149,7 +157,9 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
-## Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -173,7 +183,9 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
-## Prepare Data for Visualization `⇑ <#top>`__
+Prepare Data for Visualization `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -190,7 +202,9 @@ provided.
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-## Visualize data `⇑ <#top>`__
+Visualize data `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 

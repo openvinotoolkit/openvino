@@ -33,7 +33,9 @@ Table of content:
 - `Show an Animated GIF <#11>`__
 - `Create a Comparison Video <#12>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -65,7 +67,9 @@ Table of content:
     sys.path.append("../utils")
     from notebook_utils import NotebookAlert
 
-## Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -79,9 +83,13 @@ Table of content:
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
 
-## Inference on PaddlePaddle Model `⇑ <#top>`__
+Inference on PaddlePaddle Model `⇑ <#top>`__
+###############################################################################################################################
 
-### Investigate PaddleGAN Model `⇑ <#top>`__
+
+Investigate PaddleGAN Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The `PaddleGAN
 documentation <https://github.com/PaddlePaddle/PaddleGAN>`__ explains
@@ -137,7 +145,9 @@ To get more information about how the model looks like, use the
 
     # sr.model??
 
-### Do Inference `⇑ <#top>`__
+Do Inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To show inference on the PaddlePaddle model, set ``PADDLEGAN_INFERENCE``
 to ``True`` in the cell below. Keep in mind that performing inference
@@ -181,13 +191,17 @@ may take some time.
         print(f"Inference duration: {duration:.2f} seconds")
         plt.imshow(result_image);
 
-## Convert PaddleGAN Model to ONNX and OpenVINO IR `⇑ <#top>`__
+Convert PaddleGAN Model to ONNX and OpenVINO IR `⇑ <#top>`__
+###############################################################################################################################
+
 
 To convert the PaddlePaddle model to OpenVINO IR, first convert the
 model to ONNX, and then convert the ONNX model to the OpenVINO IR
 format.
 
-### Convert PaddlePaddle Model to ONNX `⇑ <#top>`__
+Convert PaddlePaddle Model to ONNX `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -223,9 +237,8 @@ format.
     2023-08-15 23:08:35 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
-### Convert ONNX Model to OpenVINO IR with `Model Conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
-`⇑ <#top>`__
+Convert ONNX Model to OpenVINO IR with Model Conversion Python API `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -254,7 +267,9 @@ API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction
     Exporting ONNX model to OpenVINO IR... This may take a few minutes.
 
 
-## Do Inference on OpenVINO IR Model `⇑ <#top>`__
+Do Inference on OpenVINO IR Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -264,7 +279,9 @@ API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction
     model = core.read_model(model=ir_path)
     input_layer = model.input(0)
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -369,7 +386,9 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 207-vision-paddlegan-superresolution-with-output_files/207-vision-paddlegan-superresolution-with-output_31_1.png
 
 
-### Show an Animated GIF `⇑ <#top>`__
+Show an Animated GIF `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To visualize the difference between the bicubic image and the
 superresolution image, create an animated GIF image that switches
@@ -402,7 +421,9 @@ between both versions.
 
 
 
-### Create a Comparison Video `⇑ <#top>`__
+Create a Comparison Video `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Create a video with a “slider”, showing the bicubic image to the right
 and the superresolution image on the left.

@@ -116,7 +116,9 @@ Table of content:
       account. You’ll also be prompted to explicitly accept the*\ `model
       license <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__\ *.*
 
-## Prerequisites `⇑ <#top>`__ Install required packages.
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+ Install required packages.
 
 .. code:: ipython3
 
@@ -164,7 +166,9 @@ Table of content:
     first_stage_unet_ir_path = models_dir / 'unet_ir_I.xml'
     second_stage_unet_ir_path = models_dir / 'unet_ir_II.xml'
 
-### Authentication `⇑ <#top>`__ In order to access IF checkpoints, users
+Authentication `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ In order to access IF checkpoints, users
 need to provide an authentication token.
 
 If you already have a token, you can input it into the provided form in
@@ -194,7 +198,9 @@ Uncheck the ``Add token as git credential?`` box.
     VBox(children=(HTML(value='<center> <img\nsrc=https://huggingface.co/front/assets/huggingface_logo-noborder.sv…
 
 
-## DeepFloyd IF in Diffusers library `⇑ <#top>`__ To work with IF by
+DeepFloyd IF in Diffusers library `⇑ <#top>`__
+###############################################################################################################################
+ To work with IF by
 DeepFloyd Lab, we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
 exposes the ``DiffusionPipeline`` class, simplifying experiments with
@@ -257,8 +263,10 @@ diffusion models. The code below demonstrates how to create a
     Wall time: 16.1 s
 
 
-## Convert models to OpenVINO Intermediate representation (IR) format
-`⇑ <#top>`__ Model conversion API enables direct conversion of PyTorch
+Convert models to OpenVINO Intermediate representation (IR) format. `⇑ <#top>`__
+###############################################################################################################################
+
+Model conversion API enables direct conversion of PyTorch
 models. We will utilize the ``mo.convert_model`` method to acquire
 OpenVINO IR versions of the models. This requires providing a model
 object, input data for model tracing, and other relevant parameters. The
@@ -277,7 +285,9 @@ The pipeline consists of three important parts:
 
 Let us convert each part.
 
-## 1. Convert Text Encoder `⇑ <#top>`__
+1. Convert Text Encoder `⇑ <#top>`__
+###############################################################################################################################
+
 
 The text encoder is responsible for converting the input prompt, such as
 “ultra close-up color photo portrait of rainbow owl with deer horns in
@@ -327,7 +337,9 @@ To learn more, refer to this
     Wall time: 1.37 s
 
 
-## Convert the first Pixel Diffusion module’s UNet `⇑ <#top>`__
+Convert the first Pixel Diffusion module’s UNet `⇑ <#top>`__
+###############################################################################################################################
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -370,7 +382,9 @@ resolution images.
     Wall time: 298 ms
 
 
-## Convert the second pixel diffusion module `⇑ <#top>`__
+Convert the second pixel diffusion module `⇑ <#top>`__
+###############################################################################################################################
+
 
 The second Diffusion module in the cascade generates 256x256 pixel
 images.
@@ -409,7 +423,9 @@ encoded user prompt.
     Wall time: 273 ms
 
 
-## Prepare Inference pipeline `⇑ <#top>`__
+Prepare Inference pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The original pipeline from the source repository will be reused in this
 example. In order to achieve this, adapter classes were created to
@@ -566,14 +582,18 @@ select device from dropdown list for running inference using OpenVINO
             result_numpy = result[self.unet_openvino.outputs[0]]
             return result_tuple(torch.tensor(result_numpy, dtype=self.dtype))
 
-## Run Text-to-Image generation `⇑ <#top>`__
+Run Text-to-Image generation `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now, we can set a text prompt for image generation and execute the
 inference pipeline. Optionally, you can also modify the random generator
 seed for latent state initialization and adjust the number of images to
 be generated for the given prompt.
 
-### Text Encoder inference `⇑ <#top>`__
+Text Encoder inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -619,7 +639,9 @@ be generated for the given prompt.
 
 
 
-### First Stage diffusion block inference `⇑ <#top>`__
+First Stage diffusion block inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -677,7 +699,9 @@ be generated for the given prompt.
 
 
 
-### Second Stage diffusion block inference `⇑ <#top>`__
+Second Stage diffusion block inference `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -728,12 +752,15 @@ be generated for the given prompt.
 
 
 
-### Third Stage diffusion block `⇑ <#top>`__ The final block, which
+Third Stage diffusion block `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The final block, which
 upscales images to a higher resolution (1024x1024 px), has not been
 released by DeepFloyd yet. Stay tuned!
 
-### Upscale the generated image using a Super Resolution network
-`⇑ <#top>`__
+Upscale the generated image using a Super Resolution network. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Though the third stage has not been officially released, we’ll employ
 the Super Resolution network from `Example
@@ -748,7 +775,9 @@ release!
     # Temporary requirement
     !pip install -q matplotlib
 
-#### Download the Super Resolution model weights `⇑ <#top>`__
+Download the Super Resolution model weights `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -786,7 +815,9 @@ release!
     single-image-super-resolution-1032 already downloaded to models
 
 
-#### Reshape the model’s inputs `⇑ <#top>`__ We need to reshape the inputs
+Reshape the model’s inputs `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+ We need to reshape the inputs
 for the model. This is necessary because the IR model was converted with
 a different target input resolution. The Second IF stage returns 256x256
 pixel images. Using the 4x Super Resolution model makes our target image
@@ -801,7 +832,9 @@ size 1024x1024 pixel.
     })
     compiled_model = core.compile_model(model=model, device_name=device.value)
 
-#### Prepare the input images and run the model `⇑ <#top>`__
+Prepare the input images and run the model `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -819,7 +852,9 @@ size 1024x1024 pixel.
         [input_image_original, input_image_bicubic]
     )[compiled_model.output(0)]
 
-#### Display the result `⇑ <#top>`__
+Display the result `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 

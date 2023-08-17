@@ -40,7 +40,9 @@ Table of content:
 
     !pip install -q "nncf>=2.5.0" datasets evaluate
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -80,7 +82,9 @@ Table of content:
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-## Settings `⇑ <#top>`__
+Settings `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -94,7 +98,9 @@ Table of content:
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-## Prepare the Model `⇑ <#top>`__
+Prepare the Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Perform the following:
 
@@ -158,7 +164,10 @@ PyTorch model formats are supported:
       warnings.warn("TorchScript will treat type annotations of Tensor "
 
 
-## Prepare the Dataset `⇑ <#top>`__ We download the `General Language
+Prepare the Dataset `⇑ <#top>`__
+###############################################################################################################################
+
+ We download the `General Language
 Understanding Evaluation (GLUE) <https://gluebenchmark.com/>`__ dataset
 for the MRPC task from HuggingFace datasets. Then, we tokenize the data
 with a pre-trained BERT tokenizer from HuggingFace.
@@ -180,7 +189,9 @@ with a pre-trained BERT tokenizer from HuggingFace.
     
     data_source = create_data_source()
 
-## Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
+Optimize model using NNCF Post-training Quantization API `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -397,7 +408,9 @@ The optimization process contains the following steps:
     compressed_model_xml = Path(MODEL_DIR) / "quantized_bert_mrpc.xml"
     ov.serialize(quantized_model, compressed_model_xml)
 
-## Load and Test OpenVINO Model `⇑ <#top>`__
+Load and Test OpenVINO Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 To load and test converted model, perform the following:
 
@@ -406,7 +419,9 @@ To load and test converted model, perform the following:
 -  Run the inference.
 -  Get the answer from the model output.
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -464,7 +479,9 @@ changing ``sample_idx`` to another value (from 0 to 407).
     The same meaning: yes
 
 
-## Compare F1-score of FP32 and INT8 models `⇑ <#top>`__
+Compare F1-score of FP32 and INT8 models `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -507,8 +524,8 @@ changing ``sample_idx`` to another value (from 0 to 407).
     F1 score: 0.8995
 
 
-## Compare Performance of the Original, Converted and Quantized Models
-`⇑ <#top>`__
+Compare Performance of the Original, Converted and Quantized Models. `⇑ <#top>`__
+###############################################################################################################################
 
 Compare the original PyTorch model with OpenVINO converted and quantized
 models (``FP32``, ``INT8``) to see the difference in performance. It is

@@ -52,7 +52,9 @@ Table of content:
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -89,7 +91,9 @@ Table of content:
     import notebook_utils as utils
     import pre_post_processing as processing
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -117,7 +121,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-### Models for PaddleOCR `⇑ <#top>`__
+Models for PaddleOCR `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 PaddleOCR includes two parts of deep learning models, text detection and
 text recognition. Pre-trained models used in the demo are downloaded and
@@ -160,7 +166,9 @@ files to load to CPU/GPU.
             else:
                 print("Error Extracting the model. Please check the network.")
 
-#### Download the Model for Text **Detection** `⇑ <#top>`__
+Download the Model for Text **Detection** `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -189,7 +197,9 @@ files to load to CPU/GPU.
     Model Extracted to model/ch_PP-OCRv3_det_infer/inference.pdmodel.
 
 
-#### Load the Model for Text **Detection** `⇑ <#top>`__
+Load the Model for Text **Detection** `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -202,7 +212,9 @@ files to load to CPU/GPU.
     det_input_layer = det_compiled_model.input(0)
     det_output_layer = det_compiled_model.output(0)
 
-#### Download the Model for Text **Recognition** `⇑ <#top>`__
+Download the Model for Text **Recognition** `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
 
 .. code:: ipython3
 
@@ -229,7 +241,7 @@ files to load to CPU/GPU.
     Model Extracted to model/ch_PP-OCRv3_rec_infer/inference.pdmodel.
 
 
-#### Load the Model for Text **Recognition** with Dynamic Shape
+Load the Model for Text **Recognition** with Dynamic Shape
 `⇑ <#top>`__
 
 Input to text recognition model refers to detected bounding boxes with
@@ -258,8 +270,9 @@ different image sizes, for example, dynamic input shapes. Hence:
     rec_input_layer = rec_compiled_model.input(0)
     rec_output_layer = rec_compiled_model.output(0)
 
-### Preprocessing Image Functions for Text Detection and Recognition
-`⇑ <#top>`__
+Preprocessing Image Functions for Text Detection and Recognition. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Define preprocessing functions for text detection and recognition: 1.
 Preprocessing for text detection: resize and normalize input images. 2.
@@ -374,7 +387,9 @@ with Chinese text) for easy batching in inference.
         norm_img_batch = norm_img_batch.copy()
         return norm_img_batch
 
-### Postprocessing Image for Text Detection `⇑ <#top>`__
+Postprocessing Image for Text Detection `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -412,7 +427,9 @@ with Chinese text) for easy batching in inference.
         dt_boxes = processing.filter_tag_det_res(dt_boxes, ori_im.shape)    
         return dt_boxes
 
-### Main Processing Function for PaddleOCR `⇑ <#top>`__
+Main Processing Function for PaddleOCR `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run ``paddleOCR`` function in different operations, either a webcam or a
 video file. See the list of procedures below:
@@ -584,7 +601,9 @@ video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-## Run Live PaddleOCR with OpenVINO `⇑ <#top>`__
+Run Live PaddleOCR with OpenVINO `⇑ <#top>`__
+###############################################################################################################################
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be

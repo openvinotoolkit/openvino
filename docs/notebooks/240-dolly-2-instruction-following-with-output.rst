@@ -95,7 +95,9 @@ Table of content:
 - `Helpers for application <#9>`__
 - `Run instruction-following pipeline <#10>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -121,7 +123,9 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     [notice] To update, run: pip install --upgrade pip
 
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -150,7 +154,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-## Download and Convert Model `⇑ <#top>`__
+Download and Convert Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -263,7 +269,9 @@ Tokenizer class and pipelines API are compatible with Optimum models.
     Set CACHE_DIR to /tmp/tmpndw8_20n/model_cache
 
 
-## Create an instruction-following inference pipeline `⇑ <#top>`__
+Create an instruction-following inference pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -366,7 +374,9 @@ generated tokens without waiting until when the whole generation is
 finished using Streaming API, it adds a new token to the output queue
 and then prints them when they are ready.
 
-### Setup imports `⇑ <#top>`__
+Setup imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -377,7 +387,9 @@ and then prints them when they are ready.
     from transformers import AutoTokenizer, TextIteratorStreamer
     import numpy as np
 
-### Prepare template for user prompt `⇑ <#top>`__
+Prepare template for user prompt `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For effective generation, model expects to have input in specific
 format. The code below prepare template for passing user instruction
@@ -407,7 +419,9 @@ into model with providing additional context.
         response_key=RESPONSE_KEY,
     )
 
-### Helpers for output parsing `⇑ <#top>`__
+Helpers for output parsing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Model was retrained to finish generation using special token ``### End``
 the code below find its id for using it as generation stop-criteria.
@@ -446,7 +460,9 @@ the code below find its id for using it as generation stop-criteria.
         except ValueError:
             pass
 
-### Main generation function `⇑ <#top>`__
+Main generation function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -505,7 +521,9 @@ parameter and returns model response.
             start = perf_counter()
         return model_output, perf_text
 
-### Helpers for application `⇑ <#top>`__
+Helpers for application `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -570,7 +588,9 @@ elements.
                 ov_model.compile()
         return current_text
 
-## Run instruction-following pipeline `⇑ <#top>`__
+Run instruction-following pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text

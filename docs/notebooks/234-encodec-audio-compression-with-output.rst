@@ -41,7 +41,9 @@ Table of content:
 - `Select inference device <#9>`__
 - `Run EnCodec with OpenVINO <#10>`__
 
-## Prerequisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 Install required dependencies:
 
@@ -49,7 +51,9 @@ Install required dependencies:
 
     !python -W ignore -m pip install -q -r requirements.txt
 
-## Instantiate audio compression pipeline `⇑ <#top>`__
+Instantiate audio compression pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 `Codecs <https://en.wikipedia.org/wiki/Codec>`__, which act as encoders
 and decoders for streams of data, help empower most of the audio
@@ -106,7 +110,9 @@ bandwidth.
     model = EncodecModel.encodec_model_24khz()
     model.set_target_bandwidth(6.0)
 
-## Explore EnCodec pipeline `⇑ <#top>`__
+Explore EnCodec pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 Let us explore model capabilities on example audio:
 
@@ -156,7 +162,9 @@ Let us explore model capabilities on example audio:
 .. image:: 234-encodec-audio-compression-with-output_files/234-encodec-audio-compression-with-output_6_2.png
 
 
-### Preprocessing `⇑ <#top>`__
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 To achieve the best result, audio should have the number of channels and
 sample rate expected by the model. If audio does not fulfill these
@@ -183,7 +191,9 @@ number of channels using the ``convert_audio`` function.
     
     wav = convert_audio(wav, sr, model_sr, model_channels)
 
-### Encoding `⇑ <#top>`__
+Encoding `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Audio waveform should be split by chunks and then encoded by Encoder
 model, then compressed by quantizer for reducing memory. The result of
@@ -231,7 +241,9 @@ Let us compare obtained compression result:
 Great! Now, we see the power of hyper compression. Binary size of a file
 becomes 60 times smaller and more suitable for sending via network.
 
-### Decompression `⇑ <#top>`__
+Decompression `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 After successful sending of the compressed audio, it should be
 decompressed on the recipient’s side. The decoder model is responsible
@@ -279,8 +291,8 @@ audio.
 
 Nice! Audio sounds close to original.
 
-## Convert model to OpenVINO Intermediate Representation format
-`⇑ <#top>`__
+Convert model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
+###############################################################################################################################
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via ONNX conversion. We
@@ -381,7 +393,9 @@ with ``openvino.runtime.serialize``.
       assert (padding_left + padding_right) <= x.shape[-1]
 
 
-## Integrate OpenVINO to EnCodec pipeline `⇑ <#top>`__
+Integrate OpenVINO to EnCodec pipeline `⇑ <#top>`__
+###############################################################################################################################
+
 
 The following steps are required for integration of OpenVINO to EnCodec
 pipeline:
@@ -391,7 +405,9 @@ pipeline:
 3. Replace the original frame processing functions with OpenVINO based
    algorithms.
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -454,7 +470,9 @@ select device from dropdown list for running inference using OpenVINO
     model._encode_frame = encode_frame
     model._decode_frame = decode_frame
 
-## Run EnCodec with OpenVINO `⇑ <#top>`__
+Run EnCodec with OpenVINO `⇑ <#top>`__
+###############################################################################################################################
+
 
 The process of running encodec with OpenVINO under hood will be the same
 like with the original PyTorch models.

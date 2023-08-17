@@ -20,7 +20,9 @@ Table of content:
 - `For a single input sentence <#7>`__
 - `Read from a text file <#8>`__
 
-## Imports `⇑ <#top>`__
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -32,7 +34,9 @@ Table of content:
     from openvino.tools import mo
     from openvino.runtime import PartialShape, Type, serialize, Core
 
-## Initializing the Model `⇑ <#top>`__ We will use the transformer-based
+Initializing the Model `⇑ <#top>`__
+###############################################################################################################################
+ We will use the transformer-based
 `DistilBERT base uncased finetuned
 SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
 model from Hugging Face.
@@ -44,7 +48,9 @@ model from Hugging Face.
         pretrained_model_name_or_path=checkpoint
     )
 
-## Initializing the Tokenizer `⇑ <#top>`__
+Initializing the Tokenizer `⇑ <#top>`__
+###############################################################################################################################
+
 
 Text Preprocessing cleans the text-based input data so it can be fed
 into the model.
@@ -63,8 +69,8 @@ understand the context of a sentence. Here, we will use
         pretrained_model_name_or_path=checkpoint
     )
 
-## Convert Model to OpenVINO Intermediate Representation format
-`⇑ <#top>`__
+Convert Model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
+###############################################################################################################################
 
 `Model conversion
 API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
@@ -101,7 +107,9 @@ documentation. <https://docs.openvino.ai/2023.0/openvino_docs_Runtime_Inference_
 
     core = Core()
 
-### Select inference device `⇑ <#top>`__
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -146,7 +154,9 @@ select device from dropdown list for running inference using OpenVINO
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
-## Inference `⇑ <#top>`__
+Inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -171,7 +181,9 @@ select device from dropdown list for running inference using OpenVINO
             probability = np.argmax(softmax(i))
         return label[probability]
 
-### For a single input sentence `⇑ <#top>`__
+For a single input sentence `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -190,7 +202,9 @@ select device from dropdown list for running inference using OpenVINO
     Total Time:  0.04  seconds
 
 
-### Read from a text file `⇑ <#top>`__
+Read from a text file `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 

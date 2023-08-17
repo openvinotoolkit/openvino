@@ -34,7 +34,9 @@ Table of content:
 - `Compare Performance of the Original and Quantized Models <#9>`__ 
 - `Compare Accuracy of the Original and Quantized Models <#10>`__
 
-## Download and prepare model `⇑ <#top>`__
+Download and prepare model `⇑ <#top>`__
+###############################################################################################################################
+
 
 data2vec is a framework for self-supervised representation learning for
 images, speech, and text as described in `data2vec: A General Framework
@@ -52,7 +54,9 @@ In our case, we will use ``data2vec-audio-base-960h`` model, which was
 finetuned on 960 hours of audio from LibriSpeech Automatic Speech
 Recognition corpus and distributed as part of HuggingFace transformers.
 
-### Obtain Pytorch model representation `⇑ <#top>`__
+Obtain Pytorch model representation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For instantiating PyTorch model class, we should use
 ``Data2VecAudioForCTC.from_pretrained`` method with providing model ID
@@ -76,7 +80,9 @@ model specific pre- and post-processing steps.
     processor = Wav2Vec2Processor.from_pretrained("facebook/data2vec-audio-base-960h")
     model = Data2VecAudioForCTC.from_pretrained("facebook/data2vec-audio-base-960h")
 
-### Convert model to OpenVINO Intermediate Representation `⇑ <#top>`__
+Convert model to OpenVINO Intermediate Representation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -146,7 +152,9 @@ model specific pre- and post-processing steps.
     Read IR model from model/data2vec-audo-base.xml
 
 
-### Prepare inference data `⇑ <#top>`__
+Prepare inference data `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 For demonstration purposes, we will use short dummy version of
 LibriSpeech dataset - ``patrickvonplaten/librispeech_asr_dummy`` to
@@ -185,7 +193,9 @@ dataset.
     Loading cached processed dataset at /home/adrian/.cache/huggingface/datasets/patrickvonplaten___librispeech_asr_dummy/clean/2.1.0/f2c70a4d03ab4410954901bde48c54b85ca1b7f9bf7d616e7e2a72b5ee6ddbfc/cache-4e0f4916cd205b24.arrow
 
 
-## Check model inference result `⇑ <#top>`__
+Check model inference result `⇑ <#top>`__
+###############################################################################################################################
+
 
 The code below is used for running model inference on a single sample
 from the dataset. It contains the following steps:
@@ -257,7 +267,9 @@ For reference, see the same function provided for OpenVINO model.
 
 
 
-## Validate model accuracy on dataset `⇑ <#top>`__
+Validate model accuracy on dataset `⇑ <#top>`__
+###############################################################################################################################
+
 
 For model accuracy evaluation, `Word Error
 Rate <https://en.wikipedia.org/wiki/Word_error_rate>`__ metric can be
@@ -316,7 +328,9 @@ library.
     [OpenVino]  Word Error Rate: 0.0383
 
 
-## Quantization `⇑ <#top>`__
+Quantization `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -599,7 +613,9 @@ saved using ``serialize`` function.
     quantized_model_path = Path(f"{MODEL_NAME}_openvino_model/{MODEL_NAME}_quantized.xml")
     serialize(quantized_model, str(quantized_model_path))
 
-## Check INT8 model inference result `⇑ <#top>`__
+Check INT8 model inference result `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``INT8`` model is the same in usage like the original one. We need to
 read it, using the ``core.read_model`` method and load on the device,
@@ -637,7 +653,9 @@ using ``core.compile_model``. After that, we can reuse the same
 
 
 
-## Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 `Benchmark
 Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 is used to measure the inference performance of the ``FP16`` and
@@ -798,7 +816,9 @@ is used to measure the inference performance of the ``FP16`` and
     [ INFO ] Throughput:   38.24 FPS
 
 
-## Compare Accuracy of the Original and Quantized Models `⇑ <#top>`__
+Compare Accuracy of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 Finally, calculate WER metric for the ``INT8`` model representation and
 compare it with the ``FP16`` result.
