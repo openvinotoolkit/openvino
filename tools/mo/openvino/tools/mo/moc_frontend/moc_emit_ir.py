@@ -31,5 +31,11 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
 
     apply_user_transformations(ngraph_function, parse_transform(argv.transform))
 
+    if argv.compress_to_fp16:
+        from openvino.tools.mo.back.offline_transformations import compress_model
+        compress_model(ngraph_function)
+
+    apply_fused_names_cleanup(ngraph_function)
+
     del argv.feManager
     return ngraph_function
