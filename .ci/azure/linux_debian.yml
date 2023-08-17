@@ -262,8 +262,8 @@ jobs:
       sudo apt-get install --no-install-recommends gnupg wget -y
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-      echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
-      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
+      echo "deb https://apt.repos.intel.com/openvino/2023 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
+      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2023.list
       sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
