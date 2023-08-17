@@ -125,8 +125,8 @@ export interface NodeAddon {
 
   asyncInfer(
     InferRequest: InferRequest,
-    inputData: { [inputName: string]: Tensor | SupportedTypedArray}
-    | Tensor[] | SupportedTypedArray[],
+    inputData: { [inputName: string]: Tensor | SupportedTypedArray }
+      | Tensor[] | SupportedTypedArray[],
     callback: (err: Error | null, inputData: Tensor[]) => void,
   ): void;
 }
