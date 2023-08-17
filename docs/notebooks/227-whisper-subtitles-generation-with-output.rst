@@ -136,6 +136,7 @@ Clone and install the model repository.
 
 Instantiate model `⇑ <#top>`__
 ###############################################################################################################################
+
  Whisper is a Transformer based
 encoder-decoder model, also referred to as a sequence-to-sequence model.
 It maps a sequence of audio spectrogram features to a sequence of text

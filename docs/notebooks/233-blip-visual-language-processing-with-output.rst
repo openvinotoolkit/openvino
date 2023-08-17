@@ -86,6 +86,7 @@ decoded into a descriptive text sequence.
 
 Visual Question Answering `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Visual Question Answering (VQA)
 is the task of answering text-based questions about image content.
 

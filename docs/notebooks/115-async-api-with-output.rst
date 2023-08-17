@@ -66,6 +66,7 @@ Prepare model and data processing `⇑ <#top>`__
 
 Download test model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  We use a pre-trained model from
 OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
@@ -177,12 +178,14 @@ Get the test video `⇑ <#top>`__
 
 How to improve the throughput of video processing `⇑ <#top>`__
 ###############################################################################################################################
+
  Below,
 we compare the performance of the synchronous and async-based
 approaches:
 
 Sync Mode (default) `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Let us see how video processing works
 with the default approach. Using the synchronous approach, the frame is
 captured with OpenCV and then immediately processed:

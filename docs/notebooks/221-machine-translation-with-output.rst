@@ -51,6 +51,7 @@ Table of content:
 
 Downloading model `⇑ <#top>`__
 ###############################################################################################################################
+
  The following command will download the
 model to the current directory. Make sure you have run
 ``pip install openvino-dev`` beforehand.
@@ -92,6 +93,7 @@ model to the current directory. Make sure you have run
 
 Load and configure the model `⇑ <#top>`__
 ###############################################################################################################################
+
  The model is now available in
 the ``intel/`` folder. Below, we load and configure its inputs and
 outputs.
@@ -169,6 +171,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
 
 Perform translation `⇑ <#top>`__
 ###############################################################################################################################
+
  The following function translates a
 sentence in English to German.
 
@@ -218,6 +221,7 @@ sentence in English to German.
 
 Translate the sentence `⇑ <#top>`__
 ###############################################################################################################################
+
  The following function is a basic
 loop that translates sentences.
 
@@ -248,6 +252,7 @@ loop that translates sentences.
 
 Test your translation `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Run the following cell with an
 English sentence to have it translated to German
 

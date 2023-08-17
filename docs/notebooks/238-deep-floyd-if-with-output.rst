@@ -118,6 +118,7 @@ Table of content:
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
+
  Install required packages.
 
 .. code:: ipython3
@@ -168,6 +169,7 @@ Prerequisites `⇑ <#top>`__
 
 Authentication `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  In order to access IF checkpoints, users
 need to provide an authentication token.
 
@@ -200,6 +202,7 @@ Uncheck the ``Add token as git credential?`` box.
 
 DeepFloyd IF in Diffusers library `⇑ <#top>`__
 ###############################################################################################################################
+
  To work with IF by
 DeepFloyd Lab, we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
@@ -817,6 +820,7 @@ Download the Super Resolution model weights `⇑ <#top>`__
 
 Reshape the model’s inputs `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
+
  We need to reshape the inputs
 for the model. This is necessary because the IR model was converted with
 a different target input resolution. The Second IF stage returns 256x256

@@ -229,6 +229,7 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
 
 Preprocess the image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Preprocess the input image before
 running the model. Prepare the dimensions and channel order for the
 image to match the original image with the input tensor
@@ -258,6 +259,7 @@ image to match the original image with the input tensor
 
 Helper function to postprocess the stylized image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  The
 converted IR model outputs a NumPy ``float32`` array of the `(1, 3, 224,
 224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__

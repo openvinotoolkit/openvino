@@ -99,6 +99,7 @@ model.
 
 Stable Diffusion Text guided Inpainting `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  In image editing,
 inpainting is a process of restoring missing parts of pictures. Most
 commonly applied to reconstructing old deteriorated images, removing
@@ -132,6 +133,7 @@ Out video based on our prompt.
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
+
  install required packages
 
 .. code:: ipython3
@@ -148,6 +150,7 @@ Prerequisites `⇑ <#top>`__
 
 Stable Diffusion in Diffusers library `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  To work with Stable
 Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To

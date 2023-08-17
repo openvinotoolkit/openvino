@@ -162,6 +162,7 @@ Imports `⇑ <#top>`__
 
 Download the Model `⇑ <#top>`__
 ###############################################################################################################################
+
  We will use pre-trained models from
 OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
@@ -247,6 +248,7 @@ replace the name of the model in the code below.
 
 Load model `⇑ <#top>`__
 ###############################################################################################################################
+
  Define a common class for model loading and
 predicting.
 
@@ -701,6 +703,7 @@ Run `⇑ <#top>`__
 
 Initialize tracker `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Before running a new tracking task, we
 have to reinitialize a Tracker object
 
@@ -720,6 +723,7 @@ have to reinitialize a Tracker object
 
 Run Live Person Tracking `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Use a webcam as the video input.
 By default, the primary webcam is set with ``source=0``. If you have
 multiple webcams, each one will be assigned a consecutive number

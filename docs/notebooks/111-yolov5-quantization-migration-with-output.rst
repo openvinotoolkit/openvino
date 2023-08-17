@@ -90,6 +90,7 @@ Download the YOLOv5 model `⇑ <#top>`__
 
 Conversion of the YOLOv5 model to OpenVINO `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  There are
 three variables provided for easy run through all the notebook cells.
 

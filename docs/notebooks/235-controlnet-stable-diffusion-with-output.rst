@@ -576,6 +576,7 @@ ControlNet.
 
 Text Encoder `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  The text-encoder is responsible for
 transforming the input prompt, for example, “a photo of an astronaut
 riding a horse” into an embedding space that can be understood by the

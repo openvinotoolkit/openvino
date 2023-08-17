@@ -338,6 +338,7 @@ at later stage.
 
 Define Softmax layer `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  A softmax function is used to
 convert top-k logits into a probability distribution.
 
@@ -353,6 +354,7 @@ convert top-k logits into a probability distribution.
 
 Set the minimum sequence length `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  If the minimum sequence
 length is not reached, the following code will reduce the probability of
 the ``eos`` token occurring. This continues the process of generating
@@ -458,6 +460,7 @@ sequence.
 
 Inference with GPT-Neo/GPT-2 `⇑ <#top>`__
 ###############################################################################################################################
+
  The ``text`` variable below
 is the input used to generate a predicted sequence.
 
@@ -505,6 +508,7 @@ model.
 
 Converse Function `⇑ <#top>`__
 ###############################################################################################################################
+
  Wrapper on generate sequence function to
 support conversation
 

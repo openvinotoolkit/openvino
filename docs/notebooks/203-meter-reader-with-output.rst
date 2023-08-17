@@ -57,6 +57,7 @@ Import `⇑ <#top>`__
 
 Prepare the Model and Test Image `⇑ <#top>`__
 ###############################################################################################################################
+
  Download PPYOLOv2 and
 DeepLabV3P pre-trained models from PaddlePaddle community.
 
@@ -132,6 +133,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 
 Configuration `⇑ <#top>`__
 ###############################################################################################################################
+
  Add parameter configuration for reading
 calculation.
 
@@ -161,6 +163,7 @@ calculation.
 
 Load the Models `⇑ <#top>`__
 ###############################################################################################################################
+
  Define a common class for model loading
 and inference
 
@@ -204,6 +207,7 @@ and inference
 
 Data Process `⇑ <#top>`__
 ###############################################################################################################################
+
  Including the preprocessing and
 postprocessing tasks of each model.
 
@@ -610,6 +614,7 @@ bounds of input batch size.
 
 Run meter detection model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Detect the location of the
 meter and prepare the ROI images for segmentation.
 
@@ -654,6 +659,7 @@ meter and prepare the ROI images for segmentation.
 
 Run meter segmentation model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Get the results of
 segmentation task on detected ROI.
 

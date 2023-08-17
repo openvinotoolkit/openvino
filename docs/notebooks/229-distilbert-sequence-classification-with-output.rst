@@ -36,6 +36,7 @@ Imports `⇑ <#top>`__
 
 Initializing the Model `⇑ <#top>`__
 ###############################################################################################################################
+
  We will use the transformer-based
 `DistilBERT base uncased finetuned
 SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__

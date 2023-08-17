@@ -170,6 +170,7 @@ directory structure and downloads the selected model.
 
 Convert Model to OpenVINO IR format `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  The selected model
 comes from the public directory, which means it must be converted into
 OpenVINO Intermediate Representation (OpenVINO IR). We use
@@ -282,6 +283,7 @@ Processing `⇑ <#top>`__ Model Inference `⇑ <#top>`__
 ###############################################################################################################################
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Frames captured
 from video files or the live webcam are used as the input for the 3D
 model. This is how you obtain the output heat maps, PAF (part affinity
@@ -320,6 +322,7 @@ fields) and features.
 
 Draw 2D Pose Overlays `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  We need to define some connections
 between the joints in advance, so that we can draw the structure of the
 human body in the resulting image after obtaining the inference results.

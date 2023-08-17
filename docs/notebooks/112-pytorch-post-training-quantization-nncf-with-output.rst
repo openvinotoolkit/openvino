@@ -231,6 +231,7 @@ Download and Prepare Tiny ImageNet dataset `⇑ <#top>`__
 
 Helpers classes and functions `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  The code below will help to
 count accuracy and visualize validation process.
 
@@ -430,6 +431,7 @@ Create train and validation DataLoaders `⇑ <#top>`__
 
 Model quantization and benchmarking `⇑ <#top>`__
 ###############################################################################################################################
+
  With the validation
 pipeline, model files, and data-loading procedures for model calibration
 now prepared, it’s time to proceed with the actual post-training
@@ -461,6 +463,7 @@ I. Evaluate the loaded model `⇑ <#top>`__
 
 II. Create and initialize quantization `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  NNCF enables
 post-training quantization by adding the quantization layers into the
 model graph and then using a subset of the training dataset to

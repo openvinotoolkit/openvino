@@ -109,6 +109,7 @@ trained or optimized yourself, adjust the model paths.
 
 Benchmark Model Performance `⇑ <#top>`__
 ###############################################################################################################################
+
  To measure the inference
 performance of the IR model, use `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__

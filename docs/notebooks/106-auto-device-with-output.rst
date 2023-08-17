@@ -197,6 +197,7 @@ It is optional, but passing AUTO explicitly as
 
 (2) Improve the first inference latency `⇑ <#top>`__
 ###############################################################################################################################
+
  One of the
 benefits of using AUTO device selection is reducing FIL (first inference
 latency). FIL is the model compilation time combined with the first
@@ -211,6 +212,7 @@ device until GPU is ready.
 
 Load an Image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  torchvision library provides model specific
 input transformation function, we will reuse it for preparing input
 data.
@@ -263,6 +265,7 @@ Load the model to GPU device and perform inference `⇑ <#top>`__
 
 Load the model using AUTO device and do inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  When
 GPU is the best available device, the first few inferences will be
 executed on CPU until GPU is ready.
@@ -295,6 +298,7 @@ executed on CPU until GPU is ready.
 
 (3) Achieve different performance for different targets `⇑ <#top>`__
 ###############################################################################################################################
+
  It
 is an advantage to define **performance hints** when using Automatic
 Device Selection. By specifying a **THROUGHPUT** or **LATENCY** hint,

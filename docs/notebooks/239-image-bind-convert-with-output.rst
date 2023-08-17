@@ -537,6 +537,7 @@ Putting all together, we can match text, image, and sound for our data.
 
 Next Steps `⇑ <#top>`__
 ###############################################################################################################################
+
  Open the
 `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__ notebook to
 quantize the IR model with the Post-training Quantization API of NNCF

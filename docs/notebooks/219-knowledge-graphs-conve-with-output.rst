@@ -279,6 +279,7 @@ Defining the dataloader `⇑ <#top>`__
 
 Evaluate the trained ConvE model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  First, we will evaluate
 the model performance using PyTorch. The goal is to make sure there are
 no accuracy differences between the original model inference and the
@@ -328,6 +329,7 @@ such as Mean Reciprocal Rank, Hits@10 etc.
 
 Prediction on the Knowledge graph. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Here, we perform the
 entity prediction on the knowledge graph, as a sample evaluation task.
 We pass the source entity ``san_marino`` and relation ``locatedIn`` to
@@ -521,6 +523,7 @@ inference can also be obtained by looking at the benchmark app results.
 
 Conclusions `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  In this notebook, we convert the trained
 PyTorch knowledge graph embeddings model to the OpenVINO format. We
 confirm that there are no accuracy differences post conversion. We also
@@ -532,6 +535,7 @@ https://docs.openvino.ai/2023.0/openvino_docs_optimization_guide_dldt_optimizati
 
 References `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  1. Convolutional 2D Knowledge Graph
 Embeddings, Tim Dettmers et al. (https://arxiv.org/abs/1707.01476) 2.
 Model implementation: https://github.com/TimDettmers/ConvE

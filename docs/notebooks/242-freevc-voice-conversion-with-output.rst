@@ -41,6 +41,7 @@ Table of content:
 
 Pre-requisites `⇑ <#top>`__
 ###############################################################################################################################
+
  This steps can be done manually or will be
 performed automatically during the execution of the notebook, but in
 minimum necessary scope. 1. Clone this repo: git clone
@@ -281,6 +282,7 @@ from a disk. For more information about model conversion, see this
 `page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 Convert Prior Encoder. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  First we convert WavLM model, as a
 part of Convert Prior Encoder, to the ONNX format, then to OpenVINO’s IR
 format. We keep the original name of the model in code: ``cmodel``.
@@ -384,6 +386,7 @@ Select device from dropdown list for running inference using OpenVINO
 
 Convert ``SpeakerEncoder`` `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Converting to ONNX format.
 
 .. code:: ipython3

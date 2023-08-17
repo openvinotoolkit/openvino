@@ -71,6 +71,7 @@ To quickly start using OpenVINO™ Model Server, follow these steps:
 
 Step 1: Prepare Docker `⇑ <#top>`__
 ###############################################################################################################################
+
  Install `Docker
 Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
@@ -111,6 +112,7 @@ image and a message.
 
 Step 2: Preparing a Model Repository `⇑ <#top>`__
 ###############################################################################################################################
+
  The models need to be
 placed and mounted in a particular directory structure and according to
 the following rules:
@@ -195,6 +197,7 @@ the following rules:
 
 Step 3: Start the Model Server Container `⇑ <#top>`__
 ###############################################################################################################################
+
  Pull and start
 the container:
 
@@ -644,6 +647,7 @@ another available port on your system. For example:\ ``-p 9020:9000``
 
 Step 4: Prepare the Example Client Components `⇑ <#top>`__
 ###############################################################################################################################
+
  OpenVINO
 Model Server exposes two sets of APIs: one compatible with
 ``TensorFlow Serving`` and another one, with ``KServe API``, for

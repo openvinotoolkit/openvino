@@ -1625,11 +1625,13 @@ meets passing criteria.
 
 Next steps `⇑ <#top>`__
 ###############################################################################################################################
+
  This section contains suggestions on how to
 additionally improve the performance of your application using OpenVINO.
 
 Async inference pipeline `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
@@ -1678,6 +1680,7 @@ preprocessing and postprocessing steps for a model.
 
 Define input data format `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
+
  To address particular input of
 a model/preprocessor, the ``input(input_id)`` method, where ``input_id``
 is a positional index or input tensor name for input in

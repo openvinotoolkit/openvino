@@ -143,6 +143,7 @@ the IRs into a single folder.
 
 Benchmark quantized dense inference performance `⇑ <#top>`__
 ###############################################################################################################################
+
  Benchmark
 dense inference performance using parallel execution on four CPU cores
 to simulate a small instance in the cloud infrastructure. Sequence

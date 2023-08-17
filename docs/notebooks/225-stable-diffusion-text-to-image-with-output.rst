@@ -100,6 +100,7 @@ solutions based on Stable Diffusion.
 
 Create PyTorch Models pipeline `⇑ <#top>`__
 ###############################################################################################################################
+
  ``StableDiffusionPipeline``
 is an end-to-end inference pipeline that you can use to generate images
 from text with just a few lines of code.

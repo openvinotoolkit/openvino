@@ -93,6 +93,7 @@ Table of content:
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
+
  install required packages
 
 .. code:: ipython3
@@ -125,6 +126,7 @@ and original model
 
 Stable Diffusion in Diffusers library `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  To work with Stable
 Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To

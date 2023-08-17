@@ -43,6 +43,7 @@ Table of content:
 
 Download the Model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
  Download ``gmcnn-places2-tf``\ model
 (this step will be skipped if the model is already downloaded) and then
 unzip it. Downloaded model stored in TensorFlow frozen graph format. The
