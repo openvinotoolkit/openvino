@@ -147,10 +147,10 @@ jobs:
 
       - name: Get tools versions
         run: |
-          ninja --version || exit 1
-          ccache --version || exit 1
-          python3 --version || exit 1
-          cmake --version || exit 1
+          ninja --version
+          ccache --version
+          python3 --version
+          cmake --version
 
       #
       # Build
@@ -230,7 +230,7 @@ jobs:
             sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             echo "deb https://apt.repos.intel.com/openvino/2023 ubuntu20 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2023.list
             sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2023.list
-            sudo apt-get install openvino -y || exit 1
+            sudo apt-get install openvino -y
             # install our local one and make sure the conflicts are resolved
             sudo apt-get install --no-install-recommends dpkg-dev -y
             rm -r _CPack_Packages
