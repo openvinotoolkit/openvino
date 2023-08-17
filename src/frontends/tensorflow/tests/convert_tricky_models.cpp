@@ -753,10 +753,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
 TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
     // This test aims to check conversion of a model with convolution of dynamic input channel
     // Namely, the resulted model must contain the regular convolution, not grouped convolution
-    {
-        bool cond_value = false;
-        model = convert_model("conv_with_dynamic_input_channel");
-    }
+    { model = convert_model("conv_with_dynamic_input_channel"); }
     {
         auto input = make_shared<Parameter>(f32, PartialShape{Dimension::dynamic(), 10, 10, Dimension::dynamic()});
 
