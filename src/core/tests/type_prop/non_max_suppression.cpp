@@ -361,8 +361,8 @@ TYPED_TEST_P(NMSDynamicOutputTest, interval_shapes_labels) {
                             Property("Scores type", &Output<Node>::get_element_type, element::f32),
                             Property("Outputs type", &Output<Node>::get_element_type, element::i64)));
     EXPECT_THAT(op->outputs(),
-                ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
-                            Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
+                ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
+                            Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));

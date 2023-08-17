@@ -424,12 +424,14 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
 
-                #TODO: Check what example_outputs is and remove if not needed
-                example_outputs = None
-                if 'example_output' in args and args['example_output'] is not None:
-                    example_outputs = args['example_output']
+                outputs = None
+                if 'output' in args and args['output'] is not None:
+                    # Once the temporary PDPD model is generated. output can be dropped.
+                    # Just swap outputs and args['output'] can reset the argv.output to `None`.
+                    # It can avoid the following `output` negative effect.
+                    outputs, args['output'] = args['output'], outputs
                 paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs,
-                                                                     example_outputs)
+                                                                     outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
 

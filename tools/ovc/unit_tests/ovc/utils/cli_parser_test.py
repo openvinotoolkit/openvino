@@ -442,7 +442,6 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         ref_params = {
             'Optional parameters:': {'input_model', 'input', 'output', 'example_input',
                                                'extension', 'verbose', 'share_weights'},
-            'PaddlePaddle-specific parameters:': {'example_output'},
         }
 
         params = get_mo_convert_params()
@@ -454,8 +453,7 @@ class TestConvertModelParamsParsing(unittest.TestCase):
         for group_name, params in ref_params.items():
             for param_name in params:
                 param_name = '--' + param_name
-                if group_name == 'PaddlePaddle-specific parameters:' or \
-                        param_name in ['--input_model', '--share_weights', '--example_input']:
+                if param_name in ['--input_model', '--share_weights', '--example_input']:
                     assert param_name not in cli_parser._option_string_actions
                 else:
                     assert param_name in cli_parser._option_string_actions

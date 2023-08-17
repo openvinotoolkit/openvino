@@ -139,6 +139,10 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     }
 }
 
+const std::string& InputModel::decoder_type_name() const {
+    return m_model_decoder->decoder_type_name();
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

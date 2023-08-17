@@ -457,6 +457,14 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
+    // pretend the reorder is not available to use Convert node instead
+    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+        dnnl_primitive_desc_destroy(result);
+        return false;
+    }
+#endif
     if (result) {
         dnnl_primitive_desc_destroy(result);
     }
