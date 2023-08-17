@@ -356,7 +356,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     ov::pass::Manager manager;
     if (compress_to_fp16) {
         manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
-        manager.register_pass<ov::pass::CompressFloatConstants>();
+        manager.register_pass<ov::pass::CompressFloatConstants>(/*postponed=*/true);
     }
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
