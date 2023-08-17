@@ -7,6 +7,7 @@
       "cflags_cc": ["-std=c++17"],
 
       "sources": [
+        "src/async_infer.cpp",
         "src/node_input.cpp",
         "src/node_output.cpp",
         "src/shape.cpp",

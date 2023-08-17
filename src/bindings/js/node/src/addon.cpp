@@ -15,27 +15,12 @@
 #include "shape.hpp"
 #include "tensor.hpp"
 #include "resize_algorithm.hpp"
+#include "async_infer.hpp"
 
 Napi::String Method(const Napi::CallbackInfo& info) {
     ov::Version version = ov::get_openvino_version();
     std::string str;
     return Napi::String::New(info.Env(), str.assign(version.buildNumber));
-}
-void asyncInfer(const Napi::CallbackInfo& info) {
-    if (info.Length() != 3)
-        reportError(info.Env(), "asyncInfer method takes three arguments.");
-
-    auto ir = Napi::ObjectWrap<InferRequestWrap>::Unwrap(info[0].ToObject());
-    if (info[1].IsArray()) {
-        ir->infer(info[1].As<Napi::Array>());
-    } else if (info[1].IsObject()) {
-        ir->infer(info[1].As<Napi::Object>());
-    } else {
-        reportError(info.Env(), "asyncInfer method takes as a second argument an array or an object.");
-    }
-
-    Napi::Function cb = info[2].As<Napi::Function>();
-    cb.Call(info.Env().Global(), {info.Env().Null(), ir->get_output_tensors(info)});
 }
 
 /** @brief Initialize native add-on */
