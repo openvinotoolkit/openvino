@@ -10,6 +10,7 @@
    :maxdepth: 1
    :hidden:
 
+   openvino_docs_MO_DG_prepare_model_convert_model_MO_OVC_transition
    Supported_Model_Formats
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    omz_tools_downloader
