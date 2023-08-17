@@ -55,6 +55,12 @@ protected:
 };
 
 namespace Convolution {
+    const std::vector<SizeVector>& kernels1d();
+    const std::vector<SizeVector>& strides1d();
+    const std::vector<std::vector<ptrdiff_t>>& padBegins1d();
+    const std::vector<std::vector<ptrdiff_t>>& padEnds1d();
+    const std::vector<SizeVector>& dilations1d();
+
     const std::vector<SizeVector>& kernels2d();
     const std::vector<SizeVector>& strides2d();
     const std::vector<std::vector<ptrdiff_t>>& padBegins2d();

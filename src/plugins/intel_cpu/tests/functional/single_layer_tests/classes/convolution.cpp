@@ -265,6 +265,31 @@ const SizeVector& numOutChannels_Gemm() {
     return numOutChannels_Gemm;
 }
 
+const std::vector<SizeVector>& kernels1d() {
+    static const std::vector<SizeVector> kernels1d = { {3}, {1} };
+    return kernels1d;
+}
+
+const std::vector<SizeVector>& strides1d() {
+    static const std::vector<SizeVector> strides1d = { {1}, {2} };
+    return strides1d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padBegins1d() {
+    static const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {0}, {1} };
+    return padBegins1d;
+}
+
+const std::vector<std::vector<ptrdiff_t>>& padEnds1d() {
+    static const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {0} };
+    return padEnds1d;
+}
+
+const std::vector<SizeVector>& dilations1d() {
+    static const std::vector<SizeVector> dilations1d = { {1}, {2} };
+    return dilations1d;
+}
+
 const std::vector<SizeVector>& kernels2d() {
     static const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
     return kernels2d;
