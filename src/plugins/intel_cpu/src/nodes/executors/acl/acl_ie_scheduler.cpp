@@ -32,7 +32,7 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
 
     const Window & max_window = window;
-    const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
+    const unsigned int num_iterations = max_window.num_iterations_total();
     _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
 
     if (num_iterations == 0) {
