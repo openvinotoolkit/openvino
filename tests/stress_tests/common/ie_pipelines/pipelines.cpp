@@ -110,7 +110,7 @@ std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase>
             ie_wrapper->infer();
         };
         std::thread t(func);
-		t.join();
+	t.join();
     };
 }
 
