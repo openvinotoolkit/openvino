@@ -35,11 +35,11 @@ function completionCallback(result, imagePath) {
 }
 
 async function main(modelPath, images, deviceName) {
-  //----------------- Step 1. Initialize OpenVINO Runtime Core -----------------
+  //----------- Step 1. Initialize OpenVINO Runtime Core -----------------------
   console.log('Creating OpenVINO Runtime Core');
   const core = new ov.Core();
 
-  //----------------- Step 2. Read a model -------------------------------------
+  //----------- Step 2. Read a model -------------------------------------------
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
   const model = core.readModel(modelPath);
@@ -51,7 +51,7 @@ async function main(modelPath, images, deviceName) {
   if (model.outputs.length !== 1)
     throw new Error('Sample supports only single output topologies');
 
-  //----------------- Step 3. Set up input -------------------------------------
+  //----------- Step 3. Set up input -------------------------------------------
   // Read input image
   const imagesData = [];
 
@@ -72,7 +72,7 @@ async function main(modelPath, images, deviceName) {
     return new ov.Tensor(ov.element.u8, shape, tensorData);
   });
 
-  //----------------- Step 4. Apply preprocessing ------------------------------
+  //----------- Step 4. Apply preprocessing ------------------------------------
 
   new ov.PrePostProcessor(model)
     .setInputElementType(0, ov.element.u8)
@@ -86,7 +86,7 @@ async function main(modelPath, images, deviceName) {
   const compiledModel = core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
-  //----------------- Step 6. Create infer request queue -----------------------
+  //----------- Step 6. Creating promises that returns data from async inference
   console.log('Starting inference in asynchronous mode');
 
   // Create infer request
@@ -102,7 +102,7 @@ async function main(modelPath, images, deviceName) {
     return inferPromise;
   });
 
-  //----------------- Step 7. Do inference -------------------------------------
+  //----------- Step 7. Do inference -------------------------------------------
 
   await Promise.all(promises);
   console.log('All inferences executed');
