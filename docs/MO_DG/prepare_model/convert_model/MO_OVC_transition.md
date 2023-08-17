@@ -397,3 +397,6 @@ MO vs OVC model formats
 
 ov.convert_model() and OVC tool support conversion from PyTorch, TF, TF Lite, ONNX, PaddlePaddle.
 Following frameworks are supported only in MO and mo.convert_model(): Caffe, MxNet, Kaldi.
+
+@endsphinxdirective
+
