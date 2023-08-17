@@ -5,6 +5,9 @@
 function(ie_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
+    if(OpenCV_VERSION VERSION_LESS 3.0)
+        set(OpenCV_FOUND OFF)
+    endif()
 
     foreach(component IN LISTS openvino_export_components)
         # export all targets with prefix and use them during extra modules build
@@ -37,6 +40,9 @@ endfunction()
 function(ov_generate_dev_package_config)
     # dummy check that OpenCV is here
     find_package(OpenCV QUIET)
+    if(OpenCV_VERSION VERSION_LESS 3.0)
+        set(OpenCV_FOUND OFF)
+    endif()
 
     foreach(component IN LISTS openvino_export_components)
         # filter out targets which are installed by OpenVINOConfig.cmake static build case

@@ -28,7 +28,7 @@ struct bucketize : primitive_base<bucketize> {
         : primitive_base(id, inputs, {output_padding}, {optional_data_type(output_type)}),
           with_right_bound(with_right_bound) {}
 
-    bool with_right_bound;
+    bool with_right_bound = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
