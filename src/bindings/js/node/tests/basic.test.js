@@ -1,4 +1,6 @@
 const ov = require('../build/Release/ov_node_addon.node');
+const assert = require('assert');
+const { describe, it } = require('node:test');
 const path = require('path');
 
 function getModelPath(isFP16=false) {
@@ -13,119 +15,118 @@ function getModelPath(isFP16=false) {
 }
 
 var testXml = getModelPath();
+const core = new ov.Core();
+const model = core.readModel(testXml);
+const compiledModel = core.compileModel(model, 'CPU');
 
 describe('Output class', () => {
+  const modelLike = [[model],
+    [compiledModel]];
 
-  const core = new ov.Core();
-  const model = core.readModel(testXml);
-  const compiledModel = core.compileModel(model, 'CPU');
-
-  test.each([
-    model,
-    compiledModel,
-  ])('Mutual tests', (obj) => {
-    expect(obj.output() && typeof obj.output() === 'object').toBe(true);
-    expect(obj.outputs.length).toEqual(1);
-    //test for a obj with one output
-    expect(obj.output().toString()).toEqual('fc_out');
-    expect(obj.output(0).toString()).toEqual('fc_out');
-    expect(obj.output('fc_out').toString()).toEqual('fc_out');
-    expect(obj.output(0).shape).toEqual([1, 10]);
-    expect(obj.output(0).getShape().getData()).toEqual([1, 10]);
-    expect(obj.output().getAnyName()).toEqual('fc_out');
-    expect(obj.output().anyName).toEqual('fc_out');
+  modelLike.forEach( ([obj]) => {
+    it('Output getters and properties', () => {
+      assert.strictEqual(typeof obj.output(), 'object');
+      assert.strictEqual(obj.outputs.length, 1);
+      // tests for an obj with one output
+      assert.strictEqual(obj.output().toString(), 'fc_out');
+      assert.strictEqual(obj.output(0).toString(), 'fc_out');
+      assert.strictEqual(obj.output('fc_out').toString(), 'fc_out');
+      assert.deepStrictEqual(obj.output(0).shape, [1, 10]);
+      assert.deepStrictEqual(obj.output(0).getShape().getData(), [1, 10]);
+      assert.strictEqual(obj.output().getAnyName(), 'fc_out');
+      assert.strictEqual(obj.output().anyName, 'fc_out');
+    });
   });
 
-  test('Ouput<ov::Node>.setNames() method', () => {
+  it('Ouput<ov::Node>.setNames() method', () => {
     model.output().setNames(['bTestName', 'cTestName']);
-    expect(model.output().getAnyName()).toEqual('bTestName');
-    expect(model.output().anyName).toEqual('bTestName');
+    assert.strictEqual(model.output().getAnyName(), 'bTestName');
+    assert.strictEqual(model.output().anyName, 'bTestName');
   });
 
-  test('Ouput<ov::Node>.addNames() method', () => {
+  it('Ouput<ov::Node>.addNames() method', () => {
     model.output().addNames(['aTestName']);
-    expect(model.output().getAnyName()).toEqual('aTestName');
-    expect(model.output().anyName).toEqual('aTestName');
+    assert.strictEqual(model.output().getAnyName(), 'aTestName');
+    assert.strictEqual(model.output().anyName, 'aTestName');
   });
 
-  test('Ouput<const ov::Node>.setNames() method', () => {
-    expect(() => compiledModel.output().setNames(['bTestName', 'cTestName'])).toThrow(TypeError);
+  it('Ouput<const ov::Node>.setNames() method', () => {
+    assert.throws(
+      () => compiledModel.output().setNames(['bTestName', 'cTestName'])
+    );
   });
 
-  test('Ouput<const ov::Node>.addNames() method', () => {
-    expect(() => compiledModel.output().addNames(['aTestName'])).toThrow(TypeError);
+  it('Ouput<const ov::Node>.addNames() method', () => {
+    assert.throws(
+      () => compiledModel.output().addNames(['aTestName']),
+    );
   });
 
 });
 
 describe('Input class for ov::Input<const ov::Node>', () => {
-  const core = new ov.Core();
-  const model = core.readModel(testXml);
-  const compiledModel = core.compileModel(model, 'CPU');
-
-  test('CompiledModel.input() method', () => {
+  it('CompiledModel.input() method', () => {
     // TO_DO check if object is an instance of a value/class
-    expect(compiledModel.input() && typeof compiledModel.input() === 'object').toBe(true);
+    assert.strictEqual(typeof compiledModel.input(), 'object');
   });
 
-  test('CompiledModel.inputs property', () => {
-    expect(compiledModel.inputs.length).toEqual(1);
+  it('CompiledModel.inputs property', () => {
+    assert.equal(compiledModel.inputs.length, 1);
   });
 
-  test('CompiledModel.input().ToString() method', () => {
+  it('CompiledModel.input().ToString() method', () => {
     //test for a model with one output
-    expect(compiledModel.input().toString()).toEqual('data');
+    assert.strictEqual(compiledModel.input().toString(), 'data');
   });
 
-  test('CompiledModel.input(idx: number).ToString() method', () => {
-    expect(compiledModel.input(0).toString()).toEqual('data');
+  it('CompiledModel.input(idx: number).ToString() method', () => {
+    assert.strictEqual(compiledModel.input(0).toString(), 'data');
   });
 
-  test('CompiledModel.input(tensorName: string).ToString() method', () => {
-    expect(compiledModel.input('data').toString()).toEqual('data');
+  it('CompiledModel.input(tensorName: string).ToString() method', () => {
+    assert.strictEqual(compiledModel.input('data').toString(), 'data');
   });
 
-  test('Input.shape property with dimensions', () => {
-    expect(compiledModel.input(0).shape).toEqual([1, 3, 32, 32]);
+  it('Input.shape property with dimensions', () => {
+    assert.deepStrictEqual(compiledModel.input(0).shape, [1, 3, 32, 32]);
   });
 
-  test('Input.getShape() method', () => {
-    expect(compiledModel.input(0).getShape().getData()).toEqual([1, 3, 32, 32]);
+  it('Input.getShape() method', () => {
+    assert.deepStrictEqual(
+      compiledModel.input(0).getShape().getData(), [1, 3, 32, 32]);
   });
 });
 
 describe('InferRequest infer()', () => {
-  const core = new ov.Core();
-  const model = core.readModel(testXml);
-  const compiledModel = core.compileModel(model, 'CPU');
-  tensor_data = Float32Array.from({ length: 3072 }, () => Math.random());
-
+  const tensorData = Float32Array.from({ length: 3072 }, () => Math.random());
   const tensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 3, 32, 32]),
-    tensor_data,
+    tensorData,
   );
 
-  test.each([
-    tensor,
-    tensor_data,
-  ])('Different tensor-like values', (val) => {
+  const tensorLike = [[tensor],
+    [tensorData]];
+
+  tensorLike.forEach(([tl]) => {
     const inferRequest = compiledModel.createInferRequest();
-    inferRequest.infer({ data: val });
+    inferRequest.infer({ data: tl });
     const result = inferRequest.getOutputTensors();
-    expect(Object.keys(result)).toEqual(['fc_out']);
-    expect(result['fc_out'].data.length).toEqual(10);
+    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
+    it(`Test infer(inputData: { [inputName: string]: ${label} })`, () => {
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);
+    });
   });
 
-  test.each([
-    tensor,
-    tensor_data,
-  ])('Different tensor-like values', (val) => {
-    const inferRequest2 = compiledModel.createInferRequest();
-    inferRequest2.infer([val]);
-    const result2 = inferRequest2.getOutputTensors();
-    expect(Object.keys(result2)).toEqual(['fc_out']);
-    expect(result2['fc_out'].data.length).toEqual(10);
+  tensorLike.forEach(([tl]) => {
+    const inferRequest = compiledModel.createInferRequest();
+    inferRequest.infer([tl]);
+    const result = inferRequest.getOutputTensors();
+    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
+    it(`Test infer(inputData: [ [inputName: string]: ${label} ])`, () => {
+      assert.deepStrictEqual(Object.keys(result), ['fc_out']);
+      assert.deepStrictEqual(result['fc_out'].data.length, 10);
+    });
   });
-
 });

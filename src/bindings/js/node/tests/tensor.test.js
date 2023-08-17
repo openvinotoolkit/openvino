@@ -1,113 +1,113 @@
 var ov = require('../build/Release/ov_node_addon.node');
+const assert = require('assert');
+const { test, describe, it } = require('node:test');
+
+const shape = [1, 3, 224, 224];
+const elemNum = 1 * 3 * 224 * 224;
+const data = Float32Array.from({length: elemNum}, () => Math.random() );
 
 test('Test for number of arguments in tensor', () => {
-    expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224])).toThrow('Invalid number of arguments for Tensor constructor.');
+  assert.throws( () => new ov.Tensor(ov.element.f32, shape),
+    {message: 'Invalid number of arguments for Tensor constructor.'});
 });
 
 describe('Tensor data', () => {
 
-    test('Set tensor data with Float32Array', () => {
-        const data = Float32Array.from({length: 150528}, () => Math.random() ); //fill with random data
-        var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], data);
-        expect(Float32Array.from(tensor.data)).toEqual(data); // tensor.data returns Float32Array{ "0": 0.7377, "1": 0.4859, (...)}, instead of Float32Array[0.7377, 0.4859, (...)]       
-    });
+  it('Set tensor data with Float32Array', () => {
+    const tensor = new ov.Tensor('f32', shape, data);
+    assert.deepStrictEqual(tensor.data, data);
+  });
 
-    test('Set tensor data with Float32Array created from ArrayBuffer', () => {
-        var elem_num = 1 * 3 * 224 * 224 ; // =150528 
-        var size = elem_num * 4; // =602112
-        const buffer = new ArrayBuffer(size);
-        const view = new Float32Array(buffer);
-        const data = Float32Array.from({length: 150528}, () => Math.random() );
-        view.set(data);
-        var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], view);
-        expect(Float32Array.from(tensor.data)).toEqual(data); // tensor.data returns Float32Array{ "0": 0.7377, "1": 0.4859, (...)}, instead of Float32Array[0.7377, 0.4859, (...)]       
-    });
+  it('Set tensor data with Float32Array created from ArrayBuffer', () => {
+    const size = elemNum * 4;
+    const buffer = new ArrayBuffer(size);
+    const view = new Float32Array(buffer);
+    view.set(data);
+    const tensor = new ov.Tensor(ov.element.f32, shape, view);
+    assert.deepStrictEqual(tensor.data, data);
+  });
 
-    test('Set tensor data with too big Float32Array in comparison to shape', () => {
-        var elem_num = 1 * 3 * 224 * 224 ; // =150528 
-        var size = elem_num * 8; // =602112
-        const buffer = new ArrayBuffer(size);
-        const view = new Float32Array(buffer);
-        const data = Float32Array.from({length: 150528}, () => Math.random() );
-        view.set(data);
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], view)).toThrow('Invalid tensor argument. Memory allocated using shape and element::type mismatch passed data\'s size');
-    });
+  it('Set tensor data with too big Float32Array', () => {
+    const size = elemNum * 8;
+    const buffer = new ArrayBuffer(size);
+    const view = new Float32Array(buffer);
+    view.set(data);
+    assert.throws( () => new ov.Tensor(ov.element.f32, shape, view),
+      {message: 'Invalid tensor argument. Memory allocated using shape '
+          + 'and element::type mismatch passed data\'s size'});
+  });
 
-    test('Expect Javascript to throw error when Arraybuffer is too small', () => {
-        var elem_num = 1 * 3 * 224 * 224 ; // =150528 
-        var size = elem_num * 2; // =602112
-        const buffer = new ArrayBuffer(size);
-        const view = new Float32Array(buffer);
-        const data = Float32Array.from({length: 150528}, () => Math.random() );
-        
-        expect(() => view.set(data)).toThrow();
-    });
-      
-      
-    test('Third argument of a tensor cannot be ArrayBuffer', () => {
-        expect(() => new ov.Tensor(ov.element.f32, [1,3,224,224], new ArrayBuffer(1234))).toThrow('Third argument of a tensor must be of type TypedArray.');
-    });
+  it('Third argument of a tensor cannot be an ArrayBuffer', () => {
+    assert.throws(
+      () => new ov.Tensor(ov.element.f32, shape, new ArrayBuffer(1234)),
+      {message: 'Third argument of a tensor must be of type TypedArray.'});
+  });
 
-    test('Third argument of a tensor cannot be Array object', () => {
-        expect(() => new ov.Tensor( ov.element.f32, [1,3,224,224], [1,2,3,4])).toThrow('Third argument of a tensor must be of type TypedArray.');
-    });
-
-
+  it('Third argument of a tensor cannot be an array object', () => {
+    assert.throws(
+      () => new ov.Tensor(ov.element.f32, shape, [1, 2, 3, 4]),
+      {message: 'Third argument of a tensor must be of type TypedArray.'});
+  });
 });
 
-
 describe('Tensor shape', () => {
-    const data = new Float32Array(150528);
 
-    test('ov::Shape from array object', () => {
-        var tensor = new ov.Tensor(ov.element.f32, [1,3,224,224], data)
-        expect(tensor.getShape().data).toEqual([1,3,224,224])
-    });
-      
-      
-    test('ov::Shape from array object with floating point nums', () => {
-        var tensor = new ov.Tensor(ov.element.f32, [1, 3.0, 224.8, 224.4], data)
-        expect(tensor.getShape().data).toEqual([1, 3, 224, 224])
-    });
+  it('ov::Shape from an array object', () => {
+    const tensor = new ov.Tensor(ov.element.f32, [1, 3, 224, 224], data);
+    assert.deepStrictEqual(tensor.getShape().data, [1, 3, 224, 224]);
+  });
 
+  it('ov::Shape from an array object with floating point numbers', () => {
+    const tensor =
+    new ov.Tensor(ov.element.f32, [1, 3.0, 224.8, 224.4], data);
+    assert.deepStrictEqual(tensor.getShape().data, [1, 3, 224, 224]);
+  });
 
-    test('Array argument to create ov::Shape can only contain numbers', () => {
-        expect(() => new ov.Tensor(ov.element.f32, ["1", 3, 224, 224], data)).toThrow('Invalid tensor argument. Passed array must contain only numbers');
-    });
-    
-    
-    test('ov::Shape from TypedArray -> Int32Array', () => {
-        var tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), data);
-        expect(tensor.getShape().data).toEqual([1, 224, 224, 3]);
-    });
-    
-    test('Cannot create ov::Shape from Float32Array', () => {
-        expect(() => new ov.Tensor(ov.element.f32, Float32Array.from([1, 224, 224, 3]), data)).toThrow(/Invalid tensor argument. Cannot convert argument/);
-    });
+  it('Array argument to create ov::Shape can only contain numbers', () => {
+    assert.throws(
+      () => new ov.Tensor(ov.element.f32, ['1', 3, 224, 224], data),
+      {message: 'Invalid tensor argument. '
+    + 'Passed array must contain only numbers.'});
+  });
 
-    test('Cannot create ov::Shape from ArrayBuffer', () => {
-        const shape = Int32Array.from([1, 224, 224, 3]);
-        expect(() => new ov.Tensor(ov.element.f32, shape.buffer, data)).toThrow(/Invalid tensor argument. Cannot convert argument/);
-    });
+  it('ov::Shape from TypedArray -> Int32Array', () => {
+    const shp = Int32Array.from([1, 224, 224, 3]);
+    const tensor = new ov.Tensor(ov.element.f32, shp, data);
+    assert.deepStrictEqual(tensor.getShape().data, [1, 224, 224, 3]);
+  });
+
+  it('Cannot create ov::Shape from Float32Array', () => {
+    const shape = Float32Array.from([1, 224, 224, 3]);
+    assert.throws(
+      () => new ov.Tensor(ov.element.f32, shape, data),
+      /Invalid tensor argument./
+    );
+  });
+
+  it('Cannot create ov::Shape from ArrayBuffer', () => {
+    const shape = Int32Array.from([1, 224, 224, 3]);
+    assert.throws(
+      () => new ov.Tensor(ov.element.f32, shape.buffer, data),
+      /Invalid tensor argument./
+    );
+  });
 });
 
 describe('Tensor element type', () => {
-    it.each([
-        [ov.element.f32, "f32"],
-        [ov.element.f64, "f64"],
-        [ov.element.i32, "i32"],
-        [ov.element.u32, "u32"],
-    ])('compares ov.element.%p to string %p', (ov_elem, val) => {
-        expect(ov_elem).toEqual(val);
+  const ets = [ [ov.element.f32, 'f32'],
+    [ov.element.i32, 'i32'],
+    [ov.element.u32, 'u32'] ];
+
+  ets.forEach(([elemType, val]) => {
+    it(`Comparison of ov.element.${elemType} to string ${val}`, () => {
+      assert.strictEqual(elemType, val);
     });
-    it.each([
-        [ov.element.f32],
-        [ov.element.i32],
-        [ov.element.u32],
-    ])('compares ov.element %p', (ov_elem) => {
-        var tensor = new ov.Tensor(ov_elem, Int32Array.from([1, 224, 224, 3]), new Float32Array(150528));
-        expect(tensor.getPrecision()).toEqual(ov_elem);
+  });
+
+  ets.forEach(([elemType]) => {
+    it(`Comparison of ov.element ${elemType} got from Tensor object`, () => {
+      const tensor = new ov.Tensor(elemType, shape, data);
+      assert.strictEqual(tensor.getPrecision(), elemType);
     });
+  });
 });
-
-
