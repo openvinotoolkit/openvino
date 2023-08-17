@@ -120,6 +120,7 @@ Load the Model `⇑ <#top>`__
 
 Load an Image `⇑ <#top>`__
 #############################################################################################################################
+
  A sample image from the `Mapillary
 Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
