@@ -43,6 +43,7 @@ async function main(modelPath, images, deviceName) {
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
   const model = core.readModel(modelPath);
+  const [h, w] = model.inputs[0].shape.slice(-2);
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -63,10 +64,10 @@ async function main(modelPath, images, deviceName) {
     const image = new cv2.Mat();
     // The MobileNet model expects images in RGB format.
     cv2.cvtColor(originalImage, image, cv2.COLOR_RGBA2RGB);
-    cv2.resize(image, image, new cv2.Size(224, 224));
+    cv2.resize(image, image, new cv2.Size(w, h));
 
     const tensorData = new Float32Array(image.data);
-    const shape = [1, image.rows, image.cols, 3];
+    const shape = [1, h, w, 3];
 
     return new ov.Tensor(ov.element.f32, shape, tensorData);
   });
