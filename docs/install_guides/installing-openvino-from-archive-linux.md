@@ -131,7 +131,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2022.3.1/python/python.<x>`` folder:
 
    .. code-block:: sh
 
