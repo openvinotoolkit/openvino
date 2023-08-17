@@ -693,7 +693,18 @@ def get_model_name_from_args(argv: argparse.Namespace):
     if not isinstance(input_model, (str, pathlib.Path)):
         return output_dir
 
-    input_model_name = os.path.splitext(os.path.split(input_model)[1])[0]
+    input_model_name = os.path.basename(input_model)
+    if input_model_name == '':
+        input_model_name = os.path.basename(os.path.dirname(input_model))
+
+    # remove extension if exists
+    input_model_name = os.path.splitext(input_model_name)[0]
+
+    # if no valid name exists in input path set name to 'model'
+    if input_model_name == '' or input_model_name == '.':
+        input_model_name = "model"
+
+    # add .xml extension
     return os.path.join(output_dir, input_model_name + ".xml")
 
 

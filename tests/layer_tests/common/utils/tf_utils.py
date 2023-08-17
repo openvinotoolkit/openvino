@@ -174,8 +174,8 @@ def transpose_nhwc_to_nchw(data, use_new_frontend, use_old_api):
         return data
 
 
-def save_to_pb(tf_model, path_to_saved_tf_model):
-    tf.io.write_graph(tf_model, path_to_saved_tf_model, 'model.pb', False)
-    assert os.path.isfile(os.path.join(path_to_saved_tf_model, 'model.pb')), "model.pb haven't been saved " \
+def save_to_pb(tf_model, path_to_saved_tf_model, model_name = 'model.pb'):
+    tf.io.write_graph(tf_model, path_to_saved_tf_model, model_name, False)
+    assert os.path.isfile(os.path.join(path_to_saved_tf_model, model_name)), "model.pb haven't been saved " \
                                                                              "here: {}".format(path_to_saved_tf_model)
-    return os.path.join(path_to_saved_tf_model, 'model.pb')
+    return os.path.join(path_to_saved_tf_model, model_name)
