@@ -221,7 +221,7 @@ underscores for potential emphasis or italicization:
 ..
 
    Yes, Alabin was giving a dinner on glass tables, and the tables sang,
-   \ *Il mio tesoro*—not *Il mio tesoro*\  though, but something better,
+   *Il mio tesoro— not Il mio tesoro* though, but something better,
    and there were some sort of little decanters on the table, and they
    were women, too,” he remembered.
 

@@ -67,9 +67,8 @@ Prepare model and data processing `⇑ <#top>`__
 Download test model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- We use a pre-trained model from
-OpenVINO’s `Open Model
-Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
+We use a pre-trained model from OpenVINO’s 
+`Open Model Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
 test. In this case, the model will be executed to detect the person in
 each frame of the video.
 
@@ -179,15 +178,13 @@ Get the test video `⇑ <#top>`__
 How to improve the throughput of video processing `⇑ <#top>`__
 ###############################################################################################################################
 
- Below,
-we compare the performance of the synchronous and async-based
+Below, we compare the performance of the synchronous and async-based
 approaches:
 
 Sync Mode (default) `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Let us see how video processing works
-with the default approach. Using the synchronous approach, the frame is
+Let us see how video processing works with the default approach. Using the synchronous approach, the frame is
 captured with OpenCV and then immediately processed:
 
 .. figure:: https://user-images.githubusercontent.com/91237924/168452573-d354ea5b-7966-44e5-813d-f9053be4338a.png
@@ -463,7 +460,7 @@ Compare the performance `⇑ <#top>`__
 
 
 Asynchronous mode pipelines can be supported with the
-```AsyncInferQueue`` <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a

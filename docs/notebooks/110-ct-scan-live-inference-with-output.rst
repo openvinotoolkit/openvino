@@ -18,14 +18,13 @@ live inference with async API and MULTI plugin in OpenVINO.
 
 This notebook needs a quantized OpenVINO IR model and images from the
 `KiTS-19 <https://github.com/neheller/kits19>`__ dataset, converted to
-2D images. (To learn how the model is quantized, see the `Convert and
-Quantize a UNet Model and Show Live
-Inference <110-ct-segmentation-quantize-nncf.ipynb>`__ tutorial.)
+2D images. (To learn how the model is quantized, see the 
+`Convert and Quantize a UNet Model and Show Live Inference <110-ct-segmentation-quantize-nncf-with-output.html>`__ tutorial.)
 
 This notebook provides a pre-trained model, trained for 20 epochs with
 the full KiTS-19 frames dataset, which has an F1 score on the validation
-set of 0.9. The training code is available in the `PyTorch MONAI
-Training <110-ct-segmentation-quantize-with-output.html>`__
+set of 0.9. The training code is available in the 
+`PyTorch MONAI Training <110-ct-segmentation-quantize-with-output.html>`__
 notebook.
 
 For demonstration purposes, this tutorial will download one converted CT
@@ -110,9 +109,8 @@ trained or optimized yourself, adjust the model paths.
 Benchmark Model Performance `⇑ <#top>`__
 ###############################################################################################################################
 
- To measure the inference
-performance of the IR model, use `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+To measure the inference performance of the IR model, use 
+`Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
 - an inference performance measurement tool in OpenVINO. Benchmark tool
 is a command-line application that can be run in the notebook with
 ``! benchmark_app`` or ``%sx benchmark_app`` commands.
@@ -291,11 +289,9 @@ If you use a GPU device, with ``device="GPU"`` or
 card, model loading will be slow the first time you run this code. The
 model will be cached, so after the first time model loading will be
 faster. For more information on OpenVINO Runtime, including Model
-Caching, refer to the `OpenVINO API
-tutorial <002-openvino-api-with-output.html>`__.
+Caching, refer to the `OpenVINO API tutorial <002-openvino-api-with-output.html>`__.
 
-We will use
-```AsyncInferQueue`` <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+We will use `AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal
@@ -316,8 +312,8 @@ Load Model and List of Image Files `⇑ <#top>`__
 
 
 Load the segmentation model to OpenVINO Runtime with
-``SegmentationModel``, based on the Model API from `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. This model
+``SegmentationModel``, based on the Model API from 
+`Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. This model
 implementation includes pre and post processing for the model. For
 ``SegmentationModel`` this includes the code to create an overlay of the
 segmentation mask on the original image/frame. Uncomment the next cell

@@ -79,7 +79,7 @@ Select inference device `⇑ <#top>`__
 #############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -121,8 +121,7 @@ Load the Model `⇑ <#top>`__
 Load an Image `⇑ <#top>`__
 #############################################################################################################################
 
- A sample image from the `Mapillary
-Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
+A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
 .. code:: ipython3

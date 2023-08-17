@@ -82,8 +82,7 @@ This tutorial uses
 model from
 `torchvision <https://pytorch.org/vision/main/index.html?highlight=torchvision#module-torchvision>`__
 library. ResNet 50 is image classification model pre-trained on ImageNet
-dataset described in paper `“Deep Residual Learning for Image
-Recognition” <https://arxiv.org/abs/1512.03385>`__. From OpenVINO
+dataset described in paper `“Deep Residual Learning for Image Recognition” <https://arxiv.org/abs/1512.03385>`__. From OpenVINO
 2023.0, we can directly convert a model from the PyTorch format to the
 OpenVINO IR format using model conversion API. To convert model, we
 should provide model object instance into ``mo.convert_model`` function,
@@ -198,8 +197,7 @@ It is optional, but passing AUTO explicitly as
 (2) Improve the first inference latency `⇑ <#top>`__
 ###############################################################################################################################
 
- One of the
-benefits of using AUTO device selection is reducing FIL (first inference
+One of the benefits of using AUTO device selection is reducing FIL (first inference
 latency). FIL is the model compilation time combined with the first
 inference execution time. Using the CPU device explicitly will produce
 the shortest first inference latency, as the OpenVINO graph
@@ -213,7 +211,7 @@ device until GPU is ready.
 Load an Image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- torchvision library provides model specific
+Torchvision library provides model specific
 input transformation function, we will reuse it for preparing input
 data.
 
@@ -266,8 +264,7 @@ Load the model to GPU device and perform inference `⇑ <#top>`__
 Load the model using AUTO device and do inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- When
-GPU is the best available device, the first few inferences will be
+When GPU is the best available device, the first few inferences will be
 executed on CPU until GPU is ready.
 
 .. code:: ipython3
@@ -299,8 +296,7 @@ executed on CPU until GPU is ready.
 (3) Achieve different performance for different targets `⇑ <#top>`__
 ###############################################################################################################################
 
- It
-is an advantage to define **performance hints** when using Automatic
+It is an advantage to define **performance hints** when using Automatic
 Device Selection. By specifying a **THROUGHPUT** or **LATENCY** hint,
 AUTO optimizes the performance based on the desired metric. The
 **THROUGHPUT** hint delivers higher frame per second (FPS) performance
@@ -309,10 +305,8 @@ hints do not require any device-specific settings and they are
 completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
-For more information, refer to the `Performance
-Hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
-section of `Automatic Device
-Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+For more information, refer to the `Performance Hints <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints>`__
+section of `Automatic Device Selection <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
 article.
 
 Class and callback definition `⇑ <#top>`__

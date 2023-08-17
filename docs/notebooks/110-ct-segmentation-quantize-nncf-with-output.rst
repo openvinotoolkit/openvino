@@ -201,11 +201,10 @@ Load PyTorch Model `⇑ <#top>`__
 
 Download the pre-trained model weights, load the PyTorch model and the
 ``state_dict`` that was saved after training. The model used in this
-notebook is a
-`BasicUNet <https://docs.monai.io/en/stable/networks.html#basicunet>`__
+notebook is a `BasicUNet <https://docs.monai.io/en/stable/networks.html#basicunet>`__
 model from `MONAI <https://monai.io>`__. We provide a pre-trained
-checkpoint. To see how this model performs, check out the `training
-notebook <pytorch-monai-training.ipynb>`__.
+checkpoint. To see how this model performs, check out the 
+`training notebook <pytorch-monai-training.ipynb>`__.
 
 .. code:: ipython3
 
@@ -279,11 +278,10 @@ Dataset `⇑ <#top>`__
 
 The ``KitsDataset`` class in the next cell expects images and masks in
 the *``basedir``* directory, in a folder per patient. It is a simplified
-version of the Dataset class in the `training
-notebook <pytorch-monai-training.ipynb>`__.
+version of the Dataset class in the `training notebook <pytorch-monai-training.ipynb>`__.
 
 Images are loaded with MONAI’s
-```LoadImage`` <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
+`LoadImage <https://docs.monai.io/en/stable/transforms.html#loadimage>`__,
 to align with the image loading method in the training notebook. This
 method rotates and flips the images. We define a ``rotate_and_flip``
 method to display the images in the expected orientation:
@@ -521,8 +519,7 @@ model and save it.
 This notebook demonstrates post-training quantization with NNCF.
 
 NNCF also supports quantization-aware training, and other algorithms
-than quantization. See the `NNCF
-documentation <https://github.com/openvinotoolkit/nncf/>`__ in the NNCF
+than quantization. See the `NNCF documentation <https://github.com/openvinotoolkit/nncf/>`__ in the NNCF
 repository for more information.
 
 Compare FP32 and INT8 Model `⇑ <#top>`__
@@ -572,8 +569,7 @@ Compare Performance of the FP32 IR Model and Quantized Models `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 To measure the inference performance of the ``FP32`` and ``INT8``
-models, we use `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+models, we use `Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or
@@ -833,11 +829,9 @@ Show Live Inference `⇑ <#top>`__
 To show live inference on the model in the notebook, we will use the
 asynchronous processing feature of OpenVINO.
 
-We use the ``show_live_inference`` function from `Notebook
-Utils <utils-with-output.html>`__ to show live inference. This
-function uses `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__\ ’s Async
-Pipeline and Model API to perform asynchronous inference. After
+We use the ``show_live_inference`` function from `Notebook Utils <utils-with-output.html>`__ to show live inference. This
+function uses `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__
+Async Pipeline and Model API to perform asynchronous inference. After
 inference on the specified CT scan has completed, the total time and
 throughput (fps), including preprocessing and displaying, will be
 printed.
@@ -850,8 +844,7 @@ Load Model and List of Image Files `⇑ <#top>`__
 
 
 We load the segmentation model to OpenVINO Runtime with
-``SegmentationModel``, based on the `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ Model API.
+``SegmentationModel``, based on the `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ Model API.
 This model implementation includes pre and post processing for the
 model. For ``SegmentationModel``, this includes the code to create an
 overlay of the segmentation mask on the original image/frame.
@@ -907,20 +900,16 @@ References `⇑ <#top>`__
 ###############################################################################################################################
 
 
-**OpenVINO** - `NNCF
-Repository <https://github.com/openvinotoolkit/nncf/>`__ - `Neural
-Network Compression Framework for fast model
-inference <https://arxiv.org/abs/2002.08679>`__ - `OpenVINO API
-Tutorial <002-openvino-api-with-output.html>`__ - `OpenVINO
-PyPI (pip install
-openvino-dev) <https://pypi.org/project/openvino-dev/>`__
+**OpenVINO** 
 
-**Kits19 Data** - `Kits19 Challenge
-Homepage <https://kits19.grand-challenge.org/>`__ - `Kits19 GitHub
-Repository <https://github.com/neheller/kits19>`__ - `The KiTS19
-Challenge Data: 300 Kidney Tumor Cases with Clinical Context, CT
-Semantic Segmentations, and Surgical
-Outcomes <https://arxiv.org/abs/1904.00445>`__ - `The state of the art
-in kidney and kidney tumor segmentation in contrast-enhanced CT imaging:
-Results of the KiTS19
-challenge <https://www.sciencedirect.com/science/article/pii/S1361841520301857>`__
+- `NNCF Repository <https://github.com/openvinotoolkit/nncf/>`__
+- `Neural Network Compression Framework for fast model inference <https://arxiv.org/abs/2002.08679>`__
+- `OpenVINO API Tutorial <002-openvino-api-with-output.html>`__
+- `OpenVINO PyPI (pip install openvino-dev) <https://pypi.org/project/openvino-dev/>`__
+
+**Kits19 Data** 
+
+- `Kits19 Challenge Homepage <https://kits19.grand-challenge.org/>`__
+- `Kits19 GitHub Repository <https://github.com/neheller/kits19>`__
+- `The KiTS19 Challenge Data: 300 Kidney Tumor Cases with Clinical Context, CT Semantic Segmentations, and Surgical Outcomes <https://arxiv.org/abs/1904.00445>`__
+- `The state of the art in kidney and kidney tumor segmentation in contrast-enhanced CT imaging: Results of the KiTS19 challenge <https://www.sciencedirect.com/science/article/pii/S1361841520301857>`__

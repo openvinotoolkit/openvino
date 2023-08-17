@@ -14,22 +14,22 @@ the model server, which performs inference and sends a response back to
 the client. Model serving offers many advantages for efficient model
 deployment:
 
--  Remote inference enables using lightweight clients with only the
-   necessary functions to perform API calls to edge or cloud
-   deployments.
--  Applications are independent of the model framework, hardware device,
-   and infrastructure.
--  Client applications in any programming language that supports REST or
-   gRPC calls can be used to run inference remotely on the model server.
--  Clients require fewer updates since client libraries change very
-   rarely.
--  Model topology and weights are not exposed directly to client
-   applications, making it easier to control access to the model.
--  Ideal architecture for microservices-based applications and
-   deployments in cloud environments – including Kubernetes and
-   OpenShift clusters.
--  Efficient resource utilization with horizontal and vertical inference
-   scaling.
+- Remote inference enables using lightweight clients with only the
+  necessary functions to perform API calls to edge or cloud
+  deployments.
+- Applications are independent of the model framework, hardware device,
+  and infrastructure.
+- Client applications in any programming language that supports REST or
+  gRPC calls can be used to run inference remotely on the model server.
+- Clients require fewer updates since client libraries change very
+  rarely.
+- Model topology and weights are not exposed directly to client
+  applications, making it easier to control access to the model.
+- Ideal architecture for microservices-based applications and
+  deployments in cloud environments – including Kubernetes and
+  OpenShift clusters.
+- Efficient resource utilization with horizontal and vertical inference
+  scaling.
 
 |ovms_diagram| 
 
@@ -54,8 +54,7 @@ Table of content:
 Serving with OpenVINO Model Server `⇑ <#top>`__
 ###############################################################################################################################
 
- OpenVINO Model Server
-(OVMS) is a high-performance system for serving models. Implemented in
+OpenVINO Model Server (OVMS) is a high-performance system for serving models. Implemented in
 C++ for scalability and optimized for deployment on Intel architectures,
 the model server uses the same architecture and API as TensorFlow
 Serving and KServe while applying OpenVINO for inference execution.
@@ -72,8 +71,7 @@ To quickly start using OpenVINO™ Model Server, follow these steps:
 Step 1: Prepare Docker `⇑ <#top>`__
 ###############################################################################################################################
 
- Install `Docker
-Engine <https://docs.docker.com/engine/install/>`__, including its
+Install `Docker Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
 using the following command. When it is ready, it will display a test
@@ -113,8 +111,7 @@ image and a message.
 Step 2: Preparing a Model Repository `⇑ <#top>`__
 ###############################################################################################################################
 
- The models need to be
-placed and mounted in a particular directory structure and according to
+The models need to be placed and mounted in a particular directory structure and according to
 the following rules:
 
 ::
@@ -198,8 +195,7 @@ the following rules:
 Step 3: Start the Model Server Container `⇑ <#top>`__
 ###############################################################################################################################
 
- Pull and start
-the container:
+Pull and start the container:
 
 .. code:: ipython3
 
@@ -224,8 +220,8 @@ Check whether the OVMS container is running normally:
 
 
 The required Model Server parameters are listed below. For additional
-configuration options, see the `Model Server Parameters
-section <https://docs.openvino.ai/2023.0/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
+configuration options, see the 
+`Model Server Parameters section <https://docs.openvino.ai/2023.0/ovms_docs_parameters.html#doxid-ovms-docs-parameters>`__.
 
 .. raw:: html
 
@@ -648,8 +644,7 @@ another available port on your system. For example:\ ``-p 9020:9000``
 Step 4: Prepare the Example Client Components `⇑ <#top>`__
 ###############################################################################################################################
 
- OpenVINO
-Model Server exposes two sets of APIs: one compatible with
+OpenVINO Model Server exposes two sets of APIs: one compatible with
 ``TensorFlow Serving`` and another one, with ``KServe API``, for
 inference. Both APIs work on ``gRPC`` and ``REST``\ interfaces.
 Supporting two sets of APIs makes OpenVINO Model Server easier to plug

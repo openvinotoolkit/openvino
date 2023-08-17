@@ -7,10 +7,8 @@ This tutorial demonstrates how to improve performance of sparse
 Transformer models with `OpenVINO <https://docs.openvino.ai/>`__ on 4th
 Gen Intel® Xeon® Scalable processors.
 
-The tutorial downloads `a BERT-base
-model <https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80>`__
-which has been quantized, sparsified, and tuned for `SST2
-datasets <https://huggingface.co/datasets/sst2>`__ using
+The tutorial downloads `a BERT-base model <https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80>`__
+which has been quantized, sparsified, and tuned for `SST2 datasets <https://huggingface.co/datasets/sst2>`__ using
 `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__. It
 demonstrates the inference performance advantage on 4th Gen Intel® Xeon®
 Scalable Processors by running it with `Sparse Weight
@@ -73,7 +71,7 @@ Imports `⇑ <#top>`__
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
 
 
-#Download, quantize and sparsify the model, using Hugging Face Optimum API. `⇑ <#top>`__
+Download, quantize and sparsify the model, using Hugging Face Optimum API. `⇑ <#top>`__
 ###############################################################################################################################
 
 The first step is to download a quantized sparse transformers which has
@@ -144,8 +142,7 @@ the IRs into a single folder.
 Benchmark quantized dense inference performance `⇑ <#top>`__
 ###############################################################################################################################
 
- Benchmark
-dense inference performance using parallel execution on four CPU cores
+Benchmark dense inference performance using parallel execution on four CPU cores
 to simulate a small instance in the cloud infrastructure. Sequence
 length is dependent on use cases, 16 is common for conversational AI
 while 160 for question answering task. It is set to 64 as an example. It
@@ -368,7 +365,5 @@ small sequence length, for example, 32 and lower.
 For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
--  `Deployment Optimization
-   Guide <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
--  `Inference Request
-   API <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__
+- `Deployment Optimization Guide <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
+- `Inference Request API <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__
