@@ -183,7 +183,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         set(pkg_config_tbb_lib_dir "${IE_TBBROOT_INSTALL}/${tbb_libs_dir}")
     elseif(tbb_downloaded)
-        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb/")
+        set(IE_TBB_DIR_INSTALL "runtime/3rdparty/tbb")
 
         if(WIN32)
             install(DIRECTORY "${TBBROOT}/bin"
