@@ -324,7 +324,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     if (!is_ngraph_passes_used) {
         passes->registerPass<InsertCopyLayerPass>();
     }
-    passes->registerPass<FlattenTrivialConcatPass>();
+    // passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
 
