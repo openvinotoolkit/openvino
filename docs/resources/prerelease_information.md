@@ -58,7 +58,7 @@ Please file a github Issue on these with the label “pre-release” so we can g
 
    * Python API: 
 
-     * Added the ``torchvision.transforms`` object to OpenVINO preprocessing.  
+     * Added the ``torchvision.transforms`` object to OpenVINO preprocessing.  
      * Moved all python tools related to OpenVINO into a single namespace, 
        improving user experience with better API readability. 
 
@@ -97,19 +97,19 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * `247-code-language-id <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/247-code-language-id/247-code-language-id.ipynb>`__
      : Identify the programming language used in an arbitrary code snippet 
 
-   * `121-convert-to-openvino <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/121-convert-to-openvino>`__
+   * `121-convert-to-openvino <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/121-convert-to-openvino>`__
      : Learn OpenVINO model conversion API 
 
-   * `244-named-entity-recognition <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/244-named-entity-recognition>`__
+   * `244-named-entity-recognition <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/244-named-entity-recognition>`__
      : Named entity recognition with OpenVINO™ 
 
-   * `246-depth-estimation-videpth <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/246-depth-estimation-videpth>`__
+   * `246-depth-estimation-videpth <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/246-depth-estimation-videpth>`__
      : Monocular Visual-Inertial Depth Estimation with OpenVINO™ 
 
-   * `248-stable-diffusion-xl <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/248-stable-diffusion-xl>`__
+   * `248-stable-diffusion-xl <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/248-stable-diffusion-xl>`__
      : Image generation with Stable Diffusion XL 
 
-   * `249-oneformer-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/249-oneformer-segmentation>`__
+   * `249-oneformer-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/249-oneformer-segmentation>`__
      : Universal segmentation with OneFormer 
 
 
@@ -137,7 +137,7 @@ Please file a github Issue on these with the label “pre-release” so we can g
 
    * Frameworks:
 
-     - PyTorch Updates: OpenVINO now supports originally quantized PyTorch models, including models produced with the Neural Network Compression Framework (NNCF).
+     - PyTorch Updates: OpenVINO now supports originally quantized PyTorch models, including models produced with the Neural Network Compression Framework (NNCF).
      - TensorFlow FE: Now supports Switch/Merge operations, bringing TensorFlow 1.x control flow support closer to full compatibility and enabling more models.
      - Python API: Python Conversion API is now the primary conversion path, making it easier for Python developers to work with OpenVINO.
 
