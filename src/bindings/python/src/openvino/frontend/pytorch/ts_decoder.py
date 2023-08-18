@@ -77,7 +77,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 
@@ -176,7 +176,7 @@ class TorchScriptPythonDecoder (Decoder):
                     first_input = next(n.inputs())
                     if first_input.node().kind() == "prim::Constant":
                         ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.bfloat16, torch.float16]:
+                        if isinstance(ivalue, torch.Tensor) and ivalue.dtype in [torch.bfloat16, torch.float16]:
                             # do not freeze models with compressed constants
                             skip_freeze = True
                             break
@@ -261,22 +261,6 @@ class TorchScriptPythonDecoder (Decoder):
         full_type = self._get_known_type_for_value(value.type())
         return full_type
 
-    def get_input_transpose_order(self, index: int) -> list:
-        raw_input = self._raw_input(index)
-        if raw_input.type() is not None and raw_input.type().kind() == "TensorType":
-            strides = raw_input.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
-    def get_output_transpose_order(self, index: int) -> list:
-        output = self._raw_output(index)
-        if output.type() is not None and output.type().kind() == "TensorType":
-            strides = output.type().strides()
-            if strides is not None:
-                return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
-        return []
-
     def get_subgraph_size(self) -> int:
         if isinstance(self.graph_element, torch.Node):
             return len(self.get_subgraphs())
@@ -289,6 +273,9 @@ class TorchScriptPythonDecoder (Decoder):
             decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db, shared_memory=self._shared_memory)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
+
+    def decoder_type_name(self) -> str:
+        return "ts"
 
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
