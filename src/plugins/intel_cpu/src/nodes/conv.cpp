@@ -1495,9 +1495,6 @@ void Convolution::execute(dnnl::stream strm) {
 }
 
 void Convolution::executeDynamicImpl(dnnl::stream strm) {
-    // if (getName() == "__module.block1.skip/aten::_convolution/Convolution") {
-    //     std::cout << "break" << std::endl;
-    // }
     execute(strm);
     if (withSumBroadcast) {
         if (!subgraph) {
