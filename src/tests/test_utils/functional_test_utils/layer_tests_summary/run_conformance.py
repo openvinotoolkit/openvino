@@ -191,7 +191,7 @@ class Conformance:
             exit(-1)
         
         intersection = expected_failures.intersection(this_run_failures)
-        if len(intersection) and self._expected_failures_update:
+        if len(intersection) < len(expected_failures) and self._expected_failures_update:
             logger.info(f"Expected failures file {self._expected_failures} will be updated!!!")
             this_failures_file = Path(this_failures_file)
             this_failures_file.rename(self._expected_failures)
