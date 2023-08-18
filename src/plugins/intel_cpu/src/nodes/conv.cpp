@@ -1472,7 +1472,7 @@ Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitiv
 }
 
 void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
-    auto outputMem = primArgs[DNNL_ARG_DST];
+    auto outputMem = primArgs.at(DNNL_ARG_DST);
     for (auto &inReorder : inputReorders) {
         if (primArgs.count(inReorder.first)) {
             dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
