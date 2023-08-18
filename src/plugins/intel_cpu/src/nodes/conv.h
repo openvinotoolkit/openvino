@@ -44,13 +44,13 @@ public:
 
     bool canBeExecutedInInt8() const override;
     size_t getGroupNum() const { return groupNum; }
-    //OV Legacy input zero point mechanism can support per-channel zero point.
-    //Hold legacy input zero point.
-    std::vector<uint8_t> legacyInputZeroPoints;
-    //Hold legacy weight zero point.
-    std::vector<float> legacyWeightsZeroPoints;
-    //Hold legacy pre-calculated output compensation
-    std::vector<int32_t> legacyOutputCompensation;
+    // //OV Legacy input zero point mechanism can support per-channel zero point.
+    // //Hold legacy input zero point.
+    // std::vector<uint8_t> legacyInputZeroPoints;
+    // //Hold legacy weight zero point.
+    // std::vector<float> legacyWeightsZeroPoints;
+    // //Hold legacy pre-calculated output compensation
+    // std::vector<int32_t> legacyOutputCompensation;
     //Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
@@ -156,9 +156,9 @@ private:
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;
 
-    MemoryPtr legacyInputZeroPointsMemPtr;
-    MemoryPtr legacyWeightsZeroPointsMemPtr;
-    MemoryPtr legacyOutputCompensationMemPtr;
+    // MemoryPtr legacyInputZeroPointsMemPtr;
+    // MemoryPtr legacyWeightsZeroPointsMemPtr;
+    // MemoryPtr legacyOutputCompensationMemPtr;
     MemoryPtr stockInputZeroPointsMemPtr;
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
     InferenceEngine::Precision sumPrc = InferenceEngine::Precision::UNSPECIFIED;
