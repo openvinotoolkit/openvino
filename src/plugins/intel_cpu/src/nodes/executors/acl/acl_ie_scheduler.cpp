@@ -40,20 +40,10 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
         return;
     }
 
-    if (tensors.empty()) {
-        main_run = [&](const Window &window, const ThreadInfo &info) {
-            kernel->run(window, info);
-        };
-    } else {
-        main_run = [&](const Window &window, const ThreadInfo &info) {
-            kernel->run_op(tensors, window, info);
-        };
-    }
-
     if (!kernel->is_parallelisable() || _num_threads == 1) {
         ThreadInfo info;
         info.cpu_info = &cpu_info();
-        main_run(max_window, info);
+        kernel->run_op(tensors, max_window, info);
     } else {
         unsigned int num_windows = 0;
         const auto hints_split_dimension = hints.split_dimension();
@@ -72,15 +62,16 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
 
         InferenceEngine::parallel_for(num_windows, [&](int wid) {
             const auto win = max_window.split_window(hints_split_dimension, wid, num_windows);
-            win.validate();
-            main_run(win, {wid, static_cast<int>(_num_threads), &cpu_info()});
+            const auto final_win = win.collapse(win, 0);
+            final_win.validate();
+            kernel->run_op(tensors, final_win, {wid, static_cast<int>(_num_threads), &cpu_info()});
         });
     }
 }
 
 void ACLScheduler::schedule(ICPPKernel *kernel, const Hints &hints) {
     ITensorPack tensors;
-    custom_schedule(kernel, hints, kernel->window(), tensors);
+    schedule_common(kernel, hints, kernel->window(), tensors);
 }
 
 void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
