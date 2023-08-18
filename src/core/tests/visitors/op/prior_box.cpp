@@ -152,7 +152,9 @@ TEST(attributes, prior_box_v8_op) {
 TEST(attributes, prior_box_v8_op2) {
     NodeBuilder::get_ops().register_factory<opset8::PriorBox>();
 
-    auto params = ngraph::builder::makeParams(ov::element::Type_t::i32, {{128, 128}, {32, 32}});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{128, 128}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{32, 32})};
+
     auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
     auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
 
