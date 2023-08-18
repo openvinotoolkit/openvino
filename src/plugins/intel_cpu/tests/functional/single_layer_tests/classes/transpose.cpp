@@ -55,7 +55,7 @@ void TransposeLayerCPUTest::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-    selectedType = makeSelectedTypeStr("unknown", inType);
+    updateSelectedType("unknown", inType, configuration);
 
     init_input_shapes({inputShapes});
 

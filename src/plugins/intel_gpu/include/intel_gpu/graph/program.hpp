@@ -139,7 +139,8 @@ public:
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
-    explicit program(engine& engine);
+    explicit program(engine& engine,
+                const ExecutionConfig& config = {});
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
