@@ -36,40 +36,28 @@ the name of it and the Jupyter notebook will start it in a new tab of a browser.
    on how to run and manage the notebooks on your machine.
 
 
---------------------
-
 **Contents:**
 
--  `Getting Started <#-getting-started>`__
+-  `Getting Started <#getting-started>`__
 
-   -  `First steps with OpenVINO <#-first-steps>`__
-   -  `Convert & Optimize <#-convert--optimize>`__
-   -  `Model Demos <#-model-demos>`__
-   -  `Model Training <#-model-training>`__
-   -  `Live Demos <#-live-demos>`__
-   -  `Recommended Tutorials <#-recommended-tutorials>`__
-   -  `Additional Resources <#-additional-resources>`__
-   -  `Contributors <#-contributors>`__
+   -  `First steps with OpenVINO <#first-steps-with-openvino>`__
+   -  `Convert & Optimize <#convert-optimize>`__
+   -  `Model Demos <#model-demos>`__
+   -  `Model Training <#model-training>`__
+   -  `Live Demos <#live-demos>`__
+   -  `Recommended Tutorials <#recommended-tutorials>`__
+   -  `Additional Resources <#additional-resources>`__
+   -  `Contributors <#contributors>`__
 
---------------------
 
-.. raw:: html
-
-   <a name='-getting-started' id='-getting-started'/>
-
-`Getting Started`_
+Getting Started
 ==================
 
 The Jupyter notebooks are categorized into four classes, select one
 related to your needs or give them all a try. Good Luck!
 
-.. raw:: html
-
-   <a name='-first-steps' id='-first-steps' />
-
-
-`First steps with OpenVINO`_
--------------------------------
+First steps with OpenVINO
+-------------------------
 
 Brief tutorials that demonstrate how to use Python API for inference in OpenVINO.
 
@@ -85,12 +73,8 @@ Brief tutorials that demonstrate how to use Python API for inference in OpenVINO
 | `004-hello-detection <notebooks/004-hello-detection-with-output.html>`__ |br| |n004|                                          | Text detection with OpenVINO.                                                                                                              | |n004-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
-.. raw:: html
-
-   <a name='-convert--optimize' id='-convert--optimize'/>
-
-`Convert & Optimize`_
------------------------
+Convert & Optimize
+--------------------
 
 Tutorials that explain how to optimize and quantize models with OpenVINO tools.
 
@@ -149,12 +133,8 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
 
-.. raw:: html
-
-   <a name='-model-demos' id='-model-demos'/>
-
-`Model Demos`_
-----------------
+Model Demos
+--------------------
 
 Demos that demonstrate inference on a particular model.
 
@@ -279,22 +259,8 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
-
-
-
-
-
-
-
-
-
-
-.. raw:: html
-
-   <a name='-model-training' id='-model-training' />
-
-`Model Training`_
-------------------
+Model Training
+--------------------
 
 Tutorials that include code to train neural networks.
 
@@ -309,12 +275,8 @@ Tutorials that include code to train neural networks.
 | `305-tensorflow-quantization-aware-training <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__ |br| |c305|   | Use Neural Network Compression Framework (NNCF) to quantize TensorFlow model.                                                              |                                           |
 +--------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
-.. raw:: html
-
-   <a name='-live-demos' id='-live-demos' />
-
-`Live Demos`_
----------------
+Live Demos
+--------------------
 
 Live inference demos that run on a webcam or video files.
 
@@ -338,12 +300,8 @@ Live inference demos that run on a webcam or video files.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
-.. raw:: html
-
-   <a name='-recommended-tutorials' id='-recommended-tutorials'/>
-
-`Recommended Tutorials`_
---------------------------
+Recommended Tutorials
+---------------------
 
 The following tutorials are guaranteed to provide a great experience with inference in OpenVINO:
 
@@ -372,34 +330,25 @@ The following tutorials are guaranteed to provide a great experience with infere
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `Dolly v2 <notebooks/240-dolly-2-instruction-following-with-output.html>`__                                                   | Instruction following using Databricks Dolly 2.0 and OpenVINO™.                                                                            | |n240-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `248-stable-diffusion-xl <notebooks/248-stable-diffusion-xl-with-output.html>`__                                              | Image generation with Stable Diffusion XL and OpenVINO™.                                                                                   | |n248-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
-
--------------------
 
 .. note::
    If there are any issues while running the notebooks, refer to the **Troubleshooting** and **FAQ** sections in the :doc:`Installation Guide <notebooks_installation>` or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
-
-.. raw:: html
-
-   <a name='-additional-resources' id='-additional-resources'/>
-
-`Additional Resources`_
--------------------------
+Additional Resources
+--------------------
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
 * `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
 * `Google Colab <https://colab.research.google.com/>`__
 
 
-.. raw:: html
-
-   <a name='-contributors' id='-contributors' />
-
-`Contributors`_
---------------------------
+Contributors
+--------------------
 
 |contributors|
 
