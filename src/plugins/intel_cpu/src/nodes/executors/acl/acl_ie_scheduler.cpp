@@ -36,6 +36,16 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
     const unsigned int num_iterations = max_window.num_iterations_total();
     _num_threads = std::min(num_iterations, this->num_threads());
 
+    if (tensors.empty()) {
+        common_run = [&] (const Window &window, const ThreadInfo &info) {
+            kernel->run(window, info);
+        };
+    } else {
+        common_run = [&] (const Window &window, const ThreadInfo &info) {
+            kernel->run_op(tensors, window, info);
+        };
+    }
+
     if (num_iterations == 0) {
         return;
     }
@@ -43,7 +53,7 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
     if (!kernel->is_parallelisable() || _num_threads == 1) {
         ThreadInfo info;
         info.cpu_info = &cpu_info();
-        kernel->run_op(tensors, max_window, info);
+        common_run(max_window, info);
     } else {
         unsigned int num_windows = 0;
         const auto hints_split_dimension = hints.split_dimension();
@@ -66,14 +76,14 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
             const auto win = max_window.split_window(hints_split_dimension, wid, num_windows);
             const auto final_win = win.collapse(win, 0);
             final_win.validate();
-            kernel->run_op(tensors, final_win, {wid, static_cast<int>(_num_threads), &cpu_info()});
+            common_run(final_win, {wid, static_cast<int>(_num_threads), &cpu_info()});
         });
     }
 }
 
 void ACLScheduler::schedule(ICPPKernel *kernel, const Hints &hints) {
     ITensorPack tensors;
-    schedule_common(kernel, hints, kernel->window(), tensors);
+    schedule_custom(kernel, hints, kernel->window(), tensors);
 }
 
 void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
