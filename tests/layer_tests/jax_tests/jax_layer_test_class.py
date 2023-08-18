@@ -31,7 +31,7 @@ class JaxLayerTest:
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
 
-        output_list = list(infer_res.values())
+        output_list = ov_res_to_list(infer_res)
 
         def flattenize_dict_outputs(res):
             if isinstance(res, dict):
@@ -61,8 +61,9 @@ class JaxLayerTest:
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
         # check if results dtypes match
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
-            ov_tensor_type = jnp.array(np.array(ov_tensor)).dtype
-            assert ov_tensor_type == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_type} != {fw_tensor.dtype}"
+            fw_tensor_type = np.array(fw_tensor).dtype
+            ov_tensor_type = ov_tensor.dtype
+            assert ov_tensor_type == fw_tensor_type, f"dtype validation failed: {ov_tensor_type} != {fw_tensor_type}"
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
@@ -72,7 +73,7 @@ class JaxLayerTest:
         # compare OpenVINO results with JAX results
         fw_eps = custom_eps if precision == 'FP32' else 5e-2
         is_ok = True
-        for i in range(len(infer_res)):
+        for i in range(len(flatten_fw_res)):
             cur_fw_res = np.array(flatten_fw_res[i])
             cur_ov_res = infer_res[compiled.output(i)]
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
@@ -103,7 +104,7 @@ class JaxLayerTest:
             input_shape = _input.shape
             input_type = _input.dtype
             function_signature.append(tf.TensorSpec(input_shape, input_type))
-        # Save a function that can take scalar inputs.
+
         f = tf.function(jax2tf.convert(model), autograph=False,
                         input_signature=function_signature)
         converted_model = convert_model(f)
@@ -125,3 +126,17 @@ def get_params(ie_device=None, precision=None):
             continue
         test_args.append(element)
     return test_args
+
+
+def ov_res_to_list(ov_res_dict):
+    # 118221: remove this WA that clean-up repeating output tensors
+    # with the same tensor names
+    # probably, we do not utilize some meta info from tf.function
+    values = []
+    met_names = set()
+    for ov_res_name, ov_res_value in ov_res_dict.items():
+        if bool(set(ov_res_name.names) & met_names):
+            continue
+        met_names |= set(ov_res_name.names)
+        values.append(ov_res_value)
+    return values
