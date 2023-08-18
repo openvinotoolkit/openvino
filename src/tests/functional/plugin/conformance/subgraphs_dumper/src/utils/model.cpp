@@ -82,10 +82,13 @@ std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
         { ModelCacheStatus::NOT_READ, {} }
     };
     auto core = ov::test::utils::PluginCache::get().core();
+    auto models_size = models.size();
 
     for (auto& cache : caches) {
-        for (const auto& model : models) {
+        for (size_t i = 0; i < models_size; ++i) {
+            const auto& model = models[i];
             if (ov::util::file_exists(model)) {
+                std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
                 ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
                 try {
                     std::shared_ptr<ov::Model> function = core->read_model(model);
