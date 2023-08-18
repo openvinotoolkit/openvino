@@ -155,6 +155,8 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
         if (find == end)
             stateLLMFc = State_NotUse;
     }
+    auto p = std::getenv("USE_LLM");
+    if (p && p[0] == '0') stateLLMFc = State_NotUse;
 #endif
 }
 
@@ -1113,6 +1115,7 @@ bool FullyConnected::useSparseWeightsDecompression() {
 }
 
 #ifdef OV_CPU_WITH_LLMDNN
+
 static llmdnn::data_type_t mapToLLMDataType(const dnnl::memory::data_type dataType) {
     switch (dataType) {
         case dnnl::memory::data_type::f16:
