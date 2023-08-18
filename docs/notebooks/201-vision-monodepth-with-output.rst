@@ -32,22 +32,22 @@ Transactions on Pattern Analysis and Machine Intelligence, doi:
 
 Table of content:
 
-- `Preparation <#1>`__
-- `Install requirements <#2>`__
-- `Imports <#3>`__
-- `Download the model <#4>`__
-- `Functions <#5>`__
-- `Select inference device <#6>`__
-- `Load the Model <#7>`__
-- `Monodepth on Image <#8>`__
-- `Load, resize and reshape input image <#9>`__
-- `Do inference on the image <#10>`__
-- `Display monodepth image <#11>`__
-- `Monodepth on Video <#12>`__
-- `Video Settings <#13>`__
-- `Load the Video <#14>`__
-- `Do Inference on a Video and Create Monodepth Video <#15>`__
-- `Display Monodepth Video <#16>`__
+- `Preparation <#preparation>`__
+- `Install requirements <#install-requirements>`__
+- `Imports <#imports>`__
+- `Download the model <#download-the-model>`__
+- `Functions <#functions>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Monodepth on Image <#monodepth-on-image>`__
+- `Load, resize and reshape input image <#load-resize-and-reshape-input-image>`__
+- `Do inference on the image <#do-inference-on-the-image>`__
+- `Display monodepth image <#display-monodepth-image>`__
+- `Monodepth on Video <#monodepth-on-video>`__
+- `Video Settings <#video-settings>`__
+- `Load the Video <#load-the-video>`__
+- `Do Inference on a Video and Create Monodepth Video <#do-inference-on-a-video-and-create-monodepth-video>`__
+- `Display Monodepth Video <#display-monodepth-video>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################

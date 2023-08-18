@@ -23,16 +23,16 @@ This tutorial consists of the following steps:
 
 Table of content:
 
-- `Prepare the Model <#1>`__
-- `Prepare Dataset <#2>`__
-- `Perform Quantization <#3>`__
-- `Create Dataset for Validation <#4>`__
-- `Run nncf.quantize for Getting an Optimized Model <#5>`__
-- `Serialize an OpenVINO IR model <#6>`__
-- `Compare Accuracy of the Original and Quantized Models <#7>`__
-- `Select inference device <#8>`__
-- `Compare Performance of the Original and Quantized Models <#9>`__
-- `Compare results on four pictures <#10>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare Dataset <#prepare-dataset>`__
+- `Perform Quantization <#perform-quantization>`__
+- `Create Dataset for Validation <#create-dataset-for-validation>`__
+- `Run nncf.quantize for Getting an Optimized Model <#run-nncf.quantize-for-getting-an-optimized-model>`__
+- `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
+- `Select inference device <#select-inference-device>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare results on four pictures <#compare-results-on-four-pictures>`__
 
 .. code:: ipython3
 

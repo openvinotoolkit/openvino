@@ -26,23 +26,23 @@ After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
 
-Table of content: 
+Table of content:
 
-- `Prerequisites <#1>`__ 
-- `Imports <#2>`__ 
-- `Settings <#3>`__ 
-- `Download Model from TensorFlow Hub <#4>`__ 
-- `Convert Model to OpenVINO IR <#5>`__ 
-- `Test Inference on the Converted Model <#6>`__ 
-- `Select inference device <#7>`__ 
-- `Load the Model <#8>`__ 
-- `Get Model Information <#9>`__ 
-- `Get an Image for Test Inference <#10>`__ 
-- `Perform Inference <#11>`__ 
-- `Inference Result Visualization <#12>`__ 
-- `Next Steps <#13>`__ 
-- `Async inference pipeline <#14>`__ 
-- `Integration preprocessing to model <#15>`__
+- `Prerequisites <#prerequisites>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download Model from TensorFlow Hub <#download-model-from-tensorflow-hub>`__
+- `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+- `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Get Model Information <#get-model-information>`__
+- `Get an Image for Test Inference <#get-an-image-for-test-inference>`__
+- `Perform Inference <#perform-inference>`__
+- `Inference Result Visualization <#inference-result-visualization>`__
+- `Next Steps <#next-steps>`__
+- `Async inference pipeline <#async-inference-pipeline>`__
+- `Integration preprocessing to model <#integration-preprocessing-to-model>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

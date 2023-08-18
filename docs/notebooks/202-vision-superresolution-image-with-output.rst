@@ -18,26 +18,26 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 
 Table of content:
 
-- `Preparation <#1>`__
-- `Install requirements <#2>`__
-- `Imports <#3>`__
-- `Settings <#4>`__
-- `Select inference device <#5>`__
-- `Functions <#6>`__
-- `Load the Superresolution Model <#7>`__
-- `Load and Show the Input Image <#8>`__
-- `Superresolution on a Crop of the Image <#9>`__
-- `Crop the Input Image once. <#10>`__
-- `Reshape/Resize Crop for Model Input <#11>`__
-- `Do Inference <#12>`__
-- `Show and Save Results <#13>`__
-- `Save Superresolution and Bicubic Image Crop <#14>`__
-- `Write Animated GIF with Bicubic/Superresolution Comparison <#15>`__
-- `Create a Video with Sliding Bicubic/Superresolution Comparison <#16>`__
-- `Superresolution on full input image <#17>`__
-- `Compute patches <#18>`__
-- `Do Inference <#19>`__
-- `Save superresolution image and the bicubic image <#20>`__
+- `Preparation <#preparation>`__
+- `Install requirements <#install-requirements>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Select inference device <#select-inference-device>`__
+- `Functions <#functions>`__
+- `Load the Superresolution Model <#load-the-superresolution-model>`__
+- `Load and Show the Input Image <#load-and-show-the-input-image>`__
+- `Superresolution on a Crop of the Image <#superresolution-on-a-crop-of-the-image>`__
+- `Crop the Input Image once. <#crop-the-input-image-once>`__
+- `Reshape/Resize Crop for Model Input <#reshape-resize-crop-for-model-input>`__
+- `Do Inference <#do-inference>`__
+- `Show and Save Results <#show-and-save-results>`__
+- `Save Superresolution and Bicubic Image Crop <#save-superresolution-and-bicubic-image-crop>`__
+- `Write Animated GIF with Bicubic/Superresolution Comparison <#write-animated-gif-with-bicubic-superresolution-comparison>`__
+- `Create a Video with Sliding Bicubic/Superresolution Comparison <#create-a-video-with-sliding-bicubic-superresolution-comparison>`__
+- `Superresolution on full input image <#superresolution-on-full-input-image>`__
+- `Compute patches <#compute-patches>`__
+- `Do Inference <#do-inference>`__
+- `Save superresolution image and the bicubic image <#save-superresolution-image-and-the-bicubic-image>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################

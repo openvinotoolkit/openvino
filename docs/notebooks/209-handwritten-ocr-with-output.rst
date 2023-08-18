@@ -22,19 +22,19 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Settings <#2>`__
-- `Select a Language <#3>`__
-- `Download the Model <#4>`__
-- `Load the Model and Execute <#5>`__
-- `Select inference device <#6>`__
-- `Fetch Information About Input and Output Layers <#7>`__
-- `Load an Image <#8>`__
-- `Visualize Input Image <#9>`__
-- `Prepare Charlist <#10>`__
-- `Run Inference <#11>`__
-- `Process the Output Data <#12>`__
-- `Print the Output <#13>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Select a Language <#select-a-language>`__
+- `Download the Model <#download-the-model>`__
+- `Load the Model and Execute <#load-the-model-and-execute>`__
+- `Select inference device <#select-inference-device>`__
+- `Fetch Information About Input and Output Layers <#fetch-information-about-input-and-output-layers>`__
+- `Load an Image <#load-an-image>`__
+- `Visualize Input Image <#visualize-input-image>`__
+- `Prepare Charlist <#prepare-charlist>`__
+- `Run Inference <#run-inference>`__
+- `Process the Output Data <#process-the-output-data>`__
+- `Print the Output <#print-the-output>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

@@ -42,13 +42,13 @@ This tutorial consists of the following steps
 
 Table of content:
 
-- `Prepare PyTorch Model <#1>`__
-- `Install necessary packages <#2>`__
-- `Imports and Settings <#3>`__
-- `Export to ONNX <#4>`__
-- `Convert ONNX to OpenVINO™ Intermediate Representation <#5>`__
-- `Select inference device <#6>`__
-- `Verify Model Inference <#7>`__
+- `Prepare PyTorch Model <#prepare-pytorch-model>`__
+- `Install necessary packages <#install-necessary-packages>`__
+- `Imports and Settings <#imports-and-settings>`__
+- `Export to ONNX <#export-to-onnx>`__
+- `Convert ONNX to OpenVINO™ Intermediate Representation <#convert-onnx-to-openvino™-intermediate-representation>`__
+- `Select inference device <#select-inference-device>`__
+- `Verify Model Inference <#verify-model-inference>`__
 
 Prepare PyTorch Model `⇑ <#top>`__
 ###############################################################################################################################

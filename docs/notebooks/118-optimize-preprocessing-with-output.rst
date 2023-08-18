@@ -27,32 +27,32 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-Table of content: 
+Table of content:
 
-- `Settings <#1>`__ 
-- `Imports <#2>`__ 
-- `Setup image and device <#3>`__ 
-- `Downloading the model <#4>`__ 
-- `Create core <#5>`__ 
-- `Check the original parameters of image <#6>`__ 
-- `Convert model to OpenVINO IR and setup preprocessing steps with model conversion API <#7>`__ 
-- `Prepare image <#8>`__ 
-- `Compile model and perform inference <#9>`__ 
-- `Setup preprocessing steps with Preprocessing API and perform inference <#10>`__ 
-- `Convert model to OpenVINO IR with model conversion API <#11>`__ 
-- `Create PrePostProcessor Object <#12>`__ 
-- `Declare User’s Data Format <#13>`__ 
-- `Declaring Model Layout <#14>`__ 
-- `Preprocessing Steps <#15>`__ 
-- `Integrating Steps into a Model <#16>`__ 
-- `Load model and perform inference <#17>`__ 
-- `Fit image manually and perform inference <#18>`__ 
-- `Load the model <#19>`__ 
-- `Load image and fit it to model input <#20>`__ 
-- `Perform inference <#21>`__ 
-- `Compare results <#22>`__ 
-- `Compare results on one image <#23>`__ 
-- `Compare performance <#24>`__
+- `Settings <#settings>`__
+- `Imports <#imports>`__
+- `Setup image and device <#setup-image-and-device>`__
+- `Downloading the model <#downloading-the-model>`__
+- `Create core <#create-core>`__
+- `Check the original parameters of image <#check-the-original-parameters-of-image>`__
+- `Convert model to OpenVINO IR and setup preprocessing steps with model conversion API <#convert-model-to-openvino-ir-and-setup-preprocessing-steps-with-model-conversion-api>`__
+- `Prepare image <#prepare-image>`__
+- `Compile model and perform inference <#compile-model-and-perform-inference>`__
+- `Setup preprocessing steps with Preprocessing API and perform inference <#setup-preprocessing-steps-with-preprocessing-api-and-perform-inference>`__
+- `Convert model to OpenVINO IR with model conversion API <#convert-model-to-openvino-ir-with-model-conversion-api>`__
+- `Create PrePostProcessor Object <#create-prepostprocessor-object>`__
+- `Declare User’s Data Format <#declare-users-data-format>`__
+- `Declaring Model Layout <#declaring-model-layout>`__
+- `Preprocessing Steps <#preprocessing-steps>`__
+- `Integrating Steps into a Model <#integrating-steps-into-a-model>`__
+- `Load model and perform inference <#load-model-and-perform-inference>`__
+- `Fit image manually and perform inference <#fit-image-manually-and-perform-inference>`__
+- `Load the model <#load-the-model>`__
+- `Load image and fit it to model input <#load-image-and-fit-it-to-model-input>`__
+- `Perform inference <#perform-inference>`__
+- `Compare results <#compare-results>`__
+- `Compare results on one image <#compare-results-on-one-image>`__
+- `Compare performance <#compare-performance>`__
 
 Settings `⇑ <#top>`__
 ###############################################################################################################################

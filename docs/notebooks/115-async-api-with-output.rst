@@ -14,23 +14,23 @@ in parallel (for example, populating inputs or scheduling other
 requests) rather than wait for the current inference to complete first.
 
 
-Table of content: 
+Table of content:
 
-- `Imports <#1>`__ 
-- `Prepare model and data processing <#2>`__ 
-- `Download test model <#3>`__ 
-- `Load the model <#4>`__ 
-- `Create functions for data processing <#5>`__ 
-- `Get the test video <#6>`__ 
-- `How to improve the throughput of video processing <#7>`__ 
-- `Sync Mode (default) <#8>`__ 
-- `Test performance in Sync Mode <#9>`__ 
-- `Async Mode <#10>`__ 
-- `Test the performance in Async Mode <#11>`__ 
-- `Compare the performance <#12>`__ 
-- `AsyncInferQueue <#13>`__ 
-- `Setting Callback <#14>`__ 
-- `Test the performance with AsyncInferQueue <#15>`__
+- `Imports <#imports>`__
+- `Prepare model and data processing <#prepare-model-and-data-processing>`__
+- `Download test model <#download-test-model>`__
+- `Load the model <#load-the-model>`__
+- `Create functions for data processing <#create-functions-for-data-processing>`__
+- `Get the test video <#get-the-test-video>`__
+- `How to improve the throughput of video processing <#how-to-improve-the-throughput-of-video-processing>`__
+- `Sync Mode (default) <#sync-mode-default>`__
+- `Test performance in Sync Mode <#test-performance-in-sync-mode>`__
+- `Async Mode <#async-mode>`__
+- `Test the performance in Async Mode <#test-the-performance-in-async-mode>`__
+- `Compare the performance <#compare-the-performance>`__
+- `AsyncInferQueue <#asyncinferqueue>`__
+- `Setting Callback <#setting-callback>`__
+- `Test the performance with AsyncInferQueue <#test-the-performance-with-asyncinferqueue>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

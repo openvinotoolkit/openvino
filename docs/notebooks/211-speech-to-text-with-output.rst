@@ -15,26 +15,26 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Settings <#2>`__
-- `Download and Convert Public Model <#3>`__
-- `Download Model <#4>`__
-- `Convert Model <#5>`__
-- `Audio Processing <#6>`__
-- `Define constants <#7>`__
-- `Available Audio Formats <#8>`__
-- `Load Audio File <#9>`__
-- `Visualize Audio File <#10>`__
-- `Change Type of Data <#11>`__
-- `Convert Audio to Mel Spectrum <#12>`__
-- `Run Conversion from Audio to Mel Format <#13>`__
-- `Visualize Mel Spectrogram <#14>`__
-- `Adjust Mel scale to Input <#15>`__
-- `Load the Model <#16>`__
-- `Do Inference <#17>`__
-- `Read Output <#18>`__
-- `Implementation of Decoding <#19>`__
-- `Run Decoding and Print Output <#20>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download and Convert Public Model <#download-and-convert-public-model>`__
+- `Download Model <#download-model>`__
+- `Convert Model <#convert-model>`__
+- `Audio Processing <#audio-processing>`__
+- `Define constants <#define-constants>`__
+- `Available Audio Formats <#available-audio-formats>`__
+- `Load Audio File <#load-audio-file>`__
+- `Visualize Audio File <#visualize-audio-file>`__
+- `Change Type of Data <#change-type-of-data>`__
+- `Convert Audio to Mel Spectrum <#convert-audio-to-mel-spectrum>`__
+- `Run Conversion from Audio to Mel Format <#run-conversion-from-audio-to-mel-format>`__
+- `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
+- `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
+- `Load the Model <#load-the-model>`__
+- `Do Inference <#do-inference>`__
+- `Read Output <#read-output>`__
+- `Implementation of Decoding <#implementation-of-decoding>`__
+- `Run Decoding and Print Output <#run-decoding-and-print-output>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

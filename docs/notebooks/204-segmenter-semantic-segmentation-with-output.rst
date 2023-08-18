@@ -30,18 +30,18 @@ Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
 
 Table of content:
 
-- `Get and prepare PyTorch model <#1>`__
-- `Prerequisites <#2>`__
-- `Loading PyTorch model <#3>`__
-- `Preparing preprocessing and visualization functions <#4>`__
-- `Preprocessing <#5>`__
-- `Visualization <#6>`__
-- `Validation of inference of original model <#7>`__
-- `Export to ONNX <#8>`__
-- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#9>`__
-- `Verify converted model inference <#10>`__
-- `Select inference device <#11>`__
-- `Benchmarking performance of converted model <#12>`__
+- `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__
+- `Prerequisites <#prerequisites>`__
+- `Loading PyTorch model <#loading-pytorch-model>`__
+- `Preparing preprocessing and visualization functions <#preparing-preprocessing-and-visualization-functions>`__
+- `Preprocessing <#preprocessing>`__
+- `Visualization <#visualization>`__
+- `Validation of inference of original model <#validation-of-inference-of-original-model>`__
+- `Export to ONNX <#export-to-onnx>`__
+- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+- `Verify converted model inference <#verify-converted-model-inference>`__
+- `Select inference device <#select-inference-device>`__
+- `Benchmarking performance of converted model <#benchmarking-performance-of-converted-model>`__
 
 .. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
 

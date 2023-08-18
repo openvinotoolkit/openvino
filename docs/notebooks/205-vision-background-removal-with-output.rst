@@ -19,19 +19,19 @@ The model source is available
 
 Table of content:
 
-- `Preparation <#1>`__
-- `Install requirements <#2>`__
-- `Import the PyTorch Library and U2-Net <#3>`__
-- `Settings <#4>`__
-- `Load the U2-Net Model <#5>`__
-- `Convert PyTorch U2-Net model to OpenVINO IR <#6>`__
-- `Convert Pytorch model to OpenVINO IR Format <#7>`__
-- `Load and Pre-Process Input Image <#8>`__
-- `Select inference device <#9>`__
-- `Do Inference on OpenVINO IR Model <#10>`__
-- `Visualize Results <#11>`__
-- `Add a Background Image <#12>`__
-- `References <#13>`__
+- `Preparation <#preparation>`__
+- `Install requirements <#install-requirements>`__
+- `Import the PyTorch Library and U2-Net <#import-the-pytorch-library-and-u2-net>`__
+- `Settings <#settings>`__
+- `Load the U2-Net Model <#load-the-u2-net-model>`__
+- `Convert PyTorch U2-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
+- `Convert Pytorch model to OpenVINO IR Format <#convert-pytorch-model-to-openvino-ir-format>`__
+- `Load and Pre-Process Input Image <#load-and-pre-process-input-image>`__
+- `Select inference device <#select-inference-device>`__
+- `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
+- `Visualize Results <#visualize-results>`__
+- `Add a Background Image <#add-a-background-image>`__
+- `References <#references>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################
