@@ -18,7 +18,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
     auto activations_m = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto weights_path = [](const ov::Output<ov::Node>& output) {
-        return ov::op::util::is_on_constant_path(output.get_node_shared_ptr());
+        return ov::op::util::is_on_constant_path(output);
     };
     auto weights_m = ngraph::pattern::any_input(weights_path);
     auto matmul_m = ngraph::pattern::wrap_type<ngraph::op::v0::MatMul>({ activations_m, weights_m }, ngraph::pattern::has_static_rank());
