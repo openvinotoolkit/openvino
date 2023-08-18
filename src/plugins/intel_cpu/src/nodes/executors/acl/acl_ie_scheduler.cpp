@@ -29,7 +29,7 @@ void ACLScheduler::set_num_threads(unsigned int num_threads) {
     _num_threads = num_threads;
 }
 
-void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
+void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
 
     const Window & max_window = window;
@@ -75,12 +75,13 @@ void ACLScheduler::schedule(ICPPKernel *kernel, const Hints &hints) {
 }
 
 void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
-    custom_schedule(kernel, hints, window, tensors);
+    schedule_custom(kernel, hints, window, tensors);
 }
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
-    InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
+    const auto workloads_cout = workloads.size();
+    InferenceEngine::parallel_for(workloads_cout, [&](int wid) {
         workloads[wid]({wid, static_cast<int>(_num_threads), &cpu_info()});
     });
 }

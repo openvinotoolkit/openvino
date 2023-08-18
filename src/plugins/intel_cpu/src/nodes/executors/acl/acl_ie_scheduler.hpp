@@ -25,7 +25,7 @@ public:
 protected:
     void run_workloads(std::vector<Workload> &workloads) override;
 private:
-    void custom_schedule(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
+    void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
     mutable arm_compute::Mutex mtx;
     unsigned int _num_threads{};
 };
