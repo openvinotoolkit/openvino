@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ngraph/function.hpp>
+#include "openvino/core/model.hpp"
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device.hpp"

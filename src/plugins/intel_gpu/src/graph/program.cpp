@@ -191,10 +191,11 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine)
+program::program(engine& engine,
+        const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _config(),
+      _config(config),
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
@@ -591,6 +592,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
+    // Currently, 'gemm-softmax' case is applied for clamping
+    apply_opt_pass<clamp_fp16_output>();
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();

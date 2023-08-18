@@ -190,6 +190,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi|Hetero).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // TODO: for 22.2 (Issue 68949)
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
+        // Issue: 117837
+        R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)

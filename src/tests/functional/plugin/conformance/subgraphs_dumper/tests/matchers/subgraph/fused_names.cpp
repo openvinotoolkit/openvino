@@ -20,12 +20,13 @@ using namespace ov::tools::subgraph_dumper;
 
 
 // ======================= ExtractorsManagerTest Unit tests =======================
-class FusedNamesExtractorTest : public FusedNamesExtractor,
-                                public SubgraphsDumperBaseTest {
+class FusedNamesExtractorTest : public SubgraphsDumperBaseTest {
+    FusedNamesExtractor extractor;
+
 protected:
     void is_match(const std::shared_ptr<ov::Model>& model) {
-        auto models_1 = this->extract(model);
-        auto models_2 = this->extract(model);
+        auto models_1 = extractor.extract(model);
+        auto models_2 = extractor.extract(model);
         ASSERT_EQ(models_1.size(), models_2.size());
         auto it_model_1 = models_1.begin();
         auto it_model_2 = models_2.begin();
