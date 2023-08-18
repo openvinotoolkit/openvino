@@ -44,9 +44,9 @@ Please file a github Issue on these with the label “pre-release” so we can g
    * CPU runtime: 
 
      * Enabled weights decompression support for Large Language models (LLMs). The implementation 
-       supports avx2 and avx512 HW targets for Intel® Core™ processors and gives up to 2x improvement 
-       in the latency mode (FP32 VS FP32+INT8 weights comparison). For 4th Generation Intel® Xeon® 
-       Scalable Processors (formerly Sapphire Rapids) this INT8 decompression feature gives 10-25% 
+       supports avx2 and avx512 HW targets for Intel® Core™ processors for improved 
+       latency mode (FP32 VS FP32+INT8 weights comparison). For 4th Generation Intel® Xeon® 
+       Scalable Processors (formerly Sapphire Rapids) this INT8 decompression feature provides 
        performance improvement, compared to pure BF16 inference.
      * Reduced memory consumption of compile model stage by moving constant folding of Transpose 
        nodes to the CPU Runtime side.  
