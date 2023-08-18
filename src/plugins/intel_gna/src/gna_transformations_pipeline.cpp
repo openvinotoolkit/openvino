@@ -145,11 +145,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
     }
     manager.register_pass<ov::pass::UnrollTensorIterator>();
-    // TODO disable transformation introducing memory leak
-    // manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
-    // manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
-    // manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
-    // manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
+    manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
+    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphsCleanup>();
+
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
@@ -209,9 +210,10 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     }
 
     passes->registerPass<InsertSplitAligningFilterPass>();
-    // TODO enable legacy pass instead of disabled one.
-    passes->registerPass<InsertCopyLayerPass>();
 
+    if (!is_ngraph_passes_used) {
+        passes->registerPass<InsertCopyLayerPass>();
+    }
     passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
