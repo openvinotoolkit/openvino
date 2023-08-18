@@ -28,7 +28,6 @@ WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
-CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 
 machine = platform.machine()
 if machine == "x86_64" or machine == "AMD64":
@@ -47,6 +46,7 @@ BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
+CONFIG = os.getenv("BUILD_TYPE", "Release")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
@@ -255,7 +255,7 @@ class CustomBuild(build):
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                          f"-DPYTHON_EXECUTABLE={sys.executable}",
                                          f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                                         "-DCMAKE_BUILD_TYPE=Release",
+                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                          "-DENABLE_WHEEL=OFF",
                                          self.cmake_args,
                                          "-S", source_dir,
@@ -263,13 +263,13 @@ class CustomBuild(build):
 
                     self.announce(f"Building {comp} project", level=3)
                     self.spawn(["cmake", "--build", binary_dir,
-                                         "--config", "Release",
+                                         "--config", CONFIG,
                                          "--parallel", str(self.jobs)])
 
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
-                                     "--config", "Release",
+                                     "--config", CONFIG,
                                      "--strip",
                                      "--component", cpack_comp_name])
 
