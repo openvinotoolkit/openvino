@@ -13,7 +13,7 @@ Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
     const auto& et = t->get_element_type();
     const auto& p_shape = t->get_partial_shape();
 
-    if (et.is_dynamic()) {
+    if (et.is_dynamic() || et == element::undefined) {
         return {};
     } else if (p_shape.is_static()) {
         return {et, p_shape.to_shape(), t->get_data_ptr()};
@@ -26,7 +26,7 @@ Tensor wrap_tensor(const Output<Node>& output) {
     const auto& et = output.get_element_type();
     const auto& p_shape = output.get_partial_shape();
 
-    if (et.is_dynamic()) {
+    if (et.is_dynamic() || et == element::undefined) {
         return {};
     } else if (p_shape.is_static()) {
         return {et, p_shape.to_shape()};
