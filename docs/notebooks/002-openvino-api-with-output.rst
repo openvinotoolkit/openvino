@@ -4,29 +4,27 @@ OpenVINO™ Runtime API Tutorial
 This notebook explains the basics of the OpenVINO Runtime API. It
 covers:
 
--  `Loading OpenVINO Runtime and Showing
-   Info <#Loading-OpenVINO-Runtime-and-Showing-Info>`__
--  `Loading a Model <#Loading-a-Model>`__
+-  `Loading OpenVINO Runtime and Showing Info <#loading-openvino-runtime-and-showing-info>`__
+-  `Loading a Model <#loading-a-model>`__
 
-   -  `OpenVINO IR Model <#OpenVINO-IR-Model>`__
-   -  `ONNX Model <#ONNX-Model>`__
-   -  `PaddlePaddle Model <#PaddlePaddle-Model>`__
-   -  `TensorFlow Model <#TensorFlow-Model>`__
-   -  `TensorFlow Lite Model <#TensorFlow-Lite-Model>`__
+   -  `OpenVINO IR Model <#openvino-ir-model>`__
+   -  `ONNX Model <#onnx-model>`__
+   -  `PaddlePaddle Model <#paddlepaddle-model>`__
+   -  `TensorFlow Model <#tensorflow-model>`__
+   -  `TensorFlow Lite Model <#tensorflow-lite-model>`__
 
--  `Getting Information about a
-   Model <#Getting-Information-about-a-Model>`__
+-  `Getting Information about a Model <#getting-information-about-a-model>`__
 
-   -  `Model Inputs <#Model-Inputs>`__
-   -  `Model Outputs <#Model-Outputs>`__
+   -  `Model Inputs <#model-inputs>`__
+   -  `Model Outputs <#model-outputs>`__
 
--  `Doing Inference on a Model <#Doing-Inference-on-a-Model>`__
--  `Reshaping and Resizing <#Reshaping-and-Resizing>`__
+-  `Doing Inference on a Model <#doing-inference-on-a-model>`__
+-  `Reshaping and Resizing <#reshaping-and-resizing>`__
 
-   -  `Change Image Size <#Change-Image-Size>`__
-   -  `Change Batch Size <#Change-Batch-Size>`__
+   -  `Change Image Size <#change-image-size>`__
+   -  `Change Batch Size <#change-batch-size>`__
 
--  `Caching a Model <#Caching-a-Model>`__
+-  `Caching a Model <#caching-a-model>`__
 
 The notebook is divided into sections with headers. The next cell
 contains global requirements installation and imports. Each section is

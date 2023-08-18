@@ -23,16 +23,16 @@ steps:
 
 Table of content: 
 
-- `Download and prepare model <#1>`__ 
-- `Obtain Pytorch model representation <#2>`__ 
-- `Convert model to OpenVINO Intermediate Representation <#3>`__ 
-- `Prepare inference data <#4>`__ 
-- `Check model inference result <#5>`__ 
-- `Validate model accuracy on dataset <#6>`__ 
-- `Quantization <#7>`__ 
-- `Check INT8 model inference result <#8>`__ 
-- `Compare Performance of the Original and Quantized Models <#9>`__ 
-- `Compare Accuracy of the Original and Quantized Models <#10>`__
+- `Download and prepare model <#download-and-prepare-model>`__ 
+- `Obtain Pytorch model representation <#obtain-pytorch-model-representation>`__ 
+- `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__ 
+- `Prepare inference data <#prepare-inference-data>`__ 
+- `Check model inference result <#check-model-inference-result>`__ 
+- `Validate model accuracy on dataset <#validate-model-accuracy-on-dataset>`__ 
+- `Quantization <#quantization>`__ 
+- `Check INT8 model inference result <#check-int8-model-inference-result>`__ 
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__ 
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
 Download and prepare model `⇑ <#top>`__
 ###############################################################################################################################

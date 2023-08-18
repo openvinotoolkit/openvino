@@ -44,24 +44,24 @@ optimize performance on OpenVINO IR files in
 A similar notebook focused on the latency mode is available
 `here <109-latency-tricks.ipynb>`__.
 
-Table of content: 
+Table of content:
 
-- `Data <#1>`__ 
-- `Model <#2>`__ 
-- `Hardware <#3>`__ 
-- `Helper functions <#4>`__ 
-- `Optimizations <#5>`__ 
-- `PyTorch model <#6>`__ 
-- `OpenVINO IR model <#7>`__ 
-- `OpenVINO IR model + bigger batch <#8>`__ 
-- `OpenVINO IR model in throughput mode <#9>`__ 
-- `OpenVINO IR model in throughput mode on GPU <#10>`__ 
-- `OpenVINO IR model in throughput mode on AUTO <#11>`__ 
-- `OpenVINO IR model in cumulative throughput mode on AUTO <#12>`__ 
-- `OpenVINO IR model in cumulative throughput mode on AUTO + asynchronous processing <#13>`__ 
-- `Other tricks <#14>`__ 
-- `Performance comparison <#15>`__ 
-- `Conclusions <#16>`__
+- `Data <#data>`__
+- `Model <#model>`__
+- `Hardware <#hardware>`__
+- `Helper functions <#helper-functions>`__
+- `Optimizations <#optimizations>`__
+- `PyTorch model <#pytorch-model>`__
+- `OpenVINO IR model <#openvino-ir-model>`__
+- `OpenVINO IR model + bigger batch <#openvino-ir-model-+-bigger-batch>`__
+- `OpenVINO IR model in throughput mode <#openvino-ir-model-in-throughput-mode>`__
+- `OpenVINO IR model in throughput mode on GPU <#openvino-ir-model-in-throughput-mode-on-gpu>`__
+- `OpenVINO IR model in throughput mode on AUTO <#openvino-ir-model-in-throughput-mode-on-auto>`__
+- `OpenVINO IR model in cumulative throughput mode on AUTO <#openvino-ir-model-in-cumulative-throughput-mode-on-auto>`__
+- `OpenVINO IR model in cumulative throughput mode on AUTO + asynchronous processing <#openvino-ir-model-in-cumulative-throughput-mode-on-auto-+-asynchronous-processing>`__
+- `Other tricks <#other-tricks>`__
+- `Performance comparison <#performance-comparison>`__
+- `Conclusions <#conclusions>`__
 
 Prerequisites
 -------------

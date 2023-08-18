@@ -47,23 +47,23 @@ optimize performance on OpenVINO IR files in
 A similar notebook focused on the throughput mode is available
 `here <109-throughput-tricks.ipynb>`__.
 
-Table of content: 
+Table of content:
 
-- `Data <#1>`__ 
-- `Model <#2>`__ 
-- `Hardware <#3>`__ 
--  `Helper functions <#4>`__ 
-- `Optimizations <#5>`__ 
-- `PyTorch model <#6>`__ 
-- `ONNX model <#7>`__ 
-- `OpenVINO IR model <#8>`__ 
-- `OpenVINO IR model on GPU <#9>`__ 
-- `OpenVINO IR model + more inference threads <#10>`__ 
-- `OpenVINO IR model in latency mode <#11>`__ 
-- `OpenVINO IR model in latency mode + shared memory <#12>`__ 
-- `Other tricks <#13>`__ 
-- `Performance comparison <#14>`__ 
-- `Conclusions <#15>`__
+- `Data <#data>`__
+- `Model <#model>`__
+- `Hardware <#hardware>`__
+- `Helper functions <#helper-functions>`__
+- `Optimizations <#optimizations>`__
+- `PyTorch model <#pytorch-model>`__
+- `ONNX model <#onnx-model>`__
+- `OpenVINO IR model <#openvino-ir-model>`__
+- `OpenVINO IR model on GPU <#openvino-ir-model-on-gpu>`__
+- `OpenVINO IR model + more inference threads <#openvino-ir-model-+-more-inference-threads>`__
+- `OpenVINO IR model in latency mode <#openvino-ir-model-in-latency-mode>`__
+- `OpenVINO IR model in latency mode + shared memory <#openvino-ir-model-in-latency-mode-+-shared-memory>`__
+- `Other tricks <#other-tricks>`__
+- `Performance comparison <#performance-comparison>`__
+- `Conclusions <#conclusions>`__
 
 Prerequisites
 -------------

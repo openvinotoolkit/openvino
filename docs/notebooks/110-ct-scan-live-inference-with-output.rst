@@ -32,16 +32,16 @@ scan to use for inference.
 
 Table of content: 
 
-- `Imports <#1>`__ 
-- `Settings <#2>`__ 
-- `Benchmark Model Performance <#3>`__ 
-- `Download and Prepare Data <#4>`__ 
-- `Show Live Inference <#5>`__ 
-- `Load Model and List of Image Files <#6>`__ 
-- `Prepare images <#7>`__ 
-- `Specify device <#8>`__ 
-- `Setting callback function <#9>`__ 
-- `Create asynchronous inference queue and perform it <#10>`__
+- `Imports <#imports>`__ 
+- `Settings <#settings>`__ 
+- `Benchmark Model Performance <#benchmark-model-performance>`__ 
+- `Download and Prepare Data <#download-and-prepare-data>`__ 
+- `Show Live Inference <#show-live-inference>`__ 
+- `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__ 
+- `Prepare images <#prepare-images>`__ 
+- `Specify device <#specify-device>`__ 
+- `Setting callback function <#setting-callback-function>`__ 
+- `Create asynchronous inference queue and perform it <#create-asynchronous-inference-queue-and-perform-it>`__
 
 .. code:: ipython3
 

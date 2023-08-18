@@ -26,15 +26,15 @@ and datasets. It consists of the following steps:
 
 Table of content:
 
-- `Imports <#1>`__
-- `Settings <#2>`__
-- `Prepare the Model <#3>`__
-- `Prepare the Dataset <#4>`__
-- `Optimize model using NNCF Post-training Quantization API <#5>`__
-- `Load and Test OpenVINO Model <#6>`__
-- `Select inference device <#7>`__
-- `Compare F1-score of FP32 and INT8 models <#8>`__
-- `Compare Performance of the Original, Converted and Quantized Models <#9>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare the Dataset <#prepare-the-dataset>`__
+- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+- `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
+- `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original,-converted-and-quantized-models>`__
 
 .. code:: ipython3
 

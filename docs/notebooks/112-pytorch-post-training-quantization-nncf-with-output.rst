@@ -27,19 +27,19 @@ quantization, not demanding the fine-tuning of the model.
 
 Table of content: 
 
-- `Preparations <#1>`__ 
-- `Imports <#2>`__ 
-- `Settings <#3>`__ 
-- `Download and Prepare Tiny ImageNet dataset <#4>`__ 
-- `Helpers classes and functions <#5>`__ 
-- `Validation function <#6>`__ 
-- `Create and load original uncompressed model <#7>`__ 
-- `Create train and validation DataLoaders <#8>`__ 
-- `Model quantization and benchmarking <#9>`__ 
-- `I. Evaluate the loaded model <#10>`__ 
-- `II. Create and initialize quantization <#11>`__ 
-- `III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) <#12>`__ 
-- `IV. Compare performance of INT8 model and FP32 model in OpenVINO <#13>`__
+- `Preparations <#preparations>`__ 
+- `Imports <#imports>`__ 
+- `Settings <#settings>`__ 
+- `Download and Prepare Tiny ImageNet dataset <#download-and-prepare-tiny-imagenet-dataset>`__
+- `Helpers classes and functions <#helpers-classes-and-functions>`__
+- `Validation function <#validation-function>`__ 
+- `Create and load original uncompressed model <#create-and-load-original-uncompressed-model>`__
+- `Create train and validation DataLoaders <#create-train-and-validation-dataloaders>`__
+- `Model quantization and benchmarking <#model-quantization-and-benchmarking>`__
+- `I. Evaluate the loaded model <#i-evaluate-the-loaded-model>`__
+- `II. Create and initialize quantization <#ii-create-and-initialize-quantization>`__
+- `III. Convert the models to OpenVINO Intermediate Representation (OpenVINO IR) <#iii-convert-the-models-to-openvino-intermediate-representation-openvino-ir>`__
+- `IV. Compare performance of INT8 model and FP32 model in OpenVINO <#iv-compare-performance-of-int8-model-and-fp32-model-in-openvino>`__
 
 Preparations `⇑ <#top>`__
 ###############################################################################################################################

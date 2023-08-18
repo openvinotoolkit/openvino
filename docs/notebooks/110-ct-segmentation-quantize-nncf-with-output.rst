@@ -55,25 +55,25 @@ demonstration purposes, this tutorial will download one converted CT
 scan and use that scan for quantization and inference. For production
 purposes, use a representative dataset for quantizing the model. 
 
-Table of content: 
+Table of content:
 
-- `Imports <#1>`__ 
-- `Settings <#2>`__ 
-- `Load PyTorch Model <#3>`__ 
-- `Download CT-scan Data <#4>`__ 
-- `Configuration <#5>`__
-- `Dataset <#6>`__ 
-- `Metric <#7>`__ 
-- `Quantization <#8>`__ 
-- `Compare FP32 and INT8 Model <#9>`__ 
-- `Compare File Size <#10>`__ 
-- `Compare Metrics for the original model and the quantized model to be sure that there no degradation. <#11>`__ 
-- `Compare Performance of the FP32 IR Model and Quantized Models <#12>`__ 
-- `Visually Compare Inference Results <#13>`__ 
-- `Show Live Inference <#14>`__ 
-- `Load Model and List of Image Files <#15>`__ 
-- `Show Inference <#16>`__ 
-- `References <#17>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Load PyTorch Model <#load-pytorch-model>`__
+- `Download CT-scan Data <#download-ct-scan-data>`__
+- `Configuration <#configuration>`__
+- `Dataset <#dataset>`__
+- `Metric <#metric>`__
+- `Quantization <#quantization>`__
+- `Compare FP32 and INT8 Model <#compare-fp32-and-int8-model>`__
+- `Compare File Size <#compare-file-size>`__
+- `Compare Metrics for the original model and the quantized model to be sure that there no degradation. <#compare-metrics-for-the-original-model-and-the-quantized-model-to-be-sure-that-there-no-degradation>`__
+- `Compare Performance of the FP32 IR Model and Quantized Models <#compare-performance-of-the-fp32-ir-model-and-quantized-models>`__
+- `Visually Compare Inference Results <#visually-compare-inference-results>`__
+- `Show Live Inference <#show-live-inference>`__
+- `Load Model and List of Image Files <#load-model-and-list-of-image-files>`__
+- `Show Inference <#show-inference>`__
+- `References <#references>`__
 
 .. code:: ipython3
 

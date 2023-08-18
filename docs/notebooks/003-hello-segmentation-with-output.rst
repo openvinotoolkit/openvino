@@ -14,14 +14,14 @@ recognizes four classes: background, road, curb and mark.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Download model weights <#2>`__
-- `Select inference device <#3>`__
-- `Load the Model <#4>`__
-- `Load an Image <#5>`__
-- `Do Inference <#6>`__
-- `Prepare Data for Visualization <#7>`__
-- `Visualize data <#8>`__
+- `Imports <#imports>`__
+- `Download model weights <#download-model-weights>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+- `Visualize data <#visualize-data>`__
 
 Imports `⇑ <#top>`__
 #########################################

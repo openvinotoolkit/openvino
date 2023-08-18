@@ -10,16 +10,16 @@ the model.
 
 Table of content:
 
-- `OpenVINO and Open Model Zoo Tools <#1>`__
-- `Preparation <#2>`__
-- `Model Name <#3>`__
-- `Imports <#4>`__
-- `Settings and Configuration <#5>`__
-- `Download a Model from Open Model Zoo <#6>`__
-- `Convert a Model to OpenVINO IR format <#7>`__
-- `Get Model Information <#8>`__
-- `Run Benchmark Tool <#9>`__
-- `Benchmark with Different Settings <#10>`__
+- `OpenVINO and Open Model Zoo Tools <#openvino-and-open-model-zoo-tools>`__
+- `Preparation <#preparation>`__
+- `Model Name <#model-name>`__
+- `Imports <#imports>`__
+- `Settings and Configuration <#settings-and-configuration>`__
+- `Download a Model from Open Model Zoo <#download-a-model-from-open-model-zoo>`__
+- `Convert a Model to OpenVINO IR format <#convert-a-model-to-openvino-ir-format>`__
+- `Get Model Information <#get-model-information>`__
+- `Run Benchmark Tool <#run-benchmark-tool>`__
+- `Benchmark with Different Settings <#benchmark-with-different-settings>`__
 
 OpenVINO and Open Model Zoo Tools `⇑ <#top>`__
 ###############################################################################################################################

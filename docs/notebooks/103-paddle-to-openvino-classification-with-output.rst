@@ -18,16 +18,16 @@ Source of the
 
 Table of content: 
 
-- `Preparation <#1>`__ 
-- `Imports <#2>`__ 
-- `Settings <#3>`__ 
-- `Show Inference on PaddlePaddle Model <#4>`__ 
-- `Convert the Model to OpenVINO IR Format <#5>`__ 
-- `Select inference device <#6>`__ 
-- `Show Inference on OpenVINO Model <#7>`__ 
-- `Timing and Comparison <#8>`__ 
-- `Select inference device <#9>`__ 
-- `References <#10>`__
+- `Preparation <#1preparation>`__ 
+- `Imports <#imports>`__ 
+- `Settings <#settings>`__ 
+- `Show Inference on PaddlePaddle Model <#show-inference-on-paddlepaddle-model>`__ 
+- `Convert the Model to OpenVINO IR Format <#convert-the-model-to-openvino-ir-format>`__ 
+- `Select inference device <#select-inference-device>`__ 
+- `Show Inference on OpenVINO Model <#show-inference-on-openvino-model>`__ 
+- `Timing and Comparison <#timing-and-comparison>`__ 
+- `Select inference device <#select-inference-device>`__ 
+- `References <#references>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################

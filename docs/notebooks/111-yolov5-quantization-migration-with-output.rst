@@ -23,25 +23,25 @@ The tutorial consists from the following parts:
 7. Compare performance FP32 and INT8 models
 
 
-Table of content: 
+Table of content:
 
-- `Preparation <#1>`__ 
-- `Download the YOLOv5 model <#2>`__ 
-- `Conversion of the YOLOv5 model to OpenVINO <#3>`__ 
-- `Imports <#4>`__ 
-- `Prepare dataset for quantization <#5>`__ 
-- `Create YOLOv5 DataLoader class for POT <#6>`__ 
-- `Create NNCF Dataset <#7>`__ 
-- `Configure quantization pipeline <#8>`__ 
-- `Prepare config and pipeline for POT <#9>`__ 
-- `Prepare configuration parameters for NNCF <#10>`__ 
-- `Perform model optimization <#11>`__ 
-- `Run quantization using POT <#12>`__ 
-- `Run quantization using NNCF <#13>`__ 
-- `Compare accuracy FP32 and INT8 models <#14>`__ 
-- `Inference Demo Performance Comparison <#15>`__ 
-- `Benchmark <#16>`__ 
-- `References <#17>`__
+- `Preparation <#preparation>`__
+- `Download the YOLOv5 model <#download-the-yolov5-model>`__
+- `Conversion of the YOLOv5 model to OpenVINO <#conversion-of-the-yolov5-model-to-openvino>`__
+- `Imports <#imports>`__
+- `Prepare dataset for quantization <#prepare-dataset-for-quantization>`__
+- `Create YOLOv5 DataLoader class for POT <#create-yolov5-dataloader-class-for-pot>`__
+- `Create NNCF Dataset <#create-nncf-dataset>`__
+- `Configure quantization pipeline <#configure-quantization-pipeline>`__
+- `Prepare config and pipeline for POT <#prepare-config-and-pipeline-for-pot>`__
+- `Prepare configuration parameters for NNCF <#prepare-configuration-parameters-for-nncf>`__
+- `Perform model optimization <#perform-model-optimization>`__
+- `Run quantization using POT <#run-quantization-using-pot>`__
+- `Run quantization using NNCF <#run-quantization-using-nncf>`__
+- `Compare accuracy FP32 and INT8 models <#compare-accuracy-fp32-and-int8-models>`__
+- `Inference Demo Performance Comparison <#inference-demo-performance-comparison>`__
+- `Benchmark <#benchmark>`__
+- `References <#references>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################
