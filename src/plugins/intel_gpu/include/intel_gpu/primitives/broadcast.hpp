@@ -97,7 +97,7 @@ struct broadcast : public primitive_base<broadcast> {
     broadcast(const primitive_id& id,
               const input_info& input,
               const ov::Shape& target_shape,
-              const ngraph::AxisSet& axes_mapping,
+              const ov::AxisSet& axes_mapping,
               const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
               const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
@@ -111,7 +111,7 @@ struct broadcast : public primitive_base<broadcast> {
     broadcast(const primitive_id& id,
           const input_info& input,
           const input_info& target_shape_id,
-          const ngraph::AxisSet& axes_mapping,
+          const ov::AxisSet& axes_mapping,
           const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
           const padding& output_padding = padding())
     : primitive_base(id, {input, target_shape_id}, {output_padding}),

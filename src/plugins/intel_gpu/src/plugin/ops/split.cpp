@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/split.hpp"
-#include "ngraph/op/variadic_split.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>& op) {
+static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     auto get_layer_name = [&](size_t idx)->std::string {
         return layer_type_name_ID(op) + ((op->get_output_size() == 1)? "" : ".out" + std::to_string(idx));
     };
@@ -24,7 +24,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
 
         if (!op->is_dynamic()) {
             auto input_pshape = op->get_input_partial_shape(0);
-            InferenceEngine::SizeVector start_offset(input_pshape.size());
+            ov::Shape start_offset(input_pshape.size());
             for (size_t i = 0; i < op->get_output_size(); i++) {
                 const auto outPartialShape = op->get_output_partial_shape(i);
                 auto offsetTensor = tensor_from_dims(start_offset, 0);
@@ -40,8 +40,8 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
 
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
         auto num_splits = static_cast<size_t>(1);
-        if (ngraph::is_type<ngraph::op::v1::Split>(op)) {
-            num_splits = ngraph::as_type_ptr<ngraph::op::v1::Split>(op)->get_num_splits();
+        if (ov::is_type<ov::op::v1::Split>(op)) {
+            num_splits = ov::as_type_ptr<ov::op::v1::Split>(op)->get_num_splits();
             op_mode = cldnn::crop_ngraph_op_mode::split;
         }
 
@@ -57,10 +57,10 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         }
     } else {
         auto input_pshape = op->get_input_partial_shape(0);
-        InferenceEngine::SizeVector start_offset(input_pshape.size());
+        ov::Shape start_offset(input_pshape.size());
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto outPartialShape = op->get_output_partial_shape(i);
-            NGRAPH_SUPPRESS_DEPRECATED_START
+            OPENVINO_SUPPRESS_DEPRECATED_START
             if (outPartialShape.size() != start_offset.size()) {
                 OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
                                " output: ", ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(i)));
@@ -71,7 +71,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
                                    " output: ", ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(idx)));
                 }
             }
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
 
             auto offsetTensor = tensor_from_dims(start_offset, 0);
             auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);
@@ -87,12 +87,12 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
     }
 }
 
-static void CreateSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::Split>& op) {
+static void CreateSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Split>& op) {
     validate_inputs_count(op, {2});
     CreateCommonSplitOp(p, op);
 }
 
-static void CreateVariadicSplitOp(Program& p, const std::shared_ptr<ngraph::op::v1::VariadicSplit>& op) {
+static void CreateVariadicSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::VariadicSplit>& op) {
     validate_inputs_count(op, {3});
     CreateCommonSplitOp(p, op);
 }

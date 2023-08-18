@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
@@ -13,7 +13,8 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateExperimentalDetectronROIFeatureExtractorOp(Program& p, const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
+static void CreateExperimentalDetectronROIFeatureExtractorOp(ProgramBuilder& p,
+                                                             const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op) + ".out0";
 

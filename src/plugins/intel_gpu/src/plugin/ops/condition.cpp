@@ -1,11 +1,11 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "intel_gpu/plugin/program.hpp"
-#include "ngraph/op/if.hpp"
-#include "ie_ngraph_utils.hpp"
-
+#include "openvino/op/if.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/condition.hpp"
+
+#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -13,10 +13,9 @@ namespace intel_gpu {
 const size_t idx_true = 0;
 const size_t idx_false = 1;
 
-static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op, size_t idx) {
+static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op, size_t idx) {
     cldnn::condition::branch branch;
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
-
     InferenceEngine::CNNNetwork body_network(internal_body);
     {
         // CNNNetwork change the input/output data type to fp32 when input/output data type is fp16
@@ -42,7 +41,7 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
     config.set_property(ov::intel_gpu::max_dynamic_batch(1));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic()));
 
-    Program prog(body_network, p.get_engine(), config, false, false, nullptr, nullptr, p.get_task_executor(), true);
+    ProgramBuilder prog(body_network, p.get_engine(), config, false, false, nullptr, nullptr, p.get_task_executor(), true);
     branch.inner_program = prog.GetCompiledProgram();
 
     auto& input_map = branch.input_map;
@@ -66,7 +65,7 @@ static cldnn::condition::branch gen_branch(Program& p, const std::shared_ptr<ngr
     return branch;
 }
 
-static void CreateIfOp(Program& p, const std::shared_ptr<ngraph::op::v8::If>& op) {
+static void CreateIfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op) {
     auto inputs = p.GetInputInfo(op);
     OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
     auto compare_node_pshape = op->get_input_partial_shape(0);

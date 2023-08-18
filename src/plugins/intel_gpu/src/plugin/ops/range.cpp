@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <intel_gpu/plugin/program.hpp>
+#include "openvino/op/range.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include <intel_gpu/plugin/common_utils.hpp>
-
 #include <intel_gpu/primitives/range.hpp>
-#include <ngraph/op/range.hpp>
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Range> &op) {
+static void CreateRangeOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v4::Range> &op) {
     validate_inputs_count(op, { 3 });
     auto output_pshape = op->get_output_partial_shape(0);
     OPENVINO_ASSERT(output_pshape.rank().get_length() == 1 , "[GPU] range v4 output rank should be 1");

@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/convert_like.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 
 #include "intel_gpu/primitives/reorder.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvertLike>& op) {
+static void CreateConvertLikeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::ConvertLike>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -27,7 +27,7 @@ static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1
     p.add_primitive(*op, reorderPrim);
 }
 
-static void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Convert>& op) {
+static void CreateConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Convert>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

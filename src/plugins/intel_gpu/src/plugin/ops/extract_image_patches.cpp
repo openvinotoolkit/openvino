@@ -2,28 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/extractimagepatches.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static inline std::string PadToString(ngraph::op::PadType pad) {
+static inline std::string PadToString(ov::op::PadType pad) {
     switch (pad) {
-        case ngraph::op::PadType::SAME_UPPER: return "same_upper";
-        case ngraph::op::PadType::SAME_LOWER: return "same_lower";
-        case ngraph::op::PadType::VALID: return "valid";
+        case ov::op::PadType::SAME_UPPER: return "same_upper";
+        case ov::op::PadType::SAME_LOWER: return "same_lower";
+        case ov::op::PadType::VALID: return "valid";
         default: OPENVINO_THROW("Unsupported pad type in ExtractImagePatches primitive ", pad);
     }
 
     return "";
 }
 
-static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
+static void CreateExtractImagePatchesOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v3::ExtractImagePatches>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);

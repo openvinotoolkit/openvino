@@ -4,6 +4,7 @@
 
 #include "intel_gpu/plugin/legacy_api_helper.hpp"
 
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"

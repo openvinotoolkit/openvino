@@ -3,18 +3,19 @@
 //
 #include "intel_gpu/primitives/matrix_nms.hpp"
 
-#include <memory>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/op/matrix_nms.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
+
+#include <memory>
 
 namespace ov {
 namespace op {
 namespace internal {
-using NmsStaticShapeIE8 = ov::op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>;
+using NmsStaticShapeIE8 = ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>;
 }
 }  // namespace op
 }  // namespace ov
@@ -23,14 +24,14 @@ namespace ov {
 namespace intel_gpu {
 
 namespace {
-void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ov::op::internal::NmsStaticShapeIE8>& op) {
+void CreateNmsStaticShapeIE8Op(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::NmsStaticShapeIE8>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
 
     std::vector<cldnn::memory::ptr> shared_memory;
 
     auto outputIndices = op->get_output_shape(0)[0];
-    cldnn::layout mutableLayoutFirst = cldnn::layout(cldnn::element_type_to_data_type(ngraph::element::i32),
+    cldnn::layout mutableLayoutFirst = cldnn::layout(cldnn::element_type_to_data_type(ov::element::i32),
                                                      cldnn::format::bfyx,
                                                      cldnn::tensor(static_cast<int32_t>(outputIndices), 1, 1, 1));
 
@@ -42,7 +43,7 @@ void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ov::op::interna
     inputs.push_back(cldnn::input_info(matrix_nms_mutable_id_w_first));
 
     auto batches_num = op->get_output_shape(2)[0];
-    cldnn::layout mutableLayoutSecond = cldnn::layout(cldnn::element_type_to_data_type(ngraph::element::i32),
+    cldnn::layout mutableLayoutSecond = cldnn::layout(cldnn::element_type_to_data_type(ov::element::i32),
                                                       cldnn::format::bfyx,
                                                       cldnn::tensor(static_cast<int32_t>(batches_num), 1, 1, 1));
 

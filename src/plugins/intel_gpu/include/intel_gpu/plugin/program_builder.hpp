@@ -4,6 +4,17 @@
 
 #pragma once
 
+#include "openvino/core/node.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+
+#include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
+
+#include <cpp/ie_cnn_network.h>
+
 #include <vector>
 #include <map>
 #include <memory>
@@ -12,16 +23,6 @@
 #include <mutex>
 #include <set>
 
-#include <cpp/ie_cnn_network.h>
-#include <ngraph/ngraph.hpp>
-#include "gpu/gpu_config.hpp"
-
-
-#include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/graph/topology.hpp"
-#include "intel_gpu/graph/program.hpp"
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -34,8 +35,8 @@ enum class eltwise_mode : int32_t;
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                  \
 void __register ## _ ## op_name ## _ ## op_version();                                               \
 void __register ## _ ## op_name ## _ ## op_version() {                                              \
-    Program::RegisterFactory<ov::op::op_version::op_name>(                                          \
-    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                           \
+    ProgramBuilder::RegisterFactory<ov::op::op_version::op_name>(                                          \
+    [](ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {                                           \
         auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);                \
         OPENVINO_ASSERT(op_casted, "[GPU] Invalid ov Node type passed into ", __PRETTY_FUNCTION__); \
         Create##op_name##Op(p, op_casted);                                                          \
@@ -52,10 +53,10 @@ struct is_smart_pointer<std::shared_ptr<T>> : std::true_type {};
 template<class T>
 struct is_smart_pointer<std::shared_ptr<const T>> : std::true_type {};
 
-std::string layer_type_lower(const ngraph::Node* op);
-std::string layer_type_name_ID(const ngraph::Node* op);
-std::string layer_type_lower(const std::shared_ptr<ngraph::Node>& op);
-std::string layer_type_name_ID(const std::shared_ptr<ngraph::Node>& op);
+std::string layer_type_lower(const ov::Node* op);
+std::string layer_type_name_ID(const ov::Node* op);
+std::string layer_type_lower(const std::shared_ptr<ov::Node>& op);
+std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op);
 
 struct PerfCounter {
     InferenceEngine::InferenceEngineProfileInfo::LayerStatus status;
@@ -78,13 +79,13 @@ public:
     long long cpu_avg() const { return (num == 0) ? 0 : cpu_uSec / num; }
 };
 
-class Program {
+class ProgramBuilder {
 public:
-    Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
+    ProgramBuilder(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false,
             InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr, bool innerProgram = false);
-    Program(cldnn::engine& engine, const ExecutionConfig& config,
+    ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config,
             InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -129,14 +130,14 @@ public:
     // Graph construction helpers
     std::vector<cldnn::input_info> GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const;
 
-    using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
+    using factory_t = std::function<void(ProgramBuilder&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
 
     template<typename OpType>
     static void RegisterFactory(factory_t func) {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (Program::factories_map.find(OpType::get_type_info_static()) == Program::factories_map.end()) {
-            Program::factories_map.insert({OpType::get_type_info_static(), func});
+        if (ProgramBuilder::factories_map.find(OpType::get_type_info_static()) == ProgramBuilder::factories_map.end()) {
+            ProgramBuilder::factories_map.insert({OpType::get_type_info_static(), func});
         }
     }
 
@@ -194,10 +195,10 @@ private:
     void ChangeInputBatch(int batch);
 };
 
-void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
-void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& node,
+void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
+void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ngraph::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
-void CreateElementwiseOp(Program& p,
+void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ngraph::Node>& node,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients = {},

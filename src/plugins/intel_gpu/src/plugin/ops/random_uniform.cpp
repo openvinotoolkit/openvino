@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "ngraph/op/random_uniform.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "intel_gpu/primitives/random_uniform.hpp"
 
 
@@ -13,7 +13,7 @@ namespace intel_gpu {
 
 namespace {
 
-void CreateRandomUniformOp(Program &p, const std::shared_ptr<ngraph::op::v8::RandomUniform> &op) {
+void CreateRandomUniformOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v8::RandomUniform> &op) {
     auto inputs = p.GetInputInfo(op);
     auto input_pshape = op->get_input_partial_shape(0);
     auto output_pshape = op->get_output_partial_shape(0);

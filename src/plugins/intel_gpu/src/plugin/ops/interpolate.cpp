@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/constant.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "caseless.hpp"
-
-#include "ngraph/op/interpolate.hpp"
-#include "ngraph/op/constant.hpp"
-
 #include "intel_gpu/primitives/resample.hpp"
 #include <optional>
 
@@ -19,7 +18,7 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
     std::vector<int64_t> axes;
     auto inputRank = op->get_input_partial_shape(0).size();
     if (op->get_input_size() == axes_index + 1) {
-        auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(axes_index));
+        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(axes_index));
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
@@ -70,7 +69,7 @@ static void ValidateAxesAndThrowIfError(const std::shared_ptr<ov::op::util::Inte
     }
 }
 
-static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
+static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::Interpolate>& op) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -81,10 +80,10 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
 
     auto attrs = op->get_attrs();
 
-    auto sizes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
+    auto sizes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
     std::vector<int64_t> sizes = sizes_constant ? sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
-    auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
+    auto scales_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
     std::vector<float> scales = scales_constant ? scales_constant->cast_vector<float>() : std::vector<float>{};
 
     std::vector<int64_t> axes = ExtractAxes(op, AXES_INDEX);
@@ -93,7 +92,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         OPENVINO_ASSERT(axes.size() == scales.size(), "[GPU] Incorrect axes and scales values for Interpolate operation with id ", op->get_friendly_name());
     }
 
-    // TODO shouldn't be all this checking done in ngraph::op::v4::Interpolate?
+    // TODO shouldn't be all this checking done in ov::op::v4::Interpolate?
     ValidateAxesAndThrowIfError(op, axes);
 
     std::shared_ptr<cldnn::resample> resamplePrim = nullptr;
@@ -148,7 +147,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
     p.add_primitive(*op, resamplePrim);
 }
 
-static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v11::Interpolate>& op) {
+static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v11::Interpolate>& op) {
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -161,7 +160,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v1
 
     auto attrs = op->get_attrs();
 
-    auto scales_or_sizes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
+    auto scales_or_sizes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
     std::vector<float> scales = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES ?
         scales_or_sizes_constant->cast_vector<float>() : std::vector<float>{};
     std::vector<int64_t> sizes = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SIZES ?
@@ -173,7 +172,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v1
         OPENVINO_ASSERT(axes.size() == scales.size(), "[GPU] Incorrect axes and scales values for Interpolate operation with id ", op->get_friendly_name());
     }
 
-    // TODO shouldn't be all this checking done in ngraph::op::v4::Interpolate?
+    // TODO shouldn't be all this checking done in ov::op::v4::Interpolate?
     ValidateAxesAndThrowIfError(op, axes);
 
     std::shared_ptr<cldnn::resample> resamplePrim = nullptr;

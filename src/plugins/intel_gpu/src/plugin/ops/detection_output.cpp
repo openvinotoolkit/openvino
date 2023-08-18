@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/detection_output.hpp"
+#include "openvino/op/detection_output.hpp"
 
 #include "intel_gpu/primitives/detection_output.hpp"
 
@@ -27,8 +27,8 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     return cldnn::prior_box_code_type::corner;
 }
 
-static void CreateCommonDetectionOutputOp(Program& p,
-                                          const std::shared_ptr<ngraph::Node>& op,
+static void CreateCommonDetectionOutputOp(ProgramBuilder& p,
+                                          const std::shared_ptr<ov::Node>& op,
                                           const ov::op::util::DetectionOutputBase::AttributesBase& attrs,
                                           int num_classes) {
     auto inputs = p.GetInputInfo(op);
@@ -80,14 +80,14 @@ static void CreateCommonDetectionOutputOp(Program& p,
     p.add_primitive(*op, detectionPrim);
 }
 
-static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
+static void CreateDetectionOutputOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::DetectionOutput>& op) {
     validate_inputs_count(op, {3});
 
     auto attrs = op->get_attrs();
     CreateCommonDetectionOutputOp(p, op, attrs, attrs.num_classes);
 }
 
-static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v8::DetectionOutput>& op) {
+static void CreateDetectionOutputOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::DetectionOutput>& op) {
     validate_inputs_count(op, {3});
 
     CreateCommonDetectionOutputOp(p, op, op->get_attrs(), -1);

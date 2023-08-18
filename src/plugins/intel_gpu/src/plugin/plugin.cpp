@@ -302,7 +302,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
-    Program prog(ctx->get_engine(), config);
+    ProgramBuilder prog(ctx->get_engine(), config);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
@@ -859,7 +859,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
     auto& engine = get_default_context(device_id)->get_impl()->get_engine();
 
-    std::shared_ptr<Program> program;
+    std::shared_ptr<ProgramBuilder> program;
 
     GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
         size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
@@ -919,7 +919,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         auto nGraphFunc = cloned_network.getFunction();
         TransformationsPipeline transformations(config, device_info);
         transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        program = std::make_shared<ProgramBuilder>(cloned_network, engine, config, false, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);
