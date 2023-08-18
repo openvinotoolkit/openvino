@@ -10,8 +10,8 @@ from jax_layer_test_class import JaxLayerTest
 
 class TestDotGeneral(JaxLayerTest):
     def _prepare_input(self):
-        lhs = np.random.randint(-50, 50, *self.lhs_shape).astype(self.input_type)
-        rhs = np.random.randint(-50, 50, *self.rhs_shape).astype(self.input_type)
+        lhs = np.random.randint(-50, 50, self.lhs_shape).astype(self.input_type)
+        rhs = np.random.randint(-50, 50, self.rhs_shape).astype(self.input_type)
         return (lhs, rhs)
 
     def create_model(self, lhs_shape, rhs_shape, input_type, dimension_numbers):

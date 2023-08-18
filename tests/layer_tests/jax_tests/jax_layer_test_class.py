@@ -103,11 +103,10 @@ class JaxLayerTest:
             input_shape = _input.shape
             input_type = _input.dtype
             function_signature.append(tf.TensorSpec(input_shape, input_type))
-        tf_model = tf.Module()
         # Save a function that can take scalar inputs.
-        tf_model.f = tf.function(jax2tf.convert(model), autograph=False,
-                                 input_signature=function_signature)
-        converted_model = convert_model(tf_model)
+        f = tf.function(jax2tf.convert(model), autograph=False,
+                        input_signature=function_signature)
+        converted_model = convert_model(f)
         return converted_model
 
 
