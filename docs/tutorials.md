@@ -580,7 +580,7 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F101-tensorflow-to-openvino%2F101-tensorflow-to-openvino.ipynb
 .. |c102| image:: https://camo.githubusercontent.com/84f0493939e0c4de4e6dbe113251b4bfb5353e57134ffd9fcab6b8714514d4d1/68747470733a2f2f636f6c61622e72657365617263682e676f6f676c652e636f6d2f6173736574732f636f6c61622d62616467652e737667
    :width: 109
-   :target: https://colab.research.google.com/github/eaidova/openvino_notebooks/blob/ea/pt_tutorial/notebooks/102-pytorch-to-openvino/102-pytorch-to-openvino.ipynb
+   :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/main/notebooks/102-pytorch-to-openvino/102-pytorch-to-openvino.ipynb
 .. |n103| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F103-paddle-onnx-to-openvino-classification%2F103-paddle-onnx-to-openvino-classification.ipynb
 .. |n104| image:: https://mybinder.org/badge_logo.svg
