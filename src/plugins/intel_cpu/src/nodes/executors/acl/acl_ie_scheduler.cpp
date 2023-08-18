@@ -60,6 +60,8 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
             }
         }
 
+        num_windows = adjust_num_of_windows(max_window, hints.split_dimension(), num_windows, *kernel, cpu_info());
+
         InferenceEngine::parallel_for(num_windows, [&](int wid) {
             const auto win = max_window.split_window(hints_split_dimension, wid, num_windows);
             const auto final_win = win.collapse(win, 0);
