@@ -14,15 +14,11 @@ class ov_multithreading_test : public ov_capi_test_base {
         ov_capi_test_base::TearDown();
     }
 
-protected:
-    unsigned int iterations;
-    unsigned int threadsNum;
-
 public:
-    void runParallel(std::function<void(void)> func,
-                     const unsigned int iterations = 100,
-                     const unsigned int threadsNum = 8) {
-        std::vector<std::thread> threads(threadsNum);
+    void run_parallel(std::function<void(void)> func,
+                      const unsigned int iterations = 100,
+                      const unsigned int threads_num = 8) {
+        std::vector<std::thread> threads(threads_num);
 
         for (auto& thread : threads) {
             thread = std::thread([&]() {
@@ -65,7 +61,7 @@ TEST_P(ov_multithreading_test, get_property) {
     const char* key = ov_property_key_supported_properties;
     char* result = nullptr;
 
-    runParallel([&]() {
+    run_parallel([&]() {
         OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
     });
 
@@ -80,7 +76,7 @@ TEST_P(ov_multithreading_test, compile_model) {
 
     std::atomic<unsigned int> counter{0u};
     set_up_networks();
-    runParallel([&]() {
+    run_parallel([&]() {
         auto value = counter++;
         ov_core_t* core = nullptr;
         OV_EXPECT_OK(ov_core_create(&core));
@@ -105,7 +101,7 @@ TEST_P(ov_multithreading_test, infer) {
 
     std::atomic<unsigned int> counter{0u};
     set_up_networks();
-    runParallel([&]() {
+    run_parallel([&]() {
         auto value = counter++;
         ov_core_t* core = nullptr;
         OV_EXPECT_OK(ov_core_create(&core));
@@ -134,7 +130,7 @@ TEST_P(ov_multithreading_test, infer_async) {
 
     std::atomic<unsigned int> counter{0u};
     set_up_networks();
-    runParallel([&]() {
+    run_parallel([&]() {
         auto value = counter++;
         ov_core_t* core = nullptr;
         OV_EXPECT_OK(ov_core_create(&core));
