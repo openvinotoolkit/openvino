@@ -10,7 +10,6 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
-
 import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
@@ -23,6 +22,7 @@ import csv
 import datetime
 import shlex
 import operator
+import heapq
 
 if sys.version_info.major >= 3:
     import _thread as thread
@@ -311,7 +311,7 @@ class TestParallelRunner:
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif (test_unit == "test") :
-                        tests_dict[real_test_name] = -1
+                        tests_dict[real_test_name] = 1
                         self._total_test_cnt += 1
                     elif (test_unit == "suite") :
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
@@ -371,20 +371,6 @@ class TestParallelRunner:
         res_test_filters = list()
         def_length = len(self._command) + len(" --gtest_filter=")
 
-        idx = len(proved_test_dict)
-        for i in range(len(proved_test_dict)):
-            if proved_test_dict[list(proved_test_dict)[i]] == -1:
-                idx = i
-                break
-
-        # Run crashed tests in a separed thread
-        if idx < len(proved_test_dict):
-            while list(proved_test_dict.values())[idx] == -1:
-                res_test_filters.append(list(proved_test_dict.keys())[idx] + "*:")
-                proved_test_dict.pop(list(proved_test_dict.keys())[idx])
-                if idx >= len(proved_test_dict):
-                    break
-
         longest_device = ""
         for device in self._available_devices:
             if len(device) > len(longest_device):
@@ -392,35 +378,34 @@ class TestParallelRunner:
 
         real_worker_num = self._worker_num * len(self._available_devices)
 
-        tasks = [{"time": 0, "pattern": ""}] * real_worker_num
+        tasks_crashed = []
+        tasks_full = []
+        tasks = [(0,"")] * real_worker_num
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
-        for test_item in tests_sorted :
-            test_pattern = f'{self.__replace_restricted_symbols(test_item[0])}'
+        for test_pattern, test_time in tests_sorted :
+            test_pattern = f'{self.__replace_restricted_symbols(test_pattern)}'
             test_pattern += ":" if self._split_unit == "test" else "*:"
-            test_time = test_item[1]
 
-            # try to add new filter to the rest tasks
-            w_id = -1
-            for i in range(len(tasks)) :
-                if len(tasks[i]["pattern"]) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
-                    w_id = i
-                    break
-            if w_id == -1 :
-                tasks.append({"time": test_time, "pattern": test_pattern})
+            if (test_time == -1) :
+                tasks_crashed.append({test_time, test_pattern})
             else :
-                tasks[w_id] = {"time": tasks[w_id]["time"] + test_time, "pattern": tasks[w_id]["pattern"] + test_pattern}
-            tasks.sort(key=operator.itemgetter('time'))
+                while (len(tasks) > 0) :
+                    t_time, t_pattern = tasks[0]
+                    if len(t_pattern) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
+                        break
+                    else :
+                        tasks_full.append(tasks.pop())
 
-        for filter in tasks:
-            res_test_filters.append(filter["pattern"])
+                if (len(tasks) < real_worker_num) :
+                    heapq.heappush(tasks, (test_time, test_pattern))
+                else :
+                    heapq.heapreplace(tasks, (t_time + test_time, t_pattern + test_pattern))
 
-        # logging for debug
-        for i in range(len(res_test_filters)):
-            filter = res_test_filters[i]
-            cnt = filter.count(':')
-            self._total_test_cnt += cnt
-            # logger.info(f"Number of tests in job_{i}: {cnt}")
-        return res_test_filters
+        test_filters = tasks_full + tasks + tasks_crashed
+        test_filters.sort(reverse=True)
+        # convert to list
+        test_filters = [task[1] for task in test_filters]
+        return test_filters
 
     def __get_filters(self):
         if not os.path.isfile(self._exec_file_path):
@@ -437,12 +422,10 @@ class TestParallelRunner:
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
             cached_test_list = self.__prepare_smart_filters(cached_test_dict)
-            cached_test_list.reverse()
         runtime_test_list = list()
         if len(runtime_test_dist) > 0:
             self._is_save_cache = True
             runtime_test_list = self.__prepare_smart_filters(runtime_test_dist)
-            runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
 
