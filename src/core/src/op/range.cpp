@@ -10,8 +10,8 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/reference/range.hpp"
 #include "range_shape_inference.hpp"
 
 using namespace std;

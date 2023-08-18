@@ -4,8 +4,8 @@
 
 #include "ngraph/op/prelu.hpp"
 
-#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/reference/prelu.hpp>
 
 #include "itt.hpp"
 

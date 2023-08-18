@@ -5,7 +5,7 @@
 // clang-format off
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_sequence.hpp"
-#include "ngraph/runtime/reference/sequences.hpp"
+#include "openvino/reference/sequences.hpp"
 // clang-format on
 
 namespace rnn_seq_v5 {

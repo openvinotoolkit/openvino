@@ -5,7 +5,6 @@
 #include "transformations/convert_precision.hpp"
 
 #include <memory>
-#include <ngraph/runtime/reference/convert.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/opsets/opset11.hpp>
@@ -15,6 +14,7 @@
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
+#include <openvino/reference/convert.hpp>
 #include <vector>
 
 #include "itt.hpp"

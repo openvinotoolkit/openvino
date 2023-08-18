@@ -5,7 +5,7 @@
 #include "snippets/op/broadcastload.hpp"
 
 #include "snippets/itt.hpp"
-#include <ngraph/runtime/reference/broadcast.hpp>
+#include <openvino/reference/broadcast.hpp>
 
 namespace ov {
 namespace snippets {

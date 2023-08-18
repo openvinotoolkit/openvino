@@ -12,8 +12,8 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/pass/manager.hpp"
-#include <ngraph/runtime/reference/autobroadcast_binop.hpp>
-#include <ngraph/runtime/reference/broadcast.hpp>
+#include <openvino/reference/autobroadcast_binop.hpp>
+#include <openvino/reference/broadcast.hpp>
 
 #include <numeric>
 

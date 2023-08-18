@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ngraph/runtime/reference/softsign.hpp"
+#include "openvino/reference/softsign.hpp"
 
 #include <openvino/core/validation_util.hpp>
 
