@@ -8,6 +8,7 @@
 #include "arm_compute/core/Error.h"
 #include "arm_compute/core/Helpers.h"
 #include <ie_parallel.hpp>
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,7 +34,7 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
 
     const Window & max_window = window;
     const unsigned int num_iterations = max_window.num_iterations_total();
-    _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
+    _num_threads = std::min(num_iterations, this->num_threads());
 
     if (num_iterations == 0) {
         return;
@@ -54,17 +55,25 @@ void ACLScheduler::custom_schedule(ICPPKernel *kernel, const Hints &hints, const
         info.cpu_info = &cpu_info();
         main_run(max_window, info);
     } else {
-        const auto num_windows = _num_threads;
+        unsigned int num_windows = 0;
         const auto hints_split_dimension = hints.split_dimension();
-
-        std::vector<Window> win_vec(num_windows);
-        for (size_t i = 0; i < win_vec.size(); ++i) {
-            win_vec[i] = max_window.split_window(hints_split_dimension, i, num_windows);
-            win_vec[i].validate();
+        switch (hints.strategy()) {
+            case arm_compute::IScheduler::StrategyHint::STATIC: {
+                num_windows = _num_threads;
+            }  break;
+            case arm_compute::IScheduler::StrategyHint::DYNAMIC: {
+                const unsigned int granule_threshold = (hints.threshold() <= 0) ? _num_threads : hints.threshold();
+                num_windows = num_iterations > granule_threshold ? granule_threshold : num_iterations;
+            } break;
+            default: {
+                OPENVINO_ASSERT(!"Unknown hint strategy");
+            }
         }
 
         InferenceEngine::parallel_for(num_windows, [&](int wid) {
-            main_run(win_vec[wid], {wid, static_cast<int>(_num_threads), &cpu_info()});
+            const auto win = max_window.split_window(hints_split_dimension, wid, num_windows);
+            win.validate();
+            main_run(win, {wid, static_cast<int>(_num_threads), &cpu_info()});
         });
     }
 }
