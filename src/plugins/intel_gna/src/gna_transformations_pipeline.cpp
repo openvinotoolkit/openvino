@@ -30,6 +30,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
+#include "transformations/flatten_trivial_concat.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fuse_conv_bias_activation.hpp"
@@ -197,6 +198,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
+    manager.register_pass<ov::intel_gna::pass::FlattenTrivialConcat>();
     const auto& pass_config = manager.get_pass_config();
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSConcatForward>(
@@ -326,7 +328,6 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     if (!is_ngraph_passes_used) {
         passes->registerPass<InsertCopyLayerPass>();
     }
-    passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
 
