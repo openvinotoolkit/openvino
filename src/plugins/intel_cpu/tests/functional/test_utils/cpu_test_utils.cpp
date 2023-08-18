@@ -5,6 +5,7 @@
 #include "cpu_test_utils.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include "utils/general_utils.h"
 #include <cstdint>
@@ -478,7 +479,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
 
 std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<CPUSpecificParams>& allParams) {
     std::vector<CPUSpecificParams> specificParams;
-    if (!(ov::with_cpu_x86_f16() || ov::with_cpu_x86_avx512_core_amx_f16())) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_f16())) {
         return specificParams;
     }
     std::copy_if(allParams.begin(), allParams.end(), std::back_inserter(specificParams), [](const CPUSpecificParams& item) {

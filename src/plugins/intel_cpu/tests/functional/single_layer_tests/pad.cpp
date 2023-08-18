@@ -22,7 +22,6 @@ using PadLayerCPUTestParamSet = std::tuple<
         std::vector<int64_t>,                           // padsEnd
         float,                                          // argPadValue
         ov::op::PadMode,                                // padMode
-        ngraph::helpers::PadMode,                       // padMode
         CPUSpecificParams,
         std::map<std::string, std::string>              //  cpu device config
 >;
