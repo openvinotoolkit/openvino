@@ -769,7 +769,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
     primitive_inst = find_primitive(id);
 
     if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain primitive:" + id);
+        throw std::runtime_error("topology doesn't contain primitive: " + id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
@@ -927,7 +927,11 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     }
 
     for (auto& prim : o_iter->second) {
-        ret_ev.push_back(prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false));
+        auto mem = mem_new;
+        if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
+            mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
+
+        ret_ev.push_back(prim->set_output_memory(mem));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -1720,6 +1724,10 @@ void network::allocate_variables_memories() {
             _variables_states.insert({info.first, std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(variable_layout, false))});
         }
     }
+}
+
+const cldnn::network::variables_state_info_map& network::get_variables_state_info() const {
+    return _variables_state_info;
 }
 
 void network::set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout) {

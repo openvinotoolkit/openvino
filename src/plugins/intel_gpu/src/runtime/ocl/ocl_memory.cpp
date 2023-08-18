@@ -176,15 +176,19 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
             type = CL_UNORM_INT8;
             break;
         case format::nv12:
-            _width = layout.spatial(1);
-            _height = layout.spatial(0);
-            if (layout.feature() == 2) {
+        {
+            // [NHWC] dimensions order
+            auto shape = layout.get_shape();
+            _width = shape[2];
+            _height = shape[1];
+            if (shape[3] == 2) {
                 order = CL_RG;
-            } else if (layout.feature() > 2) {
+            } else if (shape[3]  > 2) {
                 CLDNN_ERROR_MESSAGE("2D image allocation", "invalid number of channels in NV12 input image!");
             }
             type = CL_UNORM_INT8;
             break;
+        }
         default:
             CLDNN_ERROR_MESSAGE("2D image allocation", "unsupported image type!");
     }

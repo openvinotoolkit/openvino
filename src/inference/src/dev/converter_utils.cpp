@@ -860,50 +860,40 @@ ov::SoPtr<::ov::IAsyncInferRequest> ov::legacy_convert::convert_infer_request(
 }
 
 namespace InferenceEngine {
+const std::shared_ptr<InferenceEngine::RemoteContext>& IRemoteContextWrapper::get_context() {
+    return m_context;
+}
 
-class IRemoteContextWrapper : public ov::IRemoteContext {
-private:
-    std::shared_ptr<InferenceEngine::RemoteContext> m_context;
-    mutable std::string m_name;
-    mutable ov::AnyMap m_params;
+const std::string& IRemoteContextWrapper::get_device_name() const {
+    m_name = m_context->getDeviceName();
+    return m_name;
+}
 
-public:
-    IRemoteContextWrapper(const std::shared_ptr<InferenceEngine::RemoteContext>& context) : m_context(context) {}
-    virtual ~IRemoteContextWrapper() = default;
-    const std::shared_ptr<InferenceEngine::RemoteContext>& get_context() {
-        return m_context;
-    }
-    const std::string& get_device_name() const override {
-        m_name = m_context->getDeviceName();
-        return m_name;
-    }
+const ov::AnyMap& IRemoteContextWrapper::get_property() const {
+    m_params = m_context->getParams();
+    return m_params;
+}
 
-    const ov::AnyMap& get_property() const override {
-        m_params = m_context->getParams();
-        return m_params;
-    }
+ov::SoPtr<ov::IRemoteTensor> IRemoteContextWrapper::create_tensor(const ov::element::Type& type,
+                                                                  const ov::Shape& shape,
+                                                                  const ov::AnyMap& params) {
+    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                     shape,
+                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
+    auto blob = m_context->CreateBlob(desc, params);
+    blob->allocate();
+    auto tensor = ov::make_tensor(blob);
+    return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
+}
 
-    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                               const ov::Shape& shape,
-                                               const ov::AnyMap& params = {}) override {
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                         shape,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        auto blob = m_context->CreateBlob(desc, params);
-        blob->allocate();
-        auto tensor = ov::make_tensor(blob);
-        return {std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr), tensor._so};
-    }
-
-    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
-                                         shape,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        auto blob = m_context->CreateHostBlob(desc);
-        blob->allocate();
-        return ov::make_tensor(blob);
-    }
-};
+ov::SoPtr<ov::ITensor> IRemoteContextWrapper::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
+                                     shape,
+                                     InferenceEngine::TensorDesc::getLayoutByDims(shape));
+    auto blob = m_context->CreateHostBlob(desc);
+    blob->allocate();
+    return ov::make_tensor(blob);
+}
 
 }  // namespace InferenceEngine
 
