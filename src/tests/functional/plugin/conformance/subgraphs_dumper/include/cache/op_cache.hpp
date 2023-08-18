@@ -47,6 +47,7 @@ protected:
             { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
         };
         m_manager.set_matchers(matchers);
+        m_cache_subdir = "operation";
     }
 
     void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path, size_t model_op_cnt = 1, bool from_cache = false);

@@ -85,11 +85,11 @@ void OpCache::update_cache(const std::shared_ptr<ov::Node>& node,
     }
 
     MetaInfo meta;
-    size_t priority = get_node_priority_by_version(cloned_node);
     if (from_cache) {
         auto meta_path = ov::test::utils::replaceExt(model_path, "meta");
-        meta = MetaInfo::read_meta_from_file(meta_path, priority);
+        meta = MetaInfo::read_meta_from_file(meta_path);
     } else {
+        size_t priority = get_node_priority_by_version(cloned_node);
         meta = MetaInfo(model_path, get_input_info_by_node(cloned_node), model_op_cnt, 1,  "", priority);
     }
 
@@ -129,7 +129,7 @@ std::string OpCache::get_rel_serilization_dir(const std::shared_ptr<ov::Node>& n
     std::string op_folder_name = ov::test::functional::get_node_version(node);
     auto op_el_type = node->get_output_element_type(0).get_type_name();
 
-    return ov::util::path_join({"operation", get_node_type(node), op_folder_name, op_el_type});
+    return ov::util::path_join({m_cache_subdir, get_node_type(node), op_folder_name, op_el_type});
 }
 
 }  // namespace subgraph_dumper

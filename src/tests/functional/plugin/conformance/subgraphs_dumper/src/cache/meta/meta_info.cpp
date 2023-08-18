@@ -46,7 +46,7 @@ double MetaInfo::get_graph_priority() {
     return diff / delta;
 }
 
-MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, size_t model_priority) {
+MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path) {
     pugi::xml_document doc;
     doc.load_file(meta_path.c_str());
     std::map<std::string, ModelInfo> model_info;
@@ -56,7 +56,7 @@ MetaInfo MetaInfo::read_meta_from_file(const std::string& meta_path, size_t mode
             ModelInfo tmp_model_info;
             tmp_model_info.this_op_cnt = model_child.attribute("this_op_count").as_uint();
             tmp_model_info.total_op_cnt = model_child.attribute("total_op_count").as_uint();
-            tmp_model_info.model_priority = model_priority;
+            tmp_model_info.model_priority = model_child.attribute("priority") ? model_child.attribute("priority").as_uint() : 1;
             for (const auto& path : model_child.child("path")) {
                 tmp_model_info.model_paths.insert(std::string(path.attribute("path").value()));
             }
@@ -104,6 +104,7 @@ void MetaInfo::serialize(const std::string& serialization_path) {
             model_node.append_attribute("name").set_value(model.first.c_str());
             model_node.append_attribute("this_op_count").set_value(static_cast<unsigned long long>(model.second.this_op_cnt));
             model_node.append_attribute("total_op_count").set_value(static_cast<unsigned long long>(model.second.total_op_cnt));
+            model_node.append_attribute("priority").set_value(static_cast<unsigned long long>(model.second.model_priority));
             for (const auto& model_path : model.second.model_paths) {
                 model_node.append_child("path").append_child("model").append_attribute("path").set_value(model_path.c_str());
             }

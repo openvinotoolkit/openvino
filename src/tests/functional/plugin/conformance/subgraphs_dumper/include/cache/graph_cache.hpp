@@ -53,6 +53,7 @@ protected:
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
         };
         m_manager.set_extractors(matchers);
+        m_cache_subdir = "subgraph";
     }
 
     void update_cache(const std::shared_ptr<ov::Model>& model, const std::string& model_path,
