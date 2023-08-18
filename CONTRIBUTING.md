@@ -1,53 +1,88 @@
-# How to contribute to the OpenVINO repository
+# Contributing to OpenVINO
 
-We welcome community contributions to OpenVINO™. Please read the following guide to learn how to find ideas for contribution, follow best practices for pull requests, and test your changes with our established checks.
+## How to contribute to the OpenVINO project
 
-
-## Before you start contributing you should
-
--   Make sure you agree to contribute your code under  [OpenVINO™ (Apache 2.0) license](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE).
--   Decide what you’re going to contribute. If you are not sure what you want to work on, check out [Contributions Welcome](https://github.com/openvinotoolkit/openvino/issues/17502). See if there isn't anyone already working on the subject you choose, in which case you may still contribute, providing support and suggestions for the given issue or pull request.
--   If you are going to fix a bug, check if it still exists. You can do it by building the latest master branch and making sure that the error is still reproducible there. We do not fix bugs that only affect older non-LTS releases like 2020.2, for example (see more details about our [branching strategy](https://github.com/openvinotoolkit/openvino/wiki/Branches)).
+OpenVINO™ is always looking for opportunities to improve and your contributions 
+play a big role in this process. There are several ways you can make the 
+product better:
 
 
-## "Fork & Pull Request model" for code contribution
+### Provide Feedback
 
-### [](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md#the-instruction-in-brief)The instruction in brief
+   * **Report bugs / issues**  
+     If you experience faulty behavior in OpenVINO or its components, you can 
+     [create a new issue](https://github.com/openvinotoolkit/openvino/issues)
+     in the GitHub issue tracker. 
 
--   Register at GitHub. Create your fork of the OpenVINO™ repository  [https://github.com/openvinotoolkit/openvino](https://github.com/openvinotoolkit/openvino)  (see  [https://help.github.com/articles/fork-a-repo](https://help.github.com/articles/fork-a-repo)  for details).
--   Install Git.
-    -   Set your user name and email address in Git configuration according to the GitHub account (see  [First-Time-Git-Setup](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup)  for details).
--   Choose a task for yourself. It may be a bugfix or an entirely new piece of code.
--   Choose a base branch for your work. More details about branches and policies are here:  [Branches](https://github.com/openvinotoolkit/openvino/wiki/Branches)
--   Clone your fork to your computer.
--   Create a new branch (give it a meaningful name) from the base branch of your choice.
--   Modify / add the code, following our  [Coding Style Guide](./docs/dev/coding_style.md).
--   If you want to add a new sample, please have a look at the  [Guide for contributing to C++/C/Python IE samples](https://github.com/openvinotoolkit/openvino/wiki/SampleContribute)
--   If you want to contribute to the documentation and want to add a new guide, follow that instruction [Documentation guidelines](https://github.com/openvinotoolkit/openvino/wiki/CodingStyleGuideLinesDocumentation)
--   Run testsuite locally:
-    -   execute each test binary from the artifacts directory, e.g.  `<source dir>/bin/intel64/Release/ieFuncTests`
--   When you are done, make sure that your branch is up to date with latest state of the branch you want to contribute to (e.g.  `git fetch upstream && git merge upstream/master`). If so, push your branch to your GitHub fork and create a pull request from your branch to the base branch (see  [using-pull-requests](https://help.github.com/articles/using-pull-requests)  for details).
+   * **Propose new features / improvements**  
+     If you have a suggestion for improving OpenVINO or want to share your ideas, you can open a new
+     [GitHub Discussion](https://github.com/openvinotoolkit/openvino/discussions). 
+     If your idea is already well defined, you can also create a 
+     [Feature Request Issue](https://github.com/openvinotoolkit/openvino/issues/new?assignees=octocat&labels=enhancement%2Cfeature&projects=&template=feature_request.yml&title=%5BFeature+Request%5D%3A+)
+     In both cases, provide a detailed description, including use cases, benefits, and potential challenges.
+     If your points are especially well aligned with the product vision, they will be included in the 
+     [development roadmap](./ROADMAP.md).
+     User feedback is crucial for OpenVINO development and even if your input is not immediately prioritized,
+     it may be used at a later time or undertaken by the community, regardless of the official roadmap.
+    
 
-## Making a good pull request
+### Contribute Code Changes
 
-Following these guidelines will increase the likelihood of your pull request being accepted:
+   * **Fix Bugs or Develop New Features**  
+     If you want to help improving OpenVINO, choose one of the issues reported in 
+     [GitHub Issue Tracker](https://github.com/openvinotoolkit/openvino/issues) and 
+     [create a Pull Request](./CONTRIBUTING_PR.md) addressing it. Consider one of the
+     tasks listed as [first-time contributions](https://github.com/openvinotoolkit/openvino/issues/17502).
+     If the feature you want to develop is more complex or not well defined by the reporter, 
+     it is always a good idea to [discuss it](https://github.com/openvinotoolkit/openvino/discussions) 
+     with OpenVINO developers first. Before creating a new PR, check if nobody is already
+     working on it. In such a case, you may still help, having aligned with the other developer.
 
--   One PR – one issue.
--   Build perfectly on your local system.
--   Choose the right base branch, based on our [Branch Guidelines](https://github.com/openvinotoolkit/openvino/wiki/Branches).
--   Follow the  [Coding Style Guide](./docs/dev/coding_style.md) for your code.
--   Document your contribution, if you decide it may benefit OpenVINO users. You may do it yourself by editing the files in the "docs" directory or contact someone working with documentation to provide them with the right information.
--   Cover your changes with test. 
--   Add the license statement at the top of new files [C++ example](https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/classification_sample_async/main.cpp#L1-L2), [Python example](https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/hello_classification.py#L3-L4). 
--   Add proper information to the PR: a meaningful title, the reason why you made the commit, and a link to the issue page, if it exists.
--   Remove changes unrelated to the PR.
--   If it is still WIP and you want to check CI test results early, use a  _Draft_  PR.
--   Submit your PR and become an OpenVINO™ contributor! 
+     Importantly, always check if the change hasn't been implemented before you start working on it!
+     You can build OpenVINO using the latest master branch and make sure that it still needs your
+     changes. Also, do not address issues that only affect older non-LTS releases, like 2022.2.
+
+   * **Develop a New Device Plugin**  
+     Since the market of computing devices is constantly evolving, OpenVINO is always open to extending
+     its support for new hardware. If you want to run inference on a device that is currently not supported, 
+     you can see how to develop a new plugin for it in the 
+     [Plugin Developer Guide](https://docs.openvino.ai/canonical/openvino_docs_ie_plugin_dg_overview.html).
+     
+
+### Improve documentation
+
+   * **OpenVINO developer documentation** is contained entirely in this repository, under the 
+     [./docs/dev](https://github.com/openvinotoolkit/openvino/tree/master/docs/dev) folder.
+
+   * **User documentation** is built from several sources and published at 
+     [docs.openvino.ai](docs.openvino.ai), which is the recommended place for reading 
+     these documents. Use the files maintained in this repository only for editing purposes. 
+
+   * The easiest way to help with documentation is to review it and provide feedback on the 
+     existing articles. Whether you notice a mistake, see the possibility of improving the text, 
+     or think more information should be added, you can reach out to any of the documentation 
+     contributors to discuss the potential changes.
+     
+     You can also create a Pull Request directly, following the [editor's guide](./docs/CONTRIBUTING_DOCS.md).
 
 
-## Testing and merging pull requests
+### Promote and Support OpenVINO
 
-Your pull request will be automatically tested by OpenVINO™'s precommit (testing statuses are automatically reported as "green" or "red" circles in precommit steps on the PR page). If any builders fail, you need to fix the issues before the PR can be merged. If you push any changes to your branch on GitHub the tests will re-run automatically. No need to close pull request and open a new one!
+   * **Popularize OpenVINO**  
+     Articles, tutorials, blog posts, demos, videos, and any other involvement 
+     in the OpenVINO community is always a welcome contribution. If you discuss 
+     or present OpenVINO on various social platforms, you are raising awareness
+     of the product among A.I. enthusiasts and enabling other people to discover
+     the toolkit. Feel free to reach out to OpenVINO developers if you need help
+     with making such community-based content.
+
+   * **Help Other Community Members**  
+     If you are an experienced OpenVINO user and want to help, you can always 
+     share your expertise with the community. Check GitHub Discussions and 
+     Issues to see if you can help someone. 
 
 
-When an assigned reviewer accepts the pull request and the pre-commit is "green", the review status is set to "Approved", which informs OpenVINO™ maintainers that they can merge your pull request.
+## License
+
+By contributing to the OpenVINO project, you agree that your contributions will be 
+licensed under the terms stated in the [LICENSE](./LICENSE.md) file.
