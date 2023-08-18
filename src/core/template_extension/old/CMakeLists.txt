@@ -9,11 +9,14 @@ set(TARGET_NAME "template_extension")
 
 find_package(OpenVINO REQUIRED COMPONENTS Runtime OPTIONAL_COMPONENTS ONNX)
 find_package(OpenCV QUIET COMPONENTS core)
+if(OpenCV_VERSION VERSION_LESS 3)
+    set(OpenCV_FOUND OFF)
+endif()
 
 set(SRC cpu_kernel.cpp extension.cpp op.cpp)
 
 if(OpenCV_FOUND)
-    set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
+    list(APPEND SRC fft_kernel.cpp fft_op.cpp)
 endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})

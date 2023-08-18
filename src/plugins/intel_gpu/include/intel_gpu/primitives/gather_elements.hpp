@@ -45,7 +45,7 @@ struct gather_elements : public primitive_base<gather_elements> {
     tensor output_shape;
 
     /// @brief Which axis to gather on.
-    int64_t axis;
+    int64_t axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
