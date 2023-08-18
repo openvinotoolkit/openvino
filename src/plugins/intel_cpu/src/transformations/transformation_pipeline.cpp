@@ -250,15 +250,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             {ov::element::i16,     ov::element::i32},
             {ov::element::u16,     ov::element::i32},
             {ov::element::u32,     ov::element::i32},
-            {ov::element::f64,     ov::element::f32},
-            {ov::element::f16,     ov::element::f32},
             {ov::element::boolean, ov::element::u8},
             {ov::element::i4,      ov::element::i8},
-            {ov::element::u4,      ov::element::u8}
+            {ov::element::u4,      ov::element::u8},
+            // convert all the real type precisions to f32
+            // actual inference precision is choosen later by plugin
+            // in scope of EnforceInferencePrecision
+            {ov::element::f64,     ov::element::f32},
+            {ov::element::f16,     ov::element::f32},
+            {ov::element::bf16,    ov::element::f32},
         };
-        // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            map.insert({ov::element::bf16, ov::element::f32});
 
         return map;
     };
@@ -298,8 +299,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
-
+    // The actual decision regarding inference precision is made scope of EnforceInferencePrecision
+    const bool boolkeep_precision_sensitive_in_fp32 = false;
+    // keep input and output precisions to avoid extra convertions
+    const bool convert_input_output_precision = false;
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse,
+                             boolkeep_precision_sensitive_in_fp32, convert_input_output_precision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);

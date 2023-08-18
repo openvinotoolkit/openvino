@@ -20,20 +20,22 @@ namespace intel_cpu {
 
 uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     switch (dataType) {
+    case dnnl::memory::data_type::f64:
+        return 8;
     case dnnl::memory::data_type::f32:
         return 4;
-    case dnnl::memory::data_type::s32:
-        return 4;
+    case dnnl::memory::data_type::f16:
+        return 2;
     case dnnl::memory::data_type::bf16:
         return 2;
+    case dnnl::memory::data_type::s32:
+        return 4;
     case dnnl::memory::data_type::s8:
         return 1;
     case dnnl::memory::data_type::u8:
         return 1;
     case dnnl::memory::data_type::bin:
         return 1;
-    case dnnl::memory::data_type::f16:
-        return 2;
     case dnnl::memory::data_type::undef:
         return 0;
     default:
@@ -43,50 +45,52 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
 
 memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngine::Precision& prec) {
     switch (prec) {
-        case InferenceEngine::Precision::FP32:
-            return memory::data_type::f32;
-        case InferenceEngine::Precision::I32:
-            return memory::data_type::s32;
-        case InferenceEngine::Precision::BF16:
-            return memory::data_type::bf16;
-        case InferenceEngine::Precision::I8:
-            return memory::data_type::s8;
-        case InferenceEngine::Precision::U8:
-        case InferenceEngine::Precision::BOOL:
-            return memory::data_type::u8;
-        case InferenceEngine::Precision::BIN:
-            return memory::data_type::bin;
-        case InferenceEngine::Precision::FP16:
-            return memory::data_type::f16;
-        case InferenceEngine::Precision::UNSPECIFIED:
-            return memory::data_type::undef;
-        default: {
-            IE_THROW() << "The plugin does not support " << prec.name();
-        }
+    case InferenceEngine::Precision::FP64:
+        return memory::data_type::f64;
+    case InferenceEngine::Precision::FP32:
+        return memory::data_type::f32;
+    case InferenceEngine::Precision::FP16:
+        return memory::data_type::f16;
+    case InferenceEngine::Precision::BF16:
+        return memory::data_type::bf16;
+    case InferenceEngine::Precision::I32:
+        return memory::data_type::s32;
+    case InferenceEngine::Precision::I8:
+        return memory::data_type::s8;
+    case InferenceEngine::Precision::U8:
+    case InferenceEngine::Precision::BOOL:
+        return memory::data_type::u8;
+    case InferenceEngine::Precision::BIN:
+        return memory::data_type::bin;
+    case InferenceEngine::Precision::UNSPECIFIED:
+        return memory::data_type::undef;
+    default:
+        IE_THROW() << "The plugin does not support " << prec.name();
     }
 }
 
 InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
-        case memory::data_type::f32:
-            return InferenceEngine::Precision::FP32;
-        case memory::data_type::s32:
-            return InferenceEngine::Precision::I32;
-        case memory::data_type::bf16:
-            return InferenceEngine::Precision::BF16;
-        case memory::data_type::s8:
-            return InferenceEngine::Precision::I8;
-        case memory::data_type::u8:
-            return InferenceEngine::Precision::U8;
-        case memory::data_type::bin:
-            return InferenceEngine::Precision::BIN;
-        case memory::data_type::f16:
-            return InferenceEngine::Precision::FP16;
-        case memory::data_type::undef:
-            return InferenceEngine::Precision::UNSPECIFIED;
-        default: {
-            IE_THROW() << "Unsupported data type.";
-        }
+    case memory::data_type::f64:
+        return InferenceEngine::Precision::FP64;
+    case memory::data_type::f32:
+        return InferenceEngine::Precision::FP32;
+    case memory::data_type::f16:
+        return InferenceEngine::Precision::FP16;
+    case memory::data_type::bf16:
+        return InferenceEngine::Precision::BF16;
+    case memory::data_type::s32:
+        return InferenceEngine::Precision::I32;
+    case memory::data_type::s8:
+        return InferenceEngine::Precision::I8;
+    case memory::data_type::u8:
+        return InferenceEngine::Precision::U8;
+    case memory::data_type::bin:
+        return InferenceEngine::Precision::BIN;
+    case memory::data_type::undef:
+        return InferenceEngine::Precision::UNSPECIFIED;
+    default:
+        IE_THROW() << "Unsupported data type.";
     }
 }
 
