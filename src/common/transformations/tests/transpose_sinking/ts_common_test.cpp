@@ -432,6 +432,46 @@ auto test_forward_binary = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward, TSTestFixture, test_forward_binary());
 
+auto test_forward_binary_broadcasted = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TSBinaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {96, 55, 55}),
+        parameter(element::f32, {1, 1, 1, 1}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = binary_factories;
+    test_case.model.model_template = create_model;
+
+    // Reference model description:
+    auto new_transpose = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec = out_vec;
+        shared_ptr<Node> order;
+        if (std::string(out_vec[idxs[0]].get_node_shared_ptr()->get_type_name()) == "PRelu") {
+            order = make_shared<Constant>(element::i32, Shape{3}, std::vector<int64_t>{2, 1, 0});
+        } else {
+            order = make_shared<Constant>(element::i32, Shape{4}, std::vector<int64_t>{0, 3, 2, 1});
+        }
+        new_out_vec[idxs[0]] = make_shared<Transpose>(out_vec[idxs[0]], order);
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose}, {{1}}};
+    test_case.model_ref.main_op = binary_factories;
+    test_case.model_ref.preprocess_outputs_of_main = {{new_transpose}, {{0}}};
+    test_case.model_ref.model_template = create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForwardBroadcasted,
+                         TSTestFixture,
+                         test_forward_binary_broadcasted());
+
 auto test_forward_fq = []() {
     TestCase test_case;
 
