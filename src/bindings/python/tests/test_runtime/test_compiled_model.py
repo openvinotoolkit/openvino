@@ -5,7 +5,7 @@
 import pytest
 import numpy as np
 
-from tests.utils.utils import (
+from tests.utils.helpers import (
     get_relu_model,
     generate_image,
     generate_model_and_image,

@@ -9,7 +9,7 @@ import openvino.runtime as ov
 from openvino import Tensor
 from openvino.runtime.op import Constant
 
-from tests.utils.utils import generate_image
+from tests.utils.helpers import generate_image
 
 
 @pytest.mark.parametrize(("cls", "cls_str"), [

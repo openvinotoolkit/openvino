@@ -4,7 +4,7 @@
 
 import pytest
 from openvino.utils import deprecated
-from tests.utils.utils import compare_models, get_relu_model
+from tests.utils.helpers import compare_models, get_relu_model
 
 
 def test_compare_models_pass():

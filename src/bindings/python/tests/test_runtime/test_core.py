@@ -22,12 +22,11 @@ from openvino import (
 from openvino.runtime import Extension
 
 from tests.conftest import (
-    model_path,
     model_onnx_path,
     get_model_with_template_extension,
 )
 
-from tests.utils.utils import (
+from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
