@@ -48,4 +48,3 @@ def test_deprecation_decorator():
         deprecated_function3()
     with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
         deprecated_function4()
-
