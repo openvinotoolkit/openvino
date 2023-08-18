@@ -1,6 +1,8 @@
 Photos to Anime with PaddleGAN and OpenVINO
 ===========================================
 
+.. _top:
+
 This tutorial demonstrates converting a
 `PaddlePaddle/PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
 AnimeGAN model to OpenVINO IR format, and shows inference results on the
@@ -14,19 +16,28 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
 
    anime
 
-Table of content: - `Preparation <#1>`__ - `Install requirements <#2>`__
-- `Imports <#3>`__ - `Settings <#4>`__ - `Functions <#5>`__ - `Inference
-on PaddleGAN Model <#6>`__ - `Show Inference Results on PaddleGAN
-model <#7>`__ - `Model Conversion to ONNX and OpenVINO IR <#8>`__ -
-`Convert to ONNX <#9>`__ - `Convert to OpenVINO IR <#10>`__ - `Show
-Inference Results on OpenVINO IR and PaddleGAN Models <#11>`__ - `Create
-Postprocessing Functions <#12>`__ - `Do Inference on OpenVINO IR
-Model <#13>`__ - `Select inference device <#14>`__ - `Performance
-Comparison <#15>`__ - `References <#16>`__
+Table of content:
 
-## Preparation `⇑ <#0>`__
+- `Preparation <#1>`__
+- `Install requirements <#2>`__
+- `Imports <#3>`__
+- `Settings <#4>`__
+- `Functions <#5>`__
+- `Inference on PaddleGAN Model <#6>`__
+- `Show Inference Results on PaddleGAN model <#7>`__
+- `Model Conversion to ONNX and OpenVINO IR <#8>`__
+- `Convert to ONNX <#9>`__
+- `Convert to OpenVINO IR <#10>`__
+- `Show Inference Results on OpenVINO IR and PaddleGAN Models <#11>`__
+- `Create Postprocessing Functions <#12>`__
+- `Do Inference on OpenVINO IR Model <#13>`__
+- `Select inference device <#14>`__
+- `Performance Comparison <#15>`__
+- `References <#16>`__
 
-### Install requirements `⇑ <#0>`__
+## Preparation `⇑ <#top>`__
+
+### Install requirements `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -49,7 +60,7 @@ Comparison <#15>`__ - `References <#16>`__
     scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
     
 
-### Imports `⇑ <#0>`__
+### Imports `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -92,7 +103,7 @@ Comparison <#15>`__ - `References <#16>`__
         )
         raise
 
-### Settings `⇑ <#0>`__
+### Settings `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -106,7 +117,7 @@ Comparison <#15>`__ - `References <#16>`__
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
 
-### Functions `⇑ <#0>`__
+### Functions `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -120,7 +131,7 @@ Comparison <#15>`__ - `References <#16>`__
             image = cv2.resize(image, (max_width, new_height))
         return image
 
-## Inference on PaddleGAN Model `⇑ <#0>`__
+## Inference on PaddleGAN Model `⇑ <#top>`__
 
 The PaddleGAN
 `documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US/tutorials/animegan.md>`__
@@ -215,7 +226,7 @@ cell.
     The anime image was saved to output/coco_bricks_anime_pg.jpg
 
 
-### Show Inference Results on PaddleGAN model `⇑ <#0>`__
+### Show Inference Results on PaddleGAN model `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -231,13 +242,13 @@ cell.
 .. image:: 206-vision-paddlegan-anime-with-output_files/206-vision-paddlegan-anime-with-output_15_0.png
 
 
-## Model Conversion to ONNX and OpenVINO IR `⇑ <#0>`__
+## Model Conversion to ONNX and OpenVINO IR `⇑ <#top>`__
 
 Convert the PaddleGAN model to OpenVINO IR by first converting PaddleGAN
 to ONNX with ``paddle2onnx`` and then converting the ONNX model to
 OpenVINO IR with model conversion API.
 
-### Convert to ONNX `⇑ <#0>`__
+### Convert to ONNX `⇑ <#top>`__
 
 Exporting to ONNX requires specifying an input shape with PaddlePaddle
 ``InputSpec`` and calling ``paddle.onnx.export``. Then, check the input
@@ -284,7 +295,7 @@ succeeds, the output of the next cell will include
     I0817 16:13:56.664121 2277406 interpretercore.cc:237] New Executor is Running.
 
 
-### Convert to OpenVINO IR `⇑ <#0>`__
+### Convert to OpenVINO IR `⇑ <#top>`__
 
 The OpenVINO IR format enables storing the preprocessing normalization
 in the model file. It is then no longer necessary to normalize input
@@ -356,7 +367,7 @@ API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction
     Exporting ONNX model to OpenVINO IR... This may take a few minutes.
 
 
-## Show Inference Results on OpenVINO IR and PaddleGAN Models `⇑ <#0>`__
+## Show Inference Results on OpenVINO IR and PaddleGAN Models `⇑ <#top>`__
 
 If the conversion is successful, the output of model conversion API in
 the cell above will show *SUCCESS*, and the OpenVINO IR model will be
@@ -367,7 +378,7 @@ from the PaddleGAN model. However, in order to use the OpenVINO IR model
 without installing PaddleGAN, it is useful to check what these functions
 do and extract them.
 
-### Create Postprocessing Functions `⇑ <#0>`__
+### Create Postprocessing Functions `⇑ <#top>`__
 
 .. code:: ipython3
 
@@ -410,7 +421,7 @@ OpenVINO IR model
         dstf = np.uint8(dstf)
         return dstf
 
-### Do Inference on OpenVINO IR Model `⇑ <#0>`__
+### Do Inference on OpenVINO IR Model `⇑ <#top>`__
 
 Load the OpenVINO IR model and do inference, following the same steps as
 for the PaddleGAN model. For more information about inference on
@@ -421,7 +432,7 @@ The OpenVINO IR model is generated with an input shape that is computed
 based on the input image. If you do inference on images with different
 input shapes, results may differ from the PaddleGAN results.
 
-#### Select inference device `⇑ <#0>`__
+#### Select inference device `⇑ <#top>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -507,7 +518,7 @@ select device from dropdown list for running inference using OpenVINO
 .. image:: 206-vision-paddlegan-anime-with-output_files/206-vision-paddlegan-anime-with-output_37_0.png
 
 
-## Performance Comparison `⇑ <#0>`__
+## Performance Comparison `⇑ <#top>`__
 
 Measure the time it takes to do inference on an image. This gives an
 indication of performance. It is not a perfect measure. Since the
@@ -553,7 +564,7 @@ measure inference on one image. For more accurate benchmarking, use
     PaddleGAN model on CPU: 6.121 seconds per image, FPS: 0.16
 
 
-## References `⇑ <#0>`__
+## References `⇑ <#top>`__
 
 -  `PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
 -  `Paddle2ONNX <https://github.com/PaddlePaddle/paddle2onnx>`__
