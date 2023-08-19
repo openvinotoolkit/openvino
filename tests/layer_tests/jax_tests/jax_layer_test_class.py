@@ -96,7 +96,7 @@ class JaxLayerTest:
     def convert_via_tensorflow_function(self, model, inputs):
         import tensorflow as tf
         from jax.experimental import jax2tf
-        from openvino.tools.mo import convert_model
+        from openvino.tools.ovc import convert_model
         # create function signature based on input shapes and types
         function_signature = []
         for _input in inputs:
