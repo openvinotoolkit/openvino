@@ -198,8 +198,12 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
         if (reshape_node->get_output_partial_shape(0).is_dynamic()) {
             return false;
         }
-        const auto unsqueeze_axes =
-            try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node.get_shape());
+        const auto& input_shape = input_node.get_shape();
+        const auto& target_shape = reshape_node->get_shape();
+        if (target_shape.size() <= input_shape.size()) {
+            return false;
+        }
+        const auto unsqueeze_axes = try_get_unsqueeze_axes_from_reshape(target_shape, input_shape);
         if (unsqueeze_axes.empty()) {
             return false;
         }

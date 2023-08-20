@@ -359,6 +359,11 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfTheSameAxesScalarCase
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
 
+TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfReshapeDoesntUnsqueeze) {
+    model = generate_reshape_model<ReduceMean>(element::f32, {1, 100, 1}, {1, 1, 100}, {2});
+    manager.register_pass<pass::PullReshapeThroughReduce>();
+}
+
 TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfNonConstAxes) {
     const auto input = std::make_shared<Parameter>(element::f32, PartialShape{5, 10, 15});
     const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 5, 10, 15});
