@@ -51,6 +51,7 @@ public:
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool constant_fold(OutputVector& output_values, const OutputVector& input_values) override;
 
     std::shared_ptr<v0::Constant> get_default_const_axes(const Output<Node>& start) const;
 };

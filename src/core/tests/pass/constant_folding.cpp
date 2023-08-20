@@ -2532,6 +2532,45 @@ TEST(constant_folding, constant_dyn_reshape) {
     ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
+TEST(constant_folding, slice_shape_of_with_dynamic_shape_on_static_dimension) {
+    auto param = make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, 3, -1});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto start = op::v0::Constant::create(element::i32, Shape{1}, {1});
+    auto stop = op::v0::Constant::create(element::i32, Shape{1}, {3});
+    auto stride = op::v0::Constant::create(element::i32, Shape{1}, {1});
+    auto axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+    auto slice = make_shared<op::v8::Slice>(shape_of, start, stop, stride, axis);
+    auto model = make_shared<Model>(slice, ParameterVector{param});
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(model), 0);
+    ASSERT_EQ(count_ops_of_type<op::v8::Slice>(model), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 1);
+
+    auto new_const = get_result_constant(model);
+    auto dims = new_const->get_vector<int64_t>();
+    std::vector<int64_t> expected_dims{2, 3};
+    ASSERT_EQ(expected_dims, dims);
+}
+
+TEST(constant_folding, slice_shape_of_with_dynamic_shape_on_dynamic_dimension) {
+    auto param = make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 2, -1, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto start = op::v0::Constant::create(element::i32, Shape{1}, {1});
+    auto stop = op::v0::Constant::create(element::i32, Shape{1}, {3});
+    auto stride = op::v0::Constant::create(element::i32, Shape{1}, {1});
+    auto axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+    auto slice = make_shared<op::v8::Slice>(shape_of, start, stop, stride, axis);
+    auto model = make_shared<Model>(slice, ParameterVector{param});
+
+    run_constant_folding(model);
+
+    ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::v8::Slice>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 4);
+}
+
 TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant) {
     Shape shape_in{2, 4};
     vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7};
