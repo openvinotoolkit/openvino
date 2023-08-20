@@ -258,7 +258,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                         n_threads_per_stream = static_cast<int>(n_threads / n_streams);
                     }
                 } else {
-                    while (n_streams * 2 <= n_threads_per_stream) {
+                    while ((n_streams * 2 <= n_threads_per_stream) && (n_threads_per_stream > 1)) {
                         n_threads_per_stream = static_cast<int>(n_threads_per_stream / 2);
                         n_streams = static_cast<int>(n_threads / n_threads_per_stream);
                     }
