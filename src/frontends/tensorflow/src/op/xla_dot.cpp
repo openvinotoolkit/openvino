@@ -114,19 +114,23 @@ OutputVector translate_xla_dot_op(const NodeContext& node) {
 
     // compute the resulted shape before possible modification
     auto resulted_shape = make_shared<v0::Constant>(element::i64, Shape{0}, vector<int64_t>{})->output(0);
+    bool apply_reshape = false;
     auto lhs_shape = make_shared<v3::ShapeOf>(lhs, element::i64);
     auto rhs_shape = make_shared<v3::ShapeOf>(rhs, element::i64);
     if (lhs_batch_dims.size() > 0) {
         auto batch_dims_shape = compute_dims_shape(lhs_shape, lhs_batch_dims);
         resulted_shape = make_shared<v0::Concat>(OutputVector{resulted_shape, batch_dims_shape}, 0);
+        apply_reshape = true;
     }
     if (lhs_non_contract_dims.size() > 0) {
         auto lhs_non_contract_shape = compute_dims_shape(lhs_shape, lhs_non_contract_dims);
         resulted_shape = make_shared<v0::Concat>(OutputVector{resulted_shape, lhs_non_contract_shape}, 0);
+        apply_reshape = true;
     }
     if (rhs_non_contract_dims.size() > 0) {
         auto rhs_non_contract_shape = compute_dims_shape(rhs_shape, rhs_non_contract_dims);
         resulted_shape = make_shared<v0::Concat>(OutputVector{resulted_shape, rhs_non_contract_shape}, 0);
+        apply_reshape = true;
     }
 
     // take care of that at least one dimension of each type (batch, contracting, and non-contracting) exists
@@ -182,7 +186,9 @@ OutputVector translate_xla_dot_op(const NodeContext& node) {
     // execute MatMul that support batch matrix-multiplication
     // note that the second operand is transposed
     auto matmul = make_shared<v0::MatMul>(lhs, rhs, false, true)->output(0);
-    matmul = make_shared<v1::Reshape>(matmul, resulted_shape, false);
+    if (apply_reshape) {
+        matmul = make_shared<v1::Reshape>(matmul, resulted_shape, false);
+    }
 
     set_node_name(node_name, matmul.get_node_shared_ptr());
     return {matmul};
