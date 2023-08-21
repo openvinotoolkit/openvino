@@ -336,17 +336,43 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_property");
+
+    // The metrics below don't depend on the device ID, so we should handle those
+    // earler than querying actual ID to avoid exceptions when no devices are found
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {get_supported_properties()};
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
+    } else if (name == ov::available_devices) {
+        std::vector<std::string> available_devices = { };
+        for (auto const& dev : m_device_map)
+            available_devices.push_back(dev.first);
+        return decltype(ov::available_devices)::value_type {available_devices};
+    } else if (name == ov::internal::caching_properties) {
+        return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    }
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, LegacyAPIHelper::get_supported_configs());
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
     OPENVINO_ASSERT(!m_device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
-                                         "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
+                                           "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
 
     if (is_metric(name)) {
         return get_metric(name, options);
     }
+
     std::string device_id = m_default_device_id;
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
@@ -406,26 +432,6 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     GPU_DEBUG_GET_INSTANCE(debug_config);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    // The metrics below don't depend on the device ID, so we should handle those
-    // earler than querying actual ID to avoid exceptions when no devices are found
-    if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {get_supported_properties()};
-    } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, LegacyAPIHelper::get_supported_configs());
-    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        std::vector<std::string> available_devices = { };
-        for (auto const& dev : m_device_map)
-            available_devices.push_back(dev.first);
-        return decltype(ov::available_devices)::value_type {available_devices};
-    } else if (name == ov::internal::caching_properties) {
-        return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    }
 
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 

@@ -57,7 +57,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
                 ctx_device_id = extract_object(params, ov::intel_gpu::ocl_context_device_id);
         } else if (ctx_type == ov::intel_gpu::ContextType::VA_SHARED) {
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
-            OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA context as user handle is nullptr! Params:\n", params);
+            OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
             m_type = ContextType::VA_SHARED;
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);

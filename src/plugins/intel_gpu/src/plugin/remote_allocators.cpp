@@ -31,7 +31,7 @@ bool USMHostAllocator::deallocate(void* /* handle */, const size_t /* bytes */, 
 }
 
 bool USMHostAllocator::is_equal(const USMHostAllocator& other) const {
-    return other._usm_host_tensor._ptr == _usm_host_tensor._ptr;
+    return other._usm_host_tensor != nullptr && _usm_host_tensor != nullptr && other._usm_host_tensor._ptr == _usm_host_tensor._ptr;
 }
 }  // namespace intel_gpu
 }  // namespace ov

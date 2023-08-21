@@ -103,10 +103,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
             R"(.*(Auto|Multi).*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
             // New plugin work with tensors, so it means that blob in old API can have different pointers
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
-            R"(.*(Auto|Multi).*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+            R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
+            R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
+            R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
+            R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
             // For some strange reason (bug?) output format cannot have a rank greater than 4 for dynamic shape case,
             // because it crashes in some random places during "reorder_inputs" pass.
             R"(.*UniqueLayerDynamicGPUTest.*\(\d*\.\d*\.\d*\.\d*\.\d*\).*axis.*)",
@@ -118,9 +118,17 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
             // Issue: 113704 - Layout information maybe incorrect when covert tensor to blob
             R"(.*smoke_.*BehaviorTests/InferRequestPreprocessConversionTest.*NHWC.*)",
-            // Issue: 116983 LPT bug
-            R"(.*smoke_.*MoveFakeQuantizeTransformation.*)",
+            // Issue: Disabled due to LPT precision matching issue
+            R"(.*smoke_.*FakeQuantizeTransformation.*)",
+            R"(.*smoke_LPT.*ReshapeTransformation.*)",
+            R"(.*smoke_LPT.*ConvolutionTransformation.*)",
+            R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
+            R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
+            R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
             // Dynamic state unsupported for now
             R"(.*MemoryDynamicBatch.*)",
+            // Meta plugins may miss saving HW plugin so handle, thus plugin may be unloaded before all objects are deleted which leads to segfault
+            // Issue: 118840
+            R"(.*OVHoldersTest.*)",
     };
 }

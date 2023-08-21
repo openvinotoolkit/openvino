@@ -183,7 +183,7 @@ gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
             _height = shape[1];
             if (shape[3] == 2) {
                 order = CL_RG;
-            } else if (shape[3]  > 2) {
+            } else if (shape[3] > 2) {
                 CLDNN_ERROR_MESSAGE("2D image allocation", "invalid number of channels in NV12 input image!");
             }
             type = CL_UNORM_INT8;

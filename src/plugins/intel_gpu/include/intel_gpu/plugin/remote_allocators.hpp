@@ -22,7 +22,7 @@ private:
 public:
     using Ptr = std::shared_ptr<USMHostAllocator>;
 
-    USMHostAllocator(std::shared_ptr<RemoteContextImpl> context) : _context(context) { }
+    explicit USMHostAllocator(std::shared_ptr<RemoteContextImpl> context) : _context(context) { }
 
     /**
     * @brief Allocates memory

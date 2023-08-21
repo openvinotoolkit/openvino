@@ -459,7 +459,8 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_host_tensor(const ov::Part
     bool use_usm = m_graph->get_engine().use_unified_shared_memory() && !port_shape.is_dynamic();
 
     auto shape = port_shape.is_static() ? port_shape.to_shape() : ov::Shape(port_shape.size(), 0);
-    return use_usm ? ov::make_tensor(port_element_type, shape, USMHostAllocator(m_context))
+    auto usm_allocator = USMHostAllocator(m_context);
+    return use_usm ? ov::make_tensor(port_element_type, shape, usm_allocator)
                    : ov::make_tensor(port_element_type, shape);
 }
 
@@ -624,7 +625,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(const std
             for (size_t i = 0; i < user_tensors.size(); i++) {
                 auto input_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensors[i]._ptr);
                 cldnn::mem_lock<uint8_t> src_lock(input_tensor->get_memory(), stream);
-                std::memcpy(dst_lock.begin() + i * input_tensor->get_byte_size(), src_lock.begin(), input_tensor->get_byte_size());
+                std::memcpy(dst_lock.data() + i * input_tensor->get_byte_size(), src_lock.data(), input_tensor->get_byte_size());
             }
         }
 

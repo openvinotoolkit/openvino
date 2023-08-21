@@ -11,7 +11,7 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(convert_color)
 
-layout convert_color_inst::calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param) {
+layout convert_color_inst::calc_output_layout(convert_color_node const& /* node */, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<convert_color>();
 
     auto src_fmt = desc->input_color_format;
@@ -24,6 +24,7 @@ layout convert_color_inst::calc_output_layout(convert_color_node const& node, ke
     const size_t c_dim = 3;
     if ((src_fmt == convert_color::color_format::NV12 || src_fmt == convert_color::color_format::I420) && dst_is_rgb_or_bgr) {
         auto out_layout = impl_param.get_input_layout(0);
+        out_layout.format = format::bfyx;
         auto out_shape = out_layout.get_partial_shape();
         out_shape[c_dim] = 3;
         if (single_plane_input) {
