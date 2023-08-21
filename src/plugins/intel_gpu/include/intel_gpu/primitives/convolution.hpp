@@ -174,7 +174,7 @@ struct convolution : public primitive_base<convolution> {
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     ov::CoordinateDiff padding_end;
     /// @param audo_pad The pad type for automatically computing padding sizes
-    ov::op::PadType auto_pad;
+    ov::op::PadType auto_pad = ov::op::PadType::NOTSET;
 
     /// @param deformable_mode.
     bool deformable_mode {false};
@@ -351,10 +351,10 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     /// @brief Size of weights tensor.
     tensor kernel_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups;
+    uint32_t groups = 0;
     /// @param deformable_groups Defines a number of deformable groups that splits trans input into several parts
     /// by channel dimension.
-    uint32_t deformable_groups;
+    uint32_t deformable_groups = 0;
     /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
     ov::CoordinateDiff padding_begin;
     /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
@@ -448,7 +448,7 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     /// @brief User-defined output data size of the primitive (w/o padding).
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
-    uint32_t groups;
+    uint32_t groups = 0;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.

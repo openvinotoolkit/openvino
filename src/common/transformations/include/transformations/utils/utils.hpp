@@ -22,7 +22,7 @@ namespace op {
 namespace util {
 
 template <class T>
-bool normalize_single_value(std::vector<T> vec, float& value) {
+bool normalize_single_value(std::vector<T> vec, float& value, bool check_value_range = true) {
     for (const auto& val : vec) {
         if (val != *vec.begin())
             return false;
@@ -30,7 +30,8 @@ bool normalize_single_value(std::vector<T> vec, float& value) {
 
     float ref_val = static_cast<float>(*vec.begin());
 
-    if (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max()) {
+    if (check_value_range &&
+        (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max())) {
         return false;
     }
 
@@ -159,7 +160,9 @@ bool has_constant_value(const std::shared_ptr<Node>& node,
     return const_values == values;
 }
 
-TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node, float& value);
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<opset4::Constant>& const_node,
+                                          float& value,
+                                          bool check_value_range = true);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> normalize_constant(const std::shared_ptr<opset4::Constant>& constant,
                                                              const PartialShape& shape);
