@@ -45,12 +45,6 @@ public:
      */
     static Napi::Object Wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
 
-    Napi::Value read_model(const Napi::CallbackInfo& info);
-
-    Napi::Value compile_model(const Napi::CallbackInfo& info);
-
-    Napi::Value infer(const Napi::CallbackInfo& info);
-
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
     std::string get_name();
