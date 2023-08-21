@@ -12,14 +12,14 @@
     "postinstall": "npm run build & npm run tsc",
     "lint": "eslint .",
     "rebuild": "node-gyp rebuild",
-    "test": "jest",
+    "test": "node --test",
     "tsc": "tsc"
   },
   "devDependencies": {
+    "@types/node": "^20.5.0",
     "@typescript-eslint/eslint-plugin": "^5.59.1",
     "@typescript-eslint/parser": "^5.59.1",
     "eslint": "^8.39.0",
-    "jest": "^28.1.3",
     "node-addon-api": "^3.0.0",
     "node-gyp": "^9.3.0",
     "typescript": "^5.0.4"
