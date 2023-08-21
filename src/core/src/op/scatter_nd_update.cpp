@@ -33,21 +33,21 @@ bool evaluate(const HostTensorPtr& arg0,
     out->set_shape(arg0->get_shape());
 
     if (arg1->get_element_type() == element::i64) {
-        runtime::reference::scatterNdUpdate<T, int64_t>(arg0->get_data_ptr<ET>(),
-                                                        arg1->get_data_ptr<int64_t>(),
-                                                        arg2->get_data_ptr<ET>(),
-                                                        out->get_data_ptr<ET>(),
-                                                        arg0->get_shape(),
-                                                        arg1->get_shape(),
-                                                        arg2->get_shape());
+        reference::scatterNdUpdate<T, int64_t>(arg0->get_data_ptr<ET>(),
+                                               arg1->get_data_ptr<int64_t>(),
+                                               arg2->get_data_ptr<ET>(),
+                                               out->get_data_ptr<ET>(),
+                                               arg0->get_shape(),
+                                               arg1->get_shape(),
+                                               arg2->get_shape());
     } else if (arg1->get_element_type() == element::i32) {
-        runtime::reference::scatterNdUpdate<T, int32_t>(arg0->get_data_ptr<ET>(),
-                                                        arg1->get_data_ptr<int32_t>(),
-                                                        arg2->get_data_ptr<ET>(),
-                                                        out->get_data_ptr<ET>(),
-                                                        arg0->get_shape(),
-                                                        arg1->get_shape(),
-                                                        arg2->get_shape());
+        reference::scatterNdUpdate<T, int32_t>(arg0->get_data_ptr<ET>(),
+                                               arg1->get_data_ptr<int32_t>(),
+                                               arg2->get_data_ptr<ET>(),
+                                               out->get_data_ptr<ET>(),
+                                               arg0->get_shape(),
+                                               arg1->get_shape(),
+                                               arg2->get_shape());
     } else {
         OPENVINO_THROW("Unexpected type ",
                        arg1->get_element_type().c_type_string(),

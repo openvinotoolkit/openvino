@@ -208,9 +208,10 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto broadcast_type = fq_node->get_auto_broadcast();
 
     // We have two ways for computations of scales and shifts to avoid model compilation time growth
-    // because common function "ov::runtime::reference::autobroadcast_binop()" is expensive:
+    // because common function "ov::reference::autobroadcast_binop()" is expensive:
     //  - A usual case (weights with the same shapes or scalars) - optimal calculations without large broadcasting
-    //  - A rare case ("general broadcasting") - common computations using autobroadcast_binop() call with broadcasting support
+    //  - A rare case ("general broadcasting") - common computations using autobroadcast_binop() call with broadcasting
+    //  support
 
     // Calculations of input scales and shift:
     //   - isc := (levels-1) / (ih - il)
@@ -235,23 +236,35 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
         const auto input_size = ov::shape_size(scale_shape);
         isc.resize(input_size, 0);
         ish.resize(input_size, 0);
-        ngraph::runtime::reference::autobroadcast_binop(input_high.data(), input_low.data(), isc.data(),
-                                                        input_high_shape, input_low_shape, broadcast_type,
-                                                        [levels](float x, float y) -> float { return (levels - 1) / (x - y); });
-        ngraph::runtime::reference::autobroadcast_binop(input_low.data(), isc.data(), ish.data(),
-                                                        input_low_shape, scale_shape, broadcast_type,
-                                                        [](float x, float y) -> float { return -x * y; });
+        ngraph::reference::autobroadcast_binop(input_high.data(),
+                                               input_low.data(),
+                                               isc.data(),
+                                               input_high_shape,
+                                               input_low_shape,
+                                               broadcast_type,
+                                               [levels](float x, float y) -> float {
+                                                   return (levels - 1) / (x - y);
+                                               });
+        ngraph::reference::autobroadcast_binop(input_low.data(),
+                                               isc.data(),
+                                               ish.data(),
+                                               input_low_shape,
+                                               scale_shape,
+                                               broadcast_type,
+                                               [](float x, float y) -> float {
+                                                   return -x * y;
+                                               });
         auto broadcast = [](const std::vector<float>& original_data, std::vector<float>& out_data,
                             const ov::Shape& original_shape, const ov::Shape& out_shape, size_t size) -> void {
             out_data.resize(size, 0);
             std::vector<size_t> broadcast_axes(out_shape.size() - original_shape.size());
             std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
-            ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(original_data.data()),
-                                                  reinterpret_cast<char*>(out_data.data()),
-                                                  original_shape,
-                                                  out_shape,
-                                                  broadcast_axes,
-                                                  sizeof(float));
+            ngraph::reference::broadcast(reinterpret_cast<const char*>(original_data.data()),
+                                         reinterpret_cast<char*>(out_data.data()),
+                                         original_shape,
+                                         out_shape,
+                                         broadcast_axes,
+                                         sizeof(float));
         };
         broadcast(input_low, cl, input_low_shape, scale_shape, input_size);
         broadcast(input_high, ch, input_high_shape, scale_shape, input_size);
@@ -276,9 +289,15 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
         PartialShape::broadcast_merge_into(scale_pshape, output_high_constant->get_output_partial_shape(0), broadcast_type);
         const auto output_size = ov::shape_size(scale_pshape.get_shape());
         osc.resize(output_size, 0);
-        ngraph::runtime::reference::autobroadcast_binop(output_high.data(), output_low.data(), osc.data(),
-                                                        output_high_shape, output_low_shape, broadcast_type,
-                                                        [levels](float x, float y) -> float { return (x - y) / (levels - 1); });
+        ngraph::reference::autobroadcast_binop(output_high.data(),
+                                               output_low.data(),
+                                               osc.data(),
+                                               output_high_shape,
+                                               output_low_shape,
+                                               broadcast_type,
+                                               [levels](float x, float y) -> float {
+                                                   return (x - y) / (levels - 1);
+                                               });
         osh = output_low;
     }
 

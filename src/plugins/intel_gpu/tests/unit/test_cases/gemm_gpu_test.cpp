@@ -194,15 +194,14 @@ class GemmGPUTestRandom : public GemmGPUTest {
     }
 
     void calculate_output_data() {
-        ngraph::runtime::reference::matmul<float>(
-                input_data[0].data(),
-                input_data[1].data(),
-                out_data.data(),
-                input0_shape,
-                input1_shape,
-                output_shape,
-                transpose_input0,
-                transpose_input1);
+        ngraph::reference::matmul<float>(input_data[0].data(),
+                                         input_data[1].data(),
+                                         out_data.data(),
+                                         input0_shape,
+                                         input1_shape,
+                                         output_shape,
+                                         transpose_input0,
+                                         transpose_input1);
     }
 
 protected:

@@ -13,12 +13,12 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v0::ReverseSequence>& op,
                      const ngraph::HostTensorVector& inputs) {
     using T1 = typename ngraph::element_type_traits<t1>::value_type;
     using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    ngraph::runtime::reference::reverse_sequence<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                         outputs[0]->get_data_ptr<T1>(),
-                                                         inputs[0]->get_shape(),
-                                                         op->get_batch_axis(),
-                                                         op->get_sequence_axis(),
-                                                         inputs[1]->get_data_ptr<T2>());
+    ngraph::reference::reverse_sequence<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                outputs[0]->get_data_ptr<T1>(),
+                                                inputs[0]->get_shape(),
+                                                op->get_batch_axis(),
+                                                op->get_sequence_axis(),
+                                                inputs[1]->get_data_ptr<T2>());
 }
 }  // namespace reverse_sequence_v0
 

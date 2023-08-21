@@ -154,29 +154,29 @@ bool evaluate(const std::shared_ptr<ngraph::op::v9::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                                    info.boxes_shape,
-                                                    info.scores_data.data(),
-                                                    info.scores_shape,
-                                                    info.max_output_boxes_per_class,
-                                                    info.iou_threshold,
-                                                    info.score_threshold,
-                                                    info.soft_nms_sigma,
-                                                    selected_indices.data(),
-                                                    info.out_shape,
-                                                    selected_scores.data(),
-                                                    info.out_shape,
-                                                    &valid_outputs,
-                                                    info.sort_result_descending);
+    ngraph::reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? ngraph::element::f32 : outputs[1]->get_element_type();
 
-    ngraph::runtime::reference::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
+    ngraph::reference::nms_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 
@@ -326,29 +326,29 @@ bool evaluate(const std::shared_ptr<ngraph::op::v4::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                                    info.boxes_shape,
-                                                    info.scores_data.data(),
-                                                    info.scores_shape,
-                                                    info.max_output_boxes_per_class,
-                                                    info.iou_threshold,
-                                                    info.score_threshold,
-                                                    info.soft_nms_sigma,
-                                                    selected_indices.data(),
-                                                    info.out_shape,
-                                                    selected_scores.data(),
-                                                    info.out_shape,
-                                                    &valid_outputs,
-                                                    info.sort_result_descending);
+    ngraph::reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ngraph::element::f32 : inputs[3]->get_element_type();
 
-    ngraph::runtime::reference::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
+    ngraph::reference::nms_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 
@@ -498,29 +498,29 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                                    info.boxes_shape,
-                                                    info.scores_data.data(),
-                                                    info.scores_shape,
-                                                    info.max_output_boxes_per_class,
-                                                    info.iou_threshold,
-                                                    info.score_threshold,
-                                                    info.soft_nms_sigma,
-                                                    selected_indices.data(),
-                                                    info.out_shape,
-                                                    selected_scores.data(),
-                                                    info.out_shape,
-                                                    &valid_outputs,
-                                                    info.sort_result_descending);
+    ngraph::reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ngraph::element::f32 : inputs[3]->get_element_type();
 
-    ngraph::runtime::reference::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
+    ngraph::reference::nms_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 
@@ -670,29 +670,29 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                                    info.boxes_shape,
-                                                    info.scores_data.data(),
-                                                    info.scores_shape,
-                                                    info.max_output_boxes_per_class,
-                                                    info.iou_threshold,
-                                                    info.score_threshold,
-                                                    info.soft_nms_sigma,
-                                                    selected_indices.data(),
-                                                    info.out_shape,
-                                                    selected_scores.data(),
-                                                    info.out_shape,
-                                                    &valid_outputs,
-                                                    info.sort_result_descending);
+    ngraph::reference::non_max_suppression(info.boxes_data.data(),
+                                           info.boxes_shape,
+                                           info.scores_data.data(),
+                                           info.scores_shape,
+                                           info.max_output_boxes_per_class,
+                                           info.iou_threshold,
+                                           info.score_threshold,
+                                           info.soft_nms_sigma,
+                                           selected_indices.data(),
+                                           info.out_shape,
+                                           selected_scores.data(),
+                                           info.out_shape,
+                                           &valid_outputs,
+                                           info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ngraph::element::f32 : inputs[3]->get_element_type();
 
-    ngraph::runtime::reference::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
+    ngraph::reference::nms_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 
@@ -842,29 +842,29 @@ bool evaluate(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression>& op,
     std::vector<float> selected_scores(info.out_shape_size);
     int64_t valid_outputs = 0;
 
-    ngraph::runtime::reference::non_max_suppression5(info.boxes_data.data(),
-                                                     info.boxes_shape,
-                                                     info.scores_data.data(),
-                                                     info.scores_shape,
-                                                     info.max_output_boxes_per_class,
-                                                     info.iou_threshold,
-                                                     info.score_threshold,
-                                                     info.soft_nms_sigma,
-                                                     selected_indices.data(),
-                                                     info.out_shape,
-                                                     selected_scores.data(),
-                                                     info.out_shape,
-                                                     &valid_outputs,
-                                                     info.sort_result_descending);
+    ngraph::reference::non_max_suppression5(info.boxes_data.data(),
+                                            info.boxes_shape,
+                                            info.scores_data.data(),
+                                            info.scores_shape,
+                                            info.max_output_boxes_per_class,
+                                            info.iou_threshold,
+                                            info.score_threshold,
+                                            info.soft_nms_sigma,
+                                            selected_indices.data(),
+                                            info.out_shape,
+                                            selected_scores.data(),
+                                            info.out_shape,
+                                            &valid_outputs,
+                                            info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? ngraph::element::f32 : outputs[1]->get_element_type();
 
-    ngraph::runtime::reference::nms_postprocessing(outputs,
-                                                   info.output_type,
-                                                   selected_indices,
-                                                   selected_scores,
-                                                   valid_outputs,
-                                                   selected_scores_type);
+    ngraph::reference::nms_postprocessing(outputs,
+                                          info.output_type,
+                                          selected_indices,
+                                          selected_scores,
+                                          valid_outputs,
+                                          selected_scores_type);
     return true;
 }
 

@@ -36,7 +36,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet&
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
     OPENVINO_SUPPRESS_DEPRECATED_END
-    runtime::reference::mean(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
+    reference::mean(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
     return true;
 }
 

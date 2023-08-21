@@ -154,13 +154,13 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         cldnn::mem_lock<T_size> outputs_ptr(output, get_test_stream());
 
         auto outputs_ref = std::vector<float>(params.input_size.count());
-        ngraph::runtime::reference::scatterNdUpdate<float, float>(input_data.data(),
-                                                                  indices_data.data(),
-                                                                  updates_data.data(),
-                                                                  outputs_ref.data(),
-                                                                  ov::Shape(input_vec.begin(), input_vec.end()),
-                                                                  ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                                  ov::Shape(updates_vec.begin(), updates_vec.end()));
+        ngraph::reference::scatterNdUpdate<float, float>(input_data.data(),
+                                                         indices_data.data(),
+                                                         updates_data.data(),
+                                                         outputs_ref.data(),
+                                                         ov::Shape(input_vec.begin(), input_vec.end()),
+                                                         ov::Shape(indices_vec.begin(), indices_vec.end()),
+                                                         ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
             ASSERT_EQ(outputs_ref[i], half_to_float(outputs_ptr[i]));
@@ -224,13 +224,13 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
         cldnn::mem_lock<T> outputs_ptr(output, get_test_stream());
 
         auto outputs_ref = std::vector<T>(params.input_size.count());
-        ngraph::runtime::reference::scatterNdUpdate<T, T>(input_data.data(),
-                                                          indices_data.data(),
-                                                          updates_data.data(),
-                                                          outputs_ref.data(),
-                                                          ov::Shape(input_vec.begin(), input_vec.end()),
-                                                          ov::Shape(indices_vec.begin(), indices_vec.end()),
-                                                          ov::Shape(updates_vec.begin(), updates_vec.end()));
+        ngraph::reference::scatterNdUpdate<T, T>(input_data.data(),
+                                                 indices_data.data(),
+                                                 updates_data.data(),
+                                                 outputs_ref.data(),
+                                                 ov::Shape(input_vec.begin(), input_vec.end()),
+                                                 ov::Shape(indices_vec.begin(), indices_vec.end()),
+                                                 ov::Shape(updates_vec.begin(), updates_vec.end()));
 
         for (size_t i = 0; i < outputs_ref.size(); ++i) {
             ASSERT_EQ(outputs_ref[i], outputs_ptr[i]);
@@ -4486,13 +4486,13 @@ TEST(scatter_nd_update_gpu, dynamic_5d) {
                                ov::Shape updates_shape) -> std::vector<float> {
         size_t count = std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         auto outputs_ref = std::vector<float>(count);
-        ngraph::runtime::reference::scatterNdUpdate<float, int32_t>(input.data(),
-                                                                    indices.data(),
-                                                                    updates.data(),
-                                                                    outputs_ref.data(),
-                                                                    input_shape,
-                                                                    indices_shape,
-                                                                    updates_shape);
+        ngraph::reference::scatterNdUpdate<float, int32_t>(input.data(),
+                                                           indices.data(),
+                                                           updates.data(),
+                                                           outputs_ref.data(),
+                                                           input_shape,
+                                                           indices_shape,
+                                                           updates_shape);
 
         return outputs_ref;
     };

@@ -96,7 +96,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
             if (size == 0)
                 return false;
             auto num_out_of_range =
-                ngraph::runtime::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
+                ngraph::reference::count_out_of_f16_range(const_node->get_data_ptr<ov::element::f32>(), size);
 
             // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
             const float keep_threshold = 0.75f;
@@ -113,7 +113,7 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed)
                 auto* dst_data =
                     const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(compressed_const->get_data_ptr()));
                 OPENVINO_ASSERT(dst_data);
-                ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+                ngraph::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
                 new_const = compressed_const;
             }
         } else if (c_type == ov::element::f64) {

@@ -71,7 +71,7 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     outputs[0]->set_element_type(inputs[0]->get_element_type());
     outputs[0]->set_shape(data_shape);
 
-    ngraph::runtime::reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
+    ngraph::reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
 
     return true;
 }

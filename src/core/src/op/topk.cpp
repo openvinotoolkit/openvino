@@ -42,15 +42,15 @@ inline bool evaluate_execute(const HostTensorPtr& arg0,
     out_values->set_shape(out_shape);
     out_values->set_element_type(arg0->get_element_type());
 
-    runtime::reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
-                                   out_indices->get_data_ptr<INDEX_ET>(),
-                                   out_values->get_data_ptr<INPUT_ET>(),
-                                   in_shape,
-                                   out_shape,
-                                   axis,
-                                   k,
-                                   compute_max,
-                                   sort);
+    reference::topk<T, U>(arg0->get_data_ptr<INPUT_ET>(),
+                          out_indices->get_data_ptr<INDEX_ET>(),
+                          out_values->get_data_ptr<INPUT_ET>(),
+                          in_shape,
+                          out_shape,
+                          axis,
+                          k,
+                          compute_max,
+                          sort);
     return true;
 }
 

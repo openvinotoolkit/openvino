@@ -81,12 +81,9 @@ inline bool evaluate(const HostTensorPtr& arg0,
                      const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
     if (arg1 != nullptr) {
-        runtime::reference::swish<T>(arg0->get_data_ptr<ET>(),
-                                     arg1->get_data_ptr<ET>(),
-                                     out->get_data_ptr<ET>(),
-                                     count);
+        reference::swish<T>(arg0->get_data_ptr<ET>(), arg1->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     } else {
-        runtime::reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
+        reference::swish<T>(arg0->get_data_ptr<ET>(), nullptr, out->get_data_ptr<ET>(), count);
     }
     return true;
 }

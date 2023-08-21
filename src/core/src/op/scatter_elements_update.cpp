@@ -108,15 +108,15 @@ bool evaluate(const HostTensorPtr& data,
 
     out->set_shape(data->get_shape());
 
-    ngraph::runtime::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
-                                                                           indices->get_data_ptr<IT>(),
-                                                                           updates->get_data_ptr<DT>(),
-                                                                           normalized_axis,
-                                                                           out->get_data_ptr<DT>(),
-                                                                           data->get_shape(),
-                                                                           indices->get_shape(),
-                                                                           reduction_type,
-                                                                           use_init_value);
+    ngraph::reference::scatter_elem_update<DataType, IndicesType>(data->get_data_ptr<DT>(),
+                                                                  indices->get_data_ptr<IT>(),
+                                                                  updates->get_data_ptr<DT>(),
+                                                                  normalized_axis,
+                                                                  out->get_data_ptr<DT>(),
+                                                                  data->get_shape(),
+                                                                  indices->get_shape(),
+                                                                  reduction_type,
+                                                                  use_init_value);
 
     return true;
 }

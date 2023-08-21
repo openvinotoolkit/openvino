@@ -907,7 +907,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
+    ngraph::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
 
     return new_constant;
 }
@@ -927,7 +927,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     if (dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
-    ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+    ngraph::reference::convert<src_type, dst_type>(src_data, dst_data, size);
 
     return new_constant;
 }

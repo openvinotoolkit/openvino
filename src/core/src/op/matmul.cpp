@@ -51,14 +51,14 @@ bool evaluate(const op::MatMul* op, const HostTensorPtr& arg0, const HostTensorP
     output->set_element_type(arg0->get_element_type());
     output->set_shape(output_shape);
 
-    runtime::reference::matmul<T>(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  output->get_data_ptr<ET>(),
-                                  arg0_shape,
-                                  arg1_shape,
-                                  output_shape,
-                                  op->get_transpose_a(),
-                                  op->get_transpose_b());
+    reference::matmul<T>(arg0->get_data_ptr<ET>(),
+                         arg1->get_data_ptr<ET>(),
+                         output->get_data_ptr<ET>(),
+                         arg0_shape,
+                         arg1_shape,
+                         output_shape,
+                         op->get_transpose_a(),
+                         op->get_transpose_b());
     return true;
 }
 

@@ -170,7 +170,7 @@ bool evaluate(const HostTensorPtr& out,
     }
     ov::Shape out_shape = ov::Shape({static_cast<size_t>(out_size)});
     out->set_shape(out_shape);
-    runtime::reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
+    reference::range(&start_val, &step_val, shape_size(out_shape), out->get_data_ptr<ET>());
     return true;
 }
 

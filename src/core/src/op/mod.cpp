@@ -30,12 +30,7 @@ bool evaluate(const ov::Tensor& arg0,
               const ov::Tensor& arg1,
               const ov::Tensor& out,
               const op::AutoBroadcastSpec& broadcast_spec) {
-    runtime::reference::mod(arg0.data<T>(),
-                            arg1.data<T>(),
-                            out.data<T>(),
-                            arg0.get_shape(),
-                            arg1.get_shape(),
-                            broadcast_spec);
+    reference::mod(arg0.data<T>(), arg1.data<T>(), out.data<T>(), arg0.get_shape(), arg1.get_shape(), broadcast_spec);
     return true;
 }
 

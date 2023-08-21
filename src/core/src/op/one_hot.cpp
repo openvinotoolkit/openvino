@@ -80,14 +80,14 @@ bool evaluate(const HostTensorVector& output_values, const HostTensorVector& inp
     const auto& on_value = input_values[2];
     const auto& off_value = input_values[3];
     const auto& out = output_values[0];
-    runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
-                                            indices->get_shape(),
-                                            out->get_data_ptr<char>(),
-                                            out->get_element_type().size(),
-                                            out->get_shape()[axis],
-                                            axis,
-                                            on_value->get_data_ptr<char>(),
-                                            off_value->get_data_ptr<char>());
+    reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
+                                   indices->get_shape(),
+                                   out->get_data_ptr<char>(),
+                                   out->get_element_type().size(),
+                                   out->get_shape()[axis],
+                                   axis,
+                                   on_value->get_data_ptr<char>(),
+                                   off_value->get_data_ptr<char>());
     return true;
 }
 bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {

@@ -11,14 +11,14 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::LRN>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::lrn<T>(inputs[0]->get_data_ptr<ET>(),
-                                       op->get_reduction_axes(),
-                                       outputs[0]->get_data_ptr<ET>(),
-                                       inputs[0]->get_shape(),
-                                       op->get_alpha(),
-                                       op->get_beta(),
-                                       op->get_bias(),
-                                       op->get_nsize());
+    ngraph::reference::lrn<T>(inputs[0]->get_data_ptr<ET>(),
+                              op->get_reduction_axes(),
+                              outputs[0]->get_data_ptr<ET>(),
+                              inputs[0]->get_shape(),
+                              op->get_alpha(),
+                              op->get_beta(),
+                              op->get_bias(),
+                              op->get_nsize());
     return true;
 }
 

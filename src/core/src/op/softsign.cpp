@@ -15,7 +15,7 @@ namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ov::Tensor& arg, const ov::Tensor& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
+    ngraph::reference::softsign<T>(arg.data<T>(), out.data<T>(), count);
     return true;
 }
 

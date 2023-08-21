@@ -181,14 +181,14 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     outputs[0]->set_shape(output_shapes.front().to_shape());
     outputs[0]->set_element_type(inputs[0]->get_element_type());
 
-    ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-                                      inputs[0]->get_shape(),
-                                      outputs[0]->get_data_ptr<char>(),
-                                      outputs[0]->get_shape(),
-                                      inputs[0]->get_element_type().size(),
-                                      starts,
-                                      steps,
-                                      axes);
+    ngraph::reference::slice(inputs[0]->get_data_ptr<char>(),
+                             inputs[0]->get_shape(),
+                             outputs[0]->get_data_ptr<char>(),
+                             outputs[0]->get_shape(),
+                             inputs[0]->get_element_type().size(),
+                             starts,
+                             steps,
+                             axes);
     return true;
 }
 OPENVINO_SUPPRESS_DEPRECATED_END

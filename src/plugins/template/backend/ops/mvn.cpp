@@ -11,12 +11,12 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::MVN>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::mvn<T>(inputs[0]->get_data_ptr<ET>(),
-                                       outputs[0]->get_data_ptr<ET>(),
-                                       inputs[0]->get_shape(),
-                                       op->get_normalize_variance(),
-                                       op->get_reduction_axes(),
-                                       op->get_eps());
+    ngraph::reference::mvn<T>(inputs[0]->get_data_ptr<ET>(),
+                              outputs[0]->get_data_ptr<ET>(),
+                              inputs[0]->get_shape(),
+                              op->get_normalize_variance(),
+                              op->get_reduction_axes(),
+                              op->get_eps());
     return true;
 }
 
@@ -54,13 +54,13 @@ bool evaluate(const std::shared_ptr<ngraph::op::v6::MVN>& op,
     } else {
         OPENVINO_THROW("Unexpected indices type");
     }
-    ngraph::runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
-                                         outputs[0]->get_data_ptr<ET>(),
-                                         inputs[0]->get_shape(),
-                                         reduction_axes,
-                                         op->get_normalize_variance(),
-                                         op->get_eps(),
-                                         op->get_eps_mode());
+    ngraph::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
+                                outputs[0]->get_data_ptr<ET>(),
+                                inputs[0]->get_shape(),
+                                reduction_axes,
+                                op->get_normalize_variance(),
+                                op->get_eps(),
+                                op->get_eps_mode());
     return true;
 }
 

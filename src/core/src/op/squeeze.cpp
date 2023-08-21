@@ -76,9 +76,9 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensor
         auto out_shape = output_shapes[0].get_shape();
         outputs[0]->set_shape(out_shape);
 
-        ngraph::runtime::reference::copy(inputs[0]->get_data_ptr<char>(),
-                                         outputs[0]->get_data_ptr<char>(),
-                                         shape_size(out_shape) * outputs[0]->get_element_type().size());
+        ngraph::reference::copy(inputs[0]->get_data_ptr<char>(),
+                                outputs[0]->get_data_ptr<char>(),
+                                shape_size(out_shape) * outputs[0]->get_element_type().size());
 
         return true;
     }

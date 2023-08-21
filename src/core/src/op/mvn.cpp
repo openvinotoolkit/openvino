@@ -141,19 +141,19 @@ bool evaluate(ov::TensorVector& outputs,
     AxisSet reduction_axes;
     auto rank = inputs[0].get_shape().size();
     if (inputs[1].get_element_type() == element::i64) {
-        reduction_axes = runtime::reference::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
+        reduction_axes = reference::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
     } else if (inputs[1].get_element_type() == element::i32) {
-        reduction_axes = runtime::reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
+        reduction_axes = reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
     } else {
         OPENVINO_THROW("Unexpected indices type");
     }
-    runtime::reference::mvn_6<T>(inputs[0].data<T>(),
-                                 outputs[0].data<T>(),
-                                 inputs[0].get_shape(),
-                                 reduction_axes,
-                                 normalize_variance,
-                                 eps,
-                                 eps_mode);
+    reference::mvn_6<T>(inputs[0].data<T>(),
+                        outputs[0].data<T>(),
+                        inputs[0].get_shape(),
+                        reduction_axes,
+                        normalize_variance,
+                        eps,
+                        eps_mode);
     return true;
 }
 

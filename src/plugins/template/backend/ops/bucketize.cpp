@@ -15,12 +15,12 @@ inline void evaluate(const std::shared_ptr<ngraph::op::v3::Bucketize>& op,
     using T2 = typename ngraph::element_type_traits<t2>::value_type;
     using T3 = typename ngraph::element_type_traits<t3>::value_type;
 
-    ngraph::runtime::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
-                                                      inputs[1]->get_data_ptr<T2>(),
-                                                      outputs[0]->get_data_ptr<T3>(),
-                                                      op->get_input_shape(0),
-                                                      op->get_input_shape(1),
-                                                      op->get_with_right_bound());
+    ngraph::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
+                                             inputs[1]->get_data_ptr<T2>(),
+                                             outputs[0]->get_data_ptr<T3>(),
+                                             op->get_input_shape(0),
+                                             op->get_input_shape(1),
+                                             op->get_with_right_bound());
 }
 
 static inline constexpr uint16_t getElementMask(ngraph::element::Type_t type1, ngraph::element::Type_t type2) {

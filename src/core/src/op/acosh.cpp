@@ -27,7 +27,7 @@ namespace acoshop {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out) {
-    ngraph::runtime::reference::acosh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
+    ngraph::reference::acosh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
     return true;
 }
 

@@ -16,7 +16,7 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData
     const auto in_shape = inputs[0]->get_shape();
     const auto filter_shape = inputs[1]->get_shape();
     const auto out_shape = outputs[0]->get_shape();
-    ngraph::runtime::reference::group_convolution_backprop_data<typename ngraph::element_type_traits<ET>::value_type>(
+    ngraph::reference::group_convolution_backprop_data<typename ngraph::element_type_traits<ET>::value_type>(
         in_data_ptr,
         filter_data_ptr,
         out_data_ptr,
