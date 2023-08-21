@@ -57,7 +57,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::
                                                   const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Parameter there must be inited model!");
-    auto expr = std::make_shared<IOExpression>(IOExpression(par, model->get_parameter_index(par)));
+    auto expr = std::shared_ptr<IOExpression>(new IOExpression(IOExpression(par, model->get_parameter_index(par))));
     create_expression_outputs(expr);
     expr->validate();
     return expr;
@@ -67,7 +67,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::
                                                   const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Result there must be inited model!");
-    auto expr = std::make_shared<IOExpression>(IOExpression(res, model->get_result_index(res)));
+    auto expr = std::shared_ptr<IOExpression>(new IOExpression(res, model->get_result_index(res)));
     create_expression_inputs(linear_ir, expr);
     // The Result node don't need output port (because of sense of the node). But each node in ngraph must have one output at least.
     // The port descriptors are automatically created in constructor. We manually clean output ports.
@@ -80,7 +80,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
                                                   const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(!ov::is_type<op::LoopBase>(n), "Default expression builder doesn't support LoopBegin and LoopEnd");
     // Note: ctor of shared_ptr isn't friend class for Expression
-    auto expr = std::make_shared<Expression>(Expression(n));
+    auto expr = std::shared_ptr<Expression>(new Expression(n));
     create_expression_inputs(linear_ir, expr);
     create_expression_outputs(expr);
     expr->validate();
@@ -97,7 +97,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::Loop
 }
 
 ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<op::LoopEnd>& n, const std::vector<PortConnectorPtr>& inputs) {
-    auto expr = std::make_shared<Expression>(Expression(n));
+    auto expr = std::shared_ptr<Expression>(new Expression(n));
     expr->m_input_port_descriptors.resize(inputs.size(), nullptr);
     for (size_t i = 0; i < inputs.size() - 1; ++i) {
         expr->m_input_port_descriptors[i] = std::make_shared<PortDescriptor>();
@@ -117,7 +117,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::Node
     OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(n) &&
                     !ov::is_type<ov::op::v0::Result>(n),
                     "Expression builder with inputs doesn't support Result and Parameter");
-    auto expr = std::make_shared<Expression>(Expression(n));
+    auto expr = std::shared_ptr<Expression>(new Expression(n));
     init_expression_inputs(expr, inputs);
     create_expression_outputs(expr);
     expr->validate();
