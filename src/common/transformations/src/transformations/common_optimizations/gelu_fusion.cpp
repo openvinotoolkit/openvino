@@ -9,8 +9,8 @@
 #include <math.h>
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
@@ -28,18 +28,18 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ngraph::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ngraph::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     // (0.5 * x) * (1 + erf(x / sqrt(2))
-    auto mul_first = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_constant});
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({mul_first, add});
+    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_constant});
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_first, add});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -66,7 +66,7 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
         auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {
                 pattern_to_output.at(div).get_node_shared_ptr(),
                 pattern_to_output.at(erf).get_node_shared_ptr(),
@@ -75,11 +75,11 @@ ov::pass::GeluFusionWithErfOne::GeluFusionWithErfOne() {
                 pattern_to_output.at(mul).get_node_shared_ptr(),
             },
             gelu);
-        ngraph::replace_node(m.get_match_root(), gelu);
+        ov::replace_node(m.get_match_root(), gelu);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -88,18 +88,18 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ngraph::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ngraph::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     // 0.5 * (x * (1 + erf(x / sqrt(2)))
-    auto mul_first = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, add});
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({mul_constant, mul_first});
+    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, add});
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({mul_constant, mul_first});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -126,7 +126,7 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
         auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {
                 pattern_to_output.at(div).get_node_shared_ptr(),
                 pattern_to_output.at(erf).get_node_shared_ptr(),
@@ -135,11 +135,11 @@ ov::pass::GeluFusionWithErfTwo::GeluFusionWithErfTwo() {
                 pattern_to_output.at(mul).get_node_shared_ptr(),
             },
             gelu);
-        ngraph::replace_node(m.get_match_root(), gelu);
+        ov::replace_node(m.get_match_root(), gelu);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -148,18 +148,18 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
     // Replaces a sub-graph with a Gelu op
     // Shared by every pattern: (1 + erf(x / sqrt(2)))
     auto input = pass::pattern::any_input();
-    auto div_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto div = ngraph::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
-    auto erf = ngraph::pattern::wrap_type<ov::op::v0::Erf>({div});
-    auto add_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add = ngraph::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
-    auto mul_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({input, div_constant});
+    auto erf = ov::pass::pattern::wrap_type<ov::op::v0::Erf>({div});
+    auto add_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({add_constant, erf});
+    auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 
     // x * (0.5 * (1 + erf(x / sqrt(2)))
-    auto mul_first = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({add, mul_constant});
-    auto mul = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_first});
+    auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add, mul_constant});
+    auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_first});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -186,7 +186,7 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
         auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {
                 pattern_to_output.at(div).get_node_shared_ptr(),
                 pattern_to_output.at(erf).get_node_shared_ptr(),
@@ -195,11 +195,11 @@ ov::pass::GeluFusionWithErfThree::GeluFusionWithErfThree() {
                 pattern_to_output.at(mul).get_node_shared_ptr(),
             },
             gelu);
-        ngraph::replace_node(m.get_match_root(), gelu);
+        ov::replace_node(m.get_match_root(), gelu);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }
 
@@ -261,28 +261,28 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
     // x * (0.5 * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]))
 
     auto input = pass::pattern::any_input();
-    auto pow_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto pow = ngraph::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
+    auto pow_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto pow = ov::pass::pattern::wrap_type<ov::op::v1::Power>({input, pow_constant});
 
-    auto mul_0_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_0 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({pow, mul_0_constant});
+    auto mul_0_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_0 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({pow, mul_0_constant});
 
-    auto add_0 = ngraph::pattern::wrap_type<ov::op::v1::Add>({input, mul_0});
+    auto add_0 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({input, mul_0});
 
-    auto mul_1_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_1 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_1_constant});
+    auto mul_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_1 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_0, mul_1_constant});
 
-    auto tanh = ngraph::pattern::wrap_type<ov::op::v0::Tanh>({mul_1});
+    auto tanh = ov::pass::pattern::wrap_type<ov::op::v0::Tanh>({mul_1});
 
-    auto add_1_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto add_1 = ngraph::pattern::wrap_type<ov::op::v1::Add>({tanh, add_1_constant});
+    auto add_1_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto add_1 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({tanh, add_1_constant});
 
-    auto mul_2_constant = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto mul_2 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_constant});
+    auto mul_2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_1, mul_2_constant});
 
-    auto mul_3 = ngraph::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2});
+    auto mul_3 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, mul_2});
 
-    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -317,7 +317,7 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
         auto gelu = std::make_shared<ov::op::v7::Gelu>(x_output, op::GeluApproximationMode::TANH);
 
         gelu->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(
+        ov::copy_runtime_info(
             {
                 pattern_to_output.at(pow).get_node_shared_ptr(),
                 pattern_to_output.at(mul_0).get_node_shared_ptr(),
@@ -329,10 +329,10 @@ ov::pass::GeluFusionWithTanh::GeluFusionWithTanh() {
                 pattern_to_output.at(add_1).get_node_shared_ptr(),
             },
             gelu);
-        ngraph::replace_node(m.get_match_root(), gelu);
+        ov::replace_node(m.get_match_root(), gelu);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_3, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_3, matcher_name);
     register_matcher(m, callback);
 }

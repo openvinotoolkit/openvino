@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <set>
 #include <tuple>

@@ -5,8 +5,8 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -38,7 +38,7 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
             }
         }
 
-        // vector of new nGraph operations
+        // vector of new openvino operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;

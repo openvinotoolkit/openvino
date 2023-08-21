@@ -5,8 +5,8 @@
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -103,6 +103,6 @@ ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(shuffle_channels, matcher_name);
     register_matcher(m, callback);
 }

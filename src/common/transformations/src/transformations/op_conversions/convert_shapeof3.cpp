@@ -5,8 +5,8 @@
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -24,7 +24,7 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
         }
 
         Output<Node> last;
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         auto new_shapeof = std::make_shared<ov::op::v0::ShapeOf>(shapeof->input_value(0));
         new_ops.push_back(new_shapeof);
@@ -37,11 +37,11 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
         }
 
         last.get_node_shared_ptr()->set_friendly_name(shapeof->get_friendly_name());
-        ngraph::copy_runtime_info(shapeof, new_ops);
-        ngraph::replace_node(shapeof, last.get_node_shared_ptr());
+        ov::copy_runtime_info(shapeof, new_ops);
+        ov::replace_node(shapeof, last.get_node_shared_ptr());
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(shapeof, matcher_name);
     register_matcher(m, callback);
 }

@@ -5,8 +5,8 @@
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 #include <array>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 #include "openvino/op/broadcast.hpp"

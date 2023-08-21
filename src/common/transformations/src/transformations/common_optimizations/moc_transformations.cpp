@@ -3,8 +3,8 @@
 //
 
 #include <memory>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/adaptive_pool_to_reduce.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
@@ -86,11 +86,11 @@
 #include "itt.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 
-bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
-    // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
-    // transformations we restore original shapes to the nGraph Function back
-    std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
+    // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
+    // transformations we restore original shapes to the ov::Model back
+    std::unordered_map<ov::op::v0::Parameter*, PartialShape> input_shapes;
     if (!m_use_shapes) {
         for (auto&& param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
@@ -101,11 +101,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
 
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
-    using namespace ngraph::pass;
+    using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
-            element::TypeVector{ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4});
+            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
@@ -251,7 +251,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     manager.run_passes(f);
 
     if (!m_use_shapes) {
-        // Restore original shapes to the nGraph Function
+        // Restore original shapes to the ov::Model
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
         }

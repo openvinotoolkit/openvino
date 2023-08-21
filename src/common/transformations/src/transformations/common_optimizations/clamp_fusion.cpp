@@ -5,9 +5,9 @@
 #include "transformations/common_optimizations/clamp_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -20,15 +20,15 @@
 ov::pass::ClampFusion::ClampFusion() {
     MATCHER_SCOPE(ClampFusion);
     auto data_pattern = pass::pattern::any_input();
-    auto min_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto max_const_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto max_pattern1 =
-        ngraph::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, min_const_pattern}, pattern::consumers_count(1));
-    auto min_pattern1 = ngraph::pattern::wrap_type<ov::op::v1::Minimum>({max_pattern1, max_const_pattern});
-    auto min_pattern2 = ngraph::pattern::wrap_type<ov::op::v1::Minimum>({data_pattern, max_const_pattern});
-    auto max_pattern2 =
-        ngraph::pattern::wrap_type<ov::op::v1::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
-    auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{min_pattern1, max_pattern2});
+    auto min_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto max_const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto max_pattern1 = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, min_const_pattern},
+                                                                          pattern::consumers_count(1));
+    auto min_pattern1 = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>({max_pattern1, max_const_pattern});
+    auto min_pattern2 = ov::pass::pattern::wrap_type<ov::op::v1::Minimum>({data_pattern, max_const_pattern});
+    auto max_pattern2 = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({min_pattern2, min_const_pattern},
+                                                                          pattern::consumers_count(1));
+    auto root = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{min_pattern1, max_pattern2});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -71,6 +71,6 @@ ov::pass::ClampFusion::ClampFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }

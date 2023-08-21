@@ -3,7 +3,7 @@
 //
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/common_optimizations/disable_shapeof_constant_folding.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
@@ -20,6 +20,6 @@ ov::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shape_of, "DisableShapeOfConstantFolding");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(shape_of, "DisableShapeOfConstantFolding");
     this->register_matcher(m, callback);
 }

@@ -5,8 +5,8 @@
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -20,8 +20,8 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
     auto data_pattern = pass::pattern::any_input();
     auto alpha_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto multiply_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
-    auto max_pattern = ngraph::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
+    auto max_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Maximum>({data_pattern, multiply_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -41,6 +41,6 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(max_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(max_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

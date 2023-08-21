@@ -4,7 +4,7 @@
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>

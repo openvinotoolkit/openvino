@@ -5,10 +5,10 @@
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/op/util/pad_base.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"

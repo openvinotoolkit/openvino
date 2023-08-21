@@ -5,8 +5,8 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 
 #include <memory>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
@@ -114,10 +114,9 @@
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
-    ngraph::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    using namespace ngraph::pass;
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
 
@@ -138,7 +137,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
-    common_fusions->set_name("ngraph::pass::CommonFusions");
+    common_fusions->set_name("ov::pass::CommonFusions");
 
     manager.register_pass<ConcatReduceFusion>();
     REGISTER_DISABLED_PASS(manager, ConvertPadToGroupConvolution)
@@ -175,7 +174,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
     ADD_MATCHER(decomp, EyeDecomposition)
     ADD_MATCHER(decomp, UniqueDecomposition)
-    decomp->set_name("ngraph::pass::CommonDecompositions");
+    decomp->set_name("ov::pass::CommonDecompositions");
 
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
@@ -194,7 +193,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
-    multiply_fusions->set_name("ngraph::pass::MultiplyFusions");
+    multiply_fusions->set_name("ov::pass::MultiplyFusions");
 
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, ConvertGather8ToGather7)  // not plugins implemented gather8
@@ -226,7 +225,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
-    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+    fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent

@@ -5,7 +5,7 @@
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"

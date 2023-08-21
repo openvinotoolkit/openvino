@@ -4,9 +4,9 @@
 
 #include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/op/scatter_elements_update.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 

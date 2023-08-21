@@ -5,7 +5,7 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -108,10 +108,10 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
 
     for (const auto& parameter : f->get_parameters()) {
         auto raw_parameter = parameter.get();
-        std::vector<ngraph::Node*> layout_independent_results;
+        std::vector<ov::Node*> layout_independent_results;
 
-        std::deque<ngraph::Node*> nodes{raw_parameter};
-        std::unordered_set<ngraph::Node*> visited;
+        std::deque<ov::Node*> nodes{raw_parameter};
+        std::unordered_set<ov::Node*> visited;
 
         while (!nodes.empty()) {
             auto curr_node = nodes.front();
@@ -240,7 +240,7 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
         if (ov::is_type<ov::op::v0::DetectionOutput>(do_node) || ov::is_type<ov::op::v8::DetectionOutput>(do_node)) {
             for (auto& new_result_src : do_node->input_values()) {
                 auto new_result = std::make_shared<ov::op::v0::Result>(new_result_src);
-                ngraph::copy_runtime_info(result_node, new_result);
+                ov::copy_runtime_info(result_node, new_result);
                 new_outputs.push_back(new_result);
             }
             outputs_to_delete.push_back(result_node);

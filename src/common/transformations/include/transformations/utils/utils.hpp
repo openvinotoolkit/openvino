@@ -61,9 +61,9 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
 
 inline std::string create_ie_output_name(const Output<const Node>& output) {
     std::string out_name;
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
     if (!tensor_name.empty()) {
         out_name = std::move(tensor_name);
     } else {

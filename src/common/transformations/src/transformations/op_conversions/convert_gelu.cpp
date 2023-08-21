@@ -3,9 +3,8 @@
 //
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 
 #include "itt.hpp"
@@ -38,11 +37,11 @@ ov::pass::ConvertGELU::ConvertGELU() {
         auto res = std::make_shared<ov::op::v1::Multiply>(mul, add);
 
         res->set_friendly_name(gelu->get_friendly_name());
-        ngraph::copy_runtime_info(gelu, {mul, sq2, div, erf, add, res});
-        ngraph::replace_node(gelu, res);
+        ov::copy_runtime_info(gelu, {mul, sq2, div, erf, add, res});
+        ov::replace_node(gelu, res);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gelu, matcher_name);
     register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

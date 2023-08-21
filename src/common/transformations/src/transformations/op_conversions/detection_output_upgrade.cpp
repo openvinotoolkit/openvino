@@ -4,9 +4,8 @@
 
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 
-#include <ngraph/op/util/detection_output_base.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 #include "openvino/op/detection_output.hpp"
@@ -63,8 +62,8 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
             return false;
 
         detection_output_v8_node->set_friendly_name(detection_output_v1_node->get_friendly_name());
-        ngraph::copy_runtime_info(detection_output_v1_node, detection_output_v8_node);
-        ngraph::replace_node(detection_output_v1_node, detection_output_v8_node);
+        ov::copy_runtime_info(detection_output_v1_node, detection_output_v8_node);
+        ov::replace_node(detection_output_v1_node, detection_output_v8_node);
         return true;
     };
 

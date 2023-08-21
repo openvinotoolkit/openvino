@@ -5,13 +5,13 @@
 #include "transformations/common_optimizations/ric_fusion.hpp"
 
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/op/util/binary_elementwise_arithmetic.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/core/validation_util.hpp>
+#include <openvino/op/util/binary_elementwise_arithmetic.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <openvino/util/log.hpp>
 #include <utility>
 #include <vector>
 

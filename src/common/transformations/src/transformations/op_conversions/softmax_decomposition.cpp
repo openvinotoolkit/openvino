@@ -3,9 +3,9 @@
 //
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/core/rt_info.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <vector>
 
@@ -21,7 +21,7 @@
 ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
     auto softmax = pattern::wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>();
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto m_softmax = m.get_match_root();
         Output<Node> input;
         int64_t softmax_axis;
@@ -40,7 +40,7 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
         }
 
-        auto axis = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {softmax_axis});
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {softmax_axis});
         auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(input, axis, true);
         auto sub = std::make_shared<ov::op::v1::Subtract>(input, reduce_max);
         auto exp = std::make_shared<ov::op::v0::Exp>(sub);
@@ -53,6 +53,6 @@ ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(softmax, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(softmax, matcher_name);
     register_matcher(m, callback);
 }
