@@ -16,6 +16,7 @@ class TestKerasConv2DTranspose(CommonTF2LayerTest):
             "relu": tf.nn.relu,
             "sigmoid": tf.nn.sigmoid
         }
+        conv_params = conv_params.copy()
         if "activation" in conv_params:
             conv_params["activation"] = activation_func_structure[conv_params["activation"]]
 

@@ -16,6 +16,7 @@ class TestKerasConv1D(CommonTF2LayerTest):
             "softmax": tf.nn.softmax,
             "swish": tf.nn.swish
         }
+        conv_params = conv_params.copy()
         if "activation" in conv_params:
             conv_params["activation"] = activation_func_structure[conv_params["activation"]]
 
