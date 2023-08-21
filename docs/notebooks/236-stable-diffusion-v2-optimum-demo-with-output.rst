@@ -1,6 +1,19 @@
 Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 ==================================================
 
+.. _top:
+
+|image0|
+
+**Table of contents**:
+
+- `Showing Info Available Devices <#showing-info-available-devices>`__
+- `Download Pre-Converted Stable Diffusion 2.1 IR <#download-pre-converted-stable-diffusion-2.1-ir>`__
+- `Save the pre-trained models, Select the inference device and compile it <#save-the-pre-trained-models-select-the-inference-device-and-compile-it>`__
+- `Be creative, add the prompt and enjoy the result <#be-creative-add-the-prompt-and-enjoy-the-result>`__
+
+.. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
+
 Optimum Intel is the interface between the Transformers and Diffusers
 libraries and the different tools and libraries provided by Intel to
 accelerate end-to-end pipelines on Intel architectures. More details in
@@ -29,19 +42,20 @@ Autoencoder with Decoder and Encoder models.
    image
 
 The base model used for this example is the
-“`stabilityai/stable-diffusion-2-1-base <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
+`stabilityai/stable-diffusion-2-1-base <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
 This model was converted to OpenVINO format, for accelerated inference
 on CPU or Intel GPU with OpenVINO’s integration into Optimum:
-optimum-intel. The model weights are stored with FP16 precision, which
-reduces the size of the model by half. You can find the model used in
-this notebook
-is”\ `helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__".
+``optimum-intel``. The model weights are stored with FP16 precision,
+which reduces the size of the model by half. You can find the model used
+in this notebook is
+`helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
 (IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
 
-Showing Info Available Devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Showing Info Available Devices `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -71,12 +85,14 @@ this
 
 .. parsed-literal::
 
-    CPU: Intel(R) Core(TM) i9-10980XE CPU @ 3.00GHz
-    GPU: NVIDIA GeForce GTX 1080 Ti (dGPU)
+    CPU: 13th Gen Intel(R) Core(TM) i9-13900K
+    GPU.0: Intel(R) UHD Graphics 770 (iGPU)
+    GPU.1: Intel(R) Arc(TM) A770 Graphics (dGPU)
 
 
-Download Pre-Converted Stable Diffusion 2.1 IR
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download Pre-Converted Stable Diffusion 2.1 IR `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -166,8 +182,9 @@ Download Pre-Converted Stable Diffusion 2.1 IR
 
 
 
-Save the pre-trained models, Select the inference device and compile it
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Save the pre-trained models, Select the inference device and compile it. `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 You can save the model locally in order to avoid downloading process
 later. The model will also saved in the cache.
@@ -186,8 +203,9 @@ later. The model will also saved in the cache.
     Compiling the unet...
 
 
-Be creative, add the prompt and enjoy the result
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Be creative, add the prompt and enjoy the result `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
