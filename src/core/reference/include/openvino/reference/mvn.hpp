@@ -7,13 +7,14 @@
 #include <cstddef>
 #include <ngraph/op/mvn.hpp>
 #include <ngraph/shape.hpp>
-#include <openvino/reference/add.hpp>
-#include <openvino/reference/divide.hpp>
-#include <openvino/reference/mean.hpp>
-#include <openvino/reference/multiply.hpp>
-#include <openvino/reference/sqrt.hpp>
-#include <openvino/reference/subtract.hpp>
-#include <openvino/reference/sum.hpp>
+
+#include "openvino/reference/add.hpp"
+#include "openvino/reference/divide.hpp"
+#include "openvino/reference/mean.hpp"
+#include "openvino/reference/multiply.hpp"
+#include "openvino/reference/sqrt.hpp"
+#include "openvino/reference/subtract.hpp"
+#include "openvino/reference/sum.hpp"
 
 namespace ngraph {
 namespace runtime {

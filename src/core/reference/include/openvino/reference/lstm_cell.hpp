@@ -5,15 +5,16 @@
 #pragma once
 
 #include <cmath>
-#include <openvino/reference/add.hpp>
-#include <openvino/reference/clamp.hpp>
-#include <openvino/reference/matmul.hpp>
-#include <openvino/reference/multiply.hpp>
-#include <openvino/reference/relu.hpp>
-#include <openvino/reference/sigmoid.hpp>
-#include <openvino/reference/split.hpp>
-#include <openvino/reference/subtract.hpp>
-#include <openvino/reference/tanh.hpp>
+
+#include "openvino/reference/add.hpp"
+#include "openvino/reference/clamp.hpp"
+#include "openvino/reference/matmul.hpp"
+#include "openvino/reference/multiply.hpp"
+#include "openvino/reference/relu.hpp"
+#include "openvino/reference/sigmoid.hpp"
+#include "openvino/reference/split.hpp"
+#include "openvino/reference/subtract.hpp"
+#include "openvino/reference/tanh.hpp"
 
 namespace ngraph {
 namespace runtime {

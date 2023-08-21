@@ -5,12 +5,12 @@
 #pragma once
 
 #include <cmath>
-#include <openvino/reference/concat.hpp>
-#include <openvino/reference/gru_cell.hpp>
-#include <openvino/reference/lstm_cell.hpp>
-#include <openvino/reference/rnn_cell.hpp>
-#include <openvino/reference/split.hpp>
 
+#include "openvino/reference/concat.hpp"
+#include "openvino/reference/gru_cell.hpp"
+#include "openvino/reference/lstm_cell.hpp"
+#include "openvino/reference/rnn_cell.hpp"
+#include "openvino/reference/split.hpp"
 #include "reverse_sequence.hpp"
 
 namespace ngraph {

@@ -8,11 +8,11 @@
 #include <cmath>
 #include <complex>
 #include <functional>
-#include <openvino/reference/utils/fft_common.hpp>
 #include <vector>
 
 #include "ngraph/shape.hpp"
 #include "openvino/reference/fft.hpp"
+#include "openvino/reference/utils/fft_common.hpp"
 
 using namespace ngraph;
 using namespace ngraph::runtime::reference;
