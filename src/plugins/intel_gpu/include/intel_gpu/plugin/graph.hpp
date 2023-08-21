@@ -25,7 +25,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_blob.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -96,7 +96,7 @@ public:
 
 protected:
     RemoteContextImpl::Ptr m_context;
-    std::shared_ptr<Program> m_program;
+    std::shared_ptr<ProgramBuilder> m_program;
     std::string m_networkName;
     ExecutionConfig m_config;
     uint16_t m_stream_id;

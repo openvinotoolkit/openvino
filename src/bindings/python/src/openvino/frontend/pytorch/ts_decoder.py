@@ -77,7 +77,7 @@ class TorchScriptPythonDecoder (Decoder):
         preserved_attributes = []
         for name, module in model.named_modules():
             if hasattr(module, "weight"):
-                if module.weight.dtype in [torch.int8, torch.uint8]:
+                if module.weight is not None and module.weight.dtype in [torch.int8, torch.uint8]:
                     preserved_attributes.append(name)
         return preserved_attributes
 
@@ -176,7 +176,7 @@ class TorchScriptPythonDecoder (Decoder):
                     first_input = next(n.inputs())
                     if first_input.node().kind() == "prim::Constant":
                         ivalue = first_input.toIValue()
-                        if ivalue is not None and ivalue.dtype in [torch.bfloat16, torch.float16]:
+                        if isinstance(ivalue, torch.Tensor) and ivalue.dtype in [torch.bfloat16, torch.float16]:
                             # do not freeze models with compressed constants
                             skip_freeze = True
                             break
@@ -273,6 +273,9 @@ class TorchScriptPythonDecoder (Decoder):
             decoder = TorchScriptPythonDecoder(self.pt_module, node, alias_db=self.alias_db, shared_memory=self._shared_memory)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
+
+    def decoder_type_name(self) -> str:
+        return "ts"
 
     def get_subgraphs(self) -> list:
         if self.graph_element.kind() == "prim::PythonOp":
