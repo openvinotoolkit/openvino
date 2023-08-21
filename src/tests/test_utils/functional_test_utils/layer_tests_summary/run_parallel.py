@@ -90,6 +90,13 @@ def get_device_by_args(args: list):
             break
     return device
 
+def get_suite_filter(test_filter: str, suite_filter : str) :
+    filters = test_filter.split('*')
+    for filter in filters :
+        if (filter and suite_filter.find(filter) == -1) :
+            suite_filter += f'*{filter}'
+    return suite_filter
+
 # Class to read test cache
 class TestStructure:
     _name = ""
@@ -251,6 +258,8 @@ class TestParallelRunner:
                 is_input_folder = True
                 command += f" --input_folders="
                 argument = argument[argument.find("=")+1:]
+            elif "--gtest_filter" in argument :
+                self._gtest_filter = argument[argument.find("=")+1:]
             if is_input_folder and argument[0] != "-":
                 buf = ""
                 for _ in argument.split(','):
@@ -384,7 +393,11 @@ class TestParallelRunner:
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_pattern, test_time in tests_sorted :
             test_pattern = f'{self.__replace_restricted_symbols(test_pattern)}'
-            test_pattern += ":" if self._split_unit == "test" else "*:"
+            if (self._split_unit == "test") :
+                test_pattern += ":"
+            else :
+                # fix the suite filters to execute the right amount of the tests
+                test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*:"
 
             if (test_time == -1) :
                 tasks_crashed.append({test_time, test_pattern})
@@ -403,8 +416,8 @@ class TestParallelRunner:
 
         test_filters = tasks_full + tasks + tasks_crashed
         test_filters.sort(reverse=True)
-        # convert to list
-        test_filters = [task[1] for task in test_filters]
+        # convert to list and exlude empty jobs
+        test_filters = [task[1] for task in test_filters if task[1]]
         return test_filters
 
     def __get_filters(self):
