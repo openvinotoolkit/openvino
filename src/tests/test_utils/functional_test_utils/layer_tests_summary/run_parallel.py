@@ -313,9 +313,9 @@ class TestParallelRunner:
                         if constants.DISABLED_PREFIX in test_suite:
                             self._disabled_tests.append(test_suite)
                     continue
-                pos = test_name.find('#')
+                pos = test_name.find(' # ')
                 if pos > 0 or test_suite != "" :
-                    real_test_name = test_suite + "." + (test_name[2:pos-2] if pos > 0 else test_name[2:])
+                    real_test_name = test_suite + "." + (test_name[2:pos-1] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     elif (test_unit == "test") :
