@@ -17,11 +17,6 @@
 #include "resize_algorithm.hpp"
 #include "async_infer.hpp"
 
-Napi::String Method(const Napi::CallbackInfo& info) {
-    ov::Version version = ov::get_openvino_version();
-    std::string str;
-    return Napi::String::New(info.Env(), str.assign(version.buildNumber));
-}
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
@@ -41,7 +36,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
     exports.DefineProperty(preprocess);
 
-    exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));
     exports.Set(Napi::String::New(env, "asyncInfer"), Napi::Function::New(env, asyncInfer));
 
     return exports;
