@@ -18,7 +18,7 @@ corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class. 
 
-Table of content: 
+**Table of contents**: 
 
 - `Imports <#imports>`__ 
 - `Download model weights <#download-model-weights>`__ 

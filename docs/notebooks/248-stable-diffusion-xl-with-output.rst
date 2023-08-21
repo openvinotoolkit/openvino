@@ -67,18 +67,21 @@ The tutorial consists of the following steps:
    **Note**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
-Table of content:
+**Table of contents**:
 
 - `Install Prerequisites <#install-prerequisites>`__
 - `SDXL Base model <#sdxl-base-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Run Text2Image generation pipeline <#run-text2image-generation-pipeline>`__
-- `Text2image Generation Interactive Demo <#text2image-generation-interactive-demo>`__
-- `Run Image2Image generation pipeline <#run-image2image-generation-pipeline>`__
-- `Image2Image Generation Interactive Demo <#image2image-generation-interactive-demo>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Run Text2Image generation pipeline <#run-text2image-generation-pipeline>`__
+  - `Text2image Generation Interactive Demo <#text2image-generation-interactive-demo>`__
+  - `Run Image2Image generation pipeline <#run-image2image-generation-pipeline>`__
+  - `Image2Image Generation Interactive Demo <#image2image-generation-interactive-demo>`__
+
 - `SDXL Refiner model <#sdxl-refiner-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Run Text2Image generation with Refinement <#run-text2image-generation-with-refinement>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Run Text2Image generation with Refinement <#run-text2image-generation-with-refinement>`__
 
 Install prerequisites\ `⇑ <#top>`__
 ###############################################################################################################################

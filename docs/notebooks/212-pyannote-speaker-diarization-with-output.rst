@@ -39,7 +39,7 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 `repo <https://github.com/pyannote/pyannote-audio>`__ and
 `paper <https://arxiv.org/abs/1911.01255>`__.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Prepare pipeline <#prepare-pipeline>`__

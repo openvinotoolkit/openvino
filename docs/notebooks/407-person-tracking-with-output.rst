@@ -95,21 +95,26 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-Table of content:
+**Table of contents**:
 
-- `Imports <#1>`__
-- `Download the Model <#2>`__
-- `Load model <#3>`__
-- `Select inference device <#4>`__
-- `Data Processing <#5>`__
-- `Test person reidentification model <#6>`__
-- `Visualize data <#7>`__
-- `Compare two persons <#8>`__
-- `Main Processing Function <#9>`__
-- `Run <#10>`__
-- `Initialize tracker <#11>`__
-- `Run Live Person Tracking <#12>`__
-- `Run Person Tracking on a Video File <#13>`__
+- `Imports <#imports>`__
+- `Download the Model <#download-the-model>`__
+- `Load model <#load-model>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Data Processing <#data-processing>`__
+- `Test person reidentification model <#test-person-reidentification-model>`__
+
+  - `Visualize data <#visualize-data>`__
+  - `Compare two persons <#compare-two-persons>`__
+
+- `Main Processing Function <#main-processing-function>`__
+- `Run <#run>`__
+
+  - `Initialize tracker <#initialize-tracker>`__
+  - `Run Live Person Tracking <#run-live-person-tracking>`__
+  - `Run Person Tracking on a Video File <#run-person-tracking-on-a-video-file>`__
 
 .. code:: ipython3
 

@@ -24,14 +24,15 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Prepare the Model <#prepare-the-model>`__
 - `Data Processing Module <#data-processing-module>`__
 - `Visualize the original 3D data <#visualize-the-original-3d-data>`__
 - `Run inference <#run-inference>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

@@ -28,22 +28,27 @@ been using JupyterLab to run the demo as suggested in the
 recommended browser on one of the following operating systems:* *Ubuntu,
 Windows: Chrome* *macOS: Safari*
 
-Table of content:
+**Table of contents**:
 
-- `Prerequisites <#1>`__
-- `Imports <#2>`__
-- `The model <#3>`__
-- `Download the model <#4>`__
-- `Convert Model to OpenVINO IR format <#5>`__
-- `Select inference device <#6>`__
-- `Load the model <#7>`__
-- `Processing <#8>`__
-- `Model Inference <#9>`__
-- `Draw 2D Pose Overlays <#10>`__
-- `Main Processing Function <#11>`__
-- `Run <#12>`__
-- `Run Live Pose Estimation <#13>`__
-- `Run Pose Estimation on a Video File <#14>`__
+- `Prerequisites <#prerequisites>`__
+- `Imports <#imports>`__
+- `The model <#the-model>`__
+
+  - `Download the model <#download-the-model>`__
+  - `Convert Model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Load the model <#load-the-model>`__
+
+- `Processing <#processing>`__
+
+  - `Model Inference <#model-inference>`__
+  - `Draw 2D Pose Overlays <#draw-2d-pose-overlays>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run Live Pose Estimation <#run-live-pose-estimation>`__
+  - `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

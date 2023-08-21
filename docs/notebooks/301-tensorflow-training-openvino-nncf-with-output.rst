@@ -11,12 +11,16 @@ A custom dataloader and metric will be defined, and accuracy and
 performance will be computed for the original IR model and the quantized
 model.
 
-Table of content:
+**Table of contents**:
 
 - `Preparation <#preparation>`__
-- `Imports <#imports>`__
+
+  - `Imports <#imports>`__
+
 - `Post-training Quantization with NNCF <#post-training-quantization-with-nncf>`__
-- `Select inference device <#post-training-quantization-with-nncf>`__
+
+  - `Select inference device <#post-training-quantization-with-nncf>`__
+
 - `Compare Metrics <#post-training-quantization-with-nncf>`__
 - `Run Inference on Quantized Model <#run-inference-on-quantized-model>`__
 - `Compare Inference Speed <#compare-inference-speed>`__

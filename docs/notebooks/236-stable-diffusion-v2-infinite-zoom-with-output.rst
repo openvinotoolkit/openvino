@@ -74,18 +74,21 @@ Notebook contains the following steps:
 3. Run Stable Diffusion v2 inpainting pipeline for generation infinity
    zoom video
 
-Table of content:
+**Table of contents**:
 
 - `Stable Diffusion v2 Infinite Zoom Showcase <#stable-diffusion-v2-infinite-zoom-showcase>`__
-- `Stable Diffusion Text guided Inpainting <#stable-diffusion-text-guided-inpainting>`__
+
+  - `Stable Diffusion Text guided Inpainting <#stable-diffusion-text-guided-inpainting>`__
+
 - `Prerequisites <#prerequisites>`__
-- `Stable Diffusion in Diffusers library <#stable-diffusion-in-diffusers-library>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
-- `Zoom Video Generation <#zoom-video-generation>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
-- `Select inference device <#select-inference-device>`__
-- `Run Infinite Zoom video generation <#run-infinite-zoom-video-generation>`__
+
+  - `Stable Diffusion in Diffusers library <#stable-diffusion-in-diffusers-library>`__
+  - `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+  - `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+  - `Zoom Video Generation <#zoom-video-generation>`__
+  - `Configure Inference Pipeline <#configure-inference-pipeline>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Run Infinite Zoom video generation <#run-infinite-zoom-video-generation>`__
 
 Stable Diffusion v2 Infinite Zoom Showcase `⇑ <#top>`__
 ###############################################################################################################################

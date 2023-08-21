@@ -37,20 +37,23 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-Table of content:
+**Table of contents**:
 
-- `Imports <#1>`__
-- `The models <#2>`__
-- `Download the models <#3>`__
-- `Load your labels <#4>`__
-- `Load the models <#5>`__
-- `Model Initialization function <#6>`__
-- `Initialization for Encoder and Decoder <#7>`__
-- `Helper functions <#8>`__
-- `AI Functions <#9>`__
-- `Main Processing Function <#10>`__
-- `Run Action Recognition on a Video File <#11>`__
-- `Run Action Recognition Using a Webcam <#12>`__
+- `Imports <#imports>`__
+- `The models <#the-models>`__
+
+  - `Download the models <#download-the-models>`__
+  - `Load your labels <#load-your-labels>`__
+  - `Load the models <#load-the-models>`__
+
+    - `Model Initialization function <#model-initialization-function>`__
+    - `Initialization for Encoder and Decoder <#initialization-for-encoder-and-decoder>`__
+
+  - `Helper functions <#helper-functions>`__
+  - `AI Functions <#ai-functions>`__
+  - `Main Processing Function <#main-processing-function>`__
+  - `Run Action Recognition on a Video File <#run-action-recognition-on-a-video-file>`__
+  - `Run Action Recognition Using a Webcam <#run-action-recognition-using-a-webcam>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

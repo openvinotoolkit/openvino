@@ -28,17 +28,21 @@ and original `repo <https://github.com/facebookresearch/encodec>`__.
 
    image.png
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Instantiate audio compression pipeline <#instantiate-audio-compression-pipeline>`__
 - `Explore EnCodec pipeline <#explore-encodec-pipeline>`__
-- `Preprocessing <#preprocessing>`__
-- `Encoding <#encoding>`__
-- `Decompression <#decompression>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Encoding <#encoding>`__
+  - `Decompression <#decompression>`__
+
 - `Convert model to OpenVINO Intermediate Representation format <#convert-model-to-openvino-intermediate-representation-format>`__
 - `Integrate OpenVINO to EnCodec pipeline <#integrate-openvino-to-encodec-pipeline>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Run EnCodec with OpenVINO <#run-encodec-with-openvino>`__
 
 Prerequisites `⇑ <#top>`__

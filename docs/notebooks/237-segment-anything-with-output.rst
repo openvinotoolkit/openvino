@@ -3,7 +3,7 @@ Object masks from prompts with SAM and OpenVINO
 
 .. _top:
 
-Table of content:
+**Table of contents**:
 
 - `Background <#background>`__
 - `Prerequisites <#prerequisites>`__

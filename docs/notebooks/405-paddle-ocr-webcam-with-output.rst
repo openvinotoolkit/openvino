@@ -24,19 +24,23 @@ the PaddleOCR is as follows:
    server, the webcam will not work. You can still do inference on a
    video file.
 
-Table of content:
+**Table of contents**:
 
-- `Imports <#1>`__
-- `Select inference device <#2>`__
-- `Models for PaddleOCR <#3>`__
-- `Download the Model for Text Detection <#4>`__
-- `Load the Model for Text Detection <#5>`__
-- `Download the Model for Text Recognition <#6>`__
-- `Load the Model for Text Recognition with Dynamic Shape <#7>`__
-- `Preprocessing Image Functions for Text Detection and Recognition <#8>`__
-- `Postprocessing Image for Text Detection <#9>`__
-- `Main Processing Function for PaddleOCR <#10>`__
-- `Run Live PaddleOCR with OpenVINO <#11>`__
+- `Imports <#imports>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Models for PaddleOCR <#models-for-paddleocr>`__
+
+    - `Download the Model for Text Detection <#download-the-model-for-text-detection>`__
+    - `Load the Model for Text Detection <#load-the-model-for-text-detection>`__
+    - `Download the Model for Text Recognition <#download-the-model-for-text-recognition>`__
+    - `Load the Model for Text Recognition with Dynamic Shape <#load-the-model-for-text-recognition-with-dynamic-shape>`__
+
+  - `Preprocessing Image Functions for Text Detection and Recognition <#preprocessing-image-functions-for-text-detection-and-recognition>`__
+  - `Postprocessing Image for Text Detection <#postprocessing-image-for-text-detection>`__
+  - `Main Processing Function for PaddleOCR <#main-processing-function-for-paddleocr>`__
+
+- `Run Live PaddleOCR with OpenVINO <#run-live-paddleocr-with-openvino>`__
 
 .. code:: ipython3
 

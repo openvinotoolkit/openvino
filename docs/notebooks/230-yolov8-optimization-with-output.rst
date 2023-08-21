@@ -39,43 +39,54 @@ The tutorial consists of the following steps:
 -  Compare performance of the FP32 and quantized models.
 -  Compare accuracy of the FP32 and quantized models.
 
-Table of content:
+**Table of contents**:
 
 - `Get Pytorch model <#get-pytorch-model>`__
 - `Prerequisites <#prerequisites>`__
 - `Instantiate model <#instantiate-model>`__
-- `Object detection <#object-detection>`__
-- `Instance Segmentation: <#instance-segmentation>`__
-- `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
-- `Verify model inference <#verify-model-inference>`__
-- `Preprocessing <#preprocessing>`__
-- `Postprocessing <#postprocessing>`__
-- `Select inference device <#select-inference-device>`__
-- `Test on single image <#test-on-single-image>`__
-- `Check model accuracy on the dataset <#check-model-accuracy-on-the-dataset>`__
-- `Download the validation dataset <#download-the-validation-dataset>`__
-- `Define validation function <#define-validation-function>`__
-- `Configure Validator helper and create DataLoader <#configure-validator-helper-and-create-dataloader>`__
-- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
-- `Validate Quantized model inference <#validate-quantized-model-inference>`__
-- `Object detection: <#object-detection>`__
-- `Instance segmentation: <#instance-segmentation>`__
-- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
-- `Compare performance object detection models <#compare-performance-object-detection-models>`__
-- `Instance segmentation <#instance-segmentation>`__
-- `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__
-- `Object detection <#object-detection>`__
-- `Instance segmentation <#instance-segmentation>`__
+
+  - `Object detection <#object-detection>`__
+  - `Instance Segmentation: <#instance-segmentation>`__
+  - `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+  - `Verify model inference <#verify-model-inference>`__
+  - `Preprocessing <#preprocessing>`__
+  - `Postprocessing <#postprocessing>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Test on single image <#test-on-single-image>`__
+  - `Check model accuracy on the dataset <#check-model-accuracy-on-the-dataset>`__
+
+    - `Download the validation dataset <#download-the-validation-dataset>`__
+    - `Define validation function <#define-validation-function>`__
+    - `Configure Validator helper and create DataLoader <#configure-validator-helper-and-create-dataloader>`__
+
+  - `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+  - `Validate Quantized model inference <#validate-quantized-model-inference>`__
+
+    - `Object detection: <#object-detection>`__
+    - `Instance segmentation: <#instance-segmentation>`__
+
+  - `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+
+    - `Compare performance object detection models <#compare-performance-object-detection-models>`__
+    - `Instance segmentation <#instance-segmentation>`__
+
+  - `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__
+  - `Object detection <#object-detection>`__
+  - `Instance segmentation <#instance-segmentation>`__
+
 - `Next steps <#next-steps>`__
 - `Async inference pipeline <#async-inference-pipeline>`__
 - `Integration preprocessing to model <#integration-preprocessing-to-model>`__
-- `Initialize PrePostProcessing API <#initialize-prepostprocessing-api>`__
-- `Define input data format <#define-input-data-format>`__
-- `Describe preprocessing steps <#describe-preprocessing-steps>`__
-- `Integrating Steps into a Model <#integrating-steps-into-a-model>`__
+
+  - `Initialize PrePostProcessing API <#initialize-prepostprocessing-api>`__
+  - `Define input data format <#define-input-data-format>`__
+  - `Describe preprocessing steps <#describe-preprocessing-steps>`__
+  - `Integrating Steps into a Model <#integrating-steps-into-a-model>`__
+
 - `Live demo <#live-demo>`__
 - `Run <#run>`__
-- `Run Live Object Detection and Segmentation <#run-live-object-detection-and-segmentation>`__
+
+  - `Run Live Object Detection and Segmentation <#run-live-object-detection-and-segmentation>`__
 
 Get Pytorch model `⇑ <#top>`__
 ###############################################################################################################################

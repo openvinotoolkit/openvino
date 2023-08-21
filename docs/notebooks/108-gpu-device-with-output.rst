@@ -3,36 +3,47 @@ Working with GPUs in OpenVINO™
 
 .. _top:
 
-Table of content: 
+**Table of contents**:
 
-- `Introduction <#introduction>`__ 
-- `Install required packages <#install-required-packages>`__ 
-- `Checking GPUs with Query Device <#checking-gpus-with-query-device>`__ 
-- `List GPUs with core.available_devices <#list-gpus-with-core.available_devices>`__ 
-- `Check Properties with core.get_property <#check-properties-with-core.get_property>`__ 
-- `Brief Descriptions of Key Properties <#brief-descriptions-of-key-properties>`__ 
-- `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__ 
-- `Download and Convert a Model <#download-and-convert-a-model>`__ 
-- `Download and unpack the Model <#download-and-unpack-the-model>`__ 
-- `Convert the Model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__ 
-- `Compile with Default Configuration <#compile-with-default-configuration>`__ 
-- `Reduce Compile Time through Model Caching <#reduce-compile-time-through-model-caching>`__ 
-- `Throughput and Latency Performance Hints <#throughput-and-latency-performance-hints>`__ 
-- `Using Multiple GPUs with Multi-Device and Cumulative Throughput <#using-multiple-gpus-with-multi-device-and-cumulative-throughput>`__ 
-- `Performance Comparison with benchmark_app <#performance-comparison-with-benchmark_app>`__ 
-- `CPU vs GPU with Latency Hint <#cpu-vs-gpu-with-latency-hint>`__ 
-- `CPU vs GPU with Throughput Hint <#cpu-vs-gpu-with-throughput-hint>`__ 
-- `Single GPU vs Multiple GPUs <#single-gpu-vs-multiple-gpus>`__ 
-- `Basic Application Using GPUs <#basic-application-using-gpus>`__ 
-- `Import Necessary Packages <#import-necessary-packages>`__ 
-- `Compile the Model <#compile-the-model>`__ 
-- `Load and Preprocess Video Frames <#load-and-preprocess-video-frames>`__ 
-- `Define Model Output Classes <#define-model-output-classes>`__
-- `Set up Asynchronous Pipeline <#set-up-asynchronous-pipeline>`__ 
-- `Callback Definition <#callback-definition>`__
-- `Create Async Pipeline <#create-async-pipeline>`__ 
-- `Perform Inference <#perform-inference>`__ 
-- `Process Results <#process-results>`__ 
+- `Introduction <#introduction>`__
+
+  - `Install required packages <#install-required-packages>`__
+
+- `Checking GPUs with Query Device <#checking-gpus-with-query-device>`__
+
+  - `List GPUs with core.available_devices <#list-gpus-with-core.available_devices>`__
+  - `Check Properties with core.get_property <#check-properties-with-core.get_property>`__
+  - `Brief Descriptions of Key Properties <#brief-descriptions-of-key-properties>`__
+
+- `Compiling a Model on GPU <#compiling-a-model-on-gpu>`__
+
+  - `Download and Convert a Model <#download-and-convert-a-model>`__
+
+    - `Download and unpack the Model <#download-and-unpack-the-model>`__
+    - `Convert the Model to OpenVINO IR format <#convert-the-model-to-openvino-ir-format>`__
+
+  - `Compile with Default Configuration <#compile-with-default-configuration>`__
+  - `Reduce Compile Time through Model Caching <#reduce-compile-time-through-model-caching>`__
+  - `Throughput and Latency Performance Hints <#throughput-and-latency-performance-hints>`__
+  - `Using Multiple GPUs with Multi-Device and Cumulative Throughput <#using-multiple-gpus-with-multi-device-and-cumulative-throughput>`__
+
+- `Performance Comparison with benchmark_app <#performance-comparison-with-benchmark_app>`__
+- `CPU vs GPU with Latency Hint <#cpu-vs-gpu-with-latency-hint>`__
+- `CPU vs GPU with Throughput Hint <#cpu-vs-gpu-with-throughput-hint>`__
+- `Single GPU vs Multiple GPUs <#single-gpu-vs-multiple-gpus>`__
+- `Basic Application Using GPUs <#basic-application-using-gpus>`__
+
+  - `Import Necessary Packages <#import-necessary-packages>`__
+  - `Compile the Model <#compile-the-model>`__
+  - `Load and Preprocess Video Frames <#load-and-preprocess-video-frames>`__
+  - `Define Model Output Classes <#define-model-output-classes>`__
+  - `Set up Asynchronous Pipeline <#set-up-asynchronous-pipeline>`__
+
+    - `Callback Definition <#callback-definition>`__
+    - `Create Async Pipeline <#create-async-pipeline>`__
+
+  - `Perform Inference <#perform-inference>`__
+  - `Process Results <#process-results>`__
 - `Conclusion <#conclusion>`__
 
 This tutorial provides a high-level overview of working with Intel GPUs

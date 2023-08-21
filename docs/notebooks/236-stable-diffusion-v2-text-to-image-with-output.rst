@@ -78,18 +78,19 @@ implementation. If you would like to get started and run the notebook
 quickly, check out `236-stable-diffusion-v2-text-to-image-demo
 notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image-demo.ipynb>`__.
 
-Table of content: 
+**Table of contents**: 
 
 - `Prerequisites <#prerequisites>`__
 - `Stable Diffusion v2 for Text-to-Image Generation <#stable-diffusion-v2-for-text-to-image-generation>`__
-- `Stable Diffusion in Diffusers library <#stable-diffusion-in-diffusers-library>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `Text Encoder <#text-encoder>`__
-- `U-Net <#u-net>`__
-- `VAE <#vae>`__
-- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
-- `Configure Inference Pipeline <#configure-inference-pipeline>`__
-- `Run Text-to-Image generation <#run-text-to-image-generation>`__
+
+  - `Stable Diffusion in Diffusers library <#stable-diffusion-in-diffusers-library>`__
+  - `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+  - `Text Encoder <#text-encoder>`__
+  - `U-Net <#u-net>`__
+  - `VAE <#vae>`__
+  - `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+  - `Configure Inference Pipeline <#configure-inference-pipeline>`__
+  - `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

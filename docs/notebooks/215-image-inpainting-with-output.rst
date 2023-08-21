@@ -11,7 +11,7 @@ given a tampered image, is able to create something very similar to the
 original image. The Following pipeline will be used in this notebook.
 |pipeline|
 
-Table of content:
+**Table of contents**:
 
 - `Download the Model <#download-the-model>`__
 - `Convert Tensorflow model to OpenVINO IR format <#convert-tensorflow-model-to-openvino-ir-format>`__

@@ -51,11 +51,13 @@ The attention center model has been trained with images from the `COCO
 dataset <https://cocodataset.org/#home>`__ annotated with saliency from
 the `SALICON dataset <http://salicon.net/>`__.
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Download the attention-center model <#download-the-attention-center-model>`__
-- `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+
+  - `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+
 - `Select inference device <#select-inference-device>`__
 - `Prepare image to use with attention-center model <#prepare-image-to-use-with-attention-center-model>`__
 - `Load input image <#load-input-image>`__

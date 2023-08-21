@@ -21,11 +21,13 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Imports <#imports>`__
-- `Download, quantize and sparsify the model, using Hugging Face Optimum API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+
+  - `Download, quantize and sparsify the model, using Hugging Face Optimum API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+
 - `Benchmark quantized dense inference performance <#benchmark-quantized-dense-inference-performance>`__
 - `Benchmark quantized sparse inference performance <#benchmark-quantized-sparse-inference-performance>`__
 - `When this might be helpful <#when-this-might-be-helpful>`__

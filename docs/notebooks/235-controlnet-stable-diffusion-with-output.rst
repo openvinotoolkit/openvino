@@ -141,19 +141,25 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Instantiating Generation Pipeline <#instantiating-generation-pipeline>`__
-- `ControlNet in Diffusers library <#controlnet-in-diffusers-library>`__
-- `OpenPose <#openpose>`__
+
+  - `ControlNet in Diffusers library <#controlnet-in-diffusers-library>`__
+  - `OpenPose <#openpose>`__
+
 - `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `OpenPose conversion <#openpose-conversion>`__
+
+  - `OpenPose conversion <#openpose-conversion>`__
+
 - `Select inference device <#select-inference-device>`__
-- `ControlNet conversion <#controlnet-conversion>`__
-- `UNet conversion <#unet-conversion>`__
-- `Text Encoder <#text-encoder>`__
-- `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+  - `ControlNet conversion <#controlnet-conversion>`__
+  - `UNet conversion <#unet-conversion>`__
+  - `Text Encoder <#text-encoder>`__
+  - `VAE Decoder conversion <#vae-decoder-conversion>`__
+
 - `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 - `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
 - `Select inference device <#select-inference-device>`__

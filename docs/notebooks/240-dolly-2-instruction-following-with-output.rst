@@ -82,17 +82,21 @@ post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-v
 and `repo <https://github.com/databrickslabs/dolly>`__
 
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Download and Convert Model <#download-and-convert-model>`__
 - `Create an instruction-following inference pipeline <#create-an-instruction-following-inference-pipeline>`__
-- `Setup imports <#setup-imports>`__
-- `Prepare template for user prompt <#prepare-template-for-user-prompt>`__
-- `Helpers for output parsing <#helpers-for-output-parsing>`__
-- `Main generation function <#main-generation-function>`__
-- `Helpers for application <#helpers-for-application>`__
+
+  - `Setup imports <#setup-imports>`__
+  - `Prepare template for user prompt <#prepare-template-for-user-prompt>`__
+  - `Helpers for output parsing <#helpers-for-output-parsing>`__
+  - `Main generation function <#main-generation-function>`__
+  - `Helpers for application <#helpers-for-application>`__
+
 - `Run instruction-following pipeline <#run-instruction-following-pipeline>`__
 
 Prerequisites `⇑ <#top>`__

@@ -23,16 +23,16 @@ Imagenette is a subset of 10 easily classified classes from the ImageNet
 dataset. Using the smaller model and dataset will speed up training and
 download time.
 
-Table of content:
+**Table of contents**:
 
-- `Imports and Settings <#1>`__
-- `Dataset Preprocessing <#2>`__
-- `Define a Floating-Point Model <#3>`__
-- `Pre-train a Floating-Point Model <#4>`__
-- `Create and Initialize Quantization <#5>`__
-- `Fine-tune the Compressed Model <#6>`__
-- `Export Models to OpenVINO Intermediate Representation (IR) <#7>`__
-- `Benchmark Model Performance by Computing Inference Time <#8>`__
+- `Imports and Settings <#imports-and-settings>`__
+- `Dataset Preprocessing <#dataset-preprocessing>`__
+- `Define a Floating-Point Model <#define-a-floating-point-model>`__
+- `Pre-train a Floating-Point Model <#pre-train-a-floating-point-model>`__
+- `Create and Initialize Quantization <#create-and-initialize-quantization>`__
+- `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
+- `Export Models to OpenVINO Intermediate Representation (IR) <#export-models-to-openvino-intermediate-representation-ir>`__
+- `Benchmark Model Performance by Computing Inference Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 Imports and Settings `⇑ <#top>`__
 ###############################################################################################################################

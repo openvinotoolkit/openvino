@@ -24,7 +24,7 @@ and datasets. It consists of the following steps:
 -  Compare the performance of the original, converted and quantized
    models.
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
@@ -32,7 +32,9 @@ Table of content:
 - `Prepare the Dataset <#prepare-the-dataset>`__
 - `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
 - `Load and Test OpenVINO Model <#load-and-test-openvino-model>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Compare F1-score of FP32 and INT8 models <#compare-f1-score-of-fp32-and-int8-models>`__
 - `Compare Performance of the Original, Converted and Quantized Models <#compare-performance-of-the-original,-converted-and-quantized-models>`__
 

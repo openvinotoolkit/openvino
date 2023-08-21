@@ -11,20 +11,27 @@ larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook provides live inference results from your inputs. 
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
+
 - `The model <#the-model>`__
-- `Download the model <#download-the-model>`__
-- `Load the model <#load-the-model>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Download the model <#download-the-model>`__
+  - `Load the model <#load-the-model>`__
+
+    - `Select inference device <#select-inference-device>`__
+
 - `Processing <#processing>`__
-- `Preprocessing <#preprocessing>`__
-- `Postprocessing <#postprocessing>`__
-- `Main Processing Function <#main-processing-function>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Postprocessing <#postprocessing>`__
+  - `Main Processing Function <#main-processing-function>`__
+
 - `Run <#run>`__
-- `Run on local paragraphs <#run-on-local-paragraphs>`__
-- `Run on websites <#run-on-websites>`__
+
+  - `Run on local paragraphs <#run-on-local-paragraphs>`__
+  - `Run on websites <#run-on-websites>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

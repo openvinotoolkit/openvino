@@ -76,11 +76,13 @@ The STFT is invertible, so the original audio can be reconstructed from
 a spectrogram. This idea is a behind approach to using Riffusion for
 audio generation.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Stable Diffusion pipeline in Optimum Intel <#stable-diffusion-pipeline-in-optimum-intel>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Prepare postprocessing for reconstruction audio from spectrogram image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
 - `Run Inference pipeline <#run-inference-pipeline>`__
 - `Interactive demo <#interactive-demo>`__

@@ -16,22 +16,31 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
 
    anime
 
-Table of content:
+**Table of contents**:
 
 - `Preparation <#preparation>`__
-- `Install requirements <#install-requirements>`__
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Functions <#functions>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+  - `Settings <#settings>`__
+  - `Functions <#functions>`__
+
 - `Inference on PaddleGAN Model <#inference-on-paddlegan-model>`__
-- `Show Inference Results on PaddleGAN model <#show-inference-results-on-paddlegan-model>`__
+
+  - `Show Inference Results on PaddleGAN model <#show-inference-results-on-paddlegan-model>`__
+
 - `Model Conversion to ONNX and OpenVINO IR <#model-conversion-to-onnx-and-openvino-ir>`__
-- `Convert to ONNX <#convert-to-onnx>`__
-- `Convert to OpenVINO IR <#convert-to-openvino-ir>`__
+
+  - `Convert to ONNX <#convert-to-onnx>`__
+  - `Convert to OpenVINO IR <#convert-to-openvino-ir>`__
+
 - `Show Inference Results on OpenVINO IR and PaddleGAN Models <#show-inference-results-on-openvino-ir-and-paddlegan-models>`__
-- `Create Postprocessing Functions <#create-postprocessing-functions>`__
-- `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Create Postprocessing Functions <#create-postprocessing-functions>`__
+  - `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
+
+    - `Select inference device <#select-inference-device>`__
+
 - `Performance Comparison <#performance-comparison>`__
 - `References <#references>`__
 

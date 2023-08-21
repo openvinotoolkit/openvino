@@ -31,14 +31,16 @@ Notebook contains the following steps:
 3. Run InstructPix2Pix pipeline with OpenVINO.
 
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
 - `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
-- `Text Encoder <#text-encoder>`__
-- `VAE <#vae>`__
-- `Unet <#unet>`__
+
+  - `Text Encoder <#text-encoder>`__
+  - `VAE <#vae>`__
+  - `Unet <#unet>`__
+
 - `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
 
 Prerequisites `⇑ <#top>`__

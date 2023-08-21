@@ -40,7 +40,7 @@ The tutorial consists of the following steps:
 -  Compare accuracy of the FP32 and quantized models.
 -  Compare performance of the FP32 and quantized models.
 
-Table of content:
+**Table of contents**:
 
 - `Get Pytorch model <#get-pytorch-model>`__
 - `Prerequisites <#prerequisites>`__
@@ -48,13 +48,17 @@ Table of content:
 - `Export to ONNX <#export-to-onnx>`__
 - `Convert ONNX Model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
 - `Verify model inference <#verify-model-inference>`__
-- `Preprocessing <#preprocessing>`__
-- `Postprocessing <#postprocessing>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Postprocessing <#postprocessing>`__
+  - `Select inference device <#select-inference-device>`__
+
 - `Verify model accuracy <#verify-model-accuracy>`__
-- `Download dataset <#download-dataset>`__
-- `Create dataloader <#create-dataloader>`__
-- `Define validation function <#define-validation-function>`__
+
+  - `Download dataset <#download-dataset>`__
+  - `Create dataloader <#create-dataloader>`__
+  - `Define validation function <#define-validation-function>`__
+
 - `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
 - `Validate Quantized model inference <#validate-quantized-model-inference>`__
 - `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__

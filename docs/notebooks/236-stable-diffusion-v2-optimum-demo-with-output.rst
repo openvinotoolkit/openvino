@@ -5,7 +5,7 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 
 |image0|
 
-Table of content:
+**Table of contents**:
 
 - `Showing Info Available Devices <#showing-info-available-devices>`__
 - `Download Pre-Converted Stable Diffusion 2.1 IR <#download-pre-converted-stable-diffusion-2.1-ir>`__

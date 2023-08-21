@@ -16,28 +16,36 @@ Resolution,” <https://arxiv.org/abs/1807.06779>`__ 2018 24th
 International Conference on Pattern Recognition (ICPR), 2018,
 pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760. 
 
-Table of content:
+**Table of contents**:
 
 - `Preparation <#preparation>`__
-- `Install requirements <#install-requirements>`__
-- `Imports <#imports>`__
-- `Settings <#settings>`__
-- `Select inference device <#select-inference-device>`__
-- `Functions <#functions>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+  - `Settings <#settings>`__
+
+    - `Select inference device <#select-inference-device>`__
+
+  - `Functions <#functions>`__
+
 - `Load the Superresolution Model <#load-the-superresolution-model>`__
 - `Load and Show the Input Image <#load-and-show-the-input-image>`__
 - `Superresolution on a Crop of the Image <#superresolution-on-a-crop-of-the-image>`__
-- `Crop the Input Image once. <#crop-the-input-image-once>`__
-- `Reshape/Resize Crop for Model Input <#reshape-resize-crop-for-model-input>`__
-- `Do Inference <#do-inference>`__
-- `Show and Save Results <#show-and-save-results>`__
-- `Save Superresolution and Bicubic Image Crop <#save-superresolution-and-bicubic-image-crop>`__
-- `Write Animated GIF with Bicubic/Superresolution Comparison <#write-animated-gif-with-bicubic-superresolution-comparison>`__
-- `Create a Video with Sliding Bicubic/Superresolution Comparison <#create-a-video-with-sliding-bicubic-superresolution-comparison>`__
+
+  - `Crop the Input Image once. <#crop-the-input-image-once>`__
+  - `Reshape/Resize Crop for Model Input <#reshape-resize-crop-for-model-input>`__
+  - `Do Inference <#do-inference>`__
+  - `Show and Save Results <#show-and-save-results>`__
+
+    - `Save Superresolution and Bicubic Image Crop <#save-superresolution-and-bicubic-image-crop>`__
+    - `Write Animated GIF with Bicubic/Superresolution Comparison <#write-animated-gif-with-bicubic-superresolution-comparison>`__
+    - `Create a Video with Sliding Bicubic/Superresolution Comparison <#create-a-video-with-sliding-bicubic-superresolution-comparison>`__
+
 - `Superresolution on full input image <#superresolution-on-full-input-image>`__
-- `Compute patches <#compute-patches>`__
-- `Do Inference <#do-inference>`__
-- `Save superresolution image and the bicubic image <#save-superresolution-image-and-the-bicubic-image>`__
+
+  - `Compute patches <#compute-patches>`__
+  - `Do Inference <#do-inference>`__
+  - `Save superresolution image and the bicubic image <#save-superresolution-image-and-the-bicubic-image>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################

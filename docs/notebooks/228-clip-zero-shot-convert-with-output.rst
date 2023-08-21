@@ -30,13 +30,17 @@ image classification. The notebook contains the following steps:
    conversion API.
 4. Run CLIP with OpenVINO.
 
-Table of content:
+**Table of contents**:
 
 - `Instantiate model <#instantiate-model>`__
 - `Run PyTorch model inference <#run-pytorch-model-inference>`__
-- `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+
+  - `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+
 - `Run OpenVINO model <#run-openvino-model>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Next Steps <#next-steps>`__
 
 Instantiate model `⇑ <#top>`__

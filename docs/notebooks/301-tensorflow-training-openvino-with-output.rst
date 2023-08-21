@@ -3,7 +3,7 @@ From Training to Deployment with TensorFlow and OpenVINO™
 
 .. _top:
 
-Table of content:
+**Table of contents**:
 
 - `TensorFlow Image Classification Training <#tensorflow-image-classification-training>`__
 - `Import TensorFlow and Other Libraries <#import-tensorflow-and-other-libraries>`__

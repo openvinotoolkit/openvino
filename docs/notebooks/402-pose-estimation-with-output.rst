@@ -16,20 +16,25 @@ Additionally, you can also upload a video file.
    work. However, you can still do inference on a video in the final
    step. 
 
-Table of content:
+**Table of contents**:
 
-- `Imports <#1>`__
-- `The model <#2>`__
-- `Download the model <#3>`__
-- `Load the model <#4>`__
-- `Processing <#5>`__
-- `OpenPose Decoder <#6>`__
-- `Process Results <#7>`__
-- `Draw Pose Overlays <#8>`__
-- `Main Processing Function <#9>`__
-- `Run <#10>`__
-- `Run Live Pose Estimation <#11>`__
-- `Run Pose Estimation on a Video File <#12>`__
+- `Imports <#imports>`__
+- `The model <#the-model>`__
+
+  - `Download the model <#download-the-model>`__
+  - `Load the model <#load-the-model>`__
+
+- `Processing <#processing>`__
+
+  - `OpenPose Decoder <#openpose-decoder>`__
+  - `Process Results <#process-results>`__
+  - `Draw Pose Overlays <#draw-pose-overlays>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run Live Pose Estimation <#run-live-pose-estimation>`__
+  - `Run Pose Estimation on a Video File <#run-pose-estimation-on-a-video-file>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

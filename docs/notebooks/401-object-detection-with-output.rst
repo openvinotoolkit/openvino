@@ -16,22 +16,30 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video. 
 
-Table of content:
+**Table of contents**:
 
-- `Preparation <#1>`__
-- `Install requirements <#2>`__
-- `Imports <#3>`__
-- `The Model <#4>`__
-- `Download the Model <#5>`__
-- `Convert the Model <#6>`__
-- `Load the Model <#7>`__
-- `Processing <#8>`__
-- `Process Results <#9>`__
-- `Main Processing Function <#10>`__
-- `Run <#11>`__
-- `Run Live Object Detection <#12>`__
-- `Run Object Detection on a Video File <#13>`__
-- `References <#14>`__
+- `Preparation <#preparation>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+
+- `The Model <#the-model>`__
+
+  - `Download the Model <#download-the-model>`__
+  - `Convert the Model <#convert-the-model>`__
+  - `Load the Model <#load-the-model>`__
+
+- `Processing <#processing>`__
+
+  - `Process Results <#process-results>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run Live Object Detection <#run-live-object-detection>`__
+  - `Run Object Detection on a Video File <#run-object-detection-on-a-video-file>`__
+
+- `References <#references>`__
 
 Preparation `⇑ <#top>`__
 ###############################################################################################################################

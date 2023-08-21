@@ -21,7 +21,7 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-Table of content:
+**Table of contents**:
 
 - `Import <#import>`__
 - `Prepare the Model and Test Image <#prepare-the-model-and-test-image>`__
@@ -29,11 +29,13 @@ Table of content:
 - `Load the Models <#load-the-models>`__
 - `Data Process <#data-process>`__
 - `Main Function <#main-function>`__
-- `Initialize the model and parameters. <#initialize-the-model-and-parameters>`__
-- `Run meter detection model <#run-meter-detection-model>`__
-- `Run meter segmentation model <#run-meter-segmentation-model>`__
-- `Postprocess the models result and calculate the final readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__
-- `Get the reading result on the meter picture <#get-the-reading-result-on-the-meter-picture>`__
+
+  - `Initialize the model and parameters. <#initialize-the-model-and-parameters>`__
+  - `Run meter detection model <#run-meter-detection-model>`__
+  - `Run meter segmentation model <#run-meter-segmentation-model>`__
+  - `Postprocess the models result and calculate the final readings <#postprocess-the-models-result-and-calculate-the-final-readings>`__
+  - `Get the reading result on the meter picture <#get-the-reading-result-on-the-meter-picture>`__
+
 - `Try it with your meter photos! <#try-it-with-your-meter-photos>`__
 
 Import `⇑ <#top>`__

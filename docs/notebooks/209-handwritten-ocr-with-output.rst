@@ -20,7 +20,7 @@ and
 charlists are used. Both models are available on `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. 
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__

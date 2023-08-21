@@ -23,14 +23,17 @@ The optimization process contains the following steps:
    notebook first to generate OpenVINO IR model that is used for
    quantization.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Create and initialize quantization <#create-and-initialize-quantization>`__
-- `Prepare datasets <#prepare-datasets>`__
+
+  - `Prepare datasets <#prepare-datasets>`__
+
 - `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
-- `Compare File Size <#compare-file-size>`__
-- `Compare inference time of the FP16 IR and quantized models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
+
+  - `Compare File Size <#compare-file-size>`__
+  - `Compare inference time of the FP16 IR and quantized models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

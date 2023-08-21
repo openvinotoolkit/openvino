@@ -31,19 +31,21 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
    **NOTE**: This notebook requires a C++ compiler.
 
-Table of content:
+**Table of contents**:
 
-- `Imports and Settings <#1>`__
-- `Pre-train Floating-Point Model <#2>`__
-- `Train Function <#3>`__
-- `Validate Function <#4>`__
-- `Helpers <#5>`__
-- `Get a Pre-trained FP32 Model <#6>`__
-- `Create and Initialize Quantization <#7>`__
-- `Fine-tune the Compressed Model <#8>`__ 
-- `Export INT8 Model to ONNX <#9>`__ 
-- `Convert ONNX models to OpenVINO Intermediate Representation (IR) <#10>`__
-- `Benchmark Model Performance by Computing Inference Time <#11>`__
+- `Imports and Settings <#imports-and-settings>`__
+- `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
+
+  - `Train Function <#train-function>`__
+  - `Validate Function <#validate-function>`__
+  - `Helpers <#helpers>`__
+  - `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
+
+- `Create and Initialize Quantization <#create-and-initialize-quantization>`__
+- `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__ 
+- `Export INT8 Model to ONNX <#export-int8-model-to-onnx>`__ 
+- `Convert ONNX models to OpenVINO Intermediate Representation (IR) <#convert-onnx-models-to-openvino-intermediate-representation-ir>`__
+- `Benchmark Model Performance by Computing Inference Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 Imports and Settings `⇑ <#top>`__
 ###############################################################################################################################

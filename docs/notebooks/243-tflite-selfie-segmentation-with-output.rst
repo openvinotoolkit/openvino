@@ -36,7 +36,7 @@ The tutorial consists of following steps:
 2. Run inference on the image.
 3. Run interactive background blurring demo on video.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 

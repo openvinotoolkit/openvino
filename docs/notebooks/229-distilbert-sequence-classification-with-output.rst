@@ -9,16 +9,19 @@ identify, extract, quantify, and study affective states and subjective
 information. This notebook demonstrates how to convert and run a
 sequence classification model using OpenVINO.
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Initializing the Model <#initializing-the-model>`__
 - `Initializing the Tokenizer <#initializing-the-tokenizer>`__
 - `Convert Model to OpenVINO Intermediate Representation format <#convert-model-to-openvino-intermediate-representation-format>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Inference <#inference>`__
-- `For a single input sentence <#for single -a- -input-sentence>`__
-- `Read from a text file <#read-from-a-text-file>`__
+
+  - `For a single input sentence <#for single -a- -input-sentence>`__
+  - `Read from a text file <#read-from-a-text-file>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

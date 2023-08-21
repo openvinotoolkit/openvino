@@ -30,14 +30,15 @@ devices. It consists of the following steps:
 -  Convert models to OpenVINO Intermediate Representation.
 -  Inference using only OpenVINO’s IR models.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Imports and settings <#imports-and-settings>`__
 - `Convert Modes to OpenVINO Intermediate Representation <#convert-modes-to-openvino-intermediate-representation>`__
-- `Convert Prior Encoder. <#convert-prior-encoder>`__
-- `Convert SpeakerEncoder <#convert-speakerencoder>`__
-- `Convert Decoder <#convert-decoder>`__
+
+  - `Convert Prior Encoder. <#convert-prior-encoder>`__
+  - `Convert SpeakerEncoder <#convert-speakerencoder>`__
+  - `Convert Decoder <#convert-decoder>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

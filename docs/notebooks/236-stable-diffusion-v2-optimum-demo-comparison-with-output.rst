@@ -5,7 +5,7 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware
 
 |image0|
 
-Table of content:
+**Table of contents**:
 
 - `Showing Info Available Devices <#showing-info-available-devices>`__
 - `Using full precision model in CPU with StableDiffusionPipeline <#using-full-precision-model-in-cpu-with-stablediffusionpipeline>`__

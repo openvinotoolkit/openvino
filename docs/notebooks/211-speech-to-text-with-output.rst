@@ -13,28 +13,33 @@ with Connectionist Temporal Classification (CTC) loss. The model is
 available from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
 - `Download and Convert Public Model <#download-and-convert-public-model>`__
-- `Download Model <#download-model>`__
-- `Convert Model <#convert-model>`__
+
+  - `Download Model <#download-model>`__
+  - `Convert Model <#convert-model>`__
+
 - `Audio Processing <#audio-processing>`__
-- `Define constants <#define-constants>`__
-- `Available Audio Formats <#available-audio-formats>`__
-- `Load Audio File <#load-audio-file>`__
-- `Visualize Audio File <#visualize-audio-file>`__
-- `Change Type of Data <#change-type-of-data>`__
-- `Convert Audio to Mel Spectrum <#convert-audio-to-mel-spectrum>`__
-- `Run Conversion from Audio to Mel Format <#run-conversion-from-audio-to-mel-format>`__
-- `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
-- `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
+
+  - `Define constants <#define-constants>`__
+  - `Available Audio Formats <#available-audio-formats>`__
+  - `Load Audio File <#load-audio-file>`__
+  - `Visualize Audio File <#visualize-audio-file>`__
+  - `Change Type of Data <#change-type-of-data>`__
+  - `Convert Audio to Mel Spectrum <#convert-audio-to-mel-spectrum>`__
+  - `Run Conversion from Audio to Mel Format <#run-conversion-from-audio-to-mel-format>`__
+  - `Visualize Mel Spectrogram <#visualize-mel-spectrogram>`__
+  - `Adjust Mel scale to Input <#adjust-mel-scale-to-input>`__
+
 - `Load the Model <#load-the-model>`__
-- `Do Inference <#do-inference>`__
-- `Read Output <#read-output>`__
-- `Implementation of Decoding <#implementation-of-decoding>`__
-- `Run Decoding and Print Output <#run-decoding-and-print-output>`__
+
+  - `Do Inference <#do-inference>`__
+  - `Read Output <#read-output>`__
+  - `Implementation of Decoding <#implementation-of-decoding>`__
+  - `Run Decoding and Print Output <#run-decoding-and-print-output>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

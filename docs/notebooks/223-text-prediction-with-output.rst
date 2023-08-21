@@ -73,19 +73,25 @@ above. The Generated response is added to the history with the
 and the sequence is passed back into the model.
 
 
-Table of content:
+**Table of contents**:
 
 - `Model Selection <#model-selection>`__
 - `Load Model <#load-model>`__
+
 - `Convert Pytorch Model to OpenVINO IR <#convert-pytorch-model-to-openvino-ir>`__
-- `Load the model <#load-the-model>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Load the model <#load-the-model>`__
+
+    - `Select inference device <#select-inference-device>`__
+
 - `Pre-Processing <#pre-processing>`__
 - `Define tokenization <#define-tokenization>`__
-- `Define Softmax layer <#define-softmax-layer>`__
-- `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
-- `Top-K sampling <#top-k-sampling>`__
-- `Main Processing Function <#main-processing-function>`__
+
+  - `Define Softmax layer <#define-softmax-layer>`__
+  - `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
+  - `Top-K sampling <#top-k-sampling>`__
+  - `Main Processing Function <#main-processing-function>`__
+
 - `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo-gpt-2>`__
 - `Conversation with PersonaGPT using OpenVINO™ <#conversation-with-personagpt-using-openvino>`__
 - `Converse Function <#converse-function>`__

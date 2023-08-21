@@ -43,7 +43,7 @@ It consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Create an inference pipeline for grammatical error checking 
 
-Table of content:
+**Table of contents**:
 
 - `How does it work? <#how-does-it-work>`__
 - `Prerequisites <#prerequisites>`__

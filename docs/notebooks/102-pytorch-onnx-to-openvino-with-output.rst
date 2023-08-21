@@ -35,7 +35,7 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-Table of content: 
+**Table of contents**: 
 
 - `Preparation <#preparation>`__
 

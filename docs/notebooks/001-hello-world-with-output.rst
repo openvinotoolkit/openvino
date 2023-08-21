@@ -15,7 +15,7 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial. 
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Download the Model and data samples <#download-the-model-and-data-samples>`__

@@ -39,13 +39,15 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-Table of content:
+**Table of contents**:
 
 - `Get Books <#get-books>`__
 - `Clean Text <#clean-text>`__
 - `Split Text <#split-text>`__
 - `Get Sentence Embeddings <#get-sentence-embeddings>`__
-- `Optimize the Model with OpenVINO <#optimize-the-model-with-openvino>`__
+
+  - `Optimize the Model with OpenVINO <#optimize-the-model-with-openvino>`__
+
 - `Calculate Sentence Alignment <#calculate-sentence-alignment>`__
 - `Postprocess Sentence Alignment <#postprocess-sentence-alignment>`__
 - `Visualize Sentence Alignment <#visualize-sentence-alignment>`__

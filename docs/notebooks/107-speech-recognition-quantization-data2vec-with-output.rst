@@ -21,17 +21,19 @@ steps:
 -  Compare performance of the original and quantized models.
 -  Compare Accuracy of the Original and Quantized Models.
 
-Table of content: 
+**Table of contents**:
 
-- `Download and prepare model <#download-and-prepare-model>`__ 
-- `Obtain Pytorch model representation <#obtain-pytorch-model-representation>`__ 
-- `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__ 
-- `Prepare inference data <#prepare-inference-data>`__ 
-- `Check model inference result <#check-model-inference-result>`__ 
-- `Validate model accuracy on dataset <#validate-model-accuracy-on-dataset>`__ 
-- `Quantization <#quantization>`__ 
-- `Check INT8 model inference result <#check-int8-model-inference-result>`__ 
-- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__ 
+- `Download and prepare model <#download-and-prepare-model>`__
+
+  - `Obtain Pytorch model representation <#obtain-pytorch-model-representation>`__
+  - `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__
+  - `Prepare inference data <#prepare-inference-data>`__
+
+- `Check model inference result <#check-model-inference-result>`__
+- `Validate model accuracy on dataset <#validate-model-accuracy-on-dataset>`__
+- `Quantization <#quantization>`__
+- `Check INT8 model inference result <#check-int8-model-inference-result>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
 - `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
 Download and prepare model `⇑ <#top>`__

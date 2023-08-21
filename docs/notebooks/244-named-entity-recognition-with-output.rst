@@ -27,15 +27,16 @@ To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format and quantize it.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Download the NER model <#download-the-ner-model>`__
 - `Quantize the model, using Hugging Face Optimum API <#quantize-the-model-using-hugging-face-optimum-api>`__
 - `Prepare demo for Named Entity Recognition OpenVINO Runtime <#prepare-demo-for-named-entity-recognition-openvino-runtime>`__
 - `Compare the Original and Quantized Models <#compare-the-original-and-quantized-models>`__
-- `Compare performance <#compare-performance>`__
-- `Compare size of the models <#compare-size-of-the-models>`__
+
+  - `Compare performance <#compare-performance>`__
+  - `Compare size of the models <#compare-size-of-the-models>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

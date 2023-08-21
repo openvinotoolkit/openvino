@@ -44,11 +44,13 @@ About Colorization-siggraph
 See the `colorization <https://github.com/richzhang/colorization>`__
 repository for more details. 
 
-Table of content: 
+**Table of contents**: 
 
 - `Imports <#imports>`__
 - `Configurations <#configurations>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Download the model <#download-the-model>`__
 - `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
 - `Loading the Model <#loading-the-model>`__

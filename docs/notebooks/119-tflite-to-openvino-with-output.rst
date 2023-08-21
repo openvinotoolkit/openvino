@@ -17,16 +17,20 @@ After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
 
-Table of content:
+**Table of contents**:
 
 - `Preparation <#preparation>`__
-- `Install requirements <#install-requirements>`__
-- `Imports <#imports>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+
 - `Download TFLite model <#download-tflite-model>`__
 - `Convert a Model to OpenVINO IR Format <#convert-a-model-to-openvino-ir-format>`__
 - `Load model using OpenVINO TensorFlow Lite Frontend <#load-model-using-openvino-tensorflow-lite-frontend>`__
 - `Run OpenVINO model inference <#run-openvino-model-inference>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Estimate Model Performance <#estimate-model-performance>`__
 
 Preparation `⇑ <#top>`__

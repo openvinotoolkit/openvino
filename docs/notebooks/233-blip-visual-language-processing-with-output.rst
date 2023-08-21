@@ -24,21 +24,26 @@ The tutorial consists of the following parts:
 2. Convert the BLIP model to OpenVINO IR.
 3. Run visual question answering and image captioning with OpenVINO.
 
-Table of content:
+**Table of contents**:
 
 - `Background <#background>`__
-- `Image Captioning <#image-captioning>`__
-- `Visual Question Answering <#visual-question-answering>`__
+
+  - `Image Captioning <#image-captioning>`__
+  - `Visual Question Answering <#visual-question-answering>`__
+
 - `Instantiate Model <#instantiate-model>`__
 - `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
-- `Vision Model <#vision-model>`__
-- `Text Encoder <#text-encoder>`__
-- `Text Decoder <#text-decoder>`__
+
+  - `Vision Model <#vision-model>`__
+  - `Text Encoder <#text-encoder>`__
+  - `Text Decoder <#text-decoder>`__
+
 - `Run OpenVINO Model <#run-openvino-model>`__
-- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
-- `Select inference device <#select-inference-device>`__
-- `Image Captioning <#image-captioning>`__
-- `Question Answering <#question-answering>`__
+
+  - `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Image Captioning <#image-captioning>`__
+  - `Question Answering <#question-answering>`__
 
 Background `⇑ <#top>`__
 ###############################################################################################################################

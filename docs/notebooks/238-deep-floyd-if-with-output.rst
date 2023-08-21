@@ -78,10 +78,12 @@ vector in embedded space.
    conventional Super Resolution network to get hi-res results. 
    
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
-- `Authentication <#authentication>`__
+
+  - `Authentication <#authentication>`__
+
 - `DeepFloyd IF in Diffusers library <#deepfloyd-if-in-diffusers-library>`__
 - `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 - `Convert Text Encoder <#convert-text-encoder>`__
@@ -89,15 +91,17 @@ Table of content:
 - `Convert the second pixel diffusion module <#convert-the-second-pixel-diffusion-module>`__
 - `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 - `Run Text-to-Image generation <#run-text-to-image-generation>`__
-- `Text Encoder inference <#text-encoder-inference>`__
-- `First Stage diffusion block inference <#first-stage-diffusion-block-inference>`__
-- `Second Stage diffusion block inference <#second-stage-diffusion-block-inference>`__
-- `Third Stage diffusion block <#third-stage-diffusion-block>`__
-- `Upscale the generated image using a Super Resolution network <#upscale-the-generated-image-using-a-super-resolution-network>`__
-- `Download the Super Resolution model weights <#download-the-super-resolution-model-weights>`__
-- `Reshape the model’s inputs <#reshape-the-models-inputs>`__
-- `Prepare the input images and run the model <#prepare-the-input-images-and-run-the-model>`__
-- `Display the result <#display-the-result>`__
+
+  - `Text Encoder inference <#text-encoder-inference>`__
+  - `First Stage diffusion block inference <#first-stage-diffusion-block-inference>`__
+  - `Second Stage diffusion block inference <#second-stage-diffusion-block-inference>`__
+  - `Third Stage diffusion block <#third-stage-diffusion-block>`__
+  - `Upscale the generated image using a Super Resolution network <#upscale-the-generated-image-using-a-super-resolution-network>`__
+
+    - `Download the Super Resolution model weights <#download-the-super-resolution-model-weights>`__
+    - `Reshape the model’s inputs <#reshape-the-models-inputs>`__
+    - `Prepare the input images and run the model <#prepare-the-input-images-and-run-the-model>`__
+    - `Display the result <#display-the-result>`__
 
 .. note::
 

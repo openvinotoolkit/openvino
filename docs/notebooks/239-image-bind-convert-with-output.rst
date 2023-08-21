@@ -69,17 +69,21 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-Table of content:
+**Table of contents**:
 
 - `Prerequisites <#prerequisites>`__
 - `Instantiate PyTorch model <#instantiate-pytorch-model>`__
 - `Prepare input data <#prepare-input-data>`__
 - `Convert Model to OpenVINO Intermediate Representation (IR) format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
-- `Select inference device <#select-inference-device>`__
+
+  - `Select inference device <#select-inference-device>`__
+
 - `Zero-shot classification using ImageBind and OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
-- `Text-Image classification <#text-image-classification>`__
-- `Text-Audio classification <#text-audio-classification>`__
-- `Image-Audio classification <#image-audio-classification>`__
+
+  - `Text-Image classification <#text-image-classification>`__
+  - `Text-Audio classification <#text-audio-classification>`__
+  - `Image-Audio classification <#image-audio-classification>`__
+
 - `Next Steps <#next-steps>`__
 
 Prerequisites `⇑ <#top>`__

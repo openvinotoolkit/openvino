@@ -13,19 +13,25 @@ Convert a TensorFlow Model to OpenVINO™
   Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
   and do inference with a sample image.
 
-| Table of content:
+| **Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
 - `Download model <#download-model>`__
 - `Convert a Model to OpenVINO IR Format <#convert-a-model-to-openvino-ir-format>`__
-- `Convert a TensorFlow Model to OpenVINO IR Format <#convert-a-tensorflow-model-to-openvino-ir-format>`__
+
+  - `Convert a TensorFlow Model to OpenVINO IR Format <#convert-a-tensorflow-model-to-openvino-ir-format>`__
+
 - `Test Inference on the Converted Model <#test-inference-on-the-converted-model>`__
-- `Load the Model <#load-the-model>`__
+
+  - `Load the Model <#load-the-model>`__
+
 - `Select inference device <#select-inference-device>`__
-- `Get Model Information <#get-model-information>`__
-- `Load an Image <#load-an-image>`__
-- `Do Inference <#do-inference>`__
+
+  - `Get Model Information <#get-model-information>`__
+  - `Load an Image <#load-an-image>`__
+  - `Do Inference <#do-inference>`__
+
 - `Timing <#timing>`__
 
 Imports `⇑ <#top>`__

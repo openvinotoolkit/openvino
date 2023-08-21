@@ -18,20 +18,25 @@ from CVPR 2020.
 
 This notebook works best with small images (up to 800x600 resolution).
 
-Table of content:
+**Table of contents**:
 
 - `Imports <#imports>`__
 - `Settings <#settings>`__
 - `Inference on PaddlePaddle Model <#inference-on-paddlepaddle-model>`__
-- `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
-- `Do Inference <#do-inference>`__
+
+  - `Investigate PaddleGAN Model <#investigate-paddlegan-model>`__
+  - `Do Inference <#do-inference>`__
+
 - `Convert PaddleGAN Model to ONNX and OpenVINO IR <#convert-paddlegan-model-to-onnx-and-openvino-ir>`__
-- `Convert PaddlePaddle Model to ONNX <#convert-paddlepaddle-model-to-onnx>`__
-- `Convert ONNX Model to OpenVINO IR with Model Conversion Python API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
+
+  - `Convert PaddlePaddle Model to ONNX <#convert-paddlepaddle-model-to-onnx>`__
+  - `Convert ONNX Model to OpenVINO IR with Model Conversion Python API <#convert-onnx-model-to-openvino-ir-with-model-conversion-python-api>`__
+
 - `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
-- `Select inference device <#select-inference-device>`__
-- `Show an Animated GIF <#show-an-animated-gif>`__
-- `Create a Comparison Video <#create-a-comparison-video>`__
+
+  - `Select inference device <#select-inference-device>`__
+  - `Show an Animated GIF <#show-an-animated-gif>`__
+  - `Create a Comparison Video <#create-a-comparison-video>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################
