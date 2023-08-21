@@ -9,7 +9,7 @@ module.exports = {
   },
   extends: [
     'eslint:recommended',
-    '../../../src/bindings/js/.eslintrc-common.js',
+    '../../../src/bindings/js/.eslintrc-global.js',
   ],
   globals: {
     openvinojs: true,
