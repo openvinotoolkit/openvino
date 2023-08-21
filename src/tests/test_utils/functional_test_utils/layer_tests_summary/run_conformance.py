@@ -42,9 +42,9 @@ def parse_arguments():
     parser = ArgumentParser()
 
     models_path_help = "Only for OP Conformance: Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file with model to download or http link to download something . If --s=0, specify the Conformance IRs directory"
-    dump_graph_help = "Only for OP Conformance: Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
+    dump_graph_help = "Only for OP Conformance: Set '1' if you want to create Conformance IRs from custom/downloaded models using subgraphsDumper tool. In other cases, set 0. The default value is '1'"
     device_help = " Specify the target device. The default value is CPU"
-    ov_help = "OV repo path. The default way is try to find the absolute path of OV repo (by using script path)"
+    ov_help = "OV bin path. The default way is try to find the absolute path of latest bin in the repo (by using script path)"
     working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
     workers_help = "Specify number of workers to run in parallel. The default value is CPU count - 1"
@@ -61,7 +61,7 @@ def parse_arguments():
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
-    parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=file_utils.get_ov_path(SCRIPT_DIR_PATH))
+    parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default="")
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_graph", help=dump_graph_help, type=int, required=False, default=0)
@@ -76,12 +76,14 @@ def parse_arguments():
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
                  gtest_filter:str, working_dir:os.path, ov_config_path:os.path, special_mode:str,
-                 cache_path:str, parallel_devices:bool, expected_failures: str,
+                 cache_path:str, parallel_devices:bool, expected_failures_file: str,
                  expected_failures_update: bool):
         self._device = device
         self._model_path = model_path
-        self._ov_path = ov_path
-        self._ov_bin_path = file_utils.get_ov_path(SCRIPT_DIR_PATH, self._ov_path, True)
+        if os.path.isdir(ov_path):
+            self._ov_path = ov_path
+        else:
+            self._ov_path = file_utils.get_ov_path(SCRIPT_DIR_PATH, None, True)
         self._working_dir = working_dir
         if os.path.exists(self._working_dir):
             logger.info(f"Working dir {self._working_dir} is cleaned up")
@@ -114,7 +116,10 @@ class Conformance:
             exit(-1)
         self._ov_config_path = ov_config_path
         self._is_parallel_over_devices = parallel_devices
-        self._expected_failures = expected_failures if os.path.isfile(expected_failures) else ""
+        self._expected_failures = set()
+        self._expected_failures_file = expected_failures_file
+        if os.path.isfile(expected_failures_file):
+            self._expected_failures = self.__get_failed_test_from_csv(expected_failures_file)
         self._expected_failures_update = expected_failures_update
 
     def __download_models(self, url_to_download, path_to_save):
@@ -137,7 +142,7 @@ class Conformance:
         
 
     def __dump_subgraph(self):
-        subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
+        subgraph_dumper_path = os.path.join(self._ov_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
         if not os.path.isfile(subgraph_dumper_path):
             logger.error(f"{subgraph_dumper_path} is not exist!")
             exit(-1)
@@ -163,12 +168,13 @@ class Conformance:
         if has_python_api:
             op_rel_weight = create_hash(Path(self._model_path))
             save_rel_weights(Path(self._model_path), op_rel_weight)
-            logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
+            logger.info(f"All conformance IRs in {self._model_path} were renamed based on hash")
         else:
             logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
 
 
-    def __get_failed_test_from_csv(self, csv_file:str):
+    @staticmethod
+    def __get_failed_test_from_csv(csv_file:str):
         failures = set()
         with open(csv_file, "r") as failures_file:
             for row in csv.reader(failures_file, delimiter=','):
@@ -178,30 +184,30 @@ class Conformance:
             failures_file.close()
         return failures
 
-
     def __check_expected_failures(self):
-        expected_failures = self.__get_failed_test_from_csv(self._expected_failures)
-
         this_failures_file = os.path.join(self._working_dir, f"{self._device}_logs", "logs", "fix_priority.csv")
+        if not os.path.isfile(this_failures_file):
+            return
         this_run_failures = self.__get_failed_test_from_csv(this_failures_file)
 
-        diff = this_run_failures.difference(expected_failures)
+        diff = this_run_failures.difference(self._expected_failures)
         if len(diff) > 0:
             logger.error(f"Unexpected failures: {diff}")
             exit(-1)
         
-        intersection = expected_failures.intersection(this_run_failures)
-        if len(intersection) < len(expected_failures) and self._expected_failures_update:
+        intersection = self._expected_failures.intersection(this_run_failures)
+        if this_run_failures != self._expected_failures and self._expected_failures_update:
             logger.info(f"Expected failures file {self._expected_failures} will be updated!!!")
+            os.remove(self._expected_failures_file)
             this_failures_file = Path(this_failures_file)
-            this_failures_file.rename(self._expected_failures)
+            this_failures_file.rename(self._expected_failures_file)
 
     def __run_conformance(self):
         conformance_path = None
         if self._type == constants.OP_CONFORMANCE:
-            conformance_path = os.path.join(self._ov_bin_path, f'{OP_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
+            conformance_path = os.path.join(self._ov_path, f'{OP_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
         else:
-            conformance_path = os.path.join(self._ov_bin_path, f'{API_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
+            conformance_path = os.path.join(self._ov_path, f'{API_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
 
         if not os.path.isfile(conformance_path):
             logger.error(f"{conformance_path} is not exist!")
@@ -220,13 +226,19 @@ class Conformance:
         
         command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"',
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
-                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
+                             f'--gtest_filter=\"{self._gtest_filter}\"', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._special_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, self._cache_path, self._is_parallel_over_devices)
+        conformance = TestParallelRunner(f"{conformance_path}",
+                                         command_line_args,
+                                         self._workers,
+                                         logs_dir,
+                                         self._cache_path,
+                                         self._is_parallel_over_devices,
+                                         self._expected_failures if not self._expected_failures_update else set())
         conformance.run()
         conformance.postprocess_logs()
 
-        if os.path.isfile(self._expected_failures):
+        if os.path.isfile(self._expected_failures_file):
             self.__check_expected_failures()
 
         final_report_name = f'report_{self._type.lower()}'
@@ -266,10 +278,10 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
         logger.info(f"[ARGUMENTS] --models_path = {self._model_path}")
         logger.info(f"[ARGUMENTS] --dump_graph = {dump_models}")
-        logger.info(f"[ARGUMENTS] --special_mode = {self._special_mode}")
+        logger.info(f"[ARGUMENTS] --shape_mode = {self._special_mode}")
         logger.info(f"[ARGUMENTS] --parallel_devices = {self._is_parallel_over_devices}")
         logger.info(f"[ARGUMENTS] --cache_path = {self._cache_path}")
-        logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures}")
+        logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures_file}")
         logger.info(f"[ARGUMENTS] --expected_failures_update = {self._expected_failures_update}")
 
         if self._type == "OP":
