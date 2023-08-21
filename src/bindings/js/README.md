@@ -1,5 +1,2 @@
-# OpenVINO JavaScript API
-
-## ./common
-## ./wasm
-## ./node
+# OpenVINO™ JavaScript API
+- `./node` - openvinojs-node NPM package and Node.js bindings

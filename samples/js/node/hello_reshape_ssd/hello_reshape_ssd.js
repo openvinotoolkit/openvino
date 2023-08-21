@@ -56,7 +56,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
-    .preprocessResizeAlgorithm(ov.resizeAlgorithms.RESIZE_LINEAR)
+    .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
 
     // FIXME: Uncomment after support tensor in not f32 precision
     // .set_input_element_type(ov.element.u8)

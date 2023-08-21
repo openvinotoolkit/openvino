@@ -22,14 +22,14 @@ function loadVocabFile(vocabFileName) {
 
 // remove mark and control chars
 function cleanWord(w) {
-  let wo = '';  // accumulator for output word
+  let wo = ''; // accumulator for output word
 
   for (const c of w.normalize('NFD')) {
-      const charCode = c.charCodeAt(0);
-      // remove mark nonspacing code and controls
-      if (charCode < 32 || charCode == 127) continue;
+    const charCode = c.charCodeAt(0);
+    // remove mark nonspacing code and controls
+    if (charCode < 32 || charCode == 127) continue;
 
-      wo += c;
+    wo += c;
   }
 
   return wo;
@@ -50,7 +50,7 @@ function encodeByVoc(w, vocab) {
     const tokens = [];
 
     while (e > s) {
-      subword = s == s0 ? w.slice(s, e) : '##' + w.slice(s, e);
+      const subword = s == s0 ? w.slice(s, e) : '##' + w.slice(s, e);
 
       if (vocab[subword]) {
         tokens.push(vocab[subword]);
@@ -67,9 +67,8 @@ function encodeByVoc(w, vocab) {
     res.push(...tokens);
   }
 
-  return res
+  return res;
 }
-
 
 // split big text into words by spaces
 // return start and end indexes of words
@@ -99,8 +98,8 @@ function splitToWords(text) {
   return result;
 }
 
-
-// get big text and return list of token id and start-end positions for each id in original texts
+// get big text and return list of token id and start-end positions
+// for each id in original texts
 function textToTokens(text, vocab) {
   const tokensId = [];
   const tokensSe = [];

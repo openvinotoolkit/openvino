@@ -48,7 +48,7 @@ async function main(modelPath, imagePath, deviceName) {
 
   new ov.PrePostProcessor(model)
     .setInputTensorShape(shape)
-    .preprocessResizeAlgorithm(ov.resizeAlgorithms.RESIZE_LINEAR)
+    .preprocessResizeAlgorithm(ov.resizeAlgorithm.RESIZE_LINEAR)
     .setInputTensorLayout('NHWC')
     .setInputModelLayout('NCHW')
     .build();

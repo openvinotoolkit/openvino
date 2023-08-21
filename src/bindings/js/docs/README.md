@@ -1,3 +1,4 @@
-Here we need to put documents about how to write JS:
-- Node Addon
-- WASM
+# Javascript bindings
+
+- `./docs` - documentation
+- `./node` - openvinojs-node NPM package and Node.js bindings

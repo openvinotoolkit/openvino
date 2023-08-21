@@ -2,15 +2,14 @@
   "name": "openvinojs-nodejs-demo",
   "version": "1.0.0",
   "license": "Apache-2.0",
-  "main": "run_sample.js",
   "devDependencies": {
+    "args": "^5.0.3",
     "canvas": "^2.11.2",
     "eslint": "^8.39.0",
     "opencv.js": "^1.2.1",
     "openvinojs-node": "file:../../../src/bindings/js/node/"
   },
   "scripts": {
-    "sample": "node run_sample.js",
     "lint": "eslint ."
   },
   "engines": {
