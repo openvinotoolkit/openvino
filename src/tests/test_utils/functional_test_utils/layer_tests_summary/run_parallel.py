@@ -10,6 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
+from sys import platform
 import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
@@ -392,11 +393,15 @@ class TestParallelRunner:
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_pattern, test_time in tests_sorted :
             test_pattern = f'{self.__replace_restricted_symbols(test_pattern)}'
-            if (self._split_unit == "test") :
-                test_pattern += ":"
-            else :
-                # fix the suite filters to execute the right amount of the tests
-                test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*:"
+
+            # fix the suite filters to execute the right amount of the tests
+            if (self._split_unit == "suite") :
+                test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*"
+            # add quotes for macos only
+            if platform == "darwin":
+                test_pattern = f'"{test_pattern}"'
+            # add pattern splitter
+            test_pattern += ":"
 
             if (test_time == -1) :
                 tasks_crashed.append({test_time, test_pattern})
@@ -773,7 +778,9 @@ class TestParallelRunner:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
         if (self._split_unit == "test" and self._total_test_cnt != test_cnt) or (self._split_unit == "suite" and test_cnt < self._total_test_cnt) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
-            diff_set = set(saved_tests).difference(tests_runtime.keys())
+            saved_tests_set = set(saved_tests)
+            tests_runtime_set = set(tests_runtime)
+            diff_set = tests_runtime_set.difference(saved_tests_set)
             [logger.error(f'Missed test: {test}') for test in diff_set]
             is_successfull_run = False
         logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
