@@ -156,7 +156,7 @@ static void enumerate_proposals(const T* bottom4d,
                 x1 = static_cast<float>(pred_ctr_x + 0.5f * pred_w);
                 y1 = static_cast<float>(pred_ctr_y + 0.5f * pred_h);
 
-                // adjust new corner locations to be within the image region,
+                // adjust new corner locations to be within the image region
                 if (clip_before_nms) {
                     x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
                     y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
