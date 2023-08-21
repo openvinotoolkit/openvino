@@ -54,13 +54,13 @@ describe('Tensor shape', () => {
 
   it('ov::Shape from an array object', () => {
     const tensor = new ov.Tensor(ov.element.f32, [1, 3, 224, 224], data);
-    assert.deepStrictEqual(tensor.getShape().data, [1, 3, 224, 224]);
+    assert.deepStrictEqual(tensor.getShape(), [1, 3, 224, 224]);
   });
 
   it('ov::Shape from an array object with floating point numbers', () => {
     const tensor =
     new ov.Tensor(ov.element.f32, [1, 3.0, 224.8, 224.4], data);
-    assert.deepStrictEqual(tensor.getShape().data, [1, 3, 224, 224]);
+    assert.deepStrictEqual(tensor.getShape(), [1, 3, 224, 224]);
   });
 
   it('Array argument to create ov::Shape can only contain numbers', () => {
@@ -73,7 +73,7 @@ describe('Tensor shape', () => {
   it('ov::Shape from TypedArray -> Int32Array', () => {
     const shp = Int32Array.from([1, 224, 224, 3]);
     const tensor = new ov.Tensor(ov.element.f32, shp, data);
-    assert.deepStrictEqual(tensor.getShape().data, [1, 224, 224, 3]);
+    assert.deepStrictEqual(tensor.getShape(), [1, 224, 224, 3]);
   });
 
   it('Cannot create ov::Shape from Float32Array', () => {

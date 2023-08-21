@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node_input.hpp"
-#include "shape.hpp"
+#include "helper.hpp"
 
 Input<ov::Node>::Input(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Input<ov::Node>>(info) {}
 
@@ -10,7 +10,7 @@ Napi::Function Input<ov::Node>::GetClassConstructor(Napi::Env env) {
     return DefineClass(env,
                        "Input",
                        {Input<ov::Node>::InstanceMethod("getShape", &Input<ov::Node>::get_shape),
-                        Input<ov::Node>::InstanceAccessor<&Input<ov::Node>::get_shape_data>("shape")});
+                        Input<ov::Node>::InstanceAccessor<&Input<ov::Node>::get_shape>("shape")});
 }
 
 Napi::Object Input<ov::Node>::Init(Napi::Env env, Napi::Object exports) {
@@ -37,17 +37,7 @@ Napi::Object Input<ov::Node>::Wrap(Napi::Env env, std::shared_ptr<ov::Input<ov::
 }
 
 Napi::Value Input<ov::Node>::get_shape(const Napi::CallbackInfo& info) {
-    auto shape = _input->get_shape();
-    return Shape::Wrap(info.Env(), shape);
-}
-
-Napi::Value Input<ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
-    auto shape = _input->get_shape();
-    auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); ++i)
-        arr[i] = shape[i];
-
-    return arr;
+    return cpp_to_js<ov::Shape, Napi::Array>(info, _input->get_shape());
 }
 
 Input<const ov::Node>::Input(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Input<const ov::Node>>(info) {}
@@ -84,14 +74,5 @@ Napi::Object Input<const ov::Node>::Wrap(Napi::Env env, std::shared_ptr<ov::Inpu
 
 Napi::Value Input<const ov::Node>::get_shape(const Napi::CallbackInfo& info) {
     auto shape = _input->get_shape();
-    return Shape::Wrap(info.Env(), shape);
-}
-
-Napi::Value Input<const ov::Node>::get_shape_data(const Napi::CallbackInfo& info) {
-    auto shape = _input->get_shape();
-    auto arr = Napi::Array::New(info.Env(), shape.size());
-    for (size_t i = 0; i < shape.size(); ++i)
-        arr[i] = shape[i];
-
-    return arr;
+    return cpp_to_js<ov::Shape, Napi::Array>(info, shape);
 }

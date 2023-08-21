@@ -32,7 +32,7 @@ describe('Output class', () => {
       assert.strictEqual(obj.output(0).toString(), 'fc_out');
       assert.strictEqual(obj.output('fc_out').toString(), 'fc_out');
       assert.deepStrictEqual(obj.output(0).shape, [1, 10]);
-      assert.deepStrictEqual(obj.output(0).getShape().getData(), [1, 10]);
+      assert.deepStrictEqual(obj.output(0).getShape(), [1, 10]);
       assert.strictEqual(obj.output().getAnyName(), 'fc_out');
       assert.strictEqual(obj.output().anyName, 'fc_out');
     });
@@ -93,7 +93,7 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 
   it('Input.getShape() method', () => {
     assert.deepStrictEqual(
-      compiledModel.input(0).getShape().getData(), [1, 3, 32, 32]);
+      compiledModel.input(0).getShape(), [1, 3, 32, 32]);
   });
 });
 

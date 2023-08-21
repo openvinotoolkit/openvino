@@ -12,7 +12,6 @@
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "shape.hpp"
 #include "tensor.hpp"
 #include "resize_algorithm.hpp"
 #include "async_infer.hpp"
@@ -25,7 +24,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     CompiledModelWrap::Init(env, exports);
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
-    Shape::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
     Input<const ov::Node>::Init(env, exports);
     Input<ov::Node>::Init(env, exports);

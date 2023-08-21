@@ -20,7 +20,6 @@ interface CoreConstructor {
 interface Model {
   outputs: Output[];
   inputs: Output[];
-
   output(nameOrId?: string | number): Output;
   getName(): string;
 }
@@ -34,32 +33,17 @@ interface CompiledModel {
 }
 
 interface Tensor {
-  // FIXME: now its only Float32Array
   data: number[];
   getPrecision(): element;
-  // FIXME: change method return type, when remove Shape
-  getShape(): Shape;
-  // FIXME: now it returns Float32Array
+  getShape(): number[];
   getData(): number[];
 }
 interface TensorConstructor {
-  // FIXME: now tensorData can be only Float32Array
   new(type: element,
       shape: number[],
       tensorData: number[] | SupportedTypedArray): Tensor;
 }
 
-// TODO: remove this object from bindings
-interface Shape {
-  data: number[];
-  getData(): number[];
-  shapeSize(): number;
-  getDim(): number;
-}
-interface ShapeConstructor {
-  // FIXME: now tensorData can be only Float32Array
-  new(dimensions: number, data: number[]): Shape;
-}
 
 interface InferRequest {
   // FIXME: are we going to add index parameter for this method?
@@ -76,7 +60,7 @@ interface Output {
   shape: number[];
   toString(): string;
   getAnyName(): string;
-  getShape(): Shape;
+  getShape(): number[];
   setNames(names: string[]): void;
   getNames(): string[];
 }
@@ -117,7 +101,6 @@ declare enum resizeAlgorithm {
 export interface NodeAddon {
   Core: CoreConstructor,
   Tensor: TensorConstructor,
-  Shape: ShapeConstructor,
   PrePostProcessor: PrePostProcessorConstructor,
 
   element: typeof element,

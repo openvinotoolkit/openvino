@@ -16,7 +16,7 @@
 #include "errors.hpp"
 #include "helper.hpp"
 #include "napi.h"
-#include "shape.hpp"
+
 
 class TensorWrap : public Napi::ObjectWrap<TensorWrap> {
 public:
