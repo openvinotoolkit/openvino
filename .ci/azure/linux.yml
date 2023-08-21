@@ -32,13 +32,13 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
+    ref: releases/2023/1
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
-    ref: master
+    ref: releases/2023/1
 
 variables:
   - group: github
@@ -64,7 +64,7 @@ jobs:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library"
-        CMAKE_CPACK_GENERATOR:
+        CMAKE_CPACK_GENERATOR: "TGZ"
         SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
         PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
         RUN_PREFIX: . $(SETUPVARS) &&
@@ -550,6 +550,15 @@ jobs:
       PYTHONPATH: $(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR)
       TEST_DEVICE: CPU
     displayName: 'TensorFlow Lite Layer Tests - TFL FE'
+
+  - script: |
+      set -e
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/ovc_python_api_tests/  --junitxml=./TEST-test_ovc_convert.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
+    displayName: 'OVC Python API Tests'
 
   - script: |
       set -e
