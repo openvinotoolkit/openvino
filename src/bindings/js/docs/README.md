@@ -1,4 +1,4 @@
-# Javascrip bindings
+# Javascript bindings
 
-./docs - documentation
-./node - Node.js API
+- `./docs` - documentation
+- `./node` - openvinojs-node NPM package and Node.js bindings
