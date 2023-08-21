@@ -21,7 +21,8 @@ struct border_params : public base_params {
     ArgType end_type;
     ArgType pad_value_type;
 
-    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
+    border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f),
+                      begin_type(ArgType::Constant), end_type(ArgType::Constant), pad_value_type(ArgType::Constant) {}
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();

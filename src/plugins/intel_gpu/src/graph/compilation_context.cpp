@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "compilation_context.hpp"
 #include <mutex>
 #include <atomic>
@@ -22,9 +21,10 @@ public:
             return;
 
         auto promise = std::make_shared<std::promise<void>>();
-        futures.emplace_back(promise->get_future());
 
         std::lock_guard<std::mutex> lock(_mutex);
+        futures.emplace_back(promise->get_future());
+
         if (_task_keys.find(key) == _task_keys.end()) {
             _task_keys.insert(key);
             if (_task_executor != nullptr) {

@@ -19,7 +19,6 @@ macro(ov_common_libraries_cpack_set_dirs)
     else()
         set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     endif()
-    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     if(CPACK_GENERATOR MATCHES "^(CONAN|VCPKG)$")
         set(OV_CPACK_IE_CMAKEDIR ${CMAKE_INSTALL_DATADIR}/openvino)
@@ -98,6 +97,8 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     # we don't need wheels in package, it's used installed only in open source distribution
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # we don't need requirements.txt in package, because dependencies are installed by packages managers like conda
+    set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)

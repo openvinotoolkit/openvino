@@ -505,6 +505,10 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         return false;
 
     // cases when NOT to use winograd
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_winograd_conv == 1)
+        return false;
+
     auto prim = node.get_primitive();
     if (input_layout.data_type != data_types::f16
         || input_layout.feature() % 64 != 0  // current algorithm is effective for ifm to be multiply of 64
@@ -1063,7 +1067,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
 
-    if (use_onednn_impls && onednn_valid_post_ops) {
+    if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */
@@ -1590,7 +1594,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
-        if (node.get_output_layout().data_type == data_types::i32)
+        if (node.get_output_layout().data_type == data_types::i32 ||
+            node.get_output_layout().data_type == data_types::f32)
             return impl_types::ocl;
 
         for (auto& dep : node.get_dependencies()) {
