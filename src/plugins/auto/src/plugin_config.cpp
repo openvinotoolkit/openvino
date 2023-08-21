@@ -8,7 +8,7 @@ namespace auto_plugin {
 // AUTO will enable the blocklist if
 // 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
 // 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
-const std::set<std::string> PluginConfig::device_block_list = {"VPU", "GNA", "notIntelGPU"};
+const std::set<std::string> PluginConfig::device_block_list = {"NPU", "GNA", "notIntelGPU"};
 
 PluginConfig::PluginConfig() {
     set_default();

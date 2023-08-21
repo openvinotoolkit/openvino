@@ -44,7 +44,6 @@ class PytorchLayerTest:
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
-        import torch
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
         else:
@@ -136,7 +135,7 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
@@ -155,8 +154,8 @@ class PytorchLayerTest:
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(
-                        fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
@@ -286,8 +285,6 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
-            continue
         test_args.append(element)
     return test_args
 

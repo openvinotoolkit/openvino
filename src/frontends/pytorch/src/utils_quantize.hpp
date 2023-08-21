@@ -29,11 +29,15 @@ public:
     virtual size_t get_subgraph_size() const override {
         return 0;
     }
+    virtual const std::string& decoder_type_name() const override {
+        return m_decoder_type;
+    }
 
 private:
     const Output<Node> m_qinput;
     const std::string m_op_type = "QuantizedPtNode";
     const std::string m_schema = "NONE";
+    const std::string m_decoder_type = "qt";
 };
 
 enum QuantizedPtNodeType { QUANTIZE_PER_TENSOR, QUANTIZE_PER_CHANNEL };
@@ -140,8 +144,7 @@ Output<Node> quantize(const NodeContext& context,
                       const Output<Node>& zero_point,
                       const Output<Node>& quantized_node);
 
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node);
-std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(Output<Node> node, const std::string& type);
+std::shared_ptr<QuantizedPtNode> cast_quantized_fw_node(std::shared_ptr<Node> node);
 
 namespace op {
 /**
