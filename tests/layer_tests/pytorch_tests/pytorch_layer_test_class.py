@@ -136,7 +136,7 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
@@ -155,8 +155,8 @@ class PytorchLayerTest:
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(
-                        fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs

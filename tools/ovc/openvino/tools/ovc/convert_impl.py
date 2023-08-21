@@ -21,9 +21,8 @@ from openvino.tools.ovc.moc_frontend.check_config import new_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
 from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.ovc.cli_parser import get_available_front_ends, \
-    get_common_cli_options, get_model_name_from_args, depersonalize, get_mo_convert_params, \
-    input_to_input_cut_info, freeze_placeholder_to_input_cut_info
+from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
+    get_mo_convert_params, input_to_input_cut_info
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
@@ -57,10 +56,10 @@ def replace_ext(name: str, old: str, new: str):
         return base + new
 
 
-def print_argv(argv: argparse.Namespace, model_name: str):
+def print_argv(argv: argparse.Namespace):
     print('Model Conversion arguments:')
     props = OrderedDict()
-    props['common_args'] = get_common_cli_options(model_name)
+    props['common_args'] = get_common_cli_options(argv, argv.is_python_api_used)
 
     framework_specifics_map = {
         'common_args': 'Common parameters:'
@@ -80,10 +79,11 @@ def print_argv(argv: argparse.Namespace, model_name: str):
 def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
-    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
+    if not argv.is_python_api_used:
+        log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
     if argv.verbose:
-        print_argv(argv, argv.output_model)
+        print_argv(argv)
 
     params_parsing(argv)
     argv.output = argv.output.split(',') if isinstance(argv.output, (str, pathlib.Path)) else argv.output
@@ -287,10 +287,6 @@ def params_parsing(argv: argparse.Namespace):
     argv.placeholder_data_types - dictionary where key is node name, value is node np.type,
     or list of np.types if node names were not set.
 
-    argv.freeze_placeholder_with_value - dictionary where key is node name, value is np.ndarray
-
-    argv.unnamed_freeze_placeholder_with_value - list with np.ndarray
-
     :param argv: MO arguments
     """
     # Parse input to list of InputCutInfo
@@ -307,13 +303,6 @@ def params_parsing(argv: argparse.Namespace):
                                                      "or do not set names for all inputs."
     argv.inputs_list = input_names_list
     argv.input = ','.join(input_names_list)
-
-    # Parse freeze_placeholder_with_value.
-    # values for freezing can be set both by named and unnamed approach if
-    # 'input' was used without names and 'freeze_placeholder_with_value' was used with names.
-    # So named and unnamed values are stored separately.
-    argv.freeze_placeholder_with_value, argv.unnamed_freeze_placeholder_with_value = \
-        freeze_placeholder_to_input_cut_info(inputs)
 
     if len(input_names_list) > 0:
         # Named inputs case
@@ -401,10 +390,6 @@ def is_verbose(argv: argparse.Namespace):
 
 
 def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
-    # FIXME: It doesn't work when -h is passed
-    if 'help' in args and args['help']:
-        show_mo_convert_help()
-        return None, None
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
     telemetry = init_mo_telemetry()
     telemetry.start_session('ovc')
@@ -439,12 +424,14 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                 if 'example_input' in args and args['example_input'] is not None:
                     example_inputs = args['example_input']
 
-                #TODO: Check what example_outputs is and remove if not needed
-                example_outputs = None
-                if 'example_output' in args and args['example_output'] is not None:
-                    example_outputs = args['example_output']
+                outputs = None
+                if 'output' in args and args['output'] is not None:
+                    # Once the temporary PDPD model is generated. output can be dropped.
+                    # Just swap outputs and args['output'] can reset the argv.output to `None`.
+                    # It can avoid the following `output` negative effect.
+                    outputs, args['output'] = args['output'], outputs
                 paddle_runtime_converter = paddle_frontend_converter(args['input_model'], example_inputs,
-                                                                     example_outputs)
+                                                                     outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
 
@@ -459,11 +446,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         non_default_params = get_non_default_params(argv, cli_parser)
         argv.is_python_api_used = python_api_used
-
-        if inp_model_is_object:
-            argv.output_model = "model"   # TODO: Consider removing
-        if not hasattr(argv, "output_model") or argv.output_model is None:
-            argv.output_model = get_model_name_from_args(argv)
 
         argv.framework = model_framework
 
@@ -494,7 +476,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
             if isinstance(e, (FileNotFoundError, NotADirectoryError)):
                 log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
                 log.debug(traceback.format_exc())
-            elif isinstance(e, Error):
+            elif isinstance(e, (Error, OpConversionFailure)):
                 log.error(e)
                 log.debug(traceback.format_exc())
             elif isinstance(e, FrameworkError):
