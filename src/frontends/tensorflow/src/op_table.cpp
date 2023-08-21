@@ -46,6 +46,7 @@ TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_xla_dot_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -301,6 +302,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
+
+        // XLA operations
+        {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
     };
 };
 }  // namespace op
