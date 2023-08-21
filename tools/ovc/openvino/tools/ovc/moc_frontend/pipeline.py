@@ -42,11 +42,12 @@ def raise_exception_for_input_output_cut(model_inputs_or_outputs: List[Place], n
     for new_node in new_nodes:
         node = new_node['node']
 
-        if not any([item.is_equal(node) for item in model_inputs_or_outputs]):
-            if is_input:
+        if is_input:
+            if not node.is_input():
                 raise Exception("Name {} is not found among model inputs.".format(new_node['input_name']))
-            else:
-                raise Exception("Name {} is not found among model outputs.".format(new_node['output_name']))
+        else:
+            if not node.is_output():
+                raise Exception("Name {} is not found among model inputs.".format(new_node['output_name']))
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
