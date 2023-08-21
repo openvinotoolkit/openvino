@@ -62,7 +62,7 @@ def parse_arguments():
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default="suite")
-    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=bool, required=False, default=False)
+    parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=1)
 
     return parser.parse_args()
 
@@ -377,7 +377,6 @@ class TestParallelRunner:
         return cached_test_dict, runtime_test_dict
 
     def __prepare_smart_filters(self, proved_test_dict: dict):
-        res_test_filters = list()
         def_length = len(self._command) + len(" --gtest_filter=")
 
         longest_device = ""
@@ -430,7 +429,6 @@ class TestParallelRunner:
 
         cached_test_dict, runtime_test_dist = self.__generate_test_lists(test_dict_cache, test_dict_runtime)
 
-        self._total_test_cnt = 0
         cached_test_list = list()
         if len(cached_test_dict) > 0:
             self._is_save_cache = False
@@ -510,7 +508,7 @@ class TestParallelRunner:
             TaskManager.process_timeout = DEFAULT_SUITE_TIMEOUT if self._split_unit == "suite" else DEFAULT_TEST_TIMEOUT
 
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        if (self._repeat_failed == True) :
+        if (self._repeat_failed > 0) :
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
                 not_runned_test_filters = [f'"{self.__replace_restricted_symbols(test)}"' for test in not_runned_tests]
@@ -775,6 +773,8 @@ class TestParallelRunner:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
         if (self._split_unit == "test" and self._total_test_cnt != test_cnt) or (self._split_unit == "suite" and test_cnt < self._total_test_cnt) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
+            diff_set = set(saved_tests).difference(tests_runtime)
+            [logger.error(f'Missed test: {test}') for test in diff_set]
             is_successfull_run = False
         logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
         return is_successfull_run
