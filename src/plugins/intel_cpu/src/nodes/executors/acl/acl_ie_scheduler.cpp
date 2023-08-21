@@ -52,14 +52,10 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
         const auto num_windows = _num_threads;
         const auto hints_split_dimension = hints.split_dimension();
 
-        std::vector<Window> win_vec(num_windows);
-        for (size_t i = 0; i < win_vec.size(); ++i) {
-            win_vec[i] = max_window.split_window(hints_split_dimension, i, num_windows);
-            win_vec[i].validate();
-        }
-
         InferenceEngine::parallel_for(num_windows, [&](int wid) {
-            main_run(win_vec[wid], {wid, static_cast<int>(_num_threads), &cpu_info()});
+            Window win = max_window.split_window(hints_split_dimension, wid, num_windows);
+            win.validate();
+            main_run(win, {wid, static_cast<int>(_num_threads), &cpu_info()});
         });
     }
 }
