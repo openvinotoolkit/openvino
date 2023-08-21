@@ -10,7 +10,6 @@ from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree, copyfile
 from tarfile import open as tar_open
-from sys import platform
 import defusedxml.ElementTree as ET
 
 if not constants.IS_WIN:
@@ -22,7 +21,6 @@ import threading
 import csv
 import datetime
 import shlex
-import operator
 import heapq
 
 if sys.version_info.major >= 3:
@@ -397,11 +395,8 @@ class TestParallelRunner:
             # fix the suite filters to execute the right amount of the tests
             if (self._split_unit == "suite") :
                 test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*"
-            # add quotes for macos only
-            if platform == "darwin":
-                test_pattern = f'"{test_pattern}"'
-            # add pattern splitter
-            test_pattern += ":"
+            # add quotes and pattern splitter
+            test_pattern = f'"{test_pattern}":'
 
             if (test_time == -1) :
                 tasks_crashed.append({test_time, test_pattern})
