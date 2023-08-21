@@ -1466,6 +1466,8 @@ Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitiv
     }
 
     if (outMemDesc != getDnnlDstDesc()) {
+        // In the case of fusing sum, we have to reorder the output data before executing the primitive,
+        // since the output data are used as an accumulator for the covolution computations.
         inputReorders.insert({DNNL_ARG_DST, IntermReorder(outMemDesc, getDnnlDstDesc(), engine)});
         outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
     }
@@ -1483,7 +1485,9 @@ void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, d
         }
     }
     execPrim.execute(strm, primArgs);
-    outputReorders.at(DNNL_ARG_DST).exec(primArgs.at(DNNL_ARG_DST), outputMem, strm);
+    if (!outputReorders.empty()) {
+        outputReorders.at(DNNL_ARG_DST).exec(primArgs.at(DNNL_ARG_DST), outputMem, strm);
+    }
 }
 
 void Convolution::execute(dnnl::stream strm) {
