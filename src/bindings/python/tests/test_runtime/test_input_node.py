@@ -55,7 +55,7 @@ def test_input_get_shape(device):
     compiled_model = core.compile_model(model, device)
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
-    assert str(input_node.get_shape()) == str(Shape([1, 10]))
+    assert str(input_node.get_shape()) == str(Shape([1, 3, 32, 32]))
 
 
 def test_input_get_partial_shape(device):
@@ -64,7 +64,7 @@ def test_input_get_partial_shape(device):
     compiled_model = core.compile_model(model, device)
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
-    expected_partial_shape = PartialShape([1, 10])
+    expected_partial_shape = PartialShape([1, 3, 32, 32])
     assert input_node.get_partial_shape() == expected_partial_shape
 
 
@@ -75,7 +75,7 @@ def test_input_get_source_output(device):
     net_input = compiled_model.output(0)
     input_node = net_input.get_node().inputs()[0]
     name = input_node.get_source_output().get_node().get_friendly_name()
-    assert name == "fc_out"
+    assert name == "relu"
 
 
 def test_input_get_tensor(device):

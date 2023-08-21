@@ -174,9 +174,10 @@ def test_set_tensors(device):
     tensor4 = Tensor(data4)
 
     request = compiled_model.create_infer_request()
-    request.set_tensors({"data": tensor1, "fc_out": tensor2})
+    print(request.results)
+    request.set_tensors({"data": tensor1, "relu": tensor3})
     t1 = request.get_tensor("data")
-    t2 = request.get_tensor("fc_out")
+    t2 = request.get_tensor("relu")
     assert np.allclose(tensor1.data, t1.data, atol=1e-2, rtol=1e-2)
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 

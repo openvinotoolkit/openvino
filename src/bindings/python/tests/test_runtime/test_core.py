@@ -438,6 +438,6 @@ def test_infer_new_request_return_type(device):
 
     assert isinstance(arr, np.ndarray)
     assert arr.itemsize == 4
-    assert arr.shape == (10,)
+    assert arr.shape == (3, 32, 32)
     assert arr.dtype == "float32"
-    assert arr.nbytes == 40
+    assert arr.nbytes == 12288

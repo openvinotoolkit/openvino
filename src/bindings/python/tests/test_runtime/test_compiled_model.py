@@ -44,7 +44,7 @@ def test_export_import(device):
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 9
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
 def test_export_import_advanced(device):
@@ -66,7 +66,7 @@ def test_export_import_advanced(device):
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
 
-    assert np.argmax(res[new_compiled.outputs[0]]) == 9
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
 
 
 @pytest.mark.parametrize("input_arguments", [[0], ["data"], []])
