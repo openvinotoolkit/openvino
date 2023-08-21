@@ -143,20 +143,20 @@ discussed steps are also applicable to other annotation modes.
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Instantiating Generation Pipeline <#2>`__
-- `ControlNet in Diffusers library <#3>`__
-- `OpenPose <#4>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#5>`__
-- `OpenPose conversion <#6>`__
-- `Select inference device <#7>`__
-- `ControlNet conversion <#8>`__
-- `UNet conversion <#9>`__
-- `Text Encoder <#10>`__
-- `VAE Decoder conversion <#11>`__
-- `Prepare Inference pipeline <#12>`__
-- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#13>`__
-- `Select inference device <#14>`__
+- `Prerequisites <#prerequisites>`__
+- `Instantiating Generation Pipeline <#instantiating-generation-pipeline>`__
+- `ControlNet in Diffusers library <#controlnet-in-diffusers-library>`__
+- `OpenPose <#openpose>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+- `OpenPose conversion <#openpose-conversion>`__
+- `Select inference device <#select-inference-device>`__
+- `ControlNet conversion <#controlnet-conversion>`__
+- `UNet conversion <#unet-conversion>`__
+- `Text Encoder <#text-encoder>`__
+- `VAE Decoder conversion <#vae-decoder-conversion>`__
+- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+- `Select inference device <#select-inference-device>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

@@ -71,16 +71,16 @@ zero-shot classification.
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Instantiate PyTorch model <#2>`__
-- `Prepare input data <#3>`__
-- `Convert Model to OpenVINO Intermediate Representation (IR) format <#4>`__
-- `Select inference device <#5>`__
-- `Zero-shot classification using ImageBind and OpenVINO <#6>`__
-- `Text-Image classification <#7>`__
-- `Text-Audio classification <#8>`__
-- `Image-Audio classification <#9>`__
-- `Next Steps <#10>`__
+- `Prerequisites <#prerequisites>`__
+- `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+- `Prepare input data <#prepare-input-data>`__
+- `Convert Model to OpenVINO Intermediate Representation (IR) format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+- `Select inference device <#select-inference-device>`__
+- `Zero-shot classification using ImageBind and OpenVINO <#zero-shot-classification-using-imagebind-and-openvino>`__
+- `Text-Image classification <#text-image-classification>`__
+- `Text-Audio classification <#text-audio-classification>`__
+- `Image-Audio classification <#image-audio-classification>`__
+- `Next Steps <#next-steps>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

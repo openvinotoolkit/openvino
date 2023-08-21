@@ -41,15 +41,15 @@ Prerequisites
 
 Table of content:
 
-- `Get Books <#1>`__
-- `Clean Text <#2>`__
-- `Split Text <#3>`__
-- `Get Sentence Embeddings <#4>`__
-- `Optimize the Model with OpenVINO <#5>`__
-- `Calculate Sentence Alignment <#6>`__
-- `Postprocess Sentence Alignment <#7>`__
-- `Visualize Sentence Alignment <#8>`__
-- `Speed up Embeddings Computation <#9>`__
+- `Get Books <#get-books>`__
+- `Clean Text <#clean-text>`__
+- `Split Text <#split-text>`__
+- `Get Sentence Embeddings <#get-sentence-embeddings>`__
+- `Optimize the Model with OpenVINO <#optimize-the-model-with-openvino>`__
+- `Calculate Sentence Alignment <#calculate-sentence-alignment>`__
+- `Postprocess Sentence Alignment <#postprocess-sentence-alignment>`__
+- `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
+- `Speed up Embeddings Computation <#speed-up-embeddings-computation>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png%22
 

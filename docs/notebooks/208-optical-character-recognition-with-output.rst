@@ -23,23 +23,23 @@ information, refer to the
 
 Table of content:
 
-- `Imports <#1>`__
-- `Settings <#2>`__
-- `Download Models <#3>`__
-- `Convert Models <#4>`__
-- `Select inference device <#5>`__
-- `Object Detection <#6>`__
-- `Load a Detection Model <#7>`__
-- `Load an Image <#8>`__
-- `Do Inference <#9>`__
-- `Get Detection Results <#10>`__
-- `Text Recognition <#11>`__
-- `Load Text Recognition Model <#12>`__
-- `Do Inference <#13>`__
-- `Show Results <#14>`__
-- `Show Detected Text Boxes and OCR Results for the Image <#15>`__
-- `Show the OCR Result per Bounding Box <#16>`__
-- `Print Annotations in Plain Text Format <#17>`__
+- `Imports <#imports>`__
+- `Settings <#settings>`__
+- `Download Models <#download-models>`__
+- `Convert Models <#convert-models>`__
+- `Select inference device <#select-inference-device>`__
+- `Object Detection <#object-detection>`__
+- `Load a Detection Model <#load-a-detection-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Get Detection Results <#get-detection-results>`__
+- `Text Recognition <#text-recognition>`__
+- `Load Text Recognition Model <#load-text-recognition-model>`__
+- `Do Inference <#do-inference>`__
+- `Show Results <#show-results>`__
+- `Show Detected Text Boxes and OCR Results for the Image <#show-detected-text-boxes-and-ocr-results-for-the-image>`__
+- `Show the OCR Result per Bounding Box <#show-the-ocr-result-per-bounding-box>`__
+- `Print Annotations in Plain Text Format <#print-annotations-in-plain-text-format>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

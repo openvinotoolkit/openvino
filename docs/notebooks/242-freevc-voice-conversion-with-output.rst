@@ -32,14 +32,14 @@ devices. It consists of the following steps:
 
 Table of content:
 
-- `Pre-requisites <#1>`__
-- `Imports and settings <#2>`__
-- `Convert Modes to OpenVINO Intermediate Representation <#3>`__
-- `Convert Prior Encoder. <#4>`__
-- `Convert SpeakerEncoder <#5>`__
-- `Convert Decoder <#6>`__
+- `Prerequisites <#prerequisites>`__
+- `Imports and settings <#imports-and-settings>`__
+- `Convert Modes to OpenVINO Intermediate Representation <#convert-modes-to-openvino-intermediate-representation>`__
+- `Convert Prior Encoder. <#convert-prior-encoder>`__
+- `Convert SpeakerEncoder <#convert-speakerencoder>`__
+- `Convert Decoder <#convert-decoder>`__
 
-Pre-requisites `⇑ <#top>`__
+Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
  This steps can be done manually or will be

@@ -7,10 +7,10 @@ Stable Diffusion v2.1 using Optimum-Intel OpenVINO
 
 Table of content:
 
-- `Showing Info Available Devices <#1>`__
-- `Download Pre-Converted Stable Diffusion 2.1 IR <#2>`__
-- `Save the pre-trained models, Select the inference device and compile it <#3>`__
-- `Be creative, add the prompt and enjoy the result <#4>`__
+- `Showing Info Available Devices <#showing-info-available-devices>`__
+- `Download Pre-Converted Stable Diffusion 2.1 IR <#download-pre-converted-stable-diffusion-2.1-ir>`__
+- `Save the pre-trained models, Select the inference device and compile it <#save-the-pre-trained-models-select-the-inference-device-and-compile-it>`__
+- `Be creative, add the prompt and enjoy the result <#be-creative-add-the-prompt-and-enjoy-the-result>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 

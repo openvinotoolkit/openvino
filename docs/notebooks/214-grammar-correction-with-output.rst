@@ -45,15 +45,15 @@ It consists of the following steps:
 
 Table of content:
 
--  `How does it work? <#1>`__
--  `Prerequisites <#2>`__
--  `Download and Convert Models <#3>`__
+- `How does it work? <#how-does-it-work>`__
+- `Prerequisites <#prerequisites>`__
+- `Download and Convert Models <#download-and-convert-models>`__
 
-   -  `Select inference device <#4>`__
-   -  `Grammar Checker <#5>`__
-   -  `Grammar Corrector <#6>`__
+  - `Select inference device <#select-inference-device>`__
+  - `Grammar Checker <#grammar-checker>`__
+  - `Grammar Corrector <#grammar-corrector>`__
 
--  `Prepare Demo Pipeline <#7>`__
+-  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
 
 How does it work? `⇑ <#top>`__
 ###############################################################################################################################

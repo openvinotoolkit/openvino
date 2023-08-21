@@ -21,17 +21,17 @@ As a result, you can get:
 
 Table of content:
 
-- `Imports <#1>`__
-- `Download Models <#2>`__
-- `Load Models <#3>`__
-- `Get attributes from model <#4>`__
-- `Helper function <#5>`__
-- `Read and display a test image <#6>`__
-- `Use the Detection Model to Detect Vehicles <#7>`__
-- `Detection Processing <#8>`__
-- `Recognize vehicle attributes <#9>`__
-- `Recognition processing <#10>`__
-- `Combine two models <#11>`__
+- `Imports <#imports>`__
+- `Download Models <#download-models>`__
+- `Load Models <#load-models>`__
+- `Get attributes from model <#get-attributes-from-model>`__
+- `Helper function <#helper-function>`__
+- `Read and display a test image <#read-and-display-a-test-image>`__
+- `Use the Detection Model to Detect Vehicles <#use-the-detection-model-to-detect-vehicles>`__
+- `Detection Processing <#detection-processing>`__
+- `Recognize vehicle attributes <#recognize-vehicle-attributes>`__
+- `Recognition processing <#recognition-processing>`__
+- `Combine two models <#combine-two-models>`__
 
 .. |flowchart| image:: https://user-images.githubusercontent.com/47499836/157867076-9e997781-f9ef-45f6-9a51-b515bbf41048.png
 

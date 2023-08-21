@@ -41,14 +41,14 @@ card <https://huggingface.co/pyannote/speaker-diarization>`__,
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Prepare pipeline <#2>`__
-- `Load test audio file <#3>`__
-- `Run inference pipeline <#4>`__
-- `Convert model to OpenVINO Intermediate Representation format <#5>`__
-- `Select inference device <#6>`__
-- `Replace segmentation model with OpenVINO <#7>`__
-- `Run speaker diarization with OpenVINO <#8>`__
+- `Prerequisites <#prerequisites>`__
+- `Prepare pipeline <#prepare-pipeline>`__
+- `Load test audio file <#load-test-audio-file>`__
+- `Run inference pipeline <#run-inference-pipeline>`__
+- `Convert model to OpenVINO Intermediate Representation format <#convert-model-to-openvino-intermediate-representation-format>`__
+- `Select inference device <#select-inference-device>`__
+- `Replace segmentation model with OpenVINO <#replace-segmentation-model-with-openvino>`__
+- `Run speaker diarization with OpenVINO <#run-speaker-diarization-with-openvino>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

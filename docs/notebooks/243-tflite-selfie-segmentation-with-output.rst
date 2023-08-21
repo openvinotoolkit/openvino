@@ -38,17 +38,22 @@ The tutorial consists of following steps:
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Install required dependencies <#2>`__
-- `Download pre-trained model and test image <#3>`__
-- `Convert Tensorflow Lite model to OpenVINO IR format <#4>`__
-- `Run OpenVINO model inference on image <#5>`__
-- `Load model <#6>`__
-- `Prepare input image <#7>`__
-- `Run model inference <#8>`__
-- `Postprocess and visualize inference results <#9>`__
-- `Interactive background blurring demo on video <#10>`__
-- `Run Live Background Blurring <#11>`__
+- `Prerequisites <#prerequisites>`__
+
+  - `Install required dependencies <#install-required-dependencies>`__
+  - `Download pre-trained model and test image <#download-pre-trained-model-and-test-image>`__
+
+- `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+- `Run OpenVINO model inference on image <#run-openvino-model-inference-on-image>`__
+
+  - `Load model <#load-model>`__
+  - `Prepare input image <#prepare-input-image>`__
+  - `Run model inference <#run-model-inference>`__
+  - `Postprocess and visualize inference results <#postprocess-and-visualize-inference-results>`__
+
+- `Interactive background blurring demo on video <#interactive-background-blurring-demo-on-video>`__
+
+  - `Run Live Background Blurring <#run-live-background-blurring>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

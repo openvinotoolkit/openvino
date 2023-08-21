@@ -26,19 +26,19 @@ The tutorial consists of the following parts:
 
 Table of content:
 
-- `Background <#1>`__
-- `Image Captioning <#2>`__
-- `Visual Question Answering <#3>`__
-- `Instantiate Model <#4>`__
-- `Convert Models to OpenVINO IR <#5>`__
-- `Vision Model <#6>`__
-- `Text Encoder <#7>`__
-- `Text Decoder <#8>`__
-- `Run OpenVINO Model <#9>`__
-- `Prepare Inference Pipeline <#10>`__
-- `Select inference device <#11>`__
-- `Image Captioning <#12>`__
-- `Question Answering <#13>`__
+- `Background <#background>`__
+- `Image Captioning <#image-captioning>`__
+- `Visual Question Answering <#visual-question-answering>`__
+- `Instantiate Model <#instantiate-model>`__
+- `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+- `Vision Model <#vision-model>`__
+- `Text Encoder <#text-encoder>`__
+- `Text Decoder <#text-decoder>`__
+- `Run OpenVINO Model <#run-openvino-model>`__
+- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+- `Select inference device <#select-inference-device>`__
+- `Image Captioning <#image-captioning>`__
+- `Question Answering <#question-answering>`__
 
 Background `⇑ <#top>`__
 ###############################################################################################################################

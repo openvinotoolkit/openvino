@@ -69,16 +69,16 @@ The tutorial consists of the following steps:
 
 Table of content:
 
-- `Install Prerequisites <#1>`__
-- `SDXL Base model <#2>`__
-- `Select inference device <#3>`__
-- `Run Text2Image generation pipeline <#4>`__
-- `Text2image Generation Interactive Demo <#5>`__
-- `Run Image2Image generation pipeline <#6>`__
-- `Image2Image Generation Interactive Demo <#7>`__
-- `SDXL Refiner model <#8>`__
-- `Select inference device <#9>`__
-- `Run Text2Image generation with Refinement <#10>`__
+- `Install Prerequisites <#install-prerequisites>`__
+- `SDXL Base model <#sdxl-base-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Run Text2Image generation pipeline <#run-text2image-generation-pipeline>`__
+- `Text2image Generation Interactive Demo <#text2image-generation-interactive-demo>`__
+- `Run Image2Image generation pipeline <#run-image2image-generation-pipeline>`__
+- `Image2Image Generation Interactive Demo <#image2image-generation-interactive-demo>`__
+- `SDXL Refiner model <#sdxl-refiner-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Run Text2Image generation with Refinement <#run-text2image-generation-with-refinement>`__
 
 Install prerequisites\ `⇑ <#top>`__
 ###############################################################################################################################

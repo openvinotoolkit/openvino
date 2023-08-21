@@ -41,41 +41,41 @@ The tutorial consists of the following steps:
 
 Table of content:
 
-- `Get Pytorch model <#1>`__
-- `Prerequisites <#2>`__
-- `Instantiate model <#3>`__
-- `Object detection <#4>`__
-- `Instance Segmentation: <#5>`__
-- `Convert model to OpenVINO IR <#6>`__
-- `Verify model inference <#7>`__
-- `Preprocessing <#8>`__
-- `Postprocessing <#9>`__
-- `Select inference device <#10>`__
-- `Test on single image <#11>`__
-- `Check model accuracy on the dataset <#12>`__
-- `Download the validation dataset <#13>`__
-- `Define validation function <#14>`__
-- `Configure Validator helper and create DataLoader <#15>`__
-- `Optimize model using NNCF Post-training Quantization API <#16>`__
-- `Validate Quantized model inference <#17>`__
-- `Object detection: <#18>`__
-- `Instance segmentation: <#19>`__
-- `Compare Performance of the Original and Quantized Models <#20>`__
-- `Compare performance object detection models <#21>`__
-- `Instance segmentation <#22>`__
-- `Validate quantized model accuracy <#23>`__
-- `Object detection <#24>`__
-- `Instance segmentation <#25>`__
-- `Next steps <#26>`__
-- `Async inference pipeline <#27>`__
-- `Integration preprocessing to model <#28>`__
-- `Initialize PrePostProcessing API <#29>`__
-- `Define input data format <#30>`__
-- `Describe preprocessing steps <#31>`__
-- `Integrating Steps into a Model <#32>`__
-- `Live demo <#33>`__
-- `Run <#34>`__
-- `Run Live Object Detection and Segmentation <#35>`__
+- `Get Pytorch model <#get-pytorch-model>`__
+- `Prerequisites <#prerequisites>`__
+- `Instantiate model <#instantiate-model>`__
+- `Object detection <#object-detection>`__
+- `Instance Segmentation: <#instance-segmentation>`__
+- `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+- `Verify model inference <#verify-model-inference>`__
+- `Preprocessing <#preprocessing>`__
+- `Postprocessing <#postprocessing>`__
+- `Select inference device <#select-inference-device>`__
+- `Test on single image <#test-on-single-image>`__
+- `Check model accuracy on the dataset <#check-model-accuracy-on-the-dataset>`__
+- `Download the validation dataset <#download-the-validation-dataset>`__
+- `Define validation function <#define-validation-function>`__
+- `Configure Validator helper and create DataLoader <#configure-validator-helper-and-create-dataloader>`__
+- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+- `Validate Quantized model inference <#validate-quantized-model-inference>`__
+- `Object detection: <#object-detection>`__
+- `Instance segmentation: <#instance-segmentation>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare performance object detection models <#compare-performance-object-detection-models>`__
+- `Instance segmentation <#instance-segmentation>`__
+- `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__
+- `Object detection <#object-detection>`__
+- `Instance segmentation <#instance-segmentation>`__
+- `Next steps <#next-steps>`__
+- `Async inference pipeline <#async-inference-pipeline>`__
+- `Integration preprocessing to model <#integration-preprocessing-to-model>`__
+- `Initialize PrePostProcessing API <#initialize-prepostprocessing-api>`__
+- `Define input data format <#define-input-data-format>`__
+- `Describe preprocessing steps <#describe-preprocessing-steps>`__
+- `Integrating Steps into a Model <#integrating-steps-into-a-model>`__
+- `Live demo <#live-demo>`__
+- `Run <#run>`__
+- `Run Live Object Detection and Segmentation <#run-live-object-detection-and-segmentation>`__
 
 Get Pytorch model `⇑ <#top>`__
 ###############################################################################################################################

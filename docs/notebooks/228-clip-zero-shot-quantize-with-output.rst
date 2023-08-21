@@ -25,12 +25,12 @@ The optimization process contains the following steps:
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Create and initialize quantization <#2>`__
-- `Prepare datasets <#3>`__
-- `Run quantized OpenVINO model <#4>`__
-- `Compare File Size <#5>`__
-- `Compare inference time of the FP16 IR and quantized models <#6>`__
+- `Prerequisites <#prerequisites>`__
+- `Create and initialize quantization <#create-and-initialize-quantization>`__
+- `Prepare datasets <#prepare-datasets>`__
+- `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
+- `Compare File Size <#compare-file-size>`__
+- `Compare inference time of the FP16 IR and quantized models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

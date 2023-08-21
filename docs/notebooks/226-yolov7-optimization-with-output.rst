@@ -42,23 +42,23 @@ The tutorial consists of the following steps:
 
 Table of content:
 
-- `Get Pytorch model <#1>`__
-- `Prerequisites <#2>`__
-- `Check model inference <#3>`__
-- `Export to ONNX <#4>`__
-- `Convert ONNX Model to OpenVINO Intermediate Representation (IR) <#5>`__
-- `Verify model inference <#6>`__
-- `Preprocessing <#7>`__
-- `Postprocessing <#8>`__
-- `Select inferencedevice <#9>`__
-- `Verify model accuracy <#10>`__
-- `Download dataset <#11>`__
-- `Create dataloader <#12>`__
-- `Define validation function <#13>`__
-- `Optimize model using NNCF Post-training Quantization API <#14>`__
-- `Validate Quantized model inference <#15>`__
-- `Validate quantized model accuracy <#16>`__
-- `Compare Performance of the Original and Quantized Models <#17>`__
+- `Get Pytorch model <#get-pytorch-model>`__
+- `Prerequisites <#prerequisites>`__
+- `Check model inference <#check-model-inference>`__
+- `Export to ONNX <#export-to-onnx>`__
+- `Convert ONNX Model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+- `Verify model inference <#verify-model-inference>`__
+- `Preprocessing <#preprocessing>`__
+- `Postprocessing <#postprocessing>`__
+- `Select inference device <#select-inference-device>`__
+- `Verify model accuracy <#verify-model-accuracy>`__
+- `Download dataset <#download-dataset>`__
+- `Create dataloader <#create-dataloader>`__
+- `Define validation function <#define-validation-function>`__
+- `Optimize model using NNCF Post-training Quantization API <#optimize-model-using-nncf-post-training-quantization-api>`__
+- `Validate Quantized model inference <#validate-quantized-model-inference>`__
+- `Validate quantized model accuracy <#validate-quantized-model-accuracy>`__
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Get Pytorch model `⇑ <#top>`__
 ###############################################################################################################################

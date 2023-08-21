@@ -33,13 +33,13 @@ Notebook contains the following steps:
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Create Pytorch Models pipeline <#2>`__
-- `Convert Models to OpenVINO IR <#3>`__
-- `Text Encoder <#4>`__
-- `VAE <#5>`__
-- `Unet <#6>`__
-- `Prepare Inference Pipeline <#7>`__
+- `Prerequisites <#prerequisites>`__
+- `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
+- `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
+- `Text Encoder <#text-encoder>`__
+- `VAE <#vae>`__
+- `Unet <#unet>`__
+- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

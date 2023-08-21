@@ -29,13 +29,13 @@ convert the model to OpenVINO™ IR format and quantize it.
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Download the NER model <#2>`__
-- `Quantize the model, using Hugging Face Optimum API <#3>`__
-- `Prepare demo for Named Entity Recognition OpenVINO Runtime <#4>`__
-- `Compare the Original and Quantized Models <#5>`__
-- `Compare performance <#6>`__
-- `Compare size of the models <#7>`__
+- `Prerequisites <#prerequisites>`__
+- `Download the NER model <#download-the-ner-model>`__
+- `Quantize the model, using Hugging Face Optimum API <#quantize-the-model-using-hugging-face-optimum-api>`__
+- `Prepare demo for Named Entity Recognition OpenVINO Runtime <#prepare-demo-for-named-entity-recognition-openvino-runtime>`__
+- `Compare the Original and Quantized Models <#compare-the-original-and-quantized-models>`__
+- `Compare performance <#compare-performance>`__
+- `Compare size of the models <#compare-size-of-the-models>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

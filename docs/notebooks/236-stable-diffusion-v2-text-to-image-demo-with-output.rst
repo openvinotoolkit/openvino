@@ -25,14 +25,14 @@ image, please visit
 
 Table of content:
 
-- `Step 0: Install and import prerequisites <#1>`__
-- `Step 1: Stable Diffusion v2 Fundamental components <#2>`__
-- `Step 1.1: Retrieve components from HuggingFace <#3>`__
-- `Step 2: Convert the models to OpenVINO <#4>`__
-- `3. Text-to-Image Generation Inference Pipeline <#5>`__
-- `Step 3.1: Load and Understand Text to Image OpenVINO models <#6>`__
-- `Select inference device <#7>`__
-- `Step 3.3: Run Text-to-Image generation <#8>`__
+- `Step 0: Install and import prerequisites <#step-0-install-and-import-prerequisites>`__
+- `Step 1: Stable Diffusion v2 Fundamental components <#step-1-stable-diffusion-v2-fundamental-components>`__
+- `Step 1.1: Retrieve components from HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
+- `Step 2: Convert the models to OpenVINO <#step-2-convert-the-models-to-openvino>`__
+- `Step 3: Text-to-Image Generation Inference Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
+- `Step 3.1: Load and Understand Text to Image OpenVINO models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
+- `Select inference device <#select-inference-device>`__
+- `Step 3.3: Run Text-to-Image generation <#step-3-3-run-text-to-image-generation>`__
 
 Step 0: Install and import prerequisites `⇑ <#top>`__
 ###############################################################################################################################
@@ -164,7 +164,7 @@ pipelines in OpenVINO on our own data!
     WARNING:root:Failed to send event with error cannot schedule new futures after shutdown.
 
 
-3. Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
+Step 3: Text-to-Image Generation Inference Pipeline `⇑ <#top>`__
 ###############################################################################################################################
 
 

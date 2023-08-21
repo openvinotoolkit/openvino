@@ -13,18 +13,18 @@ of this notebook provides live inference results from your inputs.
 
 Table of content:
 
-- `Imports <#1>`__
-- `The model <#2>`__
-- `Download the model <#3>`__
-- `Load the model <#4>`__
-- `Select inference device <#5>`__
-- `Processing <#6>`__
-- `Preprocessing <#7>`__
-- `Postprocessing <#8>`__
-- `Main Processing Function <#9>`__
-- `Run <#10>`__
-- `Run on local paragraphs <#11>`__
-- `Run on websites <#12>`__
+- `Imports <#imports>`__
+- `The model <#the-model>`__
+- `Download the model <#download-the-model>`__
+- `Load the model <#load-the-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Processing <#processing>`__
+- `Preprocessing <#preprocessing>`__
+- `Postprocessing <#postprocessing>`__
+- `Main Processing Function <#main-processing-function>`__
+- `Run <#run>`__
+- `Run on local paragraphs <#run-on-local-paragraphs>`__
+- `Run on websites <#run-on-websites>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

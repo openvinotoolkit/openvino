@@ -75,22 +75,22 @@ and the sequence is passed back into the model.
 
 Table of content:
 
-- `Model Selection <#1>`__
-- `Load Model <#2>`__
-- `Convert Pytorch Model to OpenVINO IR <#3>`__
-- `Load the model <#4>`__
-- `Select inference device <#5>`__
-- `Pre-Processing <#6>`__
-- `Define tokenization <#7>`__
-- `Define Softmax layer <#8>`__
-- `Set the minimum sequence length <#9>`__
-- `Top-K sampling <#10>`__
-- `Main Processing Function <#11>`__
-- `Inference with GPT-Neo/GPT-2 <#12>`__
-- `Conversation with PersonaGPT using OpenVINO™ <#13>`__
-- `Converse Function <#14>`__
-- `Conversation Class <#15>`__
-- `Conversation with PersonaGPT <#16>`__
+- `Model Selection <#model-selection>`__
+- `Load Model <#load-model>`__
+- `Convert Pytorch Model to OpenVINO IR <#convert-pytorch-model-to-openvino-ir>`__
+- `Load the model <#load-the-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Pre-Processing <#pre-processing>`__
+- `Define tokenization <#define-tokenization>`__
+- `Define Softmax layer <#define-softmax-layer>`__
+- `Set the minimum sequence length <#set-the-minimum-sequence-length>`__
+- `Top-K sampling <#top-k-sampling>`__
+- `Main Processing Function <#main-processing-function>`__
+- `Inference with GPT-Neo/GPT-2 <#inference-with-gpt-neo-gpt-2>`__
+- `Conversation with PersonaGPT using OpenVINO™ <#conversation-with-personagpt-using-openvino>`__
+- `Converse Function <#converse-function>`__
+- `Conversation Class <#conversation-class>`__
+- `Conversation with PersonaGPT <#conversation-with-personagpt>`__
 
 Model Selection `⇑ <#top>`__
 ###############################################################################################################################

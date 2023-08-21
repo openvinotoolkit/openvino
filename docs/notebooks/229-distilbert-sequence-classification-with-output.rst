@@ -11,14 +11,14 @@ sequence classification model using OpenVINO.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Initializing the Model <#2>`__
-- `Initializing the Tokenizer <#3>`__
-- `Convert Model to OpenVINO Intermediate Representation format <#4>`__
-- `Select inference device <#5>`__
-- `Inference <#6>`__
-- `For a single input sentence <#7>`__
-- `Read from a text file <#8>`__
+- `Imports <#imports>`__
+- `Initializing the Model <#initializing-the-model>`__
+- `Initializing the Tokenizer <#initializing-the-tokenizer>`__
+- `Convert Model to OpenVINO Intermediate Representation format <#convert-model-to-openvino-intermediate-representation-format>`__
+- `Select inference device <#select-inference-device>`__
+- `Inference <#inference>`__
+- `For a single input sentence <#for single -a- -input-sentence>`__
+- `Read from a text file <#read-from-a-text-file>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

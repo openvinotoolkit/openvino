@@ -46,15 +46,15 @@ repository for more details.
 
 Table of content: 
 
-- `Imports <#1>`__
-- `Configurations <#2>`__
-- `Select inference device <#3>`__
-- `Download the model <#4>`__
-- `Convert the model to OpenVINO IR <#5>`__
-- `Loading the Model <#6>`__
-- `Utility Functions <#7>`__
-- `Load the Image <#8>`__
-- `Display Colorized Image <#9>`__
+- `Imports <#imports>`__
+- `Configurations <#configurations>`__
+- `Select inference device <#select-inference-device>`__
+- `Download the model <#download-the-model>`__
+- `Convert the model to OpenVINO IR <#convert-the-model-to-openvino-ir>`__
+- `Loading the Model <#loading-the-model>`__
+- `Utility Functions <#utility-functions>`__
+- `Load the Image <#load-the-image>`__
+- `Display Colorized Image <#display-colorized-image>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

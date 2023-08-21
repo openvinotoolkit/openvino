@@ -20,13 +20,13 @@ The structure is the same as the one for the input.
 
 Table of content:
 
-- `Downloading model <#1>`__
-- `Load and configure the model <#2>`__
-- `Select inference device <#3>`__
-- `Load tokenizers <#4>`__
-- `Perform translation <#5>`__
-- `Translate the sentence <#6>`__
-- `Test your translation <#7>`__
+- `Downloading model <#downloading-model>`__
+- `Load and configure the model <#load-and-configure-the-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Load tokenizers <#load-tokenizers>`__
+- `Perform translation <#perform-translation>`__
+- `Translate the sentence <#translate-the-sentence>`__
+- `Test your translation <#test-your-translation>`__
 
 .. code:: ipython3
 

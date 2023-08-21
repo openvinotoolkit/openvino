@@ -28,15 +28,15 @@ API. 4. Run the Whisper pipeline with OpenVINO models.
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Instantiate model <#2>`__
-- `Convert model to OpenVINO Intermediate Representation (IR) format. <#3>`__
-- `Convert Whisper Encoder to OpenVINO IR <#4>`__
-- `Convert Whisper decoder to OpenVINO IR <#5>`__
-- `Prepare inference pipeline <#6>`__
-- `Select inference device <#7>`__
-- `Define audio preprocessing <#8>`__
-- `Run video transcription pipeline <#9>`__
+- `Prerequisites <#prerequisites>`__
+- `Instantiate model <#instantiate-model>`__
+- `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+- `Convert Whisper Encoder to OpenVINO IR <#convert-whisper-encoder-to-openvino-ir>`__
+- `Convert Whisper decoder to OpenVINO IR <#5convert-whisper-decoder-to-openvino-ir>`__
+- `Prepare inference pipeline <#prepare-inference-pipeline>`__
+- `Select inference device <#select-inference-device>`__
+- `Define audio preprocessing <#define-audio-preprocessing>`__
+- `Run video transcription pipeline <#run-video-transcription-pipeline>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

@@ -20,21 +20,21 @@ https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
 Table of content:
 
-- `Windows specific settings <#1>`__
-- `Import the packages needed for successful execution <#2>`__
-- `Settings: Including path to the serialized model files and input data files <#3>`__
-- `Download Model Checkpoint <#4>`__
-- `Defining the ConvE model class <#5>`__
-- `Defining the dataloader <#6>`__
-- `Evaluate the trained ConvE model <#7>`__
-- `Prediction on the Knowledge graph. <#8>`__
-- `Convert the trained PyTorch model to ONNX format for OpenVINO inference <#9>`__
-- `Evaluate the model performance with OpenVINO <#10>`__
-- `Select inference device <#11>`__
-- `Determine the platform specific speedup obtained through OpenVINO graph optimizations <#12>`__
-- `Benchmark the converted OpenVINO model using benchmark app <#13>`__
-- `Conclusions <#14>`__
-- `References <#15>`__
+- `Windows specific settings <#windows-specific-settings>`__
+- `Import the packages needed for successful execution <#import-the-packages-needed-for-successful-execution>`__
+- `Settings: Including path to the serialized model files and input data files <#settings-including-path-to-the-serialized-model-files-and-input-data-files>`__
+- `Download Model Checkpoint <#download-model-checkpoint>`__
+- `Defining the ConvE model class <#defining-the-conve-model-class>`__
+- `Defining the dataloader <#defining-the-dataloader>`__
+- `Evaluate the trained ConvE model <#evaluate-the-trained-conve-model>`__
+- `Prediction on the Knowledge graph. <#prediction-on-the-knowledge-graph>`__
+- `Convert the trained PyTorch model to ONNX format for OpenVINO inference <#convert-the-trained-pytorch-model-to-onnx-format-for-openvino-inference>`__
+- `Evaluate the model performance with OpenVINO <#evaluate-the-model-performance-with-openvino>`__
+- `Select inference device <#select-inference-device>`__
+- `Determine the platform specific speedup obtained through OpenVINO graph optimizations <#determine-the-platform-specific-speedup-obtained-through-openvino-graph-optimizations>`__
+- `Benchmark the converted OpenVINO model using benchmark app <#benchmark-the-converted-openvino-model-using-benchmark-app>`__
+- `Conclusions <#conclusions>`__
+- `References <#references>`__
 
 Windows specific settings `⇑ <#top>`__
 ###############################################################################################################################

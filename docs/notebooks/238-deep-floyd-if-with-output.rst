@@ -80,41 +80,37 @@ vector in embedded space.
 
 Table of content:
 
-- `Prerequisites <#1>`__
+- `Prerequisites <#prerequisites>`__
+- `Authentication <#authentication>`__
+- `DeepFloyd IF in Diffusers library <#deepfloyd-if-in-diffusers-library>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+- `Convert Text Encoder <#convert-text-encoder>`__
+- `Convert the first Pixel Diffusion module’s UNet <#convert-the-first-pixel-diffusion-modules-unet>`__
+- `Convert the second pixel diffusion module <#convert-the-second-pixel-diffusion-module>`__
+- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+- `Run Text-to-Image generation <#run-text-to-image-generation>`__
+- `Text Encoder inference <#text-encoder-inference>`__
+- `First Stage diffusion block inference <#first-stage-diffusion-block-inference>`__
+- `Second Stage diffusion block inference <#second-stage-diffusion-block-inference>`__
+- `Third Stage diffusion block <#third-stage-diffusion-block>`__
+- `Upscale the generated image using a Super Resolution network <#upscale-the-generated-image-using-a-super-resolution-network>`__
+- `Download the Super Resolution model weights <#download-the-super-resolution-model-weights>`__
+- `Reshape the model’s inputs <#reshape-the-models-inputs>`__
+- `Prepare the input images and run the model <#prepare-the-input-images-and-run-the-model>`__
+- `Display the result <#display-the-result>`__
 
-  - `Authentication <#2>`__
+.. note::
 
-- `DeepFloyd IF in Diffusers library <#3>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#4>`__
-- `1. Convert Text Encoder <#5>`__
-- `Convert the first Pixel Diffusion module’s UNet <#6>`__
-- `Convert the second pixel diffusion module <#7>`__
-- `Prepare Inference pipeline <#8>`__
-- `Run Text-to-Image generation <#9>`__
-- `Text Encoder inference <#10>`__
-- `First Stage diffusion block inference <#11>`__
-- `Second Stage diffusion block inference <#12>`__
-- `Third Stage diffusion block <#13>`__
-- `Upscale the generated image using a Super Resolution network <#14>`__
--  `Download the Super Resolution model weights <#15>`__
--  `Reshape the model’s inputs <#16>`__
--  `Prepare the input images and run the model <#17>`__
--  `Display the result <#18>`__
-
-   **NOTE**:
-
-..
-
-   -  *This example requires the download of roughly 27 GB of model
-      checkpoints, which could take some time depending on your internet
-      connection speed. Additionally, the converted models will consume
-      another 27 GB of disk space.*
-   -  *Please be aware that a minimum of 32 GB of RAM is necessary to
-      convert and run inference on the models. There may be instances
-      where the notebook appears to freeze or stop responding.*
-   -  *To access the model checkpoints, you’ll need a Hugging Face
-      account. You’ll also be prompted to explicitly accept the*\ `model
-      license <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__\ *.*
+   - *This example requires the download of roughly 27 GB of model
+     checkpoints, which could take some time depending on your internet
+     connection speed. Additionally, the converted models will consume
+     another 27 GB of disk space.*
+   - *Please be aware that a minimum of 32 GB of RAM is necessary to
+     convert and run inference on the models. There may be instances
+     where the notebook appears to freeze or stop responding.*
+   - *To access the model checkpoints, you’ll need a Hugging Face
+     account. You’ll also be prompted to explicitly accept the*\ `model
+     license <https://huggingface.co/DeepFloyd/IF-I-M-v1.0>`__\ *.*
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

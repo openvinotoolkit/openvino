@@ -53,13 +53,13 @@ the `SALICON dataset <http://salicon.net/>`__.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Download the attention-center model <#2>`__
-- `Convert Tensorflow Lite model to OpenVINO IR format <#3>`__
-- `Select inference device <#4>`__
-- `Prepare image to use with attention-center model <#5>`__
-- `Load input image <#6>`__
-- `Get result with OpenVINO IR model <#7>`__
+- `Imports <#imports>`__
+- `Download the attention-center model <#download-the-attention-center-model>`__
+- `Convert Tensorflow Lite model to OpenVINO IR format <#convert-tensorflow-lite-model-to-openvino-ir-format>`__
+- `Select inference device <#select-inference-device>`__
+- `Prepare image to use with attention-center model <#prepare-image-to-use-with-attention-center-model>`__
+- `Load input image <#load-input-image>`__
+- `Get result with OpenVINO IR model <#get-result-with-openvino-ir-model>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################

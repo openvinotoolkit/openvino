@@ -84,16 +84,16 @@ and `repo <https://github.com/databrickslabs/dolly>`__
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Select inference device <#2>`__
-- `Download and Convert Model <#3>`__
-- `Create an instruction-following inference pipeline <#4>`__
-- `Setup imports <#5>`__
-- `Prepare template for user prompt <#6>`__
-- `Helpers for output parsing <#7>`__
-- `Main generation function <#8>`__
-- `Helpers for application <#9>`__
-- `Run instruction-following pipeline <#10>`__
+- `Prerequisites <#prerequisites>`__
+- `Select inference device <#select-inference-device>`__
+- `Download and Convert Model <#download-and-convert-model>`__
+- `Create an instruction-following inference pipeline <#create-an-instruction-following-inference-pipeline>`__
+- `Setup imports <#setup-imports>`__
+- `Prepare template for user prompt <#prepare-template-for-user-prompt>`__
+- `Helpers for output parsing <#helpers-for-output-parsing>`__
+- `Main generation function <#main-generation-function>`__
+- `Helpers for application <#helpers-for-application>`__
+- `Run instruction-following pipeline <#run-instruction-following-pipeline>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

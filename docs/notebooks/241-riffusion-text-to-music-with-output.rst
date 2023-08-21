@@ -78,12 +78,12 @@ audio generation.
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Stable Diffusion pipeline in Optimum Intel <#2>`__
-- `Select inference device <#3>`__
-- `Prepare postprocessing for reconstruction audio from spectrogram image <#4>`__
-- `Run Inference pipeline <#5>`__
-- `Interactive demo <#6>`__
+- `Prerequisites <#prerequisites>`__
+- `Stable Diffusion pipeline in Optimum Intel <#stable-diffusion-pipeline-in-optimum-intel>`__
+- `Select inference device <#select-inference-device>`__
+- `Prepare postprocessing for reconstruction audio from spectrogram image <#prepare-postprocessing-for-reconstruction-audio-from-spectrogram-image>`__
+- `Run Inference pipeline <#run-inference-pipeline>`__
+- `Interactive demo <#interactive-demo>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

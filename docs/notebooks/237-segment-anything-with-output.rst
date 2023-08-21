@@ -5,26 +5,31 @@ Object masks from prompts with SAM and OpenVINO
 
 Table of content:
 
-- `Background <#1>`__
-- `Prerequisites <#2>`__
-- `Convert model to OpenVINO Intermediate Representation <#3>`__
-- `Download model checkpoint and create PyTorch model <#4>`__
-- `Image Encoder <#5>`__
-- `Mask predictor <#6>`__
-- `Run OpenVINO model in interactive segmentation mode <#7>`__
-- `Example Image <#8>`__
-- `Preprocessing and visualization utilities <#9>`__
-- `Image encoding <#10>`__
-- `Example point input <#11>`__
-- `Example with multiple points <#12>`__
-- `Example box and point input with negative label <#13>`__
-- `Interactive segmentation <#14>`__
-- `Run OpenVINO model in automatic mask generation mode <#15>`__
-- `Optimize encoder using NNCF Post-training Quantization API <#16>`__
-- `Prepare a calibration dataset <#17>`__
-- `Run quantization and serialize OpenVINO IR model <#18>`__
-- `Validate Quantized Model Inference <#19>`__
-- `Compare Performance of the Original and Quantized Models <#20>`__
+- `Background <#background>`__
+- `Prerequisites <#prerequisites>`__
+- `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__
+
+  - `Download model checkpoint and create PyTorch model <#download-model-checkpoint-and-create-pytorch-model>`__
+  - `Image Encoder <#image-encoder>`__
+  - `Mask predictor <#mask-predictor>`__
+
+- `Run OpenVINO model in interactive segmentation mode <#run-openvino-model-in-interactive-segmentation-mode>`__
+
+  - `Example Image <#example-image>`__
+  - `Preprocessing and visualization utilities <#preprocessing-and-visualization-utilities>`__
+  - `Image encoding <#image-encoding>`__
+  - `Example point input <#example-point-input>`__
+  - `Example with multiple points <#example-with-multiple-points>`__
+  - `Example box and point input with negative label <#example-box-and-point-input-with-negative-label>`__
+
+- `Interactive segmentation <#interactive-segmentation>`__
+- `Run OpenVINO model in automatic mask generation mode <#run-openvino-model-in-automatic-mask-generation-mode>`__
+- `Optimize encoder using NNCF Post-training Quantization API <#optimize-encoder-using-nncf-post-training-quantization-api>`__
+
+  - `Prepare a calibration dataset <#prepare-a-calibration-dataset>`__
+  - `Run quantization and serialize OpenVINO IR model <#run-quantization-and-serialize-openvino-ir-model>`__
+  - `Validate Quantized Model Inference <#validate-quantized-model-inference>`__
+  - `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of

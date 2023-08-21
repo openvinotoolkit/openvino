@@ -5,32 +5,34 @@ From Training to Deployment with TensorFlow and OpenVINO™
 
 Table of content:
 
-- `TensorFlow Image Classification Training <#1>`__
-- `Import TensorFlow and Other Libraries <#2>`__
-- `Download and Explore the Dataset <#3>`__
-- `Load Using keras.preprocessing <#4>`__
-- `Create a Dataset <#5>`__
-- `Visualize the Data <#6>`__
-- `Configure the Dataset for Performance <#7>`__
-- `Standardize the Data <#8>`__
-- `Create the Model <#9>`__
-- `Compile the Model <#10>`__
-- `Model Summary <#11>`__
-- `Train the Model <#12>`__
-- `Visualize Training Results <#13>`__
-- `Overfitting <#14>`__
-- `Data Augmentation <#15>`__
-- `Dropout <#16>`__
-- `Compile and Train the Model <#17>`__
-- `Visualize Training Results <#18>`__
-- `Predict on New Data <#19>`__
-- `Save the TensorFlow Model <#20>`__
-- `Convert the TensorFlow model with OpenVINO Model Optimizer <#21>`__
-- `Preprocessing Image Function <#22>`__
-- `OpenVINO Runtime Setup <#23>`__
-- `Select inference device <#24>`__
-- `Run the Inference Step <#25>`__
-- `The Next Steps <#26>`__
+- `TensorFlow Image Classification Training <#tensorflow-image-classification-training>`__
+- `Import TensorFlow and Other Libraries <#import-tensorflow-and-other-libraries>`__
+- `Download and Explore the Dataset <#download-and-explore-the-dataset>`__
+- `Load Using keras.preprocessing <#load-using-keras.preprocessing>`__
+- `Create a Dataset <#create-a-dataset>`__
+- `Visualize the Data <#visualize-the-data>`__
+- `Configure the Dataset for Performance <#configure-the-dataset-for-performance>`__
+- `Standardize the Data <#standardize-the-data>`__
+- `Create the Model <#create-the-model>`__
+- `Compile the Model <#compile-the-model>`__
+- `Model Summary <#model-summary>`__
+- `Train the Model <#train-the-model>`__
+- `Visualize Training Results <#visualize-training-results>`__
+- `Overfitting <#overfitting>`__
+- `Data Augmentation <#data-augmentation>`__
+- `Dropout <#dropout>`__
+- `Compile and Train the Model <#compile-and-train-the-model>`__
+- `Visualize Training Results <#visualize-training-results>`__
+- `Predict on New Data <#predict-on-new-data>`__
+- `Save the TensorFlow Model <#save-the-tensorflow-model>`__
+- `Convert the TensorFlow model with OpenVINO Model Optimizer <#convert-the-tensorflow-model-with-openvino-model-optimizer>`__
+- `Preprocessing Image Function <#preprocessing-image-function>`__
+- `OpenVINO Runtime Setup <#openvino-runtime-setup>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Run the Inference Step <#run-the-inference-step>`__
+- `The Next Steps <#the-next-steps>`__
 
 .. code:: ipython3
 

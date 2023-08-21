@@ -43,16 +43,16 @@ Notebook contains the following steps:
 
 Table of content:
 
-- `Prerequisites <#1>`__
-- `Create PyTorch Models pipeline <#2>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#3>`__
-- `Text Encoder <#4>`__
-- `U-net <#5>`__
-- `VAE <#6>`__
-- `Prepare Inference Pipeline <#7>`__
-- `Configure Inference Pipeline <#8>`__
-- `Text-to-Image generation <#9>`__
-- `Image-to-Image generation <#10>`__
+- `Prerequisites <#prerequisites>`__
+- `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
+- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+- `Text Encoder <#text-encoder>`__
+- `U-net <#u-net>`__
+- `VAE <#vae>`__
+- `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+- `Configure Inference Pipeline <#configure-inference-pipeline>`__
+- `Text-to-Image generation <#text-to-image-generation>`__
+- `Image-to-Image generation <#image-to-image-generation>`__
 
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################

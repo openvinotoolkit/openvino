@@ -32,12 +32,12 @@ image classification. The notebook contains the following steps:
 
 Table of content:
 
-- `Instantiate model <#1>`__
-- `Run PyTorch model inference <#2>`__
-- `Convert model to OpenVINO Intermediate Representation (IR) format. <#3>`__
-- `Run OpenVINO model <#4>`__
-- `Select inference device <#5>`__
-- `Next Steps <#6>`__
+- `Instantiate model <#instantiate-model>`__
+- `Run PyTorch model inference <#run-pytorch-model-inference>`__
+- `Convert model to OpenVINO Intermediate Representation (IR) format. <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+- `Run OpenVINO model <#run-openvino-model>`__
+- `Select inference device <#select-inference-device>`__
+- `Next Steps <#next-steps>`__
 
 Instantiate model `⇑ <#top>`__
 ###############################################################################################################################

@@ -26,12 +26,12 @@ of the art.
 
 Table of content:
 
-- `Imports <#1>`__
-- `Prepare the Model <#2>`__
-- `Data Processing Module <#3>`__
-- `Visualize the original 3D data <#4>`__
-- `Run inference <#5>`__
-- `Select inference device <#6>`__
+- `Imports <#imports>`__
+- `Prepare the Model <#prepare-the-model>`__
+- `Data Processing Module <#data-processing-module>`__
+- `Visualize the original 3D data <#visualize-the-original-3d-data>`__
+- `Run inference <#run-inference>`__
+- `Select inference device <#select-inference-device>`__
 
 Imports `⇑ <#top>`__
 ###############################################################################################################################
