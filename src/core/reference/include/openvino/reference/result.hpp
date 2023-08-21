@@ -11,11 +11,11 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void result(const T* arg, T* out, size_t count) {
     memcpy(out, arg, sizeof(T) * count);
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

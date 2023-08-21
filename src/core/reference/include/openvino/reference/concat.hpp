@@ -8,7 +8,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void concat(const std::vector<const char*>& args,
             char* out,
@@ -17,4 +17,4 @@ void concat(const std::vector<const char*>& args,
             int64_t concatenation_axis,
             size_t elem_size);
 }
-}  // namespace ngraph
+}  // namespace ov

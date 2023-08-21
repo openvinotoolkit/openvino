@@ -15,7 +15,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void equal(const T* arg0,
@@ -40,7 +40,7 @@ void equal(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov
 
 #if defined(__GNUC__)
 #    pragma GCC diagnostic pop

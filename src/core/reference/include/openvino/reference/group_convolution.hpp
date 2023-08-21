@@ -16,7 +16,7 @@ constexpr size_t out_batch_axis = 0;
 constexpr size_t out_channel_axis = 1;
 }  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void validate_group_convolution_parameters(const Shape& in_shape,
                                            const Shape& f_shape,
@@ -88,4 +88,4 @@ void group_convolution(const INPUT* in,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

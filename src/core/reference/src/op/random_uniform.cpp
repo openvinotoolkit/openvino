@@ -9,7 +9,7 @@
 #include "ngraph/shape.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace {
 
@@ -320,4 +320,4 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

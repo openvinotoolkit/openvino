@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 
 template <typename T, typename P>
@@ -41,4 +41,4 @@ void cumsum(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

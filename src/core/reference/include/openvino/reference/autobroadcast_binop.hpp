@@ -12,7 +12,7 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace internal {
 inline void row_major_strides(const Shape& shape, size_t* strides, size_t size) noexcept {

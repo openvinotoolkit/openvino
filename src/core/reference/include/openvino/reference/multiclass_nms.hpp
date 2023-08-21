@@ -19,7 +19,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 
 void multiclass_nms(const float* boxes_data,
@@ -36,4 +36,4 @@ void multiclass_nms(const float* boxes_data,
                     int64_t* valid_outputs);
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

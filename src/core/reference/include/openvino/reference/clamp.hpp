@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void clamp(const T* arg, T* out, T min, T max, size_t count) {
@@ -22,4 +22,4 @@ void clamp(const T* arg, T* out, T min, T max, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

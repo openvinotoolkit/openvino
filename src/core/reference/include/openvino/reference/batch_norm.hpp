@@ -10,7 +10,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 static inline T norm(T val, T mean, T var, T eps) {
@@ -30,7 +30,7 @@ void batch_norm_inference(float eps,
     auto eps_casted = static_cast<T>(eps);
 
     size_t in_idx = 0;
-    CoordinateTransform in_transform(in_shape);
+    ngraph::CoordinateTransform in_transform(in_shape);
     for (Coordinate in_coord : in_transform) {
         auto ch_num = in_coord[1];
         auto ch_gamma = gamma[ch_num];
@@ -45,4 +45,4 @@ void batch_norm_inference(float eps,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

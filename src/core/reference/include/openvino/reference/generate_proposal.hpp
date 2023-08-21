@@ -15,7 +15,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void generate_proposals(const std::vector<float>& im_info,
                         const std::vector<float>& anchors,
@@ -42,4 +42,4 @@ void generate_proposals_postprocessing(void* prois,
                                        const Shape& output_scores_shape);
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

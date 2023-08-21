@@ -14,7 +14,7 @@
 #include "openvino/reference/multiclass_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace multiclass_nms_impl {
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -393,4 +393,4 @@ void multiclass_nms(const float* boxes_data,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

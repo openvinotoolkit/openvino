@@ -16,7 +16,7 @@
 #include "openvino/reference/subtract.hpp"
 #include "openvino/reference/tanh.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void gru_cell(const T* X,
@@ -215,4 +215,4 @@ void gru_cell(const T* X,
     reference::add(mul1.data(), mul2.data(), dst_data, gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

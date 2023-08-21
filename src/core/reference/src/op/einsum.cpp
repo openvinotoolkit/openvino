@@ -17,7 +17,7 @@
 #include "openvino/reference/utils/span.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace {
 /// \brief      Compute einsum_path for a given Einsum node meaning that the
@@ -290,15 +290,15 @@ HostTensorPtr unsqueeze_input(const HostTensorPtr& input, std::vector<int64_t>& 
     }
 
     HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(input->get_element_type(), output_shape));
-    const AxisVector order = get_default_order(input->get_shape());
+    const AxisVector order = ngraph::get_default_order(input->get_shape());
     const auto element_type = input->get_element_type();
 
-    ngraph::reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                               reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                               input_shape,
-                               order,
-                               output_shape,
-                               element_type.size());
+    reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
+                       reinterpret_cast<char*>(output->get_data_ptr<T>()),
+                       input_shape,
+                       order,
+                       output_shape,
+                       element_type.size());
 
     return output;
 }
@@ -352,7 +352,7 @@ void reduce_input(HostTensorVector& inputs,
 
     HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), output_shape));
 
-    ngraph::reference::sum<T>(input_ptr->get_data_ptr<T>(), output_ptr->get_data_ptr<T>(), input_shape, reduced_axes);
+    reference::sum<T>(input_ptr->get_data_ptr<T>(), output_ptr->get_data_ptr<T>(), input_shape, reduced_axes);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;
@@ -405,12 +405,12 @@ void transpose_input(HostTensorVector& inputs,
     });
     HostTensorPtr output_ptr = std::shared_ptr<HostTensor>(new HostTensor(element_type, output_shape));
 
-    ngraph::reference::transpose(reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
-                                 reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
-                                 input_shape,
-                                 element_type.size(),
-                                 permutation.data(),
-                                 output_shape);
+    reference::transpose(reinterpret_cast<const char*>(input_ptr->get_data_ptr<T>()),
+                         reinterpret_cast<char*>(output_ptr->get_data_ptr<T>()),
+                         input_shape,
+                         element_type.size(),
+                         permutation.data(),
+                         output_shape);
 
     // update a vector of inputs and input subscripts
     inputs[input_ind] = output_ptr;
@@ -450,12 +450,12 @@ void broadcast_input(HostTensorVector& inputs,
     std::vector<size_t> broadcast_axes(old_shape.size());
     std::iota(broadcast_axes.begin(), broadcast_axes.end(), new_shape.size() - old_shape.size());
 
-    ngraph::reference::broadcast(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                                 reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                                 input->get_shape(),
-                                 output->get_shape(),
-                                 broadcast_axes,
-                                 input->get_element_type().size());
+    reference::broadcast(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
+                         reinterpret_cast<char*>(output->get_data_ptr<T>()),
+                         input->get_shape(),
+                         output->get_shape(),
+                         broadcast_axes,
+                         input->get_element_type().size());
 
     input = output;
 }
@@ -530,12 +530,12 @@ HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
                                            ngraph::op::AutoBroadcastType::NUMPY);
         HostTensorPtr mul_output =
             std::shared_ptr<HostTensor>(new HostTensor(identity->get_element_type(), output_shape.get_shape()));
-        ngraph::reference::multiply<T>(multi_identity->get_data_ptr<T>(),
-                                       identity->get_data_ptr<T>(),
-                                       mul_output->get_data_ptr<T>(),
-                                       multi_identity->get_shape(),
-                                       identity->get_shape(),
-                                       ngraph::op::AutoBroadcastType::NUMPY);
+        reference::multiply<T>(multi_identity->get_data_ptr<T>(),
+                               identity->get_data_ptr<T>(),
+                               mul_output->get_data_ptr<T>(),
+                               multi_identity->get_shape(),
+                               identity->get_shape(),
+                               ngraph::op::AutoBroadcastType::NUMPY);
         multi_identity = mul_output;
     }
     return multi_identity;
@@ -590,18 +590,15 @@ void extract_diagonal(HostTensorVector& inputs, std::vector<std::string>& input_
     HostTensorPtr multi_identity = build_multi_identity<T>(input_ptr, repeated_labels, label_dim_map);
 
     HostTensorPtr mul_output = input_ptr;
-    ngraph::reference::multiply<T>(input_ptr->get_data_ptr<T>(),
-                                   multi_identity->get_data_ptr<T>(),
-                                   mul_output->get_data_ptr<T>(),
-                                   input_ptr->get_shape(),
-                                   multi_identity->get_shape(),
-                                   ngraph::op::AutoBroadcastType::NUMPY);
+    reference::multiply<T>(input_ptr->get_data_ptr<T>(),
+                           multi_identity->get_data_ptr<T>(),
+                           mul_output->get_data_ptr<T>(),
+                           input_ptr->get_shape(),
+                           multi_identity->get_shape(),
+                           ngraph::op::AutoBroadcastType::NUMPY);
 
     HostTensorPtr result = std::shared_ptr<HostTensor>(new HostTensor(input_ptr->get_element_type(), result_shape));
-    ngraph::reference::sum<T>(mul_output->get_data_ptr<T>(),
-                              result->get_data_ptr<T>(),
-                              mul_output->get_shape(),
-                              reduced_axes);
+    reference::sum<T>(mul_output->get_data_ptr<T>(), result->get_data_ptr<T>(), mul_output->get_shape(), reduced_axes);
     inputs[input_ind] = result;
     input_subscripts[input_ind] = resultant_subscript;
 }
@@ -653,14 +650,14 @@ HostTensorPtr reshape_input_for_matmul(const HostTensorPtr& input,
     const auto element_type = input->get_element_type();
     const auto input_shape = input->get_shape();
     HostTensorPtr output = std::shared_ptr<HostTensor>(new HostTensor(element_type, new_shape));
-    const AxisVector order = get_default_order(input_shape);
+    const AxisVector order = ngraph::get_default_order(input_shape);
 
-    ngraph::reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
-                               reinterpret_cast<char*>(output->get_data_ptr<T>()),
-                               input_shape,
-                               order,
-                               new_shape,
-                               element_type.size());
+    reference::reshape(reinterpret_cast<const char*>(input->get_data_ptr<T>()),
+                       reinterpret_cast<char*>(output->get_data_ptr<T>()),
+                       input_shape,
+                       order,
+                       new_shape,
+                       element_type.size());
     return output;
 }
 
@@ -797,12 +794,12 @@ void contract_two_inputs(HostTensorVector& inputs,
                                            ngraph::op::AutoBroadcastType::NUMPY);
         HostTensorPtr mul_output = std::shared_ptr<HostTensor>(
             new HostTensor(unsqueeze_output1->get_element_type(), output_shape.get_shape()));
-        ngraph::reference::multiply<T>(unsqueeze_output1->get_data_ptr<T>(),
-                                       unsqueeze_output2->get_data_ptr<T>(),
-                                       mul_output->get_data_ptr<T>(),
-                                       unsqueeze_output1->get_shape(),
-                                       unsqueeze_output2->get_shape(),
-                                       ngraph::op::AutoBroadcastType::NUMPY);
+        reference::multiply<T>(unsqueeze_output1->get_data_ptr<T>(),
+                               unsqueeze_output2->get_data_ptr<T>(),
+                               mul_output->get_data_ptr<T>(),
+                               unsqueeze_output1->get_shape(),
+                               unsqueeze_output2->get_shape(),
+                               ngraph::op::AutoBroadcastType::NUMPY);
 
         // update input operand and input subscript for Einsum operation
         update_operands(inputs, input_subscripts, input_ind1, input_ind2, mul_output, resultant_subscript);
@@ -875,7 +872,7 @@ void contract_two_inputs(HostTensorVector& inputs,
 
     // broadcast both inputs to have common sub-shape broadcasted that is needed
     // in case of ellipsis among the common labels
-    // ngraph::reference::broadcast()
+    // reference::broadcast()
     PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, ngraph::op::AutoBroadcastType::NUMPY);
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
@@ -909,14 +906,14 @@ void contract_two_inputs(HostTensorVector& inputs,
 
     bool transpose_a = (is_separate_first1 ? false : true);
     bool transpose_b = (is_separate_first2 ? true : false);
-    ngraph::reference::matmul(matmul_operand1->get_data_ptr<T>(),
-                              matmul_operand2->get_data_ptr<T>(),
-                              matmul_output->get_data_ptr<T>(),
-                              matmul_operand1->get_shape(),
-                              matmul_operand2->get_shape(),
-                              matmul_output_shape,
-                              transpose_a,
-                              transpose_b);
+    reference::matmul(matmul_operand1->get_data_ptr<T>(),
+                      matmul_operand2->get_data_ptr<T>(),
+                      matmul_output->get_data_ptr<T>(),
+                      matmul_operand1->get_shape(),
+                      matmul_operand2->get_shape(),
+                      matmul_output_shape,
+                      transpose_a,
+                      transpose_b);
 
     // step 4. reshape back by unrolling dimensions corresponding to separate labels
     // if needed now dimensions corresponding to reduced labels are reduced by the
@@ -933,13 +930,13 @@ void contract_two_inputs(HostTensorVector& inputs,
 
     HostTensorPtr contract_output =
         std::shared_ptr<HostTensor>(new HostTensor(matmul_output->get_element_type(), back_shape));
-    const AxisVector order = get_default_order(matmul_output->get_shape());
-    ngraph::reference::reshape(reinterpret_cast<const char*>(matmul_output->get_data_ptr<T>()),
-                               reinterpret_cast<char*>(contract_output->get_data_ptr<T>()),
-                               matmul_output->get_shape(),
-                               order,
-                               back_shape,
-                               matmul_output->get_element_type().size());
+    const AxisVector order = ngraph::get_default_order(matmul_output->get_shape());
+    reference::reshape(reinterpret_cast<const char*>(matmul_output->get_data_ptr<T>()),
+                       reinterpret_cast<char*>(contract_output->get_data_ptr<T>()),
+                       matmul_output->get_shape(),
+                       order,
+                       back_shape,
+                       matmul_output->get_element_type().size());
 
     update_operands(inputs, input_subscripts, input_ind1, input_ind2, contract_output, resultant_subscript);
 }
@@ -997,4 +994,4 @@ void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, con
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

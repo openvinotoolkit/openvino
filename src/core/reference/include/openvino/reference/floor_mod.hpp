@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void floor_mod(const T* arg0,
@@ -27,4 +27,4 @@ void floor_mod(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

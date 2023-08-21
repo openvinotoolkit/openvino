@@ -7,7 +7,7 @@
 #include "ngraph/axis_set.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void broadcast(const char* arg,
                char* out,
@@ -16,4 +16,4 @@ void broadcast(const char* arg,
                const AxisSet& broadcast_axes,
                size_t elem_size);
 }
-}  // namespace ngraph
+}  // namespace ov

@@ -9,7 +9,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void tile(const char* arg,
           char* out,
@@ -18,4 +18,4 @@ void tile(const char* arg,
           const size_t elem_size,
           const std::vector<int64_t>& repeats);
 }
-}  // namespace ngraph
+}  // namespace ov

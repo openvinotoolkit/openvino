@@ -9,7 +9,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void gather(const T* const data,
@@ -56,4 +56,4 @@ void gather(const T* const data,
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

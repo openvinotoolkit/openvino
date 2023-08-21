@@ -13,7 +13,7 @@
 
 using namespace ngraph;
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void reverse(const char* arg,
              char* out,
@@ -49,4 +49,4 @@ void reverse(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

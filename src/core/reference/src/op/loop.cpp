@@ -4,23 +4,25 @@
 
 #include "openvino/reference/loop.hpp"
 
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/reference/concat.hpp"
 #include "openvino/reference/function.hpp"
 #include "openvino/reference/split.hpp"
+
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-namespace ngraph {
+namespace ov {
 namespace reference {
-void loop(const std::shared_ptr<Function>& func,
+void loop(const std::shared_ptr<Model>& func,
           const op::util::OutputDescriptionVector& out_descs,
           const op::util::InputDescriptionVector& input_descs,
-          const opset5::Loop::SpecialBodyPorts& special_ports,
+          const op::v5::Loop::SpecialBodyPorts& special_ports,
           const HostTensorVector& out,
           const HostTensorVector& args) {
     const auto& cur_iter_idx = special_ports.current_iteration_input_idx;
     auto val = std::find_if(input_descs.begin(),
                             input_descs.end(),
-                            [&cur_iter_idx](const op::util::InputDescriptionPtr& in_desc) {
+                            [&cur_iter_idx](const op::util::SubGraphOp::InputDescription::Ptr& in_desc) {
                                 return in_desc->m_body_parameter_index == static_cast<uint64_t>(cur_iter_idx);
                             });
     bool cur_iter_initial_value_exist = val != input_descs.end();
@@ -40,7 +42,7 @@ void loop(const std::shared_ptr<Function>& func,
             cur_iter->validate_and_infer_types();
         }
 
-        auto init = std::make_shared<opset5::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
+        auto init = std::make_shared<op::v0::Constant>(func->get_parameters().at(cur_iter_idx)->get_element_type(),
                                                        func->get_parameters().at(cur_iter_idx)->get_shape(),
                                                        0);
         inputs_to_body.at(cur_iter_idx)->initialize(init);
@@ -55,7 +57,7 @@ void loop(const std::shared_ptr<Function>& func,
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
-        if (const auto& merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc)) {
+        if (const auto& merged_desc = std::dynamic_pointer_cast<op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
             cur_iter_back_edge_exist |= merged_desc->m_body_parameter_index == static_cast<uint64_t>(cur_iter_idx);
         }
@@ -78,20 +80,20 @@ void loop(const std::shared_ptr<Function>& func,
     auto exec_condition = args[1]->get_data_ptr<bool>();
     if (exec_condition[0]) {
         // Find all ConcatOutputDescription
-        std::vector<std::shared_ptr<opset5::Loop::ConcatOutputDescription>> concat_outputs;
+        std::vector<std::shared_ptr<op::v5::Loop::ConcatOutputDescription>> concat_outputs;
         for (const auto& desc : out_descs) {
-            if (const auto& concat_desc = std::dynamic_pointer_cast<opset5::Loop::ConcatOutputDescription>(desc)) {
+            if (const auto& concat_desc = std::dynamic_pointer_cast<op::v5::Loop::ConcatOutputDescription>(desc)) {
                 concat_outputs.push_back(concat_desc);
             }
         }
 
         // Slicing
-        std::vector<std::shared_ptr<opset5::TensorIterator::SliceInputDescription>> slice_inputs;
+        std::vector<std::shared_ptr<op::v0::TensorIterator::SliceInputDescription>> slice_inputs;
         std::vector<HostTensorVector> sliced_values;
         int slice_in_idx = 0;
         for (const auto& desc : input_descs) {
             if (const auto& slice_desc =
-                    std::dynamic_pointer_cast<opset5::TensorIterator::SliceInputDescription>(desc)) {
+                    std::dynamic_pointer_cast<op::v0::TensorIterator::SliceInputDescription>(desc)) {
                 const auto el_size = args[slice_desc->m_input_index]->get_element_type().size();
                 slice_inputs.push_back(slice_desc);
                 auto shape = args[slice_desc->m_input_index]->get_shape();
@@ -186,7 +188,7 @@ void loop(const std::shared_ptr<Function>& func,
         }
 
         for (const auto& desc : out_descs) {
-            if (const auto& body_desc = std::dynamic_pointer_cast<opset5::Loop::BodyOutputDescription>(desc)) {
+            if (const auto& body_desc = std::dynamic_pointer_cast<op::v5::Loop::BodyOutputDescription>(desc)) {
                 const auto& res = body_outputs[body_desc->m_body_value_index];
                 out[body_desc->m_output_index]->set_shape(res->get_shape());
                 out[body_desc->m_output_index]->write(res->get_data_ptr(), res->get_size_in_bytes());
@@ -217,4 +219,4 @@ void loop(const std::shared_ptr<Function>& func,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

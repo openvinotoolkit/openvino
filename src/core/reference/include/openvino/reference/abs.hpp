@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <type_traits>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename std::enable_if<std::is_unsigned<T>::value, bool>::type = true>
 void abs(const T* arg, T* out, size_t count) {
@@ -22,4 +22,4 @@ void abs(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

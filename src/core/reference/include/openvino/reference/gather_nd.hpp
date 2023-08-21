@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace details {
 template <typename Iterator>
@@ -105,4 +105,4 @@ void gather_nd(const T* const params,
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

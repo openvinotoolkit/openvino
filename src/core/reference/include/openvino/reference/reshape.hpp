@@ -7,7 +7,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void reshape(const char* arg,
              char* out,
@@ -16,4 +16,4 @@ void reshape(const char* arg,
              const Shape& out_shape,
              size_t elem_size);
 }
-}  // namespace ngraph
+}  // namespace ov

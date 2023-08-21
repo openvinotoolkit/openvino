@@ -16,7 +16,7 @@
 #include "clamp.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void deformable_psroi_pooling(const T* data_input,
@@ -171,4 +171,4 @@ void deformable_psroi_pooling(const T* data_input,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

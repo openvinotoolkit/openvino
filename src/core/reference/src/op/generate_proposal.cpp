@@ -210,7 +210,7 @@ static void generate_proposal_fill_output_blobs(const float* proposals,
     }
 }
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 
 static void generate_proposals_single_image(const std::vector<float>& im_info,
@@ -419,4 +419,4 @@ void generate_proposals_postprocessing(void* prois,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

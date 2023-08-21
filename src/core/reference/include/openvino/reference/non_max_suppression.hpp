@@ -19,7 +19,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void non_max_suppression5(const float* boxes_data,
                           const Shape& boxes_data_shape,
@@ -65,4 +65,4 @@ void nms_postprocessing(const HostTensorVector& outputs,
                         int64_t valid_outputs,
                         const ngraph::element::Type selected_scores_type);
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

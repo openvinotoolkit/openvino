@@ -44,7 +44,7 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace interpolate_pil {
 
@@ -315,4 +315,4 @@ void imaging_resample_inner(const T* im_in,
 
 }  // namespace interpolate_pil
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

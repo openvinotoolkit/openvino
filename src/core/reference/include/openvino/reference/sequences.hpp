@@ -13,7 +13,7 @@
 #include "openvino/reference/split.hpp"
 #include "reverse_sequence.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 enum class CellType {
     RNN,
@@ -698,4 +698,4 @@ void rnn_sequence(const char* X,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

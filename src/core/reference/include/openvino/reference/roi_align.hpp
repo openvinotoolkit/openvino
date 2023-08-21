@@ -9,7 +9,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/roi_align.hpp"  // for ROIAlign:PoolingMode
 #include "ngraph/shape.hpp"
-namespace ngraph {
+namespace ov {
 namespace reference {
 using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
 using AlignedMode = op::v9::ROIAlign::AlignedMode;
@@ -34,9 +34,9 @@ void roi_align(const T* feature_maps,
     auto num_rois = rois_shape[0];
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform feature_maps_transform(feature_maps_shape);
-    CoordinateTransform rois_transform(rois_shape);
-    CoordinateTransform out_transform(out_shape);
+    ngraph::CoordinateTransform feature_maps_transform(feature_maps_shape);
+    ngraph::CoordinateTransform rois_transform(rois_shape);
+    ngraph::CoordinateTransform out_transform(out_shape);
 
     bool aligned = false;
     T offset_src = static_cast<T>(0);
@@ -223,4 +223,4 @@ void roi_align(const T* feature_maps,
     return;
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

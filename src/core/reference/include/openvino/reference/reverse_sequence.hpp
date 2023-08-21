@@ -10,7 +10,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void reverse_sequence(const T* arg,
@@ -20,7 +20,7 @@ void reverse_sequence(const T* arg,
                       size_t sequence_axis,
                       const U* sequence_lengths) {
     const auto strides = row_major_strides(arg_shape);
-    CoordinateTransformBasic input_transform(arg_shape);
+    ngraph::CoordinateTransformBasic input_transform(arg_shape);
     for (const Coordinate& in_coord : input_transform) {
         size_t batch_index = in_coord[batch_axis];
         auto orig_seq_index = static_cast<size_t>(sequence_lengths[batch_index]);
@@ -45,4 +45,4 @@ void reverse_sequence(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

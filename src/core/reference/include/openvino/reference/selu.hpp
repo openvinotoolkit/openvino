@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void selu(const T* arg,
@@ -23,4 +23,4 @@ void selu(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

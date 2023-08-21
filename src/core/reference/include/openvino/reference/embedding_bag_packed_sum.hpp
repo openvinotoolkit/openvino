@@ -6,7 +6,7 @@
 
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void embeddingBagPackedSum(const T* emb_table,
@@ -46,4 +46,4 @@ void embeddingBagPackedSum(const T* emb_table,
 }  // embeddingBagPackedSum
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

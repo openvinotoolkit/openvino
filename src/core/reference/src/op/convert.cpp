@@ -10,7 +10,7 @@
 
 using namespace ngraph::runtime;
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 namespace {
@@ -534,4 +534,4 @@ size_t count_out_of_f16_range(const float* arg, size_t count) {
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

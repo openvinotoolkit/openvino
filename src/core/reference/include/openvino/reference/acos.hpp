@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void acos(const T* arg, T* out, size_t count) {
@@ -16,4 +16,4 @@ void acos(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

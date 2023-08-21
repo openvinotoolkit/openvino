@@ -9,7 +9,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/sum.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void normalize_l2(const T* data,
@@ -52,4 +52,4 @@ void normalize_l2(const T* data,
                         });
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

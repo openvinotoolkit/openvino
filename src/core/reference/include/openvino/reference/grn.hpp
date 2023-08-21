@@ -6,11 +6,11 @@
 
 #include "openvino/reference/normalize_l2.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void grn(const T* data, T* out, float bias, const Shape& data_shape) {
     normalize_l2(data, out, data_shape, {1}, bias, op::EpsMode::ADD);
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

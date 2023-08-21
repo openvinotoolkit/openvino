@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void greater(const T* arg0,
@@ -35,4 +35,4 @@ void greater(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

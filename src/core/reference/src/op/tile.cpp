@@ -11,7 +11,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
 /// \brief For each axis calculates the product of inner axes

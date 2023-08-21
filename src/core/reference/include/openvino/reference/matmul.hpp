@@ -13,7 +13,7 @@
 #include "ngraph/shape_util.hpp"
 #include "openvino/reference/broadcast.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace details {
 template <typename T>
@@ -217,4 +217,4 @@ void matmul(const T* arg0,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

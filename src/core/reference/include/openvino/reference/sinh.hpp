@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
 void sinh(const T* arg, T* out, size_t count) {
@@ -22,4 +22,4 @@ void sinh(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

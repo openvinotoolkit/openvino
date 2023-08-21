@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/topk.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 // This used to be lambda expressions but MSVC had difficulty compiling it. This way is more explicit.
 template <bool D, typename T, typename U>
@@ -64,8 +64,8 @@ void topk(const T* arg,
     axis_order.erase(axis_order.begin() + axis);
     axis_order.push_back(axis);
     // Create CoordinateTransforms that visits only the first element along "axis"
-    CoordinateTransform input_transform(in_shape, start_corner, end_corner, strides, axis_order);
-    CoordinateTransform output_transform(out_shape, start_corner, end_corner, strides, axis_order);
+    ngraph::CoordinateTransform input_transform(in_shape, start_corner, end_corner, strides, axis_order);
+    ngraph::CoordinateTransform output_transform(out_shape, start_corner, end_corner, strides, axis_order);
     // Create temp vector for sorting.
     vector<tuple<T, U>> workspace(in_shape[axis]);
     vector<size_t> in_strides = ngraph::row_major_strides(in_shape);
@@ -112,4 +112,4 @@ void topk(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

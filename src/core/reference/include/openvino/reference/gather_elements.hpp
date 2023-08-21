@@ -7,7 +7,7 @@
 #include "ngraph/coordinate_index.hpp"
 #include "ngraph/coordinate_transform.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T, typename U>
 void gather_elements(const T* data,
@@ -108,4 +108,4 @@ void gather_elements(const T* data,
             }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

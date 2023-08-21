@@ -9,7 +9,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 enum PSROIPoolingMode { AVG, BILINEAR };
 template <typename T>
@@ -137,4 +137,4 @@ void psroi_pooling(const T* input,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

@@ -6,7 +6,7 @@
 
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void negate(const T* arg, T* out, size_t count) {
@@ -15,4 +15,4 @@ void negate(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

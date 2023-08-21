@@ -10,7 +10,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 void reference::split(const char* data,
                       const Shape& data_shape,

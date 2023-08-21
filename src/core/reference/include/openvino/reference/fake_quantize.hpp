@@ -17,7 +17,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace fake_quantize_details {
 template <typename T>
@@ -141,6 +141,7 @@ void fake_quantize(const T* const arg,
                                              arg4_padded_shape[i]}));
         }
 
+        using ngraph::CoordinateTransformBasic;
         CoordinateTransformBasic arg0_transform(arg0_squeezed_shape);
         CoordinateTransformBasic arg1_transform(arg1_squeezed_shape);
         CoordinateTransformBasic arg2_transform(arg2_squeezed_shape);
@@ -186,4 +187,4 @@ void fake_quantize(const T* const arg,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

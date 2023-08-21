@@ -14,10 +14,7 @@
 #include "openvino/reference/matrix_nms.hpp"
 #include "openvino/reference/utils/nms_common.hpp"
 
-using namespace ngraph;
-using namespace ngraph::reference;
-
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace matrix_nms_v8 {
 template <typename T, bool gaussian>
@@ -286,4 +283,4 @@ void matrix_nms(const float* boxes_data,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

@@ -11,11 +11,11 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
-static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
-                                                       const Coordinate& start_corner,
-                                                       const Coordinate& end_corner) {
+static const ngraph::CoordinateTransformBasic get_target_shape(const Shape& data_shape,
+                                                               const Coordinate& start_corner,
+                                                               const Coordinate& end_corner) {
     const auto m_n_axes = data_shape.size();
     Shape target_shape;
     target_shape.reserve(m_n_axes);
@@ -56,7 +56,7 @@ static void scatter_update(const char* input_data,
     //     for d_coord in slice data[..., i_idx, ...],
     //         u_coord in slice updates[..., i_coord, ...]
     //          data[index(d_coord)] = updates[index(u_coord)]
-    CoordinateTransformBasic indices_transform{indices_shape};
+    ngraph::CoordinateTransformBasic indices_transform{indices_shape};
     const auto indices_in_strides = row_major_strides(indices_shape);
 
     size_t indices_ndim = indices_shape.size();
@@ -143,4 +143,4 @@ static void scatter_update(const char* input_data,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

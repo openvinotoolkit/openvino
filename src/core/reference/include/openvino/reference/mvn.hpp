@@ -16,7 +16,7 @@
 #include "openvino/reference/subtract.hpp"
 #include "openvino/reference/sum.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
@@ -26,7 +26,7 @@ void mvn(const T* arg,
          const bool normalize_variance,
          const AxisSet& reduction_axes,
          const double eps) {
-    auto reduced_shape = reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
@@ -56,7 +56,7 @@ void mvn_6(const T* arg,
            bool normalize_variance,
            double eps,
            op::MVNEpsMode eps_mode) {
-    auto reduced_shape = reduce(in_shape, reduction_axes, true);
+    auto reduced_shape = ngraph::reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
     subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
@@ -106,4 +106,4 @@ AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

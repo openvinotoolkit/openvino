@@ -50,7 +50,7 @@ struct PadBase {
     void run() const {
         check_inputs();
 
-        CoordinateTransformBasic out_coordinate(out_shape);
+        ngraph::CoordinateTransformBasic out_coordinate(out_shape);
         char* out_data = out;
         for (const auto& out_coord : out_coordinate) {
             const auto in_coord = transform_to_input_data_coord(out_coord);

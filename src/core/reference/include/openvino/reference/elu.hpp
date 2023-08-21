@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstddef>
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void elu(const T* arg, T* out, size_t count, double alpha) {
@@ -16,4 +16,4 @@ void elu(const T* arg, T* out, size_t count, double alpha) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

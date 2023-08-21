@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void prior_box_clustered(const T* data,
@@ -90,4 +90,4 @@ void prior_box_clustered(const T* data,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

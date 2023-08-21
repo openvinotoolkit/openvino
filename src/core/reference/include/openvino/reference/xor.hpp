@@ -10,7 +10,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void logical_xor(const T* arg0, const T* arg1, T* out, size_t count) {
@@ -31,4 +31,4 @@ void logical_xor(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

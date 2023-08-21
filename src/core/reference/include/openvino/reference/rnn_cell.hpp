@@ -13,7 +13,7 @@
 #include "openvino/reference/sigmoid.hpp"
 #include "openvino/reference/tanh.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void rnn_cell(const T* X,
@@ -92,4 +92,4 @@ void rnn_cell(const T* X,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

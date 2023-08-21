@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <vector>
 
-#include "ngraph/function.hpp"
+#include "openvino/core/model.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
-void function(const std::shared_ptr<Function>& function, const HostTensorVector& inputs, HostTensorVector& outputs);
+void function(const std::shared_ptr<Model>& function, const HostTensorVector& inputs, HostTensorVector& outputs);
 }
-}  // namespace ngraph
+}  // namespace ov

@@ -6,7 +6,7 @@
 
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 inline void shape_of(const Shape& arg_shape, T* out) {
@@ -15,4 +15,4 @@ inline void shape_of(const Shape& arg_shape, T* out) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

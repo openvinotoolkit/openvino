@@ -11,7 +11,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename dataType, typename indicesType>
 void scatterNdUpdate(const dataType* const inputData,
@@ -60,4 +60,4 @@ void scatterNdUpdate(const dataType* const inputData,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

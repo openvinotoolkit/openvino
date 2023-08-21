@@ -10,14 +10,14 @@
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 void depth_to_space(const char* const in,
                     const Shape& in_shape,
                     char* const out,
                     const Shape& out_shape,
                     const size_t block_size,
-                    const op::DepthToSpace::DepthToSpaceMode mode,
+                    const op::v0::DepthToSpace::DepthToSpaceMode mode,
                     const size_t elem_size) {
     // DepthToSpace run in tree steps:
     // - disperse data from depth channel
@@ -64,7 +64,7 @@ void depth_to_space(const char* const in,
     // y = reshape(x'',
     //             [N, C / (block_size ^ K), D1 * block_size, D2 * block_size,
     //             D3 * block_size, ..., DK * block_size])
-    case op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST: {
+    case op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST: {
         dispersed_shape.insert(dispersed_shape.begin() + 1, c_flat);
         axes_order.push_back(1);
         for (size_t i = spatial_dim_index; i < in_shape.size(); ++i) {
@@ -80,7 +80,7 @@ void depth_to_space(const char* const in,
     //                 K + (K + 1), K])
     // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size,
     //             D3 * block_size, ..., DK * block_size])
-    case op::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST: {
+    case op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST: {
         dispersed_shape.insert(dispersed_shape.begin() + spatial_dims + 1, c_flat);
         axes_order.push_back(spatial_dims + 1);
         for (size_t i = 2; i < in_shape.size(); ++i) {
@@ -96,8 +96,8 @@ void depth_to_space(const char* const in,
         post_transpose_shape[axis_idx] = dispersed_shape[axes_order[axis_idx]];
     }
 
-    runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
+    ngraph::runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

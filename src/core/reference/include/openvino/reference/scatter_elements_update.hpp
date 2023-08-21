@@ -13,7 +13,7 @@
 #include "ngraph/shape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
@@ -68,8 +68,8 @@ void scatter_elem_update(const DataType* input_data,
     // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
     // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
 
-    CoordinateTransformBasic indices_transform{indices_shape};
-    CoordinateTransformBasic data_transform{data_shape};
+    ngraph::CoordinateTransformBasic indices_transform{indices_shape};
+    ngraph::CoordinateTransformBasic data_transform{data_shape};
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 
@@ -190,8 +190,8 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const Shape& indices_shape,
                                         const Reduction reduction_type,
                                         const bool use_init_val) {
-    CoordinateTransformBasic indices_transform{indices_shape};
-    CoordinateTransformBasic data_transform{data_shape};
+    ngraph::CoordinateTransformBasic indices_transform{indices_shape};
+    ngraph::CoordinateTransformBasic data_transform{data_shape};
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 
@@ -230,7 +230,7 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
 
     const auto reduce = reduction_functor_for<DataType>(reduction_type);
     for (const auto& offsets : idx_to_output_element) {
-        out_buf[offsets.out_offset] = reduce(out_buf[offsets.out_offset], updates[offsets.idx_offset]);
+        out_buf[offsets.out_offset] = ngraph::reduce(out_buf[offsets.out_offset], updates[offsets.idx_offset]);
         if (reduction_type == Reduction::MEAN) {
             mean_reduction_counters[offsets.out_offset] += 1;
         }
@@ -248,4 +248,4 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

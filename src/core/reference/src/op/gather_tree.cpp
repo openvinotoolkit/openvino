@@ -13,7 +13,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 static size_t _asIndex(const char* source, const element::Type& element_type) {
     // According to the GatherTree op specification only I32 and FP32 precisions are supported.

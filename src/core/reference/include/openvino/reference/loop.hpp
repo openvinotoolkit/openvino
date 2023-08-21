@@ -5,15 +5,17 @@
 #pragma once
 
 #include <cmath>
-#include <ngraph/opsets/opset5.hpp>
 
-namespace ngraph {
+#include "openvino/op/loop.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+
+namespace ov {
 namespace reference {
-void loop(const std::shared_ptr<Function>& body,
+void loop(const std::shared_ptr<Model>& body,
           const op::util::OutputDescriptionVector& out_descs,
           const op::util::InputDescriptionVector& input_descs,
-          const opset5::Loop::SpecialBodyPorts& special_ports,
+          const op::v5::Loop::SpecialBodyPorts& special_ports,
           const HostTensorVector& out,
           const HostTensorVector& args);
 }
-}  // namespace ngraph
+}  // namespace ov

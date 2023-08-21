@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 static size_t point_to_flat_idx(const Shape& shape, const std::vector<size_t>& point) {
     size_t idx = point[0];
@@ -74,7 +74,7 @@ void lrn(const T* arg,
         axes_map[axis_coord] = true;
     }
 
-    CoordinateTransform input_transform(arg_shape);
+    ngraph::CoordinateTransform input_transform(arg_shape);
     for (const Coordinate& in_coord : input_transform) {
         // area determined by in_coord local neighborhood
         for (size_t i = 0; i < axes_map.size(); i++) {
@@ -96,4 +96,4 @@ void lrn(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

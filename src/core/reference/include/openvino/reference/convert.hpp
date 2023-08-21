@@ -9,7 +9,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/float16.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace detail {
 inline void set_u1(uint8_t* buf, size_t idx, uint8_t val) {
@@ -129,4 +129,4 @@ typename std::enable_if<std::is_same<TO, char>::value>::type convert(const TI* a
 }
 
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

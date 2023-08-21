@@ -8,7 +8,7 @@
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename REAL, typename QUANT>
 void quantize(const REAL* input,
@@ -19,8 +19,8 @@ void quantize(const REAL* input,
               const Shape& scale_zero_point_shape,
               const AxisSet& axes,
               op::Quantize::RoundMode round_mode) {
-    CoordinateTransform input_transform(input_shape);
-    CoordinateTransform scale_zero_point_transform(scale_zero_point_shape);
+    ngraph::CoordinateTransform input_transform(input_shape);
+    ngraph::CoordinateTransform scale_zero_point_transform(scale_zero_point_shape);
 
     for (const Coordinate& input_coord : input_transform) {
         Coordinate scale_zero_point_coord = project(input_coord, axes);
@@ -73,4 +73,4 @@ void quantize(const REAL* input,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

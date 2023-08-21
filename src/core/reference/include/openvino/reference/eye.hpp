@@ -9,7 +9,7 @@
 #include "ngraph/shape.hpp"
 #include "utils/span.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
@@ -36,4 +36,4 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

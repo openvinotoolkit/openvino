@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 struct widen {
@@ -21,4 +21,4 @@ struct widen<double> {
     using type = long double;
 };
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

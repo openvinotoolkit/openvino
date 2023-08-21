@@ -26,7 +26,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 template <typename T>
 void experimental_detectron_prior_grid_generator(const T* priors,
@@ -57,4 +57,4 @@ void experimental_detectron_prior_grid_generator(const T* priors,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

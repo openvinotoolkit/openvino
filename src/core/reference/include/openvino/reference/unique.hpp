@@ -9,7 +9,7 @@
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 
 enum class DescriptorType { SINGLE_VALUE, SLICE };
@@ -102,6 +102,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                                                       const Shape& data_shape,
                                                       std::unique_ptr<int64_t> axis,
                                                       const bool sorted) {
+    using ngraph::CoordinateIterator;
     using std::begin;
     using std::end;
 
@@ -350,4 +351,4 @@ void unique(Data_t* out_unique_elements,
     }
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

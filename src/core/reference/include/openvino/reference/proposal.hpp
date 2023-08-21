@@ -4,7 +4,7 @@
 
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/shape.hpp"
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace details {
 template <typename T>
@@ -16,7 +16,7 @@ struct ProposalBox {
     T score;
 };
 
-inline std::vector<float> generate_anchors(const op::ProposalAttrs& attrs, const unsigned int anchor_count) {
+inline std::vector<float> generate_anchors(const op::v0::Proposal::Attributes& attrs, const unsigned int anchor_count) {
     std::vector<float> anchors(4 * anchor_count);
 
     // Framework specific parameters
@@ -318,7 +318,7 @@ static void proposal_exec(const T* class_probs,
                           const Shape& image_shape_shape,
                           const Shape& output_shape,
                           const Shape& out_probs_shape,
-                          const op::ProposalAttrs& attrs) {
+                          const op::v0::Proposal::Attributes& attrs) {
     const T* p_bottom_item = class_probs;
     const T* p_d_anchor_item = bbox_deltas;
     T* p_roi_item = output;
@@ -419,7 +419,7 @@ void proposal_v0(const T* class_probs,
                  const Shape& bbox_deltas_shape,
                  const Shape& image_shape_shape,
                  const Shape& output_shape,
-                 const op::ProposalAttrs& attrs) {
+                 const op::v0::Proposal::Attributes& attrs) {
     details::proposal_exec(class_probs,
                            bbox_deltas,
                            image_shape,
@@ -444,7 +444,7 @@ void proposal_v4(const T* class_probs,
                  const Shape& image_shape_shape,
                  const Shape& output_shape,
                  const Shape& out_probs_shape,
-                 const op::ProposalAttrs& attrs) {
+                 const op::v0::Proposal::Attributes& attrs) {
     details::proposal_exec(class_probs,
                            bbox_deltas,
                            image_shape,
@@ -458,4 +458,4 @@ void proposal_v4(const T* class_probs,
                            attrs);
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov
