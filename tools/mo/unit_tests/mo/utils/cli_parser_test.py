@@ -1224,13 +1224,13 @@ class PathCheckerFunctions(unittest.TestCase):
         self.assertEqual(__class__.WRITABLE_DIR, writable_dir(__class__.WRITABLE_DIR))
 
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 118388")
+    @unittest.skipif(os.getenv("GITHUB_ACTIONS") == 'true', "Ticket - 118388")
     def test_single_non_writable_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_DIR)
 
     @unittest.skipIf(sys.platform.startswith("win"), "chmod() on Windows do nor support not writable dir")
-    @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 118388")
+    @unittest.skipif(os.getenv("GITHUB_ACTIONS") == 'true', "Ticket - 118388")
     def test_single_non_writable_sub_dir(self):
         with self.assertRaises(Error) as cm:
             writable_dir(__class__.NOT_WRITABLE_SUB_DIR)
