@@ -9,7 +9,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename REAL, typename QUANT>
 void quantize(const REAL* input,
@@ -74,5 +73,4 @@ void quantize(const REAL* input,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

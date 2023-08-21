@@ -16,7 +16,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_proposals_single_image(
     const float* im_info,
@@ -39,5 +38,4 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
                                                                   const Shape& output_rois_shape,
                                                                   const Shape& output_scores_shape);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

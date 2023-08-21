@@ -7,7 +7,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 inline void shape_of(const Shape& arg_shape, T* out) {
@@ -16,5 +15,4 @@ inline void shape_of(const Shape& arg_shape, T* out) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

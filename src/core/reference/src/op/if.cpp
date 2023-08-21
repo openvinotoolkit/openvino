@@ -9,7 +9,6 @@
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
                   const std::vector<op::util::MultiSubgraphOutputDescriptionVector>& out_descs,
@@ -42,5 +41,4 @@ void if_reference(const std::vector<std::shared_ptr<Function>>& bodies,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

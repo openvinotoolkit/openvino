@@ -11,9 +11,7 @@
 #include "ngraph/function.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void function(const std::shared_ptr<Function>& function, const HostTensorVector& inputs, HostTensorVector& outputs);
 }
-}  // namespace runtime
 }  // namespace ngraph

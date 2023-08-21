@@ -16,7 +16,6 @@
 #endif
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void min(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
@@ -49,5 +48,4 @@ void min(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

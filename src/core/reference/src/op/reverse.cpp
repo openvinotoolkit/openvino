@@ -14,7 +14,6 @@
 using namespace ngraph;
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void reverse(const char* arg,
              char* out,
@@ -50,5 +49,4 @@ void reverse(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

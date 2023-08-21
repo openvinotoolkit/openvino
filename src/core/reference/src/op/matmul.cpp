@@ -12,7 +12,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace details {
 std::vector<size_t> get_transpose_order(const Shape& input_shape) {
@@ -25,5 +24,4 @@ std::vector<size_t> get_transpose_order(const Shape& input_shape) {
 }
 }  // namespace details
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

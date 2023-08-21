@@ -7,7 +7,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename U>
 void embeddingBagOffsetsSum(const T* emb_table,
@@ -93,5 +92,4 @@ void embeddingBagOffsetsSum(const T* emb_table,
 }  // embeddingBagOffsetsSum
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

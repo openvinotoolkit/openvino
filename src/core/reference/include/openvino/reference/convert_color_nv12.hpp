@@ -11,7 +11,6 @@
 #include "openvino/op/util/convert_color_nv12_base.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 template <typename T>
@@ -206,5 +205,4 @@ inline bool color_convert_i420(const std::shared_ptr<Node>& op,
 
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

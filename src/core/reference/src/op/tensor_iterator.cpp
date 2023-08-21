@@ -10,7 +10,6 @@
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void tensor_iterator(uint64_t num_iterations,
                      const std::shared_ptr<Function>& func,
@@ -138,5 +137,4 @@ void tensor_iterator(uint64_t num_iterations,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

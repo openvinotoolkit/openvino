@@ -5,7 +5,6 @@
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/shape.hpp"
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace details {
 template <typename T>
@@ -459,5 +458,4 @@ void proposal_v4(const T* class_probs,
                            attrs);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -10,7 +10,6 @@
 
 #include "ngraph/coordinate_transform.hpp"
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename TF, typename TI, typename TCI, typename TSL>
 void ctc_greedy_decoder_seq_len(const TF* data,
@@ -44,5 +43,4 @@ void ctc_greedy_decoder_seq_len(const TF* data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

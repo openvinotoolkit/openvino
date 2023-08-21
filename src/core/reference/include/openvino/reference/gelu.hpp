@@ -9,7 +9,6 @@
 #include <ngraph/op/gelu.hpp>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void gelu(const T* arg, T* out, op::GeluApproximationMode mode, size_t count) {
@@ -27,5 +26,4 @@ void gelu(const T* arg, T* out, op::GeluApproximationMode mode, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

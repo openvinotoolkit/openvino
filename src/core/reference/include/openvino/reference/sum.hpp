@@ -13,7 +13,6 @@
 #include "ngraph/type/float16.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace details {
 // Windows doesn't seem to like it if we directly use std::isfinite on integer
@@ -82,5 +81,4 @@ void sum(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_a
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

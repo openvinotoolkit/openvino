@@ -12,7 +12,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename IT>
 void adaptive_max_pool_1d(const T* arg, T* out, IT* indices, size_t h_in, size_t h_out) {
@@ -126,5 +125,4 @@ void adaptive_max_pool(const T* arg, T* out, IT* selected_indices, const Shape& 
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

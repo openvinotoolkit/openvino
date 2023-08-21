@@ -8,7 +8,6 @@
 #include "openvino/reference/convolution.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace details {
 inline uint8_t extract_bit(uint8_t val, uint8_t bit) {
@@ -143,5 +142,4 @@ void binary_convolution(const T_IN* in,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -9,7 +9,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename B, typename P>
 void bucketize(const T* data,
@@ -40,7 +39,4 @@ void bucketize(const T* data,
 }
 
 }  // namespace reference
-
-}  // namespace runtime
-
 }  // namespace ngraph

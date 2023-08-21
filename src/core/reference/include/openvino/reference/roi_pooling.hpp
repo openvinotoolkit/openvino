@@ -7,7 +7,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void roi_pooling(const T* feature_maps,
@@ -183,7 +182,4 @@ void roi_pooling(const T* feature_maps,
     }
 }
 }  // namespace reference
-
-}  // namespace runtime
-
 }  // namespace ngraph

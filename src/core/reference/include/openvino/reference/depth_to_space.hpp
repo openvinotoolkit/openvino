@@ -8,7 +8,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void depth_to_space(const char* const in,
                     const Shape& in_shape,
@@ -18,5 +17,4 @@ void depth_to_space(const char* const in,
                     const op::DepthToSpace::DepthToSpaceMode mode,
                     const size_t elem_size);
 }
-}  // namespace runtime
 }  // namespace ngraph

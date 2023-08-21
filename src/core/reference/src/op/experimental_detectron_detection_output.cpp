@@ -208,7 +208,6 @@ bool SortScorePairDescend(const std::pair<float, T>& pair1, const std::pair<floa
 }  // namespace
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_detection_output(const float* boxes,
                                              const float* input_deltas,
@@ -364,5 +363,4 @@ void experimental_detectron_detection_output_postprocessing(void* pboxes,
     memcpy(classes_ptr, output_classes.data(), shape_size(output_classes_shape) * sizeof(int32_t));
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

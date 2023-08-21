@@ -7,7 +7,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImgPatches,
@@ -115,5 +114,4 @@ void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImg
 }  // extractImagePatches
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

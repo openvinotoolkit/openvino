@@ -10,7 +10,6 @@
 
 #include "ngraph/coordinate_transform.hpp"
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void ctc_greedy_decoder(const T* data,
@@ -62,5 +61,4 @@ void ctc_greedy_decoder(const T* data,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

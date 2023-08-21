@@ -20,7 +20,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 void multiclass_nms(const float* boxes_data,
@@ -37,5 +36,4 @@ void multiclass_nms(const float* boxes_data,
                     int64_t* valid_outputs);
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

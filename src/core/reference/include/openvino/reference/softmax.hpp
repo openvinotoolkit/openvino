@@ -11,7 +11,7 @@
 #include "openvino/reference/max.hpp"
 #include "openvino/reference/sum.hpp"
 
-namespace ov {
+namespace ngraph {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {

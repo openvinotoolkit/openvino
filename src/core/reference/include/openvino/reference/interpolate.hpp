@@ -19,7 +19,6 @@
 #include "transpose.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
 using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
@@ -831,5 +830,4 @@ void interpolate(T* input_data,
     evaluator(reinterpret_cast<T*>(padded_data_ptr), padded_input_shape, scales, axes, out, out_shape);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

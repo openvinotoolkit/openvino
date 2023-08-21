@@ -9,7 +9,6 @@
 #include <type_traits>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 typename std::enable_if<!std::is_integral<T>::value>::type sqrt(const T* arg, T* out, size_t count) {
@@ -24,5 +23,4 @@ typename std::enable_if<std::is_integral<T>::value>::type sqrt(const T* arg, T* 
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

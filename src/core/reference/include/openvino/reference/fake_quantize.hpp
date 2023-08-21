@@ -18,7 +18,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace fake_quantize_details {
 template <typename T>
@@ -187,5 +186,4 @@ void fake_quantize(const T* const arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

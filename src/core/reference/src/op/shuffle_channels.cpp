@@ -7,7 +7,6 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void shuffle_channels(const char* arg,
                       char* out,
@@ -49,5 +48,4 @@ void shuffle_channels(const char* arg,
     // input
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

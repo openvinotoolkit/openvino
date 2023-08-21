@@ -10,7 +10,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 // Helper struct for converting between types
@@ -47,5 +46,4 @@ const size_t rounds_number = 10;
 const uint64_t skip_const = 256;
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

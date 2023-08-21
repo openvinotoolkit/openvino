@@ -9,7 +9,6 @@
 #include "ngraph/util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 
@@ -407,7 +406,6 @@ void convolution(const T* in,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph
 
 // can't be removed currently due to arm-plugin dependency

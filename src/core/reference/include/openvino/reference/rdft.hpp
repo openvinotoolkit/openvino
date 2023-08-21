@@ -26,7 +26,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void rdft(const std::vector<float>& input_data,
           const Shape& input_data_shape,
@@ -34,5 +33,4 @@ void rdft(const std::vector<float>& input_data,
           const Shape& output_fft_shape,
           float* rdft_result);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

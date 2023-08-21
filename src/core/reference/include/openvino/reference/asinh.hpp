@@ -8,7 +8,6 @@
 #include <cstddef>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
 void asinh(const T* arg, T* out, size_t count) {
@@ -24,5 +23,4 @@ void asinh(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

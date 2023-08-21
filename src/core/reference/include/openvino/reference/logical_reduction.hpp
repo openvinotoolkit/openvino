@@ -11,7 +11,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 OPENVINO_SUPPRESS_DEPRECATED_START
 static inline void reduce_logical_and(const char* arg,
@@ -59,5 +58,4 @@ static inline void reduce_logical_or(const char* arg, char* out, const Shape& in
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

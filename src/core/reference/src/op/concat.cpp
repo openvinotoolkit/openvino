@@ -7,7 +7,6 @@
 #include <cstring>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 std::vector<size_t> calculate_shape_sizes(const std::vector<Shape>& in_shapes) {
@@ -46,5 +45,4 @@ void concat(const std::vector<const char*>& args,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

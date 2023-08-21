@@ -12,7 +12,6 @@
 #include "ngraph/util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 static size_t point_to_flat_idx(const Shape& shape, const std::vector<size_t>& point) {
     size_t idx = point[0];
@@ -97,5 +96,4 @@ void lrn(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

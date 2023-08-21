@@ -13,7 +13,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void transpose(const char* data,
                char* out,
@@ -27,5 +26,4 @@ void transpose(const char* data,
     runtime::opt_kernel::reshape(data, out, data_shape, axis_vector, out_shape, element_size);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

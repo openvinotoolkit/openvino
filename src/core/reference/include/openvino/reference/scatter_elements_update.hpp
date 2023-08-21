@@ -14,7 +14,6 @@
 #include "openvino/op/scatter_elements_update.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
@@ -249,5 +248,4 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

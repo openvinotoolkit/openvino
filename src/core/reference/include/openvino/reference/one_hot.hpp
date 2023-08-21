@@ -7,7 +7,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename INPUT_TYPE>
 void one_hot(const INPUT_TYPE* indices,
@@ -43,5 +42,4 @@ void one_hot(const INPUT_TYPE* indices,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

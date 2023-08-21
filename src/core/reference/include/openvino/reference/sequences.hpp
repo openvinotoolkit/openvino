@@ -14,7 +14,6 @@
 #include "reverse_sequence.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 enum class CellType {
     RNN,
@@ -117,94 +116,94 @@ void cell_pass(CellType type,
 
     for (size_t time_step = 0; time_step < num_splits; ++time_step) {
         if (type == CellType::LSTM) {
-            runtime::reference::lstm_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
-                                             squeeze_axis(shapes[0], 1),
-                                             reinterpret_cast<const T*>(H_i),
-                                             squeeze_axis(shapes[2], 1),
-                                             reinterpret_cast<const T*>(C_i),
-                                             squeeze_axis(shapes[3], 1),
-                                             reinterpret_cast<const T*>(inputs[4]),
-                                             squeeze_axis(shapes[4], 0),
-                                             reinterpret_cast<const T*>(inputs[5]),
-                                             squeeze_axis(shapes[5], 0),
-                                             reinterpret_cast<const T*>(inputs[6]),
-                                             squeeze_axis(shapes[6], 0),
-                                             reinterpret_cast<T*>(outputs[1]),
-                                             reinterpret_cast<T*>(outputs[2]),
-                                             args.activation_f,
-                                             args.activation_g,
-                                             args.activation_h,
-                                             args.clip);
+            reference::lstm_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                    squeeze_axis(shapes[0], 1),
+                                    reinterpret_cast<const T*>(H_i),
+                                    squeeze_axis(shapes[2], 1),
+                                    reinterpret_cast<const T*>(C_i),
+                                    squeeze_axis(shapes[3], 1),
+                                    reinterpret_cast<const T*>(inputs[4]),
+                                    squeeze_axis(shapes[4], 0),
+                                    reinterpret_cast<const T*>(inputs[5]),
+                                    squeeze_axis(shapes[5], 0),
+                                    reinterpret_cast<const T*>(inputs[6]),
+                                    squeeze_axis(shapes[6], 0),
+                                    reinterpret_cast<T*>(outputs[1]),
+                                    reinterpret_cast<T*>(outputs[2]),
+                                    args.activation_f,
+                                    args.activation_g,
+                                    args.activation_h,
+                                    args.clip);
         } else if (type == CellType::LSTM_v1) {
-            runtime::reference::lstm_cell_v1<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
-                                                squeeze_axis(shapes[0], 1),
-                                                reinterpret_cast<const T*>(H_i),
-                                                squeeze_axis(shapes[2], 1),
-                                                reinterpret_cast<const T*>(C_i),
-                                                squeeze_axis(shapes[3], 1),
-                                                reinterpret_cast<const T*>(inputs[4]),
-                                                squeeze_axis(shapes[4], 0),
-                                                reinterpret_cast<const T*>(inputs[5]),
-                                                squeeze_axis(shapes[5], 0),
-                                                reinterpret_cast<const T*>(inputs[6]),
-                                                squeeze_axis(shapes[6], 0),
-                                                reinterpret_cast<const T*>(inputs[7]),
-                                                squeeze_axis(shapes[7], 0),
-                                                reinterpret_cast<T*>(outputs[1]),
-                                                reinterpret_cast<T*>(outputs[2]),
-                                                args.activation_f,
-                                                args.activation_g,
-                                                args.activation_h,
-                                                args.clip,
-                                                args.weight_format,
-                                                args.input_forget);
+            reference::lstm_cell_v1<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                       squeeze_axis(shapes[0], 1),
+                                       reinterpret_cast<const T*>(H_i),
+                                       squeeze_axis(shapes[2], 1),
+                                       reinterpret_cast<const T*>(C_i),
+                                       squeeze_axis(shapes[3], 1),
+                                       reinterpret_cast<const T*>(inputs[4]),
+                                       squeeze_axis(shapes[4], 0),
+                                       reinterpret_cast<const T*>(inputs[5]),
+                                       squeeze_axis(shapes[5], 0),
+                                       reinterpret_cast<const T*>(inputs[6]),
+                                       squeeze_axis(shapes[6], 0),
+                                       reinterpret_cast<const T*>(inputs[7]),
+                                       squeeze_axis(shapes[7], 0),
+                                       reinterpret_cast<T*>(outputs[1]),
+                                       reinterpret_cast<T*>(outputs[2]),
+                                       args.activation_f,
+                                       args.activation_g,
+                                       args.activation_h,
+                                       args.clip,
+                                       args.weight_format,
+                                       args.input_forget);
         } else if (type == CellType::RNN) {
-            runtime::reference::rnn_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
-                                            squeeze_axis(shapes[0], 1),
-                                            reinterpret_cast<const T*>(H_i),
-                                            squeeze_axis(shapes[2], 1),
-                                            reinterpret_cast<const T*>(inputs[3]),
-                                            squeeze_axis(shapes[3], 0),
-                                            reinterpret_cast<const T*>(inputs[4]),
-                                            squeeze_axis(shapes[4], 0),
-                                            reinterpret_cast<const T*>(inputs[5]),
-                                            squeeze_axis(shapes[5], 0),
-                                            reinterpret_cast<T*>(outputs[1]),
-                                            args.activation_f,
-                                            args.clip);
+            reference::rnn_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                   squeeze_axis(shapes[0], 1),
+                                   reinterpret_cast<const T*>(H_i),
+                                   squeeze_axis(shapes[2], 1),
+                                   reinterpret_cast<const T*>(inputs[3]),
+                                   squeeze_axis(shapes[3], 0),
+                                   reinterpret_cast<const T*>(inputs[4]),
+                                   squeeze_axis(shapes[4], 0),
+                                   reinterpret_cast<const T*>(inputs[5]),
+                                   squeeze_axis(shapes[5], 0),
+                                   reinterpret_cast<T*>(outputs[1]),
+                                   args.activation_f,
+                                   args.clip);
         } else if (type == CellType::GRU) {
-            runtime::reference::gru_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
-                                            squeeze_axis(shapes[0], 1),
-                                            reinterpret_cast<const T*>(H_i),
-                                            squeeze_axis(shapes[2], 1),
-                                            reinterpret_cast<const T*>(inputs[3]),
-                                            squeeze_axis(shapes[3], 0),
-                                            reinterpret_cast<const T*>(inputs[4]),
-                                            squeeze_axis(shapes[4], 0),
-                                            reinterpret_cast<const T*>(inputs[5]),
-                                            squeeze_axis(shapes[5], 0),
-                                            reinterpret_cast<T*>(outputs[1]),
-                                            args.activation_f,
-                                            args.activation_g,
-                                            args.clip,
-                                            args.linear_before_reset);
+            reference::gru_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                   squeeze_axis(shapes[0], 1),
+                                   reinterpret_cast<const T*>(H_i),
+                                   squeeze_axis(shapes[2], 1),
+                                   reinterpret_cast<const T*>(inputs[3]),
+                                   squeeze_axis(shapes[3], 0),
+                                   reinterpret_cast<const T*>(inputs[4]),
+                                   squeeze_axis(shapes[4], 0),
+                                   reinterpret_cast<const T*>(inputs[5]),
+                                   squeeze_axis(shapes[5], 0),
+                                   reinterpret_cast<T*>(outputs[1]),
+                                   args.activation_f,
+                                   args.activation_g,
+                                   args.clip,
+                                   args.linear_before_reset);
         } else if (type == CellType::AUGRU) {
-            runtime::reference::gru_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
-                                            squeeze_axis(shapes[0], 1),
-                                            reinterpret_cast<const T*>(H_i),
-                                            squeeze_axis(shapes[2], 1),
-                                            reinterpret_cast<const T*>(inputs[3]),
-                                            squeeze_axis(shapes[3], 0),
-                                            reinterpret_cast<const T*>(inputs[4]),
-                                            squeeze_axis(shapes[4], 0),
-                                            reinterpret_cast<const T*>(inputs[5]),
-                                            squeeze_axis(shapes[5], 0),
-                                            reinterpret_cast<T*>(outputs[1]),
-                                            args.activation_f,
-                                            args.activation_g,
-                                            args.clip,
-                                            args.linear_before_reset,
-                                            reinterpret_cast<const T*>(a_seqs.data() + time_step * batch * sizeof(T)));
+            reference::gru_cell<T>(reinterpret_cast<const T*>(in_seqs.data() + time_step * part_size),
+                                   squeeze_axis(shapes[0], 1),
+                                   reinterpret_cast<const T*>(H_i),
+                                   squeeze_axis(shapes[2], 1),
+                                   reinterpret_cast<const T*>(inputs[3]),
+                                   squeeze_axis(shapes[3], 0),
+                                   reinterpret_cast<const T*>(inputs[4]),
+                                   squeeze_axis(shapes[4], 0),
+                                   reinterpret_cast<const T*>(inputs[5]),
+                                   squeeze_axis(shapes[5], 0),
+                                   reinterpret_cast<T*>(outputs[1]),
+                                   args.activation_f,
+                                   args.activation_g,
+                                   args.clip,
+                                   args.linear_before_reset,
+                                   reinterpret_cast<const T*>(a_seqs.data() + time_step * batch * sizeof(T)));
         }
 
         if (enable_mask) {
@@ -254,7 +253,7 @@ void cell_pass(CellType type,
     for (size_t i = 0; i < num_splits; ++i)
         to_concat_pointers[i] = h_list[i].data();
 
-    runtime::reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, sizeof(T));
+    reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, sizeof(T));
 
     if (is_reverse)  // enable_mask
     {
@@ -365,24 +364,19 @@ void lstm_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h_c{H_shape[0], 2, H_shape[2]};
 
-        runtime::reference::concat({forward_res_y.data(), reverse_res_y.data()},
-                                   Y,
-                                   in_shapes_y,
-                                   output_shape_y,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res[0].data(), reverse_res[0].data()},
-                                   Ho,
-                                   in_shapes_h_c,
-                                   output_shape_h_c,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res[1].data(), reverse_res[1].data()},
-                                   Co,
-                                   in_shapes_h_c,
-                                   output_shape_h_c,
-                                   1,
-                                   sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res[0].data(), reverse_res[0].data()},
+                          Ho,
+                          in_shapes_h_c,
+                          output_shape_h_c,
+                          1,
+                          sizeof(T));
+        reference::concat({forward_res[1].data(), reverse_res[1].data()},
+                          Co,
+                          in_shapes_h_c,
+                          output_shape_h_c,
+                          1,
+                          sizeof(T));
     }
 }
 
@@ -495,24 +489,19 @@ void lstm_sequence_v1(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h_c{H_shape[0], 2, H_shape[2]};
 
-        runtime::reference::concat({forward_res_y.data(), reverse_res_y.data()},
-                                   Y,
-                                   in_shapes_y,
-                                   output_shape_y,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res[0].data(), reverse_res[0].data()},
-                                   Ho,
-                                   in_shapes_h_c,
-                                   output_shape_h_c,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res[1].data(), reverse_res[1].data()},
-                                   Co,
-                                   in_shapes_h_c,
-                                   output_shape_h_c,
-                                   1,
-                                   sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res[0].data(), reverse_res[0].data()},
+                          Ho,
+                          in_shapes_h_c,
+                          output_shape_h_c,
+                          1,
+                          sizeof(T));
+        reference::concat({forward_res[1].data(), reverse_res[1].data()},
+                          Co,
+                          in_shapes_h_c,
+                          output_shape_h_c,
+                          1,
+                          sizeof(T));
     }
 }
 
@@ -616,18 +605,8 @@ void gru_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        runtime::reference::concat({forward_res_y.data(), reverse_res_y.data()},
-                                   Y,
-                                   in_shapes_y,
-                                   output_shape_y,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res_h.data(), reverse_res_h.data()},
-                                   Ho,
-                                   in_shapes_h,
-                                   output_shape_h,
-                                   1,
-                                   sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
     }
 }
 
@@ -714,20 +693,9 @@ void rnn_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        runtime::reference::concat({forward_res_y.data(), reverse_res_y.data()},
-                                   Y,
-                                   in_shapes_y,
-                                   output_shape_y,
-                                   1,
-                                   sizeof(T));
-        runtime::reference::concat({forward_res_h.data(), reverse_res_h.data()},
-                                   Ho,
-                                   in_shapes_h,
-                                   output_shape_h,
-                                   1,
-                                   sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

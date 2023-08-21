@@ -20,7 +20,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void matrix_nms(const float* boxes_data,
                 const Shape& boxes_data_shape,
@@ -34,5 +33,4 @@ void matrix_nms(const float* boxes_data,
                 int64_t* valid_outputs);
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

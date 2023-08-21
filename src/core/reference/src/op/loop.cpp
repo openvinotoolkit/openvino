@@ -10,7 +10,6 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void loop(const std::shared_ptr<Function>& func,
           const op::util::OutputDescriptionVector& out_descs,
@@ -218,5 +217,4 @@ void loop(const std::shared_ptr<Function>& func,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -282,7 +282,6 @@ void ROIAlignForward(const int64_t nthreads,
 }  // namespace
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_roi_feature_extractor(
     const std::vector<std::vector<float>>& inputs,
@@ -384,5 +383,4 @@ void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_fea
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

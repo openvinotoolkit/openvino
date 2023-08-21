@@ -7,7 +7,6 @@
 #include "openvino/reference/tile.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void broadcast(const char* arg,
                char* out,
@@ -32,5 +31,4 @@ void broadcast(const char* arg,
     return tile(arg, out, adjusted_in_shape, adjusted_out_shape, elem_size, repeats);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

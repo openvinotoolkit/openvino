@@ -16,7 +16,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename U>
 void not_equal(const T* arg0,
@@ -30,7 +29,6 @@ void not_equal(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph
 
 #if defined(__GNUC__)

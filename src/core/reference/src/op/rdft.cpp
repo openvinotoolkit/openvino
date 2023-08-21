@@ -24,10 +24,9 @@
 #include "openvino/reference/utils/fft_common.hpp"
 
 using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ngraph::reference;
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 using complex_type = std::complex<float>;
@@ -85,5 +84,4 @@ void rdft(const std::vector<float>& input_data,
     clip_and_write_result(axes_data, fft_result, output_fft_shape, rdft_result);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

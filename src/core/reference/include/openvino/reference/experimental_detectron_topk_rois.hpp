@@ -16,7 +16,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void experimental_detectron_topk_rois(const T* input_rois,
@@ -43,5 +42,4 @@ void experimental_detectron_topk_rois(const T* input_rois,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

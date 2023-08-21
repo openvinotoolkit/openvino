@@ -8,7 +8,6 @@
 #include "openvino/reference/group_convolution.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 void infer_backward_conv_output_shape(const Shape& in_spatial_shape,
@@ -80,18 +79,18 @@ void group_convolution_backprop_data(const T* in,
     for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx) {
         group_filter = f;
         for (size_t group_idx = 0; group_idx < group_count; ++group_idx) {
-            runtime::reference::convolution_backprop_in(group_batch,
-                                                        group_filter,
-                                                        group_out,
-                                                        group_batch_shape,
-                                                        group_filter_shape,
-                                                        group_out_shape,
-                                                        in_dilation,
-                                                        dilation,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        strides,
-                                                        output_padding);
+            reference::convolution_backprop_in(group_batch,
+                                               group_filter,
+                                               group_out,
+                                               group_batch_shape,
+                                               group_filter_shape,
+                                               group_out_shape,
+                                               in_dilation,
+                                               dilation,
+                                               pads_begin,
+                                               pads_end,
+                                               strides,
+                                               output_padding);
             group_batch += group_batch_size;
             group_filter += group_filter_size;
             group_out += group_out_size;
@@ -129,5 +128,4 @@ void group_convolution_backprop_data(const INPUT* in,
 }
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -10,7 +10,6 @@
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void tile(const char* arg,
           char* out,
@@ -19,5 +18,4 @@ void tile(const char* arg,
           const size_t elem_size,
           const std::vector<int64_t>& repeats);
 }
-}  // namespace runtime
 }  // namespace ngraph

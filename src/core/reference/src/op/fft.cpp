@@ -29,10 +29,9 @@
 #include "openvino/reference/utils/fft_common.hpp"
 
 using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ngraph::reference;
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 // FFT operation supports for negative axes to transform. More precisely, according to
 // the FFT operation specification, axes should be integers from -(r - 1) to (r - 2)
@@ -478,5 +477,4 @@ void fft_postprocessing(const HostTensorVector& outputs,
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

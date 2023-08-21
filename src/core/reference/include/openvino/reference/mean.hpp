@@ -16,7 +16,6 @@
 #include "openvino/reference/sum.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
@@ -56,5 +55,4 @@ void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

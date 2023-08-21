@@ -7,7 +7,6 @@
 #include <cstddef>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void constant(const T* arg0, T* out, size_t count) {
@@ -16,5 +15,4 @@ void constant(const T* arg0, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

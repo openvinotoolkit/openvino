@@ -8,7 +8,6 @@
 #include <ngraph/opsets/opset5.hpp>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 using custom_evaluate_function = std::function<
     void(const std::shared_ptr<ngraph::Function>& function, const HostTensorVector& inputs, HostTensorVector& outputs)>;
@@ -20,5 +19,4 @@ void tensor_iterator(uint64_t num_iterations,
                      const HostTensorVector& args,
                      const custom_evaluate_function& evaluate = nullptr);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

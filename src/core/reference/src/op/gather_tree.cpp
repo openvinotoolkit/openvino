@@ -40,16 +40,16 @@ static size_t _asIndex(const char* source, const element::Type& element_type) {
 }
 
 // This is an implementation of the algorithm from the tensorflow 1.5 sources.
-void runtime::reference::gather_tree(const char* step_ids,
-                                     const char* parent_ids,
-                                     const char* max_seq_len,
-                                     const char* end_token,
-                                     char* out,
-                                     const Shape& step_ids_shape,
-                                     const Shape& parent_ids_shape,
-                                     const Shape& max_seq_len_shape,
-                                     const Shape& end_token_shape,
-                                     const element::Type& element_type) {
+void reference::gather_tree(const char* step_ids,
+                            const char* parent_ids,
+                            const char* max_seq_len,
+                            const char* end_token,
+                            char* out,
+                            const Shape& step_ids_shape,
+                            const Shape& parent_ids_shape,
+                            const Shape& max_seq_len_shape,
+                            const Shape& end_token_shape,
+                            const element::Type& element_type) {
     if (step_ids_shape != parent_ids_shape) {
         OPENVINO_THROW("step_ids shape and parent_ids shape must be the same");
     }

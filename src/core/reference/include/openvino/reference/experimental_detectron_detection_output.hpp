@@ -28,7 +28,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_detection_output(const float* input_rois,
                                              const float* input_deltas,
@@ -50,5 +49,4 @@ void experimental_detectron_detection_output_postprocessing(void* pboxes,
                                                             const Shape& output_classes_shape,
                                                             const Shape& output_scores_shape);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

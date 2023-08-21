@@ -10,7 +10,6 @@
 #include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void max_pool(const T* arg,
@@ -411,5 +410,4 @@ void max_pool(const Values_t* data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

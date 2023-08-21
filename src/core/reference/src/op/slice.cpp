@@ -11,7 +11,6 @@
 #include "openvino/core/except.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 void slice(const char* data,
@@ -85,5 +84,4 @@ void slice(const char* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

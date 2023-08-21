@@ -14,7 +14,6 @@
 #include "openvino/reference/tanh.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void rnn_cell(const T* X,
@@ -93,5 +92,4 @@ void rnn_cell(const T* X,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -10,7 +10,6 @@
 #include "openvino/core/except.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 
@@ -321,5 +320,4 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
 }
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

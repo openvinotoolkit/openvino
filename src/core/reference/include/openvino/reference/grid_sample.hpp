@@ -14,7 +14,6 @@
 #include "openvino/op/grid_sample.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 
@@ -295,5 +294,4 @@ void grid_sample(DATA_ET* output,
     std::fesetround(prev_rounding_mode);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

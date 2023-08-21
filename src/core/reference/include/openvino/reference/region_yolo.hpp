@@ -10,7 +10,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 static inline int
 entry_index(int width, int height, int coords, int classes, int outputs, int batch, int location, int entry) {
@@ -115,5 +114,4 @@ void region_yolo(const T* input,
 }
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

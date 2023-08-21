@@ -12,7 +12,6 @@
 #include "ngraph/op/topk.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 // This used to be lambda expressions but MSVC had difficulty compiling it. This way is more explicit.
 template <bool D, typename T, typename U>
@@ -113,5 +112,4 @@ void topk(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

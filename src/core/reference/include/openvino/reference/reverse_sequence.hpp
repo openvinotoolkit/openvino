@@ -11,7 +11,6 @@
 #include "ngraph/util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename U>
 void reverse_sequence(const T* arg,
@@ -46,5 +45,4 @@ void reverse_sequence(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -10,7 +10,6 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void space_to_depth(const char* const in,
                     const Shape& in_shape,
@@ -88,5 +87,4 @@ void space_to_depth(const char* const in,
     runtime::opt_kernel::reshape(in, out, dispersed_shape, axes_order, post_transpose_shape, elem_size);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

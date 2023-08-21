@@ -15,7 +15,7 @@
 #include "openvino/reference/proposal.hpp"
 
 namespace {
-using ProposalBox = ngraph::runtime::reference::details::ProposalBox<float>;
+using ProposalBox = ngraph::reference::details::ProposalBox<float>;
 
 void refine_anchors(const float* deltas,
                     const float* scores,
@@ -206,7 +206,6 @@ void fill_output_blobs(const float* proposals,
 }  // namespace
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_proposals_single_image(
     const float* im_info,
@@ -339,5 +338,4 @@ void experimental_detectron_proposals_single_image_postprocessing(void* prois,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -31,7 +31,7 @@ std::vector<int64_t> create_pitches(const Shape& dims) {
 }
 }  // namespace
 
-void runtime::reference::tile(const char* arg,
+void reference::tile(const char* arg,
                               char* out,
                               const Shape& in_shape,
                               const Shape& out_shape,

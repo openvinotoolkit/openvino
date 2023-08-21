@@ -15,7 +15,6 @@
 #include "ngraph/type/float16.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 // NOTE: Execution throws `std::domain_error` if either a non-integral value or an
 // out-of-bounds value is detected in the input tensor.
@@ -110,5 +109,4 @@ divide(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

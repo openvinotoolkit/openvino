@@ -11,7 +11,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void product(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
@@ -37,5 +36,4 @@ void product(const T* arg, T* out, const Shape& in_shape, const AxisSet& reducti
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

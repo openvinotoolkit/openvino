@@ -10,7 +10,6 @@
 #include "openvino/reference/sum.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void normalize_l2(const T* data,
@@ -53,5 +52,4 @@ void normalize_l2(const T* data,
                         });
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

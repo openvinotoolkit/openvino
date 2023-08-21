@@ -11,7 +11,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void less(const T* arg0,
@@ -36,5 +35,4 @@ void less(const T* arg0,
     });
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -14,11 +14,11 @@
 using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-void runtime::reference::strided_slice(const char* arg,
-                                       char* out,
-                                       const Shape& arg_shape,
-                                       const SlicePlan& sp,
-                                       size_t elem_type) {
+void reference::strided_slice(const char* arg,
+                              char* out,
+                              const Shape& arg_shape,
+                              const SlicePlan& sp,
+                              size_t elem_type) {
     auto hasZeroDims = [](const ov::Shape& shape) -> bool {
         return std::any_of(shape.begin(), shape.end(), [](const size_t& dim) {
             return dim == 0;
@@ -39,12 +39,12 @@ void runtime::reference::strided_slice(const char* arg,
           elem_type);
 
     runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
-                        reshape_out_buffer.get_ptr<char>(),
-                        sp.reshape_in_shape,
-                        get_default_order(sp.reshape_in_shape.size()),
-                        sp.reshape_out_shape,
-                        elem_type);
+    ngraph::runtime::opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
+                                         reshape_out_buffer.get_ptr<char>(),
+                                         sp.reshape_in_shape,
+                                         get_default_order(sp.reshape_in_shape.size()),
+                                         sp.reshape_out_shape,
+                                         elem_type);
 
     reverse(reshape_out_buffer.get_ptr<char>(),
             out,

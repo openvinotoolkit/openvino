@@ -12,7 +12,6 @@
 #include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace impl {
 namespace {
 template <typename T>
@@ -209,5 +208,4 @@ void pad(const char* data,
     impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

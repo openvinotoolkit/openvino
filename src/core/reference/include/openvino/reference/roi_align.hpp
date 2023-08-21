@@ -10,7 +10,6 @@
 #include "ngraph/op/roi_align.hpp"  // for ROIAlign:PoolingMode
 #include "ngraph/shape.hpp"
 namespace ngraph {
-namespace runtime {
 namespace reference {
 using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
 using AlignedMode = op::v9::ROIAlign::AlignedMode;
@@ -224,5 +223,4 @@ void roi_align(const T* feature_maps,
     return;
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

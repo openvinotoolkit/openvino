@@ -9,7 +9,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void pad(const char* data,
          const char* pad_value,
@@ -21,5 +20,4 @@ void pad(const char* data,
          const CoordinateDiff& padding_above,
          const op::PadMode pad_mode);
 }
-}  // namespace runtime
 }  // namespace ngraph

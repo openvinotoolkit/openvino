@@ -12,7 +12,6 @@
 #include "ngraph/op/prior_box.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 static inline float clip_great(float x, float threshold) {
     return x < threshold ? x : threshold;
@@ -229,5 +228,4 @@ void prior_box(const T* data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

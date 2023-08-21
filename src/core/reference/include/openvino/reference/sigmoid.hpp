@@ -9,7 +9,6 @@
 #include <type_traits>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
 void sigmoid(const T* arg, T* out, size_t count) {
@@ -29,5 +28,4 @@ void sigmoid(const T* arg, T* out, size_t count) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

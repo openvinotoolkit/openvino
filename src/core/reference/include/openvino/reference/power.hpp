@@ -11,7 +11,7 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 
-namespace ov {
+namespace ngraph {
 namespace reference {
 template <typename T>
 void power(const T* arg0, const T* arg1, T* out, size_t count) {

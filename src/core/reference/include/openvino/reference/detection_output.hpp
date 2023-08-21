@@ -14,7 +14,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 enum { idxLocation, idxConfidence, idxPriors, idxArmConfidence, idxArmLocation, numInputs };
 
@@ -588,5 +587,4 @@ public:
     }
 };
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

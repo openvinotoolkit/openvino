@@ -8,7 +8,6 @@
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 // Slice-8 reference implementation
 void slice(const char* data,
@@ -30,5 +29,4 @@ void slice(const char* arg,
            const Shape& out_shape,
            size_t elem_size);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

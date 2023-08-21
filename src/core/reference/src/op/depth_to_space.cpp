@@ -11,7 +11,6 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void depth_to_space(const char* const in,
                     const Shape& in_shape,
@@ -101,5 +100,4 @@ void depth_to_space(const char* const in,
 }
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

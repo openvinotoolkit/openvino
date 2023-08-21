@@ -8,7 +8,6 @@
 #include <ngraph/opsets/opset5.hpp>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void loop(const std::shared_ptr<Function>& body,
           const op::util::OutputDescriptionVector& out_descs,
@@ -17,5 +16,4 @@ void loop(const std::shared_ptr<Function>& body,
           const HostTensorVector& out,
           const HostTensorVector& args);
 }
-}  // namespace runtime
 }  // namespace ngraph

@@ -17,7 +17,6 @@
 #include "openvino/reference/sum.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename T>
@@ -107,5 +106,4 @@ AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
 }
 
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

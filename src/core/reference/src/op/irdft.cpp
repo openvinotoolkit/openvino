@@ -15,10 +15,9 @@
 #include "openvino/reference/utils/fft_common.hpp"
 
 using namespace ngraph;
-using namespace ngraph::runtime::reference;
+using namespace ngraph::reference;
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 using complex_type = std::complex<float>;
@@ -153,5 +152,4 @@ void irdft(const std::vector<float>& input_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

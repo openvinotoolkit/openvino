@@ -8,7 +8,6 @@
 #include <cstddef>
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void selu(const T* arg,
@@ -24,5 +23,4 @@ void selu(const T* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

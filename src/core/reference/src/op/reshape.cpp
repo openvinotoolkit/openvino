@@ -12,7 +12,6 @@
 #include "ngraph/coordinate_transform.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace {
 std::vector<size_t> reorder(const std::vector<size_t>& origin, const AxisVector& order) {
@@ -52,5 +51,4 @@ void reshape(const char* arg,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

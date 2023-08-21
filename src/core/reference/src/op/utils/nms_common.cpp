@@ -11,7 +11,6 @@
 #include "ngraph/check.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace nms_common {
 void nms_common_postprocessing(void* prois,
@@ -71,5 +70,4 @@ void nms_common_postprocessing(void* prois,
 }
 }  // namespace nms_common
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

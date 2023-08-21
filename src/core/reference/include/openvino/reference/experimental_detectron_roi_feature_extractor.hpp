@@ -15,7 +15,6 @@
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 void experimental_detectron_roi_feature_extractor(
     const std::vector<std::vector<float>>& inputs,
@@ -32,5 +31,4 @@ void experimental_detectron_roi_feature_extractor_postprocessing(void* prois_fea
                                                                  const Shape& output_roi_features_shape,
                                                                  const Shape& output_rois_shape);
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

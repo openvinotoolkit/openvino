@@ -10,7 +10,6 @@
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void select(const char* arg0,
@@ -48,5 +47,4 @@ void select(const char* arg0,
                          });
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

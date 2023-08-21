@@ -15,7 +15,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void avg_pool_backprop(const T* delta,
@@ -231,5 +230,4 @@ void avg_pool(const T* arg,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

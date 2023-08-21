@@ -6,7 +6,7 @@
 
 #include <numeric>
 
-using namespace ngraph::runtime::reference;
+using namespace ngraph::reference;
 
 using Coordinate = ngraph::Coordinate;
 

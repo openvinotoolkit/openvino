@@ -15,7 +15,6 @@
 #include "ngraph/type/element_type.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 namespace fft_common {
 // To simplify calculation of strides for all axes of 'shape' of some complex
@@ -43,5 +42,4 @@ int64_t offset_from_coords_and_strides(const std::vector<int64_t>& coords, const
 std::vector<int64_t> reverse_fft_axes(const std::vector<int64_t>& axes, int64_t complex_data_rank);
 }  // namespace fft_common
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

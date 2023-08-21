@@ -10,7 +10,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 
 enum class DescriptorType { SINGLE_VALUE, SLICE };
@@ -333,13 +332,13 @@ void unique(Data_t* out_unique_elements,
             indices.push_back(descriptor.idx);
         }
 
-        ngraph::runtime::reference::gather(data,
-                                           indices.data(),
-                                           out_unique_elements,
-                                           data_shape,
-                                           Shape{descriptors.unique_tensor_elements.size()},
-                                           out_shape,
-                                           descriptors.axis);
+        gather(data,
+               indices.data(),
+               out_unique_elements,
+               data_shape,
+               Shape{descriptors.unique_tensor_elements.size()},
+               out_shape,
+               descriptors.axis);
     }
 
     // filling out this output tensor requires a separate pass over all elements of the input tensor
@@ -351,5 +350,4 @@ void unique(Data_t* out_unique_elements,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

@@ -12,7 +12,6 @@
 #include "ngraph/util.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
                                                        const Coordinate& start_corner,
@@ -144,5 +143,4 @@ static void scatter_update(const char* input_data,
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

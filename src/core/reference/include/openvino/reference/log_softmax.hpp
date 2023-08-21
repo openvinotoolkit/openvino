@@ -12,7 +12,6 @@
 #include "openvino/reference/sum.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 template <typename T>
 void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
@@ -43,5 +42,4 @@ void log_softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) 
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

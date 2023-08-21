@@ -13,7 +13,6 @@
 #include "openvino/reference/concat.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 OPENVINO_SUPPRESS_DEPRECATED_START
 void function(const std::shared_ptr<ngraph::Function>& function,
@@ -28,5 +27,4 @@ void function(const std::shared_ptr<ngraph::Function>& function,
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph

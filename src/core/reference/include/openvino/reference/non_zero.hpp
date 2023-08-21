@@ -9,7 +9,6 @@
 #include "ngraph/shape.hpp"
 
 namespace ngraph {
-namespace runtime {
 namespace reference {
 /// \brief Return number of non-zero entries in the input argument.
 ///
@@ -115,5 +114,4 @@ void non_zero(const T* arg, U* out, const Shape& arg_shape) {
     }
 }
 }  // namespace reference
-}  // namespace runtime
 }  // namespace ngraph
