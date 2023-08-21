@@ -142,8 +142,7 @@ Clone and install the model repository.
 Instantiate model `⇑ <#top>`__
 ###############################################################################################################################
 
- Whisper is a Transformer based
-encoder-decoder model, also referred to as a sequence-to-sequence model.
+Whisper is a Transformer based encoder-decoder model, also referred to as a sequence-to-sequence model.
 It maps a sequence of audio spectrogram features to a sequence of text
 tokens. First, the raw audio inputs are converted to a log-Mel
 spectrogram by action of the feature extractor. Then, the Transformer
@@ -654,7 +653,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

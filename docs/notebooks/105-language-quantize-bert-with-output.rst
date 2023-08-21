@@ -169,8 +169,7 @@ PyTorch model formats are supported:
 Prepare the Dataset `⇑ <#top>`__
 ###############################################################################################################################
 
- We download the `General Language
-Understanding Evaluation (GLUE) <https://gluebenchmark.com/>`__ dataset
+We download the `General Language Understanding Evaluation (GLUE) <https://gluebenchmark.com/>`__ dataset
 for the MRPC task from HuggingFace datasets. Then, we tokenize the data
 with a pre-trained BERT tokenizer from HuggingFace.
 
@@ -425,7 +424,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

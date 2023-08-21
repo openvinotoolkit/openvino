@@ -25,10 +25,12 @@ and Super-Resolution <https://arxiv.org/abs/1603.08155>`__ along with
 part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-   **NOTE**: If you have a webcam on your computer, you can see live
-   results streaming in the notebook. If you run the notebook on a
-   server, the webcam will not work but you can run inference, using a
-   video file. 
+.. note::
+
+   If you have a webcam on your computer, you can see live results streaming in 
+   the notebook. If you run the notebook on a server, the webcam will not work 
+   but you can run inference, using a video file.
+
 
 **Table of contents**:
 
@@ -234,8 +236,7 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
 Preprocess the image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Preprocess the input image before
-running the model. Prepare the dimensions and channel order for the
+Preprocess the input image before running the model. Prepare the dimensions and channel order for the
 image to match the original image with the input tensor
 
 1. Preprocess a frame to convert from ``unit8`` to ``float32``.
@@ -264,9 +265,8 @@ image to match the original image with the input tensor
 Helper function to postprocess the stylized image `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The
-converted IR model outputs a NumPy ``float32`` array of the `(1, 3, 224,
-224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
+The converted IR model outputs a NumPy ``float32`` array of the 
+`(1, 3, 224,224) <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/fast-neural-style-mosaic-onnx/README.md>`__
 shape .
 
 .. code:: ipython3
@@ -411,15 +411,17 @@ Run Style Transfer on a Video File `⇑ <#top>`__
 
 
 You can find out how the model works with a video file. For that, use
-any `formats supported by
-OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
+any `formats supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__.
 You can press the stop button to terminate anytime while the video file
 is running.
 
-   **NOTE**: Sometimes, the video will be cut off when frames are
-   corrupted. If this happens, or you experience any other problems with
-   your video, use the `HandBrake <https://handbrake.fr/>`__ encoder
-   tool to create a video file in MPEG format.
+.. note::
+
+   Sometimes, the video will be cut off when frames are corrupted. If this 
+   happens, or you experience any other problems with your video, use the 
+   `HandBrake <https://handbrake.fr/>`__ encoder tool to create a video file in 
+   MPEG format.
+
 
 .. code:: ipython3
 

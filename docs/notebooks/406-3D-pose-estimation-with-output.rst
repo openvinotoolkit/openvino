@@ -54,9 +54,11 @@ Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
 
-**The ``pythreejs`` extension may not display properly when using the
-latest Jupyter Notebook release (2.4.1). Therefore, it is recommended to
-use Jupyter Lab instead.**
+.. note::
+
+   The ``pythreejs`` extension may not display properly when using the latest 
+   Jupyter Notebook release (2.4.1). Therefore, it is recommended to use 
+   Jupyter Lab instead.
 
 .. code:: ipython3
 
@@ -217,7 +219,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -290,8 +292,7 @@ Processing `⇑ <#top>`__
 Model Inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Frames captured
-from video files or the live webcam are used as the input for the 3D
+Frames captured from video files or the live webcam are used as the input for the 3D
 model. This is how you obtain the output heat maps, PAF (part affinity
 fields) and features.
 
@@ -329,8 +330,7 @@ fields) and features.
 Draw 2D Pose Overlays `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- We need to define some connections
-between the joints in advance, so that we can draw the structure of the
+We need to define some connections between the joints in advance, so that we can draw the structure of the
 human body in the resulting image after obtaining the inference results.
 Joints are drawn as circles and limbs are drawn as lines. The code is
 based on the `3D Human Pose Estimation

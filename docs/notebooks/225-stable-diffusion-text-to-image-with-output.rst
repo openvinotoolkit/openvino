@@ -104,8 +104,7 @@ solutions based on Stable Diffusion.
 Create PyTorch Models pipeline `⇑ <#top>`__
 ###############################################################################################################################
 
- ``StableDiffusionPipeline``
-is an end-to-end inference pipeline that you can use to generate images
+``StableDiffusionPipeline`` is an end-to-end inference pipeline that you can use to generate images
 from text with just a few lines of code.
 
 First, load the pre-trained weights of all components of the model.
@@ -248,10 +247,10 @@ U-net `⇑ <#top>`__
 
 Unet model has three inputs:
 
--  ``sample`` - latent image sample from previous step. Generation
+- ``sample`` - latent image sample from previous step. Generation
    process has not been started yet, so you will use random noise.
--  ``timestep`` - current scheduler step.
--  ``encoder_hidden_state`` - hidden state of text encoder.
+- ``timestep`` - current scheduler step.
+- ``encoder_hidden_state`` - hidden state of text encoder.
 
 Model predicts the ``sample`` state for the next step.
 

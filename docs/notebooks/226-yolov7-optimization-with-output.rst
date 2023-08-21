@@ -69,7 +69,7 @@ Get Pytorch model `⇑ <#top>`__
 
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv7 tiny model pre-trained on a COCO dataset, which is available
 in this `repo <https://github.com/WongKinYiu/yolov7>`__. Typical steps
@@ -473,7 +473,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

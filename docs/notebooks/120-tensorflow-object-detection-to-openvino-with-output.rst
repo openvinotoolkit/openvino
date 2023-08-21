@@ -202,7 +202,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -672,13 +672,11 @@ performance of your application using OpenVINO.
 Async inference pipeline `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The key advantage of the Async
-API is that when a device is busy with inference, the application can
-perform other tasks in parallel (for example, populating inputs or
-scheduling other requests) rather than wait for the current inference to
-complete first. To understand how to perform async inference using
-openvino, refer to the `Async API
-tutorial <115-async-api-with-output.html>`__.
+The key advantage of the Async API is that when a device is busy with inference, 
+the application can perform other tasks in parallel (for example, populating inputs or 
+scheduling other requests) rather than wait for the current inference to 
+complete first. To understand how to perform async inference using 
+openvino, refer to the `Async API tutorial <115-async-api-with-output.html>`__.
 
 Integration preprocessing to model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

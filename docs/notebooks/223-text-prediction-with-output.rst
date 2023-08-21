@@ -148,8 +148,8 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 Load Model `⇑ <#top>`__
 ###############################################################################################################################
- Download the Selected Model and Tokenizer from
-HuggingFace
+
+Download the Selected Model and Tokenizer from HuggingFace
 
 .. code:: ipython3
 
@@ -252,7 +252,7 @@ Select inference device `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -345,8 +345,7 @@ at later stage.
 Define Softmax layer `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- A softmax function is used to
-convert top-k logits into a probability distribution.
+A softmax function is used to convert top-k logits into a probability distribution.
 
 .. code:: ipython3
 
@@ -361,8 +360,7 @@ convert top-k logits into a probability distribution.
 Set the minimum sequence length `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- If the minimum sequence
-length is not reached, the following code will reduce the probability of
+If the minimum sequence length is not reached, the following code will reduce the probability of
 the ``eos`` token occurring. This continues the process of generating
 the next words.
 
@@ -387,8 +385,8 @@ the next words.
 
 Top-K sampling `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- In Top-K sampling, we filter the K most
-likely next words and redistribute the probability mass among only those
+
+In Top-K sampling, we filter the K most likely next words and redistribute the probability mass among only those
 K next words.
 
 .. code:: ipython3
@@ -416,8 +414,8 @@ K next words.
 
 Main Processing Function `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- Generating the predicted
-sequence.
+
+Generating the predicted sequence.
 
 .. code:: ipython3
 
@@ -467,8 +465,7 @@ sequence.
 Inference with GPT-Neo/GPT-2 `⇑ <#top>`__
 ###############################################################################################################################
 
- The ``text`` variable below
-is the input used to generate a predicted sequence.
+The ``text`` variable below is the input used to generate a predicted sequence.
 
 .. code:: ipython3
 
@@ -515,8 +512,7 @@ model.
 Converse Function `⇑ <#top>`__
 ###############################################################################################################################
 
- Wrapper on generate sequence function to
-support conversation
+Wrapper on generate sequence function to support conversation
 
 .. code:: ipython3
 

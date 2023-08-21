@@ -20,13 +20,15 @@ notebook shows how to create the following pipeline:
 Final part of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-**NOTE**: To use a webcam, you must run this Jupyter notebook on a
-computer with a webcam. If you run on a server, the webcam will not
-work. However, you can still do inference on a video in the final step.
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a computer with a webcam. 
+   If you run on a server, the webcam will not work. However, you can still do 
+   inference on a video in the final step.
 
 --------------
 
-[1] seq2seq: Deep learning models that take a sequence of items to the
+[1] ``seq2seq``: Deep learning models that take a sequence of items to the
 input and output. In this case, input: video frames, output: actions
 sequence. This ``"seq2seq"`` is composed of an encoder and a decoder.
 The encoder captures ``"context"`` of the inputs to be analyzed by the
@@ -93,10 +95,11 @@ and the system automatically downloads the two models
 ``"action-recognition-0001-encoder"`` and
 ``"action-recognition-0001-decoder"``
 
-   **NOTE**: If you want to download another model, such as
-   ``"driver-action-recognition-adas-0002"``
-   (``"driver-action-recognition-adas-0002-encoder"`` +
-   ``"driver-action-recognition-adas-0002-decoder"``), replace the name
+.. note::
+
+   If you want to download another model, such as 
+   ``"driver-action-recognition-adas-0002"`` (``"driver-action-recognition-adas-0002-encoder"`` 
+   + ``"driver-action-recognition-adas-0002-decoder"``), replace the name 
    of the model in the code below. Using a model outside the list can
    require different pre- and post-processing.
 
@@ -634,10 +637,11 @@ by OpenCV will work. You can press the stop button anytime while the
 video file is running, and it will activate the webcam for the next
 step.
 
-   **NOTE**: Sometimes, the video can be cut off if there are corrupted
-   frames. In that case, you can convert it. If you experience any
-   problems with your video, use the
-   `HandBrake <https://handbrake.fr/>`__ and select the MPEG format.
+.. note::
+
+   Sometimes, the video can be cut off if there are corrupted frames. In that 
+   case, you can convert it. If you experience any problems with your video, 
+   use the `HandBrake <https://handbrake.fr/>`__ and select the MPEG format.
 
 .. code:: ipython3
 

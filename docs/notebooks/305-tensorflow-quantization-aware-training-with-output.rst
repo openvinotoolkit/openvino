@@ -37,8 +37,7 @@ download time.
 Imports and Settings `⇑ <#top>`__
 ###############################################################################################################################
 
- Import NNCF and all auxiliary
-packages from your Python code. Set a name for the model, input image
+Import NNCF and all auxiliary packages from your Python code. Set a name for the model, input image
 size, used batch size, and the learning rate. Also, define paths where
 Frozen Graph and OpenVINO IR versions of the models will be stored.
 

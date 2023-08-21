@@ -30,10 +30,10 @@ information, refer to the
 - `Select inference device <#select-inference-device>`__
 - `Object Detection <#object-detection>`__
 
-   `Load a Detection Model <#load-a-detection-model>`__
-   `Load an Image <#load-an-image>`__
-   `Do Inference <#do-inference>`__
-   `Get Detection Results <#get-detection-results>`__
+  - `Load a Detection Model <#load-a-detection-model>`__
+  - `Load an Image <#load-an-image>`__
+  - `Do Inference <#do-inference>`__
+  - `Get Detection Results <#get-detection-results>`__
 
 - `Text Recognition <#text-recognition>`__
 
@@ -354,7 +354,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

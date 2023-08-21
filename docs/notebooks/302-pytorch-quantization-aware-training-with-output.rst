@@ -253,8 +253,7 @@ Download Tiny ImageNet dataset
 Pre-train Floating-Point Model `⇑ <#top>`__
 ###############################################################################################################################
 
- Using NNCF for model
-compression assumes that a pre-trained model and a training pipeline are
+Using NNCF for model compression assumes that a pre-trained model and a training pipeline are
 already in use.
 
 This tutorial demonstrates one possible training pipeline: a ResNet-18

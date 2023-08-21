@@ -83,8 +83,7 @@ In this part, all variables used in the notebook are set.
 Download and Convert Public Model `⇑ <#top>`__
 ###############################################################################################################################
 
- If it is your first run,
-models will be downloaded and converted here. It my take a few minutes.
+If it is your first run, models will be downloaded and converted here. It my take a few minutes.
 Use ``omz_downloader`` and ``omz_converter``, which are command-line
 tools from the ``openvino-dev`` package.
 

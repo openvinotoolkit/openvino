@@ -280,7 +280,7 @@ the total words spoken. A lower WER in speech-to-text means better
 accuracy in recognizing speech.
 
 For WER calculation, we will use
-```torchmetrics`` <https://torchmetrics.readthedocs.io/en/stable/text/word_error_rate.html>`__
+`torchmetrics <https://torchmetrics.readthedocs.io/en/stable/text/word_error_rate.html>`__
 library.
 
 .. code:: ipython3

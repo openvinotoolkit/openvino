@@ -119,7 +119,7 @@ vector in embedded space.
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
- Install required packages.
+Install required packages.
 
 .. code:: ipython3
 
@@ -170,8 +170,7 @@ Prerequisites `⇑ <#top>`__
 Authentication `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- In order to access IF checkpoints, users
-need to provide an authentication token.
+In order to access IF checkpoints, users need to provide an authentication token.
 
 If you already have a token, you can input it into the provided form in
 the next cell. If not, please proceed according to the following
@@ -203,8 +202,7 @@ Uncheck the ``Add token as git credential?`` box.
 DeepFloyd IF in Diffusers library `⇑ <#top>`__
 ###############################################################################################################################
 
- To work with IF by
-DeepFloyd Lab, we will use `Hugging Face Diffusers
+To work with IF by DeepFloyd Lab, we will use `Hugging Face Diffusers
 package <https://github.com/huggingface/diffusers>`__. Diffusers package
 exposes the ``DiffusionPipeline`` class, simplifying experiments with
 diffusion models. The code below demonstrates how to create a
@@ -442,7 +440,7 @@ seamlessly into the pipeline.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -821,8 +819,7 @@ Download the Super Resolution model weights `⇑ <#top>`__
 Reshape the model’s inputs `⇑ <#top>`__
 -------------------------------------------------------------------------------------------------------------------------------
 
- We need to reshape the inputs
-for the model. This is necessary because the IR model was converted with
+We need to reshape the inputs for the model. This is necessary because the IR model was converted with
 a different target input resolution. The Second IF stage returns 256x256
 pixel images. Using the 4x Super Resolution model makes our target image
 size 1024x1024 pixel.

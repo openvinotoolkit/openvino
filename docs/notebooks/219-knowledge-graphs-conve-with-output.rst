@@ -13,8 +13,8 @@ steps:
 2. Report the inference performance speedup obtained with the optimized
    OpenVINO model
 
-The ConvE model is an implementation of the paper - “Convolutional 2D
-Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
+The ConvE model is an implementation of the paper - 
+`Convolutional 2D Knowledge Graph Embeddings <https://arxiv.org/abs/1707.01476>`__. The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
@@ -283,8 +283,7 @@ Defining the dataloader `⇑ <#top>`__
 Evaluate the trained ConvE model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- First, we will evaluate
-the model performance using PyTorch. The goal is to make sure there are
+First, we will evaluate the model performance using PyTorch. The goal is to make sure there are
 no accuracy differences between the original model inference and the
 model converted to OpenVINO intermediate representation inference
 results. Here, we use a simple accuracy metric to evaluate the model
@@ -333,8 +332,7 @@ such as Mean Reciprocal Rank, Hits@10 etc.
 Prediction on the Knowledge graph. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Here, we perform the
-entity prediction on the knowledge graph, as a sample evaluation task.
+Here, we perform the entity prediction on the knowledge graph, as a sample evaluation task.
 We pass the source entity ``san_marino`` and relation ``locatedIn`` to
 the knowledge graph and obtain the target entity predictions. Expected
 predictions are target entities that form a factual triple with the
@@ -408,7 +406,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -527,8 +525,7 @@ inference can also be obtained by looking at the benchmark app results.
 Conclusions `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- In this notebook, we convert the trained
-PyTorch knowledge graph embeddings model to the OpenVINO format. We
+In this notebook, we convert the trained PyTorch knowledge graph embeddings model to the OpenVINO format. We
 confirm that there are no accuracy differences post conversion. We also
 perform a sample evaluation on the knowledge graph. Then, we determine
 the platform specific speedup in runtime performance that can be

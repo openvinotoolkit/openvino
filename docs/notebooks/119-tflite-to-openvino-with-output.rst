@@ -160,7 +160,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -220,7 +220,7 @@ select device from dropdown list for running inference using OpenVINO
 Estimate Model Performance `⇑ <#top>`__
 ###############################################################################################################################
 
- `Benchmark Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+`Benchmark Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
 is used to measure the inference performance of the model on CPU and
 GPU.
 

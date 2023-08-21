@@ -92,8 +92,7 @@ decoded into a descriptive text sequence.
 Visual Question Answering `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Visual Question Answering (VQA)
-is the task of answering text-based questions about image content.
+Visual Question Answering (VQA) is the task of answering text-based questions about image content.
 
 |image2|
 
@@ -224,7 +223,7 @@ model
 documentation <https://huggingface.co/docs/transformers/model_doc/blip>`__.
 
 In this tutorial, you will use the
-```blip-vqa-base`` <https://huggingface.co/Salesforce/blip-vqa-base>`__
+`blip-vqa-base <https://huggingface.co/Salesforce/blip-vqa-base>`__
 model available for download from `Hugging
 Face <https://huggingface.co/>`__. The same actions are also applicable
 to other similar models from the BLIP family. Although this model class
@@ -694,7 +693,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

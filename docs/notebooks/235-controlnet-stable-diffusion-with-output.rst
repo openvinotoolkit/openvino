@@ -191,12 +191,12 @@ ControlNet in Diffusers library `⇑ <#top>`__
 For working with Stable Diffusion and ControlNet models, we will use
 Hugging Face `Diffusers <https://github.com/huggingface/diffusers>`__
 library. To experiment with ControlNet, Diffusers exposes the
-```StableDiffusionControlNetPipeline`` <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
+`StableDiffusionControlNetPipeline <https://huggingface.co/docs/diffusers/main/en/api/pipelines/stable_diffusion/controlnet>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Central to the ``StableDiffusionControlNetPipeline`` is the
 ``controlnet`` argument which enables providing a particularly trained
-```ControlNetModel`` <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
+`ControlNetModel <https://huggingface.co/docs/diffusers/main/en/api/models#diffusers.ControlNetModel>`__
 instance while keeping the pre-trained diffusion model weights the same.
 The code below demonstrates how to create
 ``StableDiffusionControlNetPipeline``, using the ``controlnet-openpose``
@@ -432,7 +432,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -583,11 +583,10 @@ ControlNet.
 Text Encoder `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The text-encoder is responsible for
-transforming the input prompt, for example, “a photo of an astronaut
-riding a horse” into an embedding space that can be understood by the
-U-Net. It is usually a simple transformer-based encoder that maps a
-sequence of input tokens to a sequence of latent text embeddings.
+The text-encoder is responsible for transforming the input prompt, for example, 
+“a photo of an astronaut riding a horse” into an embedding space that can be 
+understood by the U-Net. It is usually a simple transformer-based encoder that 
+maps a sequence of input tokens to a sequence of latent text embeddings.
 
 The input of the text encoder is tensor ``input_ids``, which contains
 indexes of tokens from text processed by the tokenizer and padded to the
@@ -768,9 +767,9 @@ it is recommended to look into `Elucidating the Design Space of
 Diffusion-Based Generative Models <https://arxiv.org/abs/2206.00364>`__
 
 In this tutorial, instead of using Stable Diffusion’s default
-```PNDMScheduler`` <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
+`PNDMScheduler <https://huggingface.co/docs/diffusers/main/en/api/schedulers/pndm>`__,
 we use one of the currently fastest diffusion model schedulers, called
-```UniPCMultistepScheduler`` <https://huggingface.co/docs/diffusers/main/en/api/schedulers/unipc>`__.
+`UniPCMultistepScheduler <https://huggingface.co/docs/diffusers/main/en/api/schedulers/unipc>`__.
 Choosing an improved scheduler can drastically reduce inference time -
 in this case, we can reduce the number of inference steps from 50 to 20
 while more or less keeping the same image generation quality. More
@@ -1200,7 +1199,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

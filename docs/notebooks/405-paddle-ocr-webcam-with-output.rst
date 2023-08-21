@@ -19,10 +19,11 @@ GitHub <https://github.com/PaddlePaddle/PaddleOCR>`__ or `PaddleOCR
 Gitee <https://gitee.com/paddlepaddle/PaddleOCR>`__. Working pipeline of
 the PaddleOCR is as follows:
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
-   notebook on a computer with a webcam. If you run the notebook on a
-   server, the webcam will not work. You can still do inference on a
-   video file.
+.. note::
+
+   To use this notebook with a webcam, you need to run the notebook on a computer 
+   with a webcam. If you run the notebook on a server, the webcam will not work. 
+   You can still do inference on a video file.
 
 **Table of contents**:
 
@@ -99,7 +100,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -616,8 +617,10 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**: Popup mode may not work if you run this notebook on a
-   remote computer.
+.. note::
+
+   Popup mode may not work if you run this notebook on a remote computer.
+
 
 Run live PaddleOCR:
 
@@ -638,8 +641,7 @@ Run live PaddleOCR:
 
 
 If you do not have a webcam, you can still run this demo with a video
-file. Any `format supported by
-OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
+file. Any `format supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
 .. code:: ipython3

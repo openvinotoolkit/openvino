@@ -97,14 +97,13 @@ Stable Diffusion v2 Infinite Zoom Showcase `⇑ <#top>`__
 In this tutorial we consider how to use Stable Diffusion v2 model for
 generation sequence of images for infinite zoom video effect. To do
 this, we will need
-```stabilityai/stable-diffusion-2-inpainting`` <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
+`stabilityai/stable-diffusion-2-inpainting <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
 model.
 
 Stable Diffusion Text guided Inpainting `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- In image editing,
-inpainting is a process of restoring missing parts of pictures. Most
+In image editing, inpainting is a process of restoring missing parts of pictures. Most
 commonly applied to reconstructing old deteriorated images, removing
 cracks, scratches, dust spots, or red-eyes from photographs.
 
@@ -137,7 +136,7 @@ Out video based on our prompt.
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
- install required packages
+Install required packages:
 
 .. code:: ipython3
 
@@ -154,12 +153,11 @@ Prerequisites `⇑ <#top>`__
 Stable Diffusion in Diffusers library `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- To work with Stable
-Diffusion v2, we will use Hugging Face
+To work with Stable Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models for Inpainting use case,
 Diffusers exposes the
-```StableDiffusionInpaintPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionInpaintPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 The code below demonstrates how to create
@@ -1283,7 +1281,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

@@ -49,7 +49,7 @@ To work with Stable Diffusion v2, we will use Hugging Face’s
 `Diffusers <https://github.com/huggingface/diffusers>`__ library.
 
 To experiment with Stable Diffusion models, Diffusers exposes the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 and ``StableDiffusionInpaintPipeline``, similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
@@ -178,7 +178,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

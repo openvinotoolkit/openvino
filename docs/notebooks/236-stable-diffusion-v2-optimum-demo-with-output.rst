@@ -42,13 +42,13 @@ Autoencoder with Decoder and Encoder models.
    image
 
 The base model used for this example is the
-```stabilityai/stable-diffusion-2-1-base`` <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
+`stabilityai/stable-diffusion-2-1-base <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__.
 This model was converted to OpenVINO format, for accelerated inference
 on CPU or Intel GPU with OpenVINO’s integration into Optimum:
 ``optimum-intel``. The model weights are stored with FP16 precision,
 which reduces the size of the model by half. You can find the model used
 in this notebook is
-```helenai/stabilityai-stable-diffusion-2-1-base-ov`` <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
+`helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
 (IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__

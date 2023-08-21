@@ -256,7 +256,7 @@ Cleaning up the model directory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 From the verbose of the previous step it is obvious that
-```torch.hub.load`` <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
+`torch.hub.load <https://pytorch.org/docs/stable/hub.html#torch.hub.load>`__
 downloads a lot of unnecessary files. We shall move remove the
 unnecessary directories and files which were created during the download
 process.
@@ -314,7 +314,7 @@ Dummy input creation
 Dummy inputs are necessary for `PyTorch to
 ONNX <https://docs.openvino.ai/latest/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html#exporting-a-pytorch-model-to-onnx-format>`__
 conversion. Although
-```torch.onnx.export`` <https://pytorch.org/docs/stable/onnx.html>`__
+`torch.onnx.export <https://pytorch.org/docs/stable/onnx.html>`__
 accepts any dummy input for a single pass through the model and thereby
 enabling model conversion, the pre-processing required for the actual
 inputs later at inference using compiled models would be substantial. So
@@ -439,7 +439,7 @@ we shall follow the following steps:
 Select inference device
 '''''''''''''''''''''''
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -655,14 +655,14 @@ it, we shall follow the following steps:
 If the name of the ``.ckpt`` file is too much to handle, here is the
 common format of all checkpoint files from the model releases.
 
-   -  sml_model.dpredictor.<DEPTH_PREDICTOR>.nsamples.<NSAMPLES>.ckpt
-   -  Replace <DEPTH_PREDICTOR> and <NSAMPLES> with the depth estimation
-      model name and the no. of levels of depth density the SML model
-      has been trained on
-   -  E.g. sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt will be the
-      file name corresponding to the SML model based on the dpt_hybrid
-      depth predictor and has been trained on 500 points of the density
-      level on the depth map
+-  sml_model.dpredictor.<DEPTH_PREDICTOR>.nsamples.<NSAMPLES>.ckpt
+-  Replace <DEPTH_PREDICTOR> and <NSAMPLES> with the depth estimation
+   model name and the no. of levels of depth density the SML model
+   has been trained on
+-  E.g. sml_model.dpredictor.dpt_hybrid.nsamples.500.ckpt will be the
+   file name corresponding to the SML model based on the dpt_hybrid
+   depth predictor and has been trained on 500 points of the density
+   level on the depth map
 
 .. code:: ipython3
 
@@ -726,7 +726,7 @@ common format of all checkpoint files from the model releases.
 Select inference device
 '''''''''''''''''''''''
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

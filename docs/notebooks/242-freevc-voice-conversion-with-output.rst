@@ -43,8 +43,7 @@ devices. It consists of the following steps:
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
- This steps can be done manually or will be
-performed automatically during the execution of the notebook, but in
+This steps can be done manually or will be performed automatically during the execution of the notebook, but in
 minimum necessary scope. 1. Clone this repo: git clone
 https://github.com/OlaWod/FreeVC.git. 2. Download
 `WavLM-Large <https://github.com/microsoft/unilm/tree/master/wavlm>`__
@@ -271,7 +270,9 @@ Inference
 
 Result audio files should be available in ‘outputs/freevc’
 
-# Convert Modes to OpenVINO Intermediate Representation `⇑ <#top>`__
+Convert Modes to OpenVINO Intermediate Representation `⇑ <#top>`__
+####################################################################
+
 Convert each model to ONNX format and then use the model conversion
 Python API to convert the ONNX model to OpenVINO IR, with FP16
 precision. The ``mo.convert_model`` function accepts the path to a model
@@ -281,11 +282,11 @@ using ``compile_model`` or can be saved on a disk using the
 ``serialize`` function. The ``read_model`` method loads a saved model
 from a disk. For more information about model conversion, see this
 `page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+
 Convert Prior Encoder. `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- First we convert WavLM model, as a
-part of Convert Prior Encoder, to the ONNX format, then to OpenVINO’s IR
+First we convert WavLM model, as a part of Convert Prior Encoder, to the ONNX format, then to OpenVINO’s IR
 format. We keep the original name of the model in code: ``cmodel``.
 
 .. code:: ipython3
@@ -388,7 +389,7 @@ Select device from dropdown list for running inference using OpenVINO
 Convert ``SpeakerEncoder`` `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Converting to ONNX format.
+Converting to ONNX format.
 
 .. code:: ipython3
 

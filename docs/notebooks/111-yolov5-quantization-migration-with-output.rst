@@ -758,8 +758,8 @@ Inference Demo Performance Comparison `⇑ <#top>`__
 ###############################################################################################################################
 
 
-This part shows how to use the Ultralytics model detection code
-```detect.py`` <https://github.com/ultralytics/yolov5/blob/master/detect.py>`__
+This part shows how to use the Ultralytics model detection code 
+`detect.py <https://github.com/ultralytics/yolov5/blob/master/detect.py>`__ 
 to run synchronous inference, using the OpenVINO Python API on two
 images.
 

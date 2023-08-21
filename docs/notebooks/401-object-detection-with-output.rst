@@ -11,10 +11,11 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
-   notebook on a computer with a webcam. If you run the notebook on a
-   server, the webcam will not work. However, you can still do inference
-   on a video. 
+.. note::
+
+   To use this notebook with a webcam, you need to run the notebook on a computer 
+   with a webcam. If you run the notebook on a server, the webcam will not work. 
+   However, you can still do inference on a video.
 
 **Table of contents**:
 
@@ -113,9 +114,10 @@ downloaded and unpacked. The chosen model comes from the public
 directory, which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **NOTE**: Using a model other than ``ssdlite_mobilenet_v2`` may
-   require different conversion parameters as well as pre- and
-   post-processing.
+.. note::
+
+   Using a model other than ``ssdlite_mobilenet_v2`` may require different 
+   conversion parameters as well as pre- and post-processing.
 
 .. code:: ipython3
 
@@ -474,10 +476,12 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
-   notebook on a computer with a webcam. If you run the notebook on a
-   server (for example, Binder), the webcam will not work. Popup mode
-   may not work if you run this notebook on a remote computer (for
+.. note::
+
+   To use this notebook with a webcam, you need to run the 
+   notebook on a computer with a webcam. If you run the notebook on a 
+   server (for example, Binder), the webcam will not work. Popup mode 
+   may not work if you run this notebook on a remote computer (for 
    example, Binder).
 
 Run the object detection:

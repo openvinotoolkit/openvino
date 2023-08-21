@@ -44,8 +44,7 @@ original image. The Following pipeline will be used in this notebook.
 Download the Model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Download ``gmcnn-places2-tf``\ model
-(this step will be skipped if the model is already downloaded) and then
+Download ``gmcnn-places2-tf``\ model (this step will be skipped if the model is already downloaded) and then
 unzip it. Downloaded model stored in TensorFlow frozen graph format. The
 steps how this frozen graph can be obtained from original model
 checkpoint can be found in this

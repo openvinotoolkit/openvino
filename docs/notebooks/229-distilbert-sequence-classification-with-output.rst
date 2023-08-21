@@ -40,9 +40,8 @@ Imports `⇑ <#top>`__
 Initializing the Model `⇑ <#top>`__
 ###############################################################################################################################
 
- We will use the transformer-based
-`DistilBERT base uncased finetuned
-SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
+We will use the transformer-based 
+`DistilBERT base uncased finetuned SST-2 <https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english>`__
 model from Hugging Face.
 
 .. code:: ipython3
@@ -64,7 +63,7 @@ easily assigned meaning. It involves cleaning the data and assigning
 tokens or IDs to the words, so they are represented in a vector space
 where similar words have similar vectors. This helps the model
 understand the context of a sentence. Here, we will use
-```AutoTokenizer`` <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
+`AutoTokenizer <https://huggingface.co/docs/transformers/main_classes/tokenizer>`__
 - a pre-trained tokenizer from Hugging Face:
 
 .. code:: ipython3
@@ -76,8 +75,7 @@ understand the context of a sentence. Here, we will use
 Convert Model to OpenVINO Intermediate Representation format. `⇑ <#top>`__
 ###############################################################################################################################
 
-`Model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+`Model conversion API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 facilitates the transition between training and deployment environments,
 performs static model analysis, and adjusts deep learning models for
 optimal execution on end-point target devices.
@@ -97,8 +95,7 @@ optimal execution on end-point target devices.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
-OpenVINO™ Runtime uses the `Infer
-Request <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html>`__
+OpenVINO™ Runtime uses the `Infer Request <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html>`__
 mechanism which enables running models on different devices in
 asynchronous or synchronous manners. The model graph is sent as an
 argument to the OpenVINO API and an inference request is created. The
@@ -115,7 +112,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

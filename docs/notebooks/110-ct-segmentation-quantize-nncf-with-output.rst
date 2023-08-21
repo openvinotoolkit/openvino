@@ -379,8 +379,7 @@ kidney pixels to verify that the annotations look correct:
 Metric `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Define a metric to determine the performance of
-the model.
+Define a metric to determine the performance of the model.
 
 For this demo, we use the `F1
 score <https://en.wikipedia.org/wiki/F-score>`__, or Dice coefficient,

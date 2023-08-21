@@ -168,10 +168,8 @@ Imports `⇑ <#top>`__
 Download the Model `⇑ <#top>`__
 ###############################################################################################################################
 
- We will use pre-trained models from
-OpenVINO’s `Open Model
-Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ to start the
-test.
+We will use pre-trained models from OpenVINO’s `Open Model Zoo <https://docs.openvino.ai/nightly/model_zoo.html>`__ 
+to start the test.
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. It automatically creates a directory structure
@@ -180,22 +178,19 @@ already downloaded. The selected model comes from the public directory,
 which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **NOTE**: Using a model outside the list can require different pre-
-   and post-processing.
+.. note::
 
-In this case, `person detection
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
+   Using a model outside the list can require different pre- and post-processing.
+
+In this case, `person detection model <https://docs.openvino.ai/2023.0/omz_models_model_person_detection_0202.html>`__
 is deployed to detect the person in each frame of the video, and
-`reidentification
-model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
+`reidentification model <https://docs.openvino.ai/2023.0/omz_models_model_person_reidentification_retail_0287.html>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
 If you want to download another model (``person-detection-xxx`` from
-`Object Detection Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
-``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
+`Object Detection Models list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#object-detection-models>`__,
+``person-reidentification-retail-xxx`` from `Reidentification Models list <https://docs.openvino.ai/2023.0/omz_models_group_intel.html#reidentification-models>`__),
 replace the name of the model in the code below.
 
 .. code:: ipython3
@@ -254,8 +249,7 @@ replace the name of the model in the code below.
 Load model `⇑ <#top>`__
 ###############################################################################################################################
 
- Define a common class for model loading and
-predicting.
+Define a common class for model loading and predicting.
 
 There are four main steps for OpenVINO model initialization, and they
 are required to run for only once before inference loop. 1. Initialize
@@ -317,7 +311,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -350,8 +344,7 @@ select device from dropdown list for running inference using OpenVINO
 Data Processing `⇑ <#top>`__
 ###############################################################################################################################
 
- Data Processing includes data preprocess
-and postprocess functions. - Data preprocess function is used to change
+Data Processing includes data preprocess and postprocess functions. - Data preprocess function is used to change
 the layout and shape of input data, according to requirement of the
 network input format. - Data postprocess function is used to extract the
 useful information from network’s original output and visualize it.
@@ -469,8 +462,7 @@ useful information from network’s original output and visualize it.
 Test person reidentification model `⇑ <#top>`__
 ###############################################################################################################################
 
- The reidentification
-network outputs a blob with the ``(1, 256)`` shape named
+The reidentification network outputs a blob with the ``(1, 256)`` shape named
 ``reid_embedding``, which can be compared with other descriptors using
 the cosine distance.
 
@@ -709,8 +701,7 @@ Run `⇑ <#top>`__
 Initialize tracker `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Before running a new tracking task, we
-have to reinitialize a Tracker object
+Before running a new tracking task, we have to reinitialize a Tracker object
 
 .. code:: ipython3
 
@@ -729,8 +720,7 @@ have to reinitialize a Tracker object
 Run Live Person Tracking `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Use a webcam as the video input.
-By default, the primary webcam is set with ``source=0``. If you have
+Use a webcam as the video input. By default, the primary webcam is set with ``source=0``. If you have
 multiple webcams, each one will be assigned a consecutive number
 starting at 0. Set ``flip=True`` when using a front-facing camera. Some
 web browsers, especially Mozilla Firefox, may cause flickering. If you
@@ -757,8 +747,7 @@ Run Person Tracking on a Video File `⇑ <#top>`__
 
 
 If you do not have a webcam, you can still run this demo with a video
-file. Any `format supported by
-OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
+file. Any `format supported by OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 will work.
 
 .. code:: ipython3

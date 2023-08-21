@@ -267,7 +267,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -542,7 +542,6 @@ Putting all together, we can match text, image, and sound for our data.
 Next Steps `⇑ <#top>`__
 ###############################################################################################################################
 
- Open the
-`239-image-bind-quantize <239-image-bind-quantize.ipynb>`__ notebook to
+Open the `239-image-bind-quantize <239-image-bind-quantize.ipynb>`__ notebook to
 quantize the IR model with the Post-training Quantization API of NNCF
 and compare ``FP16`` and ``INT8`` models.

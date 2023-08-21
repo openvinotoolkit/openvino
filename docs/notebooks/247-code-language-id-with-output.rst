@@ -6,8 +6,7 @@ Overview
 
 This tutorial will be divided in 2 parts: 1. Create a simple inference
 pipeline with a pre-trained model using the OpenVINO™ IR format. 2.
-Conduct `post-training
-quantization <https://docs.openvino.ai/latest/ptq_introduction.html>`__
+Conduct `post-training quantization <https://docs.openvino.ai/latest/ptq_introduction.html>`__
 on a pre-trained model using Hugging Face Optimum and benchmark
 performance.
 
@@ -47,12 +46,12 @@ Model
 ~~~~~
 
 The classification model that will be used in this notebook is
-```CodeBERTa-language-id`` <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
+`CodeBERTa-language-id <https://huggingface.co/huggingface/CodeBERTa-language-id>`__
 by HuggingFace. This model was fine-tuned from the masked language
 modeling model
-```CodeBERTa-small-v1`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeBERTa-small-v1 <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 trained on the
-```CodeSearchNet`` <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
+`CodeSearchNet <https://huggingface.co/huggingface/CodeBERTa-small-v1>`__
 dataset (Husain, 2019).
 
 It supports 6 programming languages: - Go - Java - JavaScript - PHP -
@@ -61,11 +60,10 @@ Python - Ruby
 Part 1: Inference pipeline with OpenVINO
 ----------------------------------------
 
-For this section, we will use the `HuggingFace
-Optimum <https://huggingface.co/docs/optimum/index>`__ library, which
+For this section, we will use the `HuggingFace Optimum <https://huggingface.co/docs/optimum/index>`__ library, which
 aims to optimize inference on specific hardware and integrates with the
-OpenVINO toolkit. The code will be very similar to the `HuggingFace
-Transformers <https://huggingface.co/docs/transformers/index>`__, but
+OpenVINO toolkit. The code will be very similar to the 
+`HuggingFace Transformers <https://huggingface.co/docs/transformers/index>`__, but
 will allow to automatically convert models to the OpenVINO™ IR format.
 
 Install prerequisites
@@ -143,7 +141,7 @@ for easy cleanup. Learn more
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -259,12 +257,10 @@ Part 2: OpenVINO post-training quantization with HuggingFace Optimum
 In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
 results in a smaller model size and faster inference at the cost of a
-potential marginal performance degradation. `Learn
-more <https://docs.openvino.ai/latest/ptq_introduction.html>`__.
+potential marginal performance degradation. `Learn more <https://docs.openvino.ai/latest/ptq_introduction.html>`__.
 
 The HuggingFace Optimum library supports post-training quantization for
-OpenVINO. `Learn
-more <https://huggingface.co/docs/optimum/main/en/intel/index>`__.
+OpenVINO. `Learn more <https://huggingface.co/docs/optimum/main/en/intel/index>`__.
 
 Define constants and functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

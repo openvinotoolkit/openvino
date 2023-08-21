@@ -95,7 +95,7 @@ notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebo
 Prerequisites `⇑ <#top>`__
 ###############################################################################################################################
 
- install required packages
+Install required packages:
 
 .. code:: ipython3
 
@@ -128,11 +128,10 @@ and original model
 Stable Diffusion in Diffusers library `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- To work with Stable
-Diffusion v2, we will use Hugging Face
+To work with Stable Diffusion v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 The code below demonstrates how to create ``StableDiffusionPipeline``

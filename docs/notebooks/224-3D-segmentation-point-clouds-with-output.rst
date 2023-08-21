@@ -55,9 +55,8 @@ Imports `⇑ <#top>`__
 Prepare the Model `⇑ <#top>`__
 ###############################################################################################################################
 
- Download the pre-trained PointNet ONNX
-model. This pre-trained model is provided by
-```axinc-ai`` <https://github.com/axinc-ai>`__, and you can find more
+Download the pre-trained PointNet ONNX model. This pre-trained model is provided by
+`axinc-ai <https://github.com/axinc-ai>`__, and you can find more
 point clouds examples
 `here <https://github.com/axinc-ai/ailia-models/tree/master/point_segmentation>`__.
 
@@ -155,8 +154,7 @@ Data Processing Module `⇑ <#top>`__
 Visualize the original 3D data `⇑ <#top>`__
 ###############################################################################################################################
 
- The point cloud data can be
-downloaded from
+The point cloud data can be downloaded from
 `ShapeNet <https://shapenet.cs.stanford.edu/ericyi/shapenetcore_partanno_segmentation_benchmark_v0.zip>`__,
 a large-scale dataset of 3D shapes. Here, we select the 3D data of a
 chair for example.
@@ -182,8 +180,7 @@ chair for example.
 Run inference `⇑ <#top>`__
 ###############################################################################################################################
 
- Run inference and visualize the results of
-3D segmentation. - The input data is a point cloud with
+Run inference and visualize the results of 3D segmentation. - The input data is a point cloud with
 ``1 batch size``\ ，\ ``3 axis value`` (x, y, z) and
 ``arbitrary number of points`` (dynamic shape). - The output data is a
 mask with ``1 batch size`` and ``4 classification confidence`` for each
@@ -213,7 +210,7 @@ Select inference device `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 

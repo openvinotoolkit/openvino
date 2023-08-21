@@ -53,8 +53,7 @@ The structure is the same as the one for the input.
 Downloading model `⇑ <#top>`__
 ###############################################################################################################################
 
- The following command will download the
-model to the current directory. Make sure you have run
+The following command will download the model to the current directory. Make sure you have run
 ``pip install openvino-dev`` beforehand.
 
 .. code:: ipython3
@@ -95,8 +94,7 @@ model to the current directory. Make sure you have run
 Load and configure the model `⇑ <#top>`__
 ###############################################################################################################################
 
- The model is now available in
-the ``intel/`` folder. Below, we load and configure its inputs and
+The model is now available in the ``intel/`` folder. Below, we load and configure its inputs and
 outputs.
 
 .. code:: ipython3
@@ -112,7 +110,7 @@ Select inference device `⇑ <#top>`__
 ###############################################################################################################################
 
 
-select device from dropdown list for running inference using OpenVINO
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -173,8 +171,7 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
 Perform translation `⇑ <#top>`__
 ###############################################################################################################################
 
- The following function translates a
-sentence in English to German.
+The following function translates a sentence in English to German.
 
 .. code:: ipython3
 
@@ -223,8 +220,7 @@ sentence in English to German.
 Translate the sentence `⇑ <#top>`__
 ###############################################################################################################################
 
- The following function is a basic
-loop that translates sentences.
+The following function is a basic loop that translates sentences.
 
 .. code:: ipython3
 
@@ -254,8 +250,7 @@ loop that translates sentences.
 Test your translation `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- Run the following cell with an
-English sentence to have it translated to German
+Run the following cell with an English sentence to have it translated to German
 
 .. code:: ipython3
 
