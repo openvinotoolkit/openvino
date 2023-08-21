@@ -193,6 +193,27 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
     test_runner(test_params.numthreads, test);
 }
 
+TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
+    auto test_params = GetParam();
+    std::vector<std::function<void()>> pipeline;
+    auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+    size_t n_models = test_params.models.size();
+
+    for (int i = 0; i < n_models; i++) {
+        ie_wrapper->read_network(test_params.models[i]["full_path"]);
+        ie_wrapper->load_network(test_params.device);
+        pipeline.push_back(recreate_and_infer_in_thread(ie_wrapper));
+    }
+
+    auto test = [&] {
+        log_info("Inference in separate thread of InferRequests from networks: " << test_params.model_name << " for \""
+                                                              << test_params.device << "\" device for "
+                                                              << test_params.numiters << " times");
+        return common_test_pipeline(pipeline, test_params.numiters, 0.02);
+    };
+    test_runner(test_params.numthreads, test);
+}
+
 // tests_pipelines/tests_pipelines.cpp
 
 INSTANTIATE_TEST_SUITE_P(MemLeaksTests, MemLeaksTestSuiteNoModel, ::testing::ValuesIn(generateTestsParamsMemLeaks()),

@@ -40,7 +40,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/onnx)
 endif()
 
-if (TARGET inference_engine_snippets)
+if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE snippetsNgraphFunctions)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)

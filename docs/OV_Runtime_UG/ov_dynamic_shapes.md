@@ -260,7 +260,7 @@ To determine if the output has dynamic dimensions, the ``partial_shape`` propert
            :fragment: ov_dynamic_shapes:print_dynamic
 
 
-If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g.``1..10``).
+If the output has any dynamic dimensions, they will be reported as ``?`` or as a range (e.g. ``1..10``).
 
 Output layers can also be checked for dynamic dimensions using the ``partial_shape.is_dynamic()`` property. This can be used on an entire output layer, or on an individual dimension, as shown in these examples:
 

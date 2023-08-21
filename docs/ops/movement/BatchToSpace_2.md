@@ -61,11 +61,11 @@ Where
 *   **4**: ``crops_end`` - Specifies the amount to crop from the ending along each axis of ``data`` input. A 1D tensor of type *T_INT* and shape ``[N]``. All element values must be greater than or equal to 0. ``crops_end[0]`` is expected to be 0. **Required.**
 *   **Note**: ``N`` corresponds to the rank of ``data`` input.
 *   **Note**: ``batch`` axis of ``data`` input must be evenly divisible by the cumulative product of ``block_shape`` elements.
-*   **Note**: It is required that ``crops_begin[i] + crops_end[i] <= block_shape[i] \* input_shape[i]``.
+*   **Note**: It is required that ``crops_begin[i] + crops_end[i] <= block_shape[i] * input_shape[i]``.
 
 **Outputs**
 
-*   **1**: Permuted tensor of type *T* with the same rank as ``data`` input tensor, and shape ``[batch / (block_shape[0] \* block_shape[1] \* ... \* block_shape[N - 1]), D_1 \* block_shape[1] - crops_begin[1] - crops_end[1], D_2 \* block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} \* block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]``.
+*   **1**: Permuted tensor of type *T* with the same rank as ``data`` input tensor, and shape ``[batch / (block_shape[0] * block_shape[1] * ... * block_shape[N - 1]), D_1 * block_shape[1] - crops_begin[1] - crops_end[1], D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ..., D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]``.
 
 **Types**
 

@@ -7,14 +7,14 @@
 #include <ov_ops/generate_proposals_ie_internal.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
 static void CreateGenerateProposalsIEInternalOp(
-    Program& p,
+    ProgramBuilder& p,
     const std::shared_ptr<ov::op::internal::GenerateProposalsIEInternal>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 3) {

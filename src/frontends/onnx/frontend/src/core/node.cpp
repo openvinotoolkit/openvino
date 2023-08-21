@@ -26,7 +26,7 @@ public:
         const auto& attributes = node_proto.attribute();
         m_attributes.reserve(attributes.size());
         for (const auto& attr_proto : attributes) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->mmap_enabled());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
             const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
@@ -43,7 +43,7 @@ public:
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
           m_subgraphs(subgraphs) {
         for (const auto& attr_proto : node_proto.attribute()) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->mmap_enabled());
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
         }
     }
 
