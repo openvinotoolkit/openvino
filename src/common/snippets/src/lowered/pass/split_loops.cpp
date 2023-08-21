@@ -20,8 +20,10 @@ using LoopInfoPtr = LoopManager::LoopInfoPtr;
 SplitLoops::SplitLoops() : Pass() {}
 
 bool SplitLoops::can_be_split(const LoopInfoPtr& current, const LoopInfoPtr& parent) {
-    return current->work_amount == parent->work_amount && current->dim_idx == parent->dim_idx &&
-           current->increment != parent->increment;
+    const auto current_dim_idx = current->get_dim_idx();
+    const auto parent_dim_idx = parent->get_dim_idx();
+    const bool equal_dim_idxes = current_dim_idx != SIZE_MAX && current_dim_idx == parent_dim_idx;
+    return current->work_amount == parent->work_amount && current->increment != parent->increment && equal_dim_idxes;
 }
 
 bool SplitLoops::run(LinearIR& linear_ir) {
@@ -75,7 +77,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                                                                    loop_end_pos,
                                                                    loop_to_fuse->work_amount,
                                                                    loop_to_fuse->increment,
-                                                                   loop_to_split->dim_idx,
+                                                                   loop_to_split->get_dim_idx(),
                                                                    loop_to_split->entry_points,
                                                                    loop_to_split->exit_points);
                 loop_manager->get_loop_info(split_loop_id)->outer_splited_loop = true;

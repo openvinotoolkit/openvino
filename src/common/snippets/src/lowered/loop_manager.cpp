@@ -25,9 +25,9 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
     return new_loop_port;
 }
 
-LoopInfo::LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
-                   const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
-    : work_amount(work_amount), increment(increment), dim_idx(dim_idx), outer_splited_loop(false) {
+LinearIR::LoopManager::LoopInfo::LoopInfo(size_t work_amount, size_t increment,
+                                          const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits)
+    : work_amount(work_amount), increment(increment), outer_splited_loop(false) {
     entry_points.reserve(entries.size());
     exit_points.reserve(exits.size());
     for (const auto& port : entries)
@@ -51,7 +51,7 @@ std::shared_ptr<LoopInfo> LoopInfo::clone_with_new_expr(const ExressionMap& expr
     const auto& new_entry_points = clone_loop_ports(entry_points);
     const auto& new_exit_points = clone_loop_ports(exit_points);
 
-    auto new_loop_info = std::make_shared<LoopInfo>(work_amount, increment, dim_idx, new_entry_points, new_exit_points);
+    auto new_loop_info = std::make_shared<LoopInfo>(work_amount, increment, new_entry_points, new_exit_points);
     new_loop_info->outer_splited_loop = outer_splited_loop;
 
     return new_loop_info;
@@ -65,16 +65,37 @@ std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExressionMap
     return new_loop_manager;
 }
 
+size_t LinearIR::LoopManager::LoopInfo::get_dim_idx() const {
+    if (entry_points.empty())
+        return SIZE_MAX;
+    auto equal_dim_idxes = [&](const LinearIR::LoopManager::LoopPort& p) {
+        return p.dim_idx == entry_points[0].dim_idx;
+    };
+    if (std::all_of(entry_points.begin(), entry_points.end(), equal_dim_idxes) &&
+        std::all_of(exit_points.begin(), exit_points.end(), equal_dim_idxes)) {
+        return entry_points[0].dim_idx;
+    } else {
+        return SIZE_MAX;
+    }
+}
+
+void LinearIR::LoopManager::LoopInfo::set_first_iter_handler(FirstIterHandler handler) {
+    fst_iter_handler = std::move(handler);
+}
+
 bool operator==(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
-    return lhs.expr_port == rhs.expr_port && lhs.is_incremented == rhs.is_incremented;
+    return lhs.expr_port == rhs.expr_port && lhs.is_incremented == rhs.is_incremented && lhs.dim_idx == rhs.dim_idx;
 }
 bool operator!=(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
     return !(lhs == rhs);
 }
 bool operator<(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopManager::LoopPort& rhs) {
-    return (lhs.expr_port < rhs.expr_port) || (lhs.expr_port == rhs.expr_port && (lhs.is_incremented < rhs.is_incremented));
+    return (lhs.expr_port < rhs.expr_port) ||
+           (lhs.expr_port == rhs.expr_port &&
+            (lhs.is_incremented < rhs.is_incremented ||
+             (lhs.is_incremented == rhs.is_incremented && lhs.dim_idx < rhs.dim_idx)));
 }
 
 size_t LinearIR::LoopManager::add_loop_info(const LoopInfoPtr &loop) {
@@ -258,6 +279,21 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 }
 
+size_t LinearIR::LoopManager::mark_loop_with_old_loop_replacement(LinearIR::constExprIt loop_begin_pos,
+                                                                  LinearIR::constExprIt loop_end_pos,
+                                                                  size_t work_amount,
+                                                                  size_t increment,
+                                                                  const std::vector<LoopPort>& entries,
+                                                                  const std::vector<LoopPort>& exits,
+                                                                  const size_t old_id) {
+    const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
+    const auto loop_id = this->add_loop_info(loop_info);
+    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+        replace_loop_id(*expr_it, old_id, loop_id);
+    }
+    return loop_id;
+}
+
 void LinearIR::LoopManager::fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper) {
     LinearIR::constExprIt loop_begin_target, loop_end_target;
     get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper, loop_begin_target, loop_end_target);
@@ -364,7 +400,7 @@ void LinearIR::LoopManager::update_loop_port(size_t loop_id, const ExpressionPor
                        return copy;
                    });
     port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+    ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
 }
 
 template<>

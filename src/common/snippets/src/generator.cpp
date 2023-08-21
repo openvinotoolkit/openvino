@@ -6,7 +6,9 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
+#include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
 #include "snippets/op/kernel.hpp"
 
@@ -27,6 +29,8 @@ void Generator::generate(lowered::LinearIR& linear_ir, LoweringResult& result, c
     lowered::pass::PassPipeline lowered_pipeline;
     lowered_pipeline.register_pass<lowered::pass::AssignRegisters>(reg_type_mapper);
     lowered_pipeline.register_pass<lowered::pass::InsertTailLoop>();
+    lowered_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
+    lowered_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     lowered_pipeline.run(linear_ir);
     linear_ir.init_emitters(target);
 

@@ -21,8 +21,8 @@ public:
 
     struct LoopPort {
         LoopPort() = default;
-        LoopPort(const ExpressionPort& port, bool is_scheduled = true)
-            : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_scheduled) {}
+        LoopPort(const ExpressionPort& port, bool is_incremented = true, size_t dim_idx = 0)
+            : expr_port(std::make_shared<ExpressionPort>(port)), is_incremented(is_incremented), dim_idx(dim_idx) {}
 
         std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;
 
@@ -37,25 +37,32 @@ public:
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
         int64_t data_size = 0;
+        size_t dim_idx = 0; // The numeration starts from the end (dim_idx = 0 -> is the most inner dimension)
     };
 
     class LoopInfo {
     public:
         LoopInfo() = default;
-        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+        LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<LoopPort>& entries,
                  const std::vector<LoopPort>& exits)
-            : work_amount(work_amount), increment(increment), dim_idx(dim_idx),
+            : work_amount(work_amount), increment(increment),
               entry_points(entries), exit_points(exits), outer_splited_loop(false) {}
-        LoopInfo(size_t work_amount, size_t increment, size_t dim_idx,
+        LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits);
 
         std::shared_ptr<LoopInfo> clone_with_new_expr(const ExressionMap& expr_map) const;
+        // Returns dimension index if dimension indices for all entry and exit points are equal, and SIZE_MAX otherwise
+        size_t get_dim_idx() const;
+
+        // TODO: replace this temporary solution when ticket 119851 is implemented
+        using FirstIterHandler = std::function<bool(LinearIR&, LinearIR::constExprIt)>;
+        void set_first_iter_handler(FirstIterHandler handler);
+        FirstIterHandler fst_iter_handler = nullptr;
 
         size_t work_amount = 0;
         size_t increment = 0;
-        size_t dim_idx = 0;  // The numeration begins from the end (dim_idx = 0 -> is the most inner dimension)
         // The order of entry and exit expressions is important:
         //     - The position before first entry expr is Loop Begin position
         //     - The position after last exit expr is Loop End position
@@ -83,17 +90,48 @@ public:
     // Return Loop ID
     template <typename T>
     size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
-                    LinearIR::constExprIt loop_end_pos,
-                    size_t work_amount, size_t work_amount_increment, size_t dim_idx,
-                    const std::vector<T>& entries,
-                    const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, dim_idx, entries, exits);
+                     LinearIR::constExprIt loop_end_pos,
+                     size_t work_amount,
+                     size_t work_amount_increment,
+                     size_t dim_idx,
+                     const std::vector<T>& entries,
+                     const std::vector<T>& exits) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, work_amount_increment, entries, exits);
+        for (auto& entry : loop_info->entry_points) {
+            entry.dim_idx = dim_idx;
+        }
+        for (auto& exit : loop_info->exit_points) {
+            exit.dim_idx = dim_idx;
+        }
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
         }
         return loop_id;
     }
+
+    template <typename T>
+    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
+                     LinearIR::constExprIt loop_end_pos,
+                     size_t work_amount,
+                     size_t increment,
+                     const std::vector<T>& entries,
+                     const std::vector<T>& exits) {
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
+        const auto loop_id = this->add_loop_info(loop_info);
+        for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+            insert_loop_id(*expr_it, loop_id);
+        }
+        return loop_id;
+    }
+
+    size_t mark_loop_with_old_loop_replacement(LinearIR::constExprIt loop_begin_pos,
+                                               LinearIR::constExprIt loop_end_pos,
+                                               size_t work_amount,
+                                               size_t increment,
+                                               const std::vector<LoopPort>& entries,
+                                               const std::vector<LoopPort>& exits,
+                                               const size_t old_id);
 
     void fuse_loops(const LinearIR& linear_ir, size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,

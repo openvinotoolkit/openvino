@@ -36,6 +36,8 @@ bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_m
             auto src_loop_port = loop_manager->get_loop_port_by_expr_port(src_port, loop_upper_id);
             if (!src_loop_port.is_incremented)
                 return false;
+            if (entry.dim_idx != src_loop_port.dim_idx)
+                return false;
         }
     }
     return true;
@@ -55,8 +57,7 @@ bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr&
     // We can fuse them into one Loop with work amount `128` and increment `vector size`
     const auto supported_work_amount = current_work_amount == target_work_amount || current_work_amount == 1 || target_work_amount == 1;
     const auto supported_increment = loop_current->increment == loop_target->increment;
-    const auto supported_dim_idxs = loop_current->dim_idx == loop_target->dim_idx;
-    return supported_work_amount && supported_increment && supported_dim_idxs;
+    return supported_work_amount && supported_increment;
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,

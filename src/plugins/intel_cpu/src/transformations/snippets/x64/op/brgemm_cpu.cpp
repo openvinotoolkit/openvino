@@ -134,20 +134,24 @@ void BrgemmCPU::validate_inputs() const {
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    std::shared_ptr<BrgemmCPU> brgemm;
     if (!is_with_scratchpad()) {
-        return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
+        brgemm = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
                                            get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
                                            m_M_blk, m_K_blk, m_N_blk);
+    } else {
+        brgemm = std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
+            get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
+            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
+            m_M_blk, m_K_blk, m_N_blk);
     }
-    return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), new_args.at(2), m_type,
-                                       get_input_port_descriptor(0), get_input_port_descriptor(1), get_input_port_descriptor(2), get_output_port_descriptor(0),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
-                                       snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout(),
-                                       m_M_blk, m_K_blk, m_N_blk);
+    brgemm->set_beta(get_beta());
+    return brgemm;
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
@@ -167,6 +171,15 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
 size_t BrgemmCPU::get_offset_scratch() const {
     OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
+}
+
+bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
+    Brgemm::visit_attributes(visitor);
+    visitor.on_attribute("blk_M", m_M_blk);
+    visitor.on_attribute("blk_K", m_K_blk);
+    visitor.on_attribute("blk_N", m_N_blk);
+    visitor.on_attribute("beta", m_beta);
+    return true;
 }
 
 } // namespace intel_cpu

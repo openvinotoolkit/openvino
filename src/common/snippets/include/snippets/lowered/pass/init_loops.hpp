@@ -27,7 +27,7 @@ public:
 private:
     static void init_ptr_increments(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
                                     std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
-                                    size_t work_amount, size_t dim_idx);
+                                    size_t work_amount);
     static void init_finalization_offsets(std::vector<LinearIR::LoopManager::LoopPort>& loop_inputs,
                                           std::vector<LinearIR::LoopManager::LoopPort>& loop_outputs,
                                           size_t work_amount);

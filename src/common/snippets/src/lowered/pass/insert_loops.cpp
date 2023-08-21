@@ -67,15 +67,18 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     filter_ports(loop_entries, loop_exits);
 
     const auto in_out_num = loop_entries.size() + loop_exits.size();
+    std::vector<bool> is_incremented;
     std::vector<int64_t> ptr_increments, finalization_offsets, io_data_sizes;
     std::vector<PortConnectorPtr> loop_end_inputs;
+    is_incremented.reserve(in_out_num);
     ptr_increments.reserve(in_out_num);
     finalization_offsets.reserve(in_out_num);
     io_data_sizes.reserve(in_out_num);
     loop_end_inputs.reserve(in_out_num);
 
-    auto init_params = [&ptr_increments, &finalization_offsets, &io_data_sizes, &loop_end_inputs](const std::vector<LoopPort>& ports) {
+    auto init_params = [&](const std::vector<LoopPort>& ports) {
         for (const auto& port : ports) {
+            is_incremented.push_back(port.is_incremented);
             ptr_increments.push_back(port.ptr_increment);
             finalization_offsets.push_back(port.finalization_offset);
             io_data_sizes.push_back(port.data_size);
@@ -90,8 +93,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     linear_ir.insert(loop_begin_pos, loop_begin_expr);
 
     const auto& loop_end = std::make_shared<op::LoopEnd>(
-            loop_begin->output(0), work_amount, work_amount_increment, ptr_increments, finalization_offsets,
-            io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
+            loop_begin->output(0), work_amount, work_amount_increment, is_incremented, ptr_increments,
+            finalization_offsets, io_data_sizes, loop_entries.size(), loop_exits.size(), loop_id);
     loop_end->has_outer_loop = has_outer_loop;
 
     // Add LoopBegin port connector

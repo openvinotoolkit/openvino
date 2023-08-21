@@ -54,10 +54,12 @@ public:
     size_t get_m_block_size() const { return m_M_blk; }
     size_t get_k_block_size() const { return m_K_blk; }
     size_t get_n_block_size() const { return m_N_blk; }
+    float get_beta() const { return m_beta; }
 
     void set_m_block_size(size_t block_size) { m_M_blk = block_size; }
     void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
     void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
+    void set_beta(float beta) { m_beta = beta; }
 
     bool is_with_compensations() const { return m_type == Type::WithCompensations; }
     bool is_with_data_repacking() const { return m_type != Type::Floating; }
@@ -66,6 +68,8 @@ public:
 
     size_t get_offset_scratch() const;
     std::shared_ptr<BrgemmCopyB> get_brgemm_copy() const;
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
@@ -79,6 +83,7 @@ private:
     size_t m_M_blk = 0;
     size_t m_K_blk = 0;
     size_t m_N_blk = 0;
+    float m_beta = 0.f;
 };
 
 } // namespace intel_cpu
