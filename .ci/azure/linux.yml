@@ -528,6 +528,15 @@ jobs:
   - script: |
       set -e
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/jax_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-jax.xmlTEST
+    env:
+      PYTHONPATH: $(LAYER_TESTS_DIR)
+      TEST_DEVICE: CPU
+    displayName: 'JAX Layer Tests - TF FE'
+
+  - script: |
+      set -e
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     env:
       PYTHONPATH: $(LAYER_TESTS_DIR)
