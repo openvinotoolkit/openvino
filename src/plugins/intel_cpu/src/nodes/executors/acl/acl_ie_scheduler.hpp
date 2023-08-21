@@ -28,7 +28,6 @@ private:
     void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
     mutable arm_compute::Mutex mtx;
     unsigned int _num_threads{};
-    std::function<void(const Window &window, const ThreadInfo &info)> main_run;
 };
 }  //  namespace intel_cpu
 }  //  namespace ov

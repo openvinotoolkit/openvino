@@ -39,6 +39,7 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
         return;
     }
 
+    std::function<void(const Window &window, const ThreadInfo &info)> main_run;
     if (tensors.empty()) {
         main_run = [&](const Window &window, const ThreadInfo &info) {
             kernel->run(window, info);
