@@ -27,7 +27,6 @@ protected:
 private:
     void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
     mutable arm_compute::Mutex mtx;
-    unsigned int _num_threads{};
 };
 }  //  namespace intel_cpu
 }  //  namespace ov

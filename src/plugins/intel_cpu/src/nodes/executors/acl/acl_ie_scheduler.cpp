@@ -14,26 +14,20 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-ACLScheduler::ACLScheduler() {
-    arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
-    _num_threads = parallel_get_num_threads();
-}
+ACLScheduler::ACLScheduler() = default;
 
 unsigned int ACLScheduler::num_threads() const {
     return parallel_get_num_threads();
 }
 
-void ACLScheduler::set_num_threads(unsigned int num_threads) {
-    arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
-    _num_threads = num_threads;
-}
+void ACLScheduler::set_num_threads(unsigned int num_threads) {}
 
 void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
 
     const Window & max_window = window;
     const unsigned int num_iterations = max_window.num_iterations_total();
-    _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
+    const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
 
     if (num_iterations == 0) {
         return;
@@ -82,7 +76,7 @@ void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Win
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
     arm_compute::lock_guard<arm_compute::Mutex> lock(this->mtx);
     InferenceEngine::parallel_for(workloads.size(), [&](int wid) {
-        workloads[wid]({wid, static_cast<int>(_num_threads), &cpu_info()});
+        workloads[wid]({wid, static_cast<int>(parallel_get_num_threads()), &cpu_info()});
     });
 }
 
