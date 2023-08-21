@@ -81,7 +81,11 @@ struct Config {
     bool inferencePrecisionSetExplicitly = false;
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+    DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_On;
+#else
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
+#endif
 
     // The denormals-are-zeros flag was introduced in the Pentium 4 and Intel Xeon processor
     // In earlier IA-32 processors and in some models of the Pentium 4 processor, this flag (bit 6)
