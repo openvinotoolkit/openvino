@@ -4,7 +4,4 @@
 
 project(OpenVINO_JS_API)
 
-# if(EMSCRIPTEN)
-    add_subdirectory(wasm)
-    add_subdirectory(node)
-# endif()
+add_subdirectory(node)
