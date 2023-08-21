@@ -29,8 +29,12 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::PartialShape& inputShape,
+        const std::shared_ptr<ov::opset1::Constant>& input_constant1,
         const FakeQuantizeOnData& fakeQuantize1,
-        const FakeQuantizeOnData& fakeQuantize2);
+        const DequantizationOperations& dequantization1,
+        const std::shared_ptr<ov::opset1::Constant>& input_constant2,
+        const FakeQuantizeOnData& fakeQuantize2,
+        const DequantizationOperations& dequantization2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,

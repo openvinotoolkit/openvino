@@ -1,5 +1,6 @@
 # Quantizing Models {#pot_default_quantization_usage}
 
+
 @sphinxdirective
 
 .. toctree::
@@ -9,7 +10,10 @@
    DefaultQuantization Method <pot_compression_algorithms_quantization_default_README>
 
 
-This guide describes how to apply model quantization with the Default Quantization method without accuracy control, using an unannotated dataset. To use this method, create a Python script using an API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. If you are not familiar with Python, try :doc:`command-line interface <pot_compression_cli_README>` of POT which is designed to quantize models from OpenVINO `Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. The figure below shows the common workflow of the quantization script implemented with POT API.
+This guide describes how to apply model quantization with the Default Quantization method without accuracy control, using an unannotated dataset. 
+To use this method, create a Python script using an API of Post-Training Optimization Tool (POT) and implement data preparation logic and quantization pipeline. 
+If you are not familiar with Python, try :doc:`command-line interface <pot_compression_cli_README>` of POT which is designed to quantize models from 
+OpenVINO `Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. The figure below shows the common workflow of the quantization script implemented with POT API.
 
 .. image:: _static/images/default_quantization_flow.svg
 
@@ -17,7 +21,7 @@ The script should include three basic steps:
 
 1. Prepare data and dataset interface.
 2. Select quantization parameters.
-3. Define and run quantization process.
+3. Define and run the quantization process.
 
 Prepare data and dataset interface
 ##################################
@@ -25,11 +29,14 @@ Prepare data and dataset interface
 In most cases, it is required to implement only the ``openvino.tools.pot.DataLoader`` interface, which allows acquiring data from a dataset and applying model-specific pre-processing providing access by index. Any implementation should override the following methods: 
 
 * The ``__len__()``, returns the size of the dataset.
-* The ``__getitem__()``, provides access to the data by index in range of 0 to ``len(self)``. It can also encapsulate the logic of model-specific pre-processing. This method should return data in the ``(data, annotation)`` format, in which:
-  * The ``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. It can be either the ``numpy.array`` object or a dictionary, where the key is the name of the model input and value is ``numpy.array`` which corresponds to this input.
+* The ``__getitem__()``, provides access to the data by index in the range of 0 to ``len(self)``. It can also encapsulate the logic of model-specific pre-processing. This method should return data in the ``(data, annotation)`` format, in which:
+
+  * The ``data`` is the input that is passed to the model at inference so that it should be properly preprocessed. It can be either the ``numpy.array`` object or a dictionary, where the key is the name of the model input and the value is ``numpy.array`` which corresponds to this input.
   * The ``annotation`` is not used by the Default Quantization method. Therefore, this object can be ``None`` in this case.
 
-Framework data loading classes can be wrapped by the ``openvino.tools.pot.DataLoader`` interface which is usually straightforward. For example, the ``torch.utils.data.Dataset`` has a similar interface as the ``openvino.tools.pot.DataLoader``, so that its TorchVision implementations can be easily wrapped by POT API.
+Framework data loading classes can be wrapped by the ``openvino.tools.pot.DataLoader`` interface which is usually straightforward. 
+For example, the ``torch.utils.data.Dataset`` has a similar interface as the ``openvino.tools.pot.DataLoader``, 
+so that its TorchVision implementations can be easily wrapped by POT API.
 
 .. note::
 
@@ -68,7 +75,8 @@ Select quantization parameters
 
 Default Quantization algorithm has mandatory and optional parameters which are defined as a dictionary:
 
-.. code-block: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization",
@@ -82,14 +90,14 @@ Default Quantization algorithm has mandatory and optional parameters which are d
 
 * ``"target_device"`` - the following options are available:
 
-  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or VPU
+  * ``"ANY"`` (or ``"CPU"``) -  default option to quantize models for CPU, GPU, or NPU
   * ``"CPU_SPR"`` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
   * ``"GNA"``, ``"GNA3"``, ``"GNA3.5"`` - to quantize models for GNA devices respectively.
 
-* ``"stat_subset_size"`` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
-* ``"stat_batch_size"`` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
+* ``"stat_subset_size"`` - size of the data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
+* ``"stat_batch_size"`` - size of the batch to calculate activations statistics used for quantization. 1 if no parameter is specified.
 
-For full specification, see the the :doc:`Default Quantization method <pot_compression_algorithms_quantization_default_README>`.
+For full specification, see the :doc:`Default Quantization method <pot_compression_algorithms_quantization_default_README>`.
 
 Run quantization
 ####################
@@ -98,10 +106,11 @@ POT API provides methods to load and save model objects from OpenVINO Intermedia
 An example code below shows a basic quantization workflow:
 
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.pot import IEEngine
-   from openvino.tools.pot load_model, save_model
+   from openvino.tools.pot import load_model, save_model
    from openvino.tools.pot import compress_model_weights
    from openvino.tools.pot import create_pipeline
 
@@ -170,7 +179,7 @@ Examples
 * Tutorials:
 
   * `Quantization of Image Classification model <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/301-tensorflow-training-openvino>`__
-  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-detection-quantization>`__
+  * `Quantization of Object Detection model from Model Zoo <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/111-yolov5-quantization-migration>`__
   * `Quantization of Segmentation model for medical data <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/110-ct-segmentation-quantize>`__
   * `Quantization of BERT for Text Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/105-language-quantize-bert>`__
 
@@ -179,5 +188,6 @@ Examples
   * :doc:`Quantization of 3D segmentation model <pot_example_3d_segmentation_README>`
   * :doc:`Quantization of Face Detection model <pot_example_face_detection_README>`
   * :doc:`Quantization of speech model for GNA device <pot_example_speech_README>`
+
 
 @endsphinxdirective

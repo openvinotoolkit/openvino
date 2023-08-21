@@ -24,6 +24,7 @@ class TRANSFORMATIONS_API ConvertPadToGroupConvolution;
  * 1. PadMode must be Constant and value is equal to 0
  * 2. Padding must be applied only for spatial dimensions
  * 3. Input shape rank must be static and greater than 3
+ * 4. Padding values must be non-negative
  */
 
 class ov::pass::ConvertPadToGroupConvolution : public ov::pass::MatcherPass {

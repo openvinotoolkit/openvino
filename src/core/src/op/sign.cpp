@@ -27,6 +27,7 @@ shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sign>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace signop {
 namespace {
 template <element::Type_t ET>
@@ -58,8 +59,10 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sign_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return signop::evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    return signop::evaluate_sign(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Sign::has_evaluate() const {

@@ -6,9 +6,8 @@
 
 #include <cnpy.h>
 
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
-#include "util/test_control.hpp"
+#include "common_test_utils/test_case.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
@@ -38,8 +37,8 @@ void FrontEndFuzzyOpTest::doLoadFromFile() {
 }
 
 template <typename T>
-inline void addInputOutput(cnpy::NpyArray& npy_array, test::TestCase& test_case, bool is_input = true) {
-    T* npy_begin = npy_array.data<T>();
+inline void addInputOutput(const cnpy::NpyArray& npy_array, ov::test::TestCase& test_case, bool is_input = true) {
+    const T* npy_begin = npy_array.data<T>();
     std::vector<T> data(npy_begin, npy_begin + npy_array.num_vals);
     if (is_input)
         test_case.add_input(npy_array.shape, data);
@@ -65,7 +64,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     auto modelFolder = getModelFolder(modelFile);
 
     // run test
-    auto testCase = test::TestCase(function, "CPU");
+    auto testCase = ov::test::TestCase(function, "CPU");
 
     const auto parameters = function->get_parameters();
     for (size_t i = 0; i < parameters.size(); i++) {

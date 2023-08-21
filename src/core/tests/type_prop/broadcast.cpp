@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
-
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "util/type_prop.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -176,6 +175,20 @@ TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank) {
         FAIL() << "Broadcast: axes shape rank not detected";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Broadcast axes rank must be 1");
+    } catch (...) {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_target_shape_wrong_rank) {
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto bc_shape = make_shared<op::Parameter>(element::i64, Shape{});
+
+    try {
+        auto bc = make_shared<TypeParam>(arg, bc_shape);
+        FAIL() << "Broadcast: axes target shape rank not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast shape rank must be 1, but has");
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -559,6 +572,7 @@ REGISTER_TYPED_TEST_SUITE_P(BroadcastTests,
                             broadcast_fail_axes_map,
                             broadcast_fail_axes_map_shape,
                             broadcast_axes_wrong_rank,
+                            broadcast_target_shape_wrong_rank,
                             broadcast_fully_dynamic_target_shape,
                             broadcast_dynamic_values_of_target_shape,
                             broadcast_broadcast_shape_et_wrong,
@@ -613,7 +627,6 @@ TEST(type_prop, broadcast_v3_bidirectional_mode_string) {
     const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, "BIDIRECTIONAL");
 
     ASSERT_EQ(broadcast_v3->get_broadcast_spec(), op::BroadcastType::BIDIRECTIONAL);
-    ASSERT_EQ(broadcast_v3->get_version(), 3);
 }
 
 TEST(type_prop, broadcast_v3_shape_unexpected_axes_mapping_input) {
@@ -1240,4 +1253,42 @@ TEST(type_prop, broadcast_v3_eval_labels_static_dims_bidirectional) {
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
+}
+
+TEST(type_prop, broadcast_v3_bidirectional_tricky_partial_value_case_and_equal_partial_value_propagation) {
+    PartialShape pshape_a{{0, 10}, 1, 4};
+    PartialShape pshape_b{{0, 10}, 1};
+
+    PartialShape expected_shape = PartialShape{{0, 10}, 1, 4};
+
+    auto a = std::make_shared<op::Parameter>(element::f32, pshape_a);
+    auto b = std::make_shared<op::Parameter>(element::f32, pshape_b);
+    auto shape_of_b = make_shared<op::v3::ShapeOf>(b);
+    auto concat =
+        make_shared<op::v0::Concat>(ov::OutputVector{shape_of_b, op::v0::Constant::create(element::i64, {1}, {4})}, 0);
+    auto equal = make_shared<op::v1::Equal>(concat, op::v0::Constant::create(element::i64, {3}, {-1, -1, -1}));
+    auto select = make_shared<op::v1::Select>(equal, op::Constant::create(element::i64, {3}, {1, 1, 1}), concat);
+
+    PartialShape shape;
+    auto broadcast_a = make_shared<op::v3::Broadcast>(a, select, "BIDIRECTIONAL");
+    const auto out_shape = broadcast_a->get_output_partial_shape(0);
+
+    EXPECT_EQ(out_shape, expected_shape);
+    {
+        auto constant = ov::get_constant_from_source(equal->output(0));
+        EXPECT_TRUE(constant != nullptr);
+        std::vector<bool> expected{false, false, false}, calculated = constant->get_vector<bool>();
+        EXPECT_EQ(calculated, expected);
+    }
+    {
+        equal = make_shared<op::v1::Equal>(concat, op::v0::Constant::create(element::i64, {3}, {5, 1, 4}));
+        EXPECT_TRUE(ov::get_constant_from_source(equal->output(0)) == nullptr);
+    }
+    {
+        equal = make_shared<op::v1::Equal>(concat, op::v0::Constant::create(element::i64, {3}, {11, 1, 4}));
+        auto constant = ov::get_constant_from_source(equal->output(0));
+        EXPECT_TRUE(constant != nullptr);
+        std::vector<bool> expected{false, true, true}, calculated = constant->get_vector<bool>();
+        EXPECT_EQ(calculated, expected);
+    }
 }

@@ -2,11 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # 'argument': conversion from 'size_t' to 'int', possible loss of data
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4244)
-endif()
 
 set(TARGET_NAME ov_core_unit_tests)
 
@@ -15,11 +10,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
-
-if(NOT ENABLE_OV_CORE_UNIT_TESTS)
-    message(STATUS "OpenVINO Core unit tests disabled")
-    return()
-endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
 
@@ -37,13 +27,6 @@ list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
 list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
-if (ENABLE_TEMPLATE)
-    list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
-else()
-    list(APPEND EXCLUDE_TESTS
-        # It should be a part of template plugin
-        ${CMAKE_CURRENT_SOURCE_DIR}/op_eval/memory.cpp)
-endif()
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
@@ -55,12 +38,11 @@ ov_add_test_target(
             # process models
             test_model_zoo
         LINK_LIBRARIES
-            engines_test_util
-            commonTestUtils
-            ngraph_reference
-            ngraph::builder
+            common_test_utils
+            openvino::reference
+            openvino::builders
             openvino::util
-            ov_shape_inference
+            openvino::shape_inference
             ${CMAKE_DL_LIBS}
             Threads::Threads
             openvino::conditional_compilation

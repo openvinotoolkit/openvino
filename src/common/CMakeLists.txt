@@ -6,7 +6,10 @@ add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 add_subdirectory(util)
 
-add_subdirectory(snippets)
+if(ENABLE_INTEL_CPU)
+    add_subdirectory(snippets)
+endif()
+
 add_subdirectory(transformations)
 add_subdirectory(offline_transformations)
 add_subdirectory(low_precision_transformations)

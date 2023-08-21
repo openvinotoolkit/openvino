@@ -24,7 +24,7 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -1: return kernel_selector::gather_axis::Y;
             case -2: return kernel_selector::gather_axis::FEATURE;
             case -3: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else if (rank == 5) {
         switch (axis) {
@@ -35,7 +35,7 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -2: return kernel_selector::gather_axis::Z;
             case -3: return kernel_selector::gather_axis::FEATURE;
             case -4: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else if (rank == 6) {
         switch (axis) {
@@ -48,10 +48,10 @@ static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
             case -3: return kernel_selector::gather_axis::W;
             case -4: return kernel_selector::gather_axis::FEATURE;
             case -5: return kernel_selector::gather_axis::BATCH;
-            default: IE_THROW() << "Unsupported gather axis: " << axis;
+            default: OPENVINO_THROW("Unsupported gather axis: ", axis);
         }
     } else {
-        IE_THROW() << "Unsupported gather axis: " << axis;
+        OPENVINO_THROW("Unsupported gather axis: ", axis);
     }
 }
 
@@ -77,11 +77,13 @@ public:
         params.axis = convert_axis(primitive->axis, input_layout.get_rank());
         params.batch_dim = size_t(primitive->batch_dim);
         params.support_neg_ind = primitive->support_neg_ind;
+
         auto output_layout = impl_param.get_output_layout(0);
-        auto in_rank = impl_param.get_input_layout(0).get_rank();
-        auto out_rank = impl_param.get_output_layout(0).get_rank();
+        auto in_rank = input_layout.get_partial_shape().size();
+        auto out_rank = output_layout.get_partial_shape().size();
+
         if (in_rank > 4 && in_rank > out_rank) { // if in_rank <= 4, the dims are to be adjusted to 4 by convert_data_tensor
-            auto output_shape = impl_param.get_output_layout(0).get_partial_shape();
+            auto output_shape = output_layout.get_partial_shape();
             ov::PartialShape new_output_shape({output_shape[0], output_shape[1]});
             for (size_t i = 0; i < in_rank - out_rank; ++i)
                 new_output_shape.push_back(1);
@@ -89,17 +91,41 @@ public:
             for (size_t i = 2; i < out_rank; ++i) {
                 new_output_shape.push_back(output_shape[i]);
             }
-            output_layout = layout(new_output_shape, impl_param.get_output_layout(0).data_type, format::get_default_format(new_output_shape.size()));
+            output_layout = layout(new_output_shape, output_layout.data_type, format::get_default_format(new_output_shape.size()));
         }
+
         params.outputs[0] = convert_data_tensor(output_layout);
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        const auto& prim = impl_params.typed_desc<gather>();
+
+        auto input_pshape = updated_impl_params.input_layouts[0].get_partial_shape();
+        auto& out_layout = updated_impl_params.output_layouts[0];
+        auto output_pshape = out_layout.get_partial_shape();
+
+        OPENVINO_ASSERT(input_pshape.size() <= output_pshape.size() || input_pshape.size() - output_pshape.size() == 1,
+                        "[GPU] Gather output rank must be greater than or equal to the input rank, or less by one");
+
+        if (input_pshape.size() > output_pshape.size()) {
+            output_pshape.insert(output_pshape.begin() + prim->axis, ov::Dimension(1));
+            out_layout.set_partial_shape(output_pshape);
+            out_layout.format = format::adjust_to_rank(out_layout.format, output_pshape.size());
+        }
+
+        return primitive_impl::static_canonicalize_shapes(updated_impl_params);
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -248,3 +274,4 @@ attach_gather_impl::attach_gather_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather)

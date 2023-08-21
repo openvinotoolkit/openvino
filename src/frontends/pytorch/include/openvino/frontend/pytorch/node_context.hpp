@@ -19,20 +19,22 @@ typedef std::unordered_map<size_t, Output<Node>> TensorMap;
 class NodeContext : public frontend::NodeContext {
 public:
     NodeContext(std::shared_ptr<TorchDecoder> decoder,
-                TensorMap* tensor_map,
-                ParameterVector* external_parameters,
                 const TensorMap& ext_tensor_map,
+                std::shared_ptr<TensorMap> tensor_map,
+                std::shared_ptr<ParameterVector> external_parameters,
+                std::shared_ptr<std::set<size_t>> mutated_tensors,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
-          m_tensor_map(tensor_map),
           m_ext_tensor_map(ext_tensor_map),
+          m_tensor_map(tensor_map),
           m_external_parameters(external_parameters),
+          m_mutated_tensors(mutated_tensors),
           m_translate_session(translate_session),
           m_decoder_inputs(decoder->inputs()),
           m_decoder_outputs(decoder->outputs()) {
-        FRONT_END_GENERAL_CHECK(tensor_map != nullptr && external_parameters != nullptr &&
-                                translate_session != nullptr);
+        FRONT_END_GENERAL_CHECK(m_tensor_map != nullptr && m_external_parameters != nullptr &&
+                                m_mutated_tensors != nullptr && m_translate_session != nullptr);
     }
 
     // Do not search for input in tensor map; try to access it as a constant of specified type T and return its value
@@ -52,6 +54,8 @@ public:
         return m_tensor_map->at(input);
     }
 
+    Any get_values_from_const_input(int index) const override;
+
     // TODO: upstream to base class
     OutputVector inputs() const {
         OutputVector res;
@@ -68,6 +72,10 @@ public:
 
     bool input_is_none(size_t index) const {
         return m_decoder->input_is_none(index);
+    }
+
+    Any get_output_type(size_t index) const {
+        return m_decoder->get_output_type(index);
     }
 
     size_t get_output_size() const {
@@ -106,11 +114,7 @@ public:
             "There is no any named attributes in PyTorch node, query by attribute name is not implemented");
     }
 
-    void mutate_input(size_t index, Output<Node> ov_output);
-
-    std::set<size_t> get_mutated_tensors() const {
-        return m_mutated_tensors;
-    }
+    void mutate_input(size_t index, Output<Node> ov_output) const;
 
     std::shared_ptr<TorchDecoder> get_decoder() const {
         return m_decoder;
@@ -120,7 +124,7 @@ public:
         return m_translate_session;
     }
 
-    void add_tensor_to_context(size_t index, Output<Node> ov_output);
+    void add_tensor_to_context(size_t index, Output<Node> ov_output) const;
 
     Output<Node> get_tensor_from_model(size_t index) const {
         if (m_tensor_map->find(index) != m_tensor_map->end()) {
@@ -130,22 +134,22 @@ public:
         }
     }
 
-    Output<Node> get_tensor_from_model_or_create_input(size_t index);
+    Output<Node> get_tensor_from_model_or_create_input(size_t index) const;
     Output<Node> get_input_from_visible_context(size_t index) const;
-    std::shared_ptr<ov::Model> convert_subgraph(size_t index);
+    std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
     std::shared_ptr<TorchDecoder> m_decoder;
-    std::set<size_t> m_mutated_tensors;
-    TensorMap* m_tensor_map;
     const TensorMap& m_ext_tensor_map;
-    ParameterVector* m_external_parameters;
-    TranslateSession* m_translate_session;
+    std::shared_ptr<TensorMap> m_tensor_map;
+    std::shared_ptr<ParameterVector> m_external_parameters;
+    std::shared_ptr<std::set<size_t>> m_mutated_tensors;
+    TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;
 };
 
-using PytorchCreatorFunction = std::function<OutputVector(NodeContext&)>;
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::pytorch::NodeContext&)>;
 
 }  // namespace pytorch
 }  // namespace frontend

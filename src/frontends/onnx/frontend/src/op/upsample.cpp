@@ -10,6 +10,7 @@
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -38,34 +39,21 @@ void check_mode_support(const onnx_import::Node& node, const std::string& mode, 
 }
 
 default_opset::Interpolate::InterpolateAttrs get_attributes(const std::string& mode) {
-    using InterpolateMode = default_opset::Interpolate::InterpolateMode;
-    using Transform_mode = default_opset::Interpolate::CoordinateTransformMode;
-    using ShapeCalcMode = default_opset::Interpolate::ShapeCalcMode;
+    const auto interpolate_mode = mode == "linear" || mode == "bilinear"
+                                      ? default_opset::Interpolate::InterpolateMode::LINEAR_ONNX
+                                      : default_opset::Interpolate::InterpolateMode::NEAREST;
 
-    const auto interpolate_mode =
-        (mode == "linear" || mode == "bilinear" ? InterpolateMode::LINEAR_ONNX : InterpolateMode::NEAREST);
+    auto attrs = default_opset::Interpolate::InterpolateAttrs(interpolate_mode,
+                                                              default_opset::Interpolate::ShapeCalcMode::SCALES,
+                                                              {0},
+                                                              {0});
 
-    std::vector<size_t> pad{0};
-    auto attrs = default_opset::Interpolate::InterpolateAttrs(interpolate_mode, ShapeCalcMode::SCALES, pad, pad);
-
-    if (attrs.mode == InterpolateMode::LINEAR_ONNX)
-        attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
+    if (attrs.mode == default_opset::Interpolate::InterpolateMode::LINEAR_ONNX) {
+        attrs.coordinate_transformation_mode = default_opset::Interpolate::CoordinateTransformMode::ASYMMETRIC;
+    }
 
     return attrs;
 }
-
-OutputVector create_upsample_subgraph(const Output<ngraph::Node>& data,
-                                      const Output<ngraph::Node>& scales,
-                                      const std::string& mode) {
-    const auto shape_of_data =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-    const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-    const auto output_shape = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::Floor>(multiply),
-                                                                       ngraph::element::i64);
-
-    return {std::make_shared<default_opset::Interpolate>(data, output_shape, scales, get_attributes(mode))};
-}
-
 }  // namespace
 
 namespace set_1 {
@@ -89,7 +77,7 @@ OutputVector upsample(const onnx_import::Node& node) {
 
     const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
 
-    return create_upsample_subgraph(data, scales_const, mode);
+    return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
 }  // namespace set_1
@@ -110,7 +98,7 @@ OutputVector upsample(const onnx_import::Node& node) {
 
     const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
 
-    return create_upsample_subgraph(data, scales_const, mode);
+    return std::make_shared<default_opset::Interpolate>(data, scales_const, get_attributes(mode))->outputs();
 }
 
 }  // namespace set_7
@@ -120,20 +108,12 @@ OutputVector upsample(const onnx_import::Node& node) {
     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
     check_mode_support(node, mode, version_9);
 
-    const auto inputs = node.get_ng_inputs();
-    const auto& data = inputs.at(0);
-    const auto& scales = inputs.at(1);
-
-    const auto& data_shape = data.get_partial_shape();
-    const auto& scales_shape = scales.get_partial_shape();
-    CHECK_VALID_NODE(node,
-                     (scales_shape.is_static() || data_shape.rank().is_static()),
-                     " Data rank or shape of Scales input is required to be static.");
-
-    return create_upsample_subgraph(data, scales, mode);
+    const auto& inputs = node.get_ng_inputs();
+    return std::make_shared<default_opset::Interpolate>(inputs.at(0), inputs.at(1), get_attributes(mode))->outputs();
 }
 
 }  // namespace set_9
 }  // namespace op
 }  // namespace onnx_import
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

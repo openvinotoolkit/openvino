@@ -7,6 +7,7 @@
 #include <ctime>
 
 #include "ngraph/shape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -304,7 +305,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
             break;
         }
         default:
-            throw ngraph_error("Unsupported type of RandomUniform: " + elem_type.get_type_name());
+            OPENVINO_THROW("Unsupported type of RandomUniform: ", elem_type.to_string());
         }
         if (++n == 0)
             ++counter;

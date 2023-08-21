@@ -1,5 +1,12 @@
 # ExperimentalDetectronTopKROIs  {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about ExperimentalDetectronTopKROIs-6 - a sorting and 
+                maximization operation, which can be performed on two required 
+                input tensors.
+
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
 **Category**: *Sorting and maximization*
@@ -16,22 +23,20 @@ output tensor elements.
 
 * *max_rois*
 
-    * **Description**: The *max_rois* attribute specifies maximal numbers of output ROIs.
-    * **Range of values**: non-negative integer number
-    * **Type**: int
-    * **Default value**: 0
-    * **Required**: *no*
+  * **Description**: The *max_rois* attribute specifies maximal numbers of output ROIs.
+  * **Range of values**: non-negative integer number
+  * **Type**: ``int``
+  * **Default value**: 0
+  * **Required**: *no*
 
 **Inputs**
 
-* **1**: A 2D tensor of type *T* with shape `[number_of_ROIs, 4]` describing the ROIs as 4-tuples:
-[x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. **Required.**
-
-* **2**: A 1D tensor of type *T* with shape `[number_of_input_ROIs]` contains probabilities for input ROIs. **Required.**
+* **1**: A 2D tensor of type *T* with shape ``[number_of_ROIs, 4]`` describing the ROIs as 4-tuples: [x 1, y 1, x 2, y 2]. **Required.**
+* **2**: A 1D tensor of type *T* with shape ``[number_of_input_ROIs]`` contains probabilities for input ROIs. **Required.**
 
 **Outputs**
 
-* **1**: A 2D tensor of type *T* with shape `[max_rois, 4]` describing *max_rois* ROIs with highest probabilities.
+* **1**: A 2D tensor of type *T* with shape ``[max_rois, 4]`` describing *max_rois* ROIs with highest probabilities.
 
 **Types**
 
@@ -39,23 +44,27 @@ output tensor elements.
 
 **Example**
 
-```xml
-<layer ... type="ExperimentalDetectronTopKROIs" version="opset6">
-    <data max_rois="1000"/>
-    <input>
-        <port id="0">
-            <dim>5000</dim>
-            <dim>4</dim>
-        </port>
-        <port id="1">
-            <dim>5000</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2" precision="FP32">
-            <dim>1000</dim>
-            <dim>4</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="ExperimentalDetectronTopKROIs" version="opset6">
+       <data max_rois="1000"/>
+       <input>
+           <port id="0">
+               <dim>5000</dim>
+               <dim>4</dim>
+           </port>
+           <port id="1">
+               <dim>5000</dim>
+           </port>
+       </input>
+       <output>
+           <port id="2" precision="FP32">
+               <dim>1000</dim>
+               <dim>4</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

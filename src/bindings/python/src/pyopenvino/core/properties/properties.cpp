@@ -30,6 +30,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::affinity, "affinity");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
+    wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -39,7 +40,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::optimal_batch_size, "optimal_batch_size");
     wrap_property_RO(m_properties, ov::max_batch_size, "max_batch_size");
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
-    wrap_property_RW(m_properties, ov::inference_precision, "inference_precision");
 
     // Submodule hint
     py::module m_hint =
@@ -52,14 +52,20 @@ void regmodule_properties(py::module m) {
         .value("HIGH", ov::hint::Priority::HIGH)
         .value("DEFAULT", ov::hint::Priority::DEFAULT);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     py::enum_<ov::hint::PerformanceMode>(m_hint, "PerformanceMode", py::arithmetic())
         .value("UNDEFINED", ov::hint::PerformanceMode::UNDEFINED)
         .value("LATENCY", ov::hint::PerformanceMode::LATENCY)
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
+        .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
+        .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
+        .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
-        .value("UNDEFINED", ov::hint::ExecutionMode::UNDEFINED)
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
         .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
 
@@ -67,6 +73,9 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
+    wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
+    wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
@@ -94,6 +103,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
 
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
+    wrap_property_RW(m_intel_gpu, ov::intel_gpu::disable_winograd_convolution, "disable_winograd_convolution");
 
     // Submodule hint (intel_gpu)
     py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(
@@ -158,6 +168,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
     wrap_property_RO(m_device, ov::device::uuid, "uuid");
+    wrap_property_RO(m_device, ov::device::luid, "luid");
 
     // Special case: ov::device::properties
     m_device.def("properties", []() {
@@ -264,4 +275,13 @@ void regmodule_properties(py::module m) {
     m_streams.def("num", [](const int32_t value) {
         return ov::streams::num(ov::streams::Num(value));
     });
+
+    // Submodule auto
+    py::module m_intel_auto =
+        m_properties.def_submodule("intel_auto",
+                                   "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+
+    wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
 }

@@ -41,8 +41,19 @@ endfunction()
 
 ov_onnx_build_static()
 
-target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
-target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+foreach(_onnx_target onnx onnx_proto)
+    target_include_directories(${_onnx_target} SYSTEM PRIVATE
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
+endforeach()
+
+if(WIN32)
+    # from onnx==1.13.1 it requires C++17 when compiling on Windows
+    target_compile_features(onnx PRIVATE cxx_std_17)
+    # OPTIONAL is a reserved word for mingw at least
+    if(MINGW)
+        target_compile_definitions(onnx PRIVATE OPTIONAL=OPTIONAL_PLACEHOLDER)
+    endif()
+endif()
 
 ov_disable_all_warnings(onnx onnx_proto)
 
@@ -52,12 +63,14 @@ ov_install_static_lib(onnx ${OV_CPACK_COMP_CORE})
 ov_install_static_lib(onnx_proto ${OV_CPACK_COMP_CORE})
 
 # WA for ONNX: protobuf must be in the same export set of ONNX targets
-if(NOT BUILD_SHARED_LIBS)
+# in case of protobuf::libprotobuf-lite / protobuf::libprotobuf are imported targets
+if(NOT ENABLE_SYSTEM_PROTOBUF AND NOT BUILD_SHARED_LIBS)
     if(ONNX_USE_LITE_PROTO)
-        install(TARGETS ${Protobuf_LITE_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
+        set(protobuf_target_name libprotobuf-lite)
     else()
-        install(TARGETS ${Protobuf_LIBRARIES} EXPORT ONNXTargets
-                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
+        set(protobuf_target_name libprotobuf)
     endif()
+
+    install(TARGETS ${protobuf_target_name} EXPORT ONNXTargets
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
 endif()

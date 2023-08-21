@@ -23,6 +23,10 @@ inline kernel_selector::sample_type convert_to_sample_type(resample::Interpolate
             return kernel_selector::sample_type::CUBIC;
         case resample::InterpolateOp::InterpolateMode::LINEAR_ONNX:
             return kernel_selector::sample_type::LINEAR_ONNX;
+        case resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW:
+            return kernel_selector::sample_type::BILINEAR_PILLOW;
+        case resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW:
+            return kernel_selector::sample_type::BICUBIC_PILLOW;
         default:
             return kernel_selector::sample_type::NEAREST_NEIGHBOR;
     }
@@ -156,12 +160,15 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
         if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
             auto mem = impl_param.memory_deps.at(2);
-            scales = read_vector<float>(mem, impl_param.prog->get_stream());
+            scales = read_vector<float>(std::move(mem), impl_param.get_stream());
         }
 
-        for (size_t i = 0; i < scales.size(); ++i) {
-            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
-        }
+        params.scales = scales;
+        std::vector<kernel_selector::InterpolateAxis> axes;
+        std::transform(primitive->axes.begin(), primitive->axes.end(),
+                       std::back_inserter(axes),
+                       [dimsNum](std::int64_t axis){ return convert_axis(axis, dimsNum); });
+        params.axes = std::move(axes);
 
         return {params, optional_params};
     }
@@ -207,3 +214,4 @@ attach_resample_impl::attach_resample_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::resample)

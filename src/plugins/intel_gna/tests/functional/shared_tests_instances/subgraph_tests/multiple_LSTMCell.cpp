@@ -11,8 +11,6 @@ namespace {
 
 std::vector<ngraph::helpers::MemoryTransformation> transformation{
     ngraph::helpers::MemoryTransformation::NONE,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY,
-    ngraph::helpers::MemoryTransformation::LOW_LATENCY_REGULAR_API,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2,
     ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API};
 
@@ -35,7 +33,7 @@ std::map<std::string, std::string> additional_config = {
 INSTANTIATE_TEST_SUITE_P(MultipleLSTMCellTest,
                          MultipleLSTMCellTest,
                          ::testing::Combine(::testing::ValuesIn(transformation),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_sizes),
                                             ::testing::ValuesIn(hidden_sizes),

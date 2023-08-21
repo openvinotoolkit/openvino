@@ -42,6 +42,7 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
                                  get_input_element_type(INPUT_DATA),
@@ -54,7 +55,7 @@ void op::v0::BatchNormInference::validate_and_infer_types() {
                                  get_input_partial_shape(INPUT_BETA),
                                  get_input_partial_shape(INPUT_MEAN),
                                  get_input_partial_shape(INPUT_VARIANCE));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, result_batch_shape);
 }
 
@@ -98,6 +99,7 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
                           m_epsilon);
 
     set_output_size(1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     std::tie(result_et, result_batch_shape, result_channel_shape) =
         infer_batch_norm_forward(this,
                                  get_input_element_type(INPUT_DATA),
@@ -110,7 +112,7 @@ void op::v5::BatchNormInference::validate_and_infer_types() {
                                  get_input_partial_shape(INPUT_BETA),
                                  get_input_partial_shape(INPUT_MEAN),
                                  get_input_partial_shape(INPUT_VARIANCE));
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, result_batch_shape);
 }
 

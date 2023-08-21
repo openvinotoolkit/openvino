@@ -46,7 +46,7 @@ struct format_traits {
     /// @brief Characters representing feature map/channel dimensions in an order.
     static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
-    static const char* spatial_chars() { return "xyzhsw"; }
+    static const char* spatial_chars() { return "xyzwuvhs"; }
     /// @brief Characters representing group dimensions in an order.
     static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
@@ -57,6 +57,9 @@ struct format_traits {
     static bool is_spatial_char(char c) { return std::string(spatial_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents group dimensions.
     static bool is_group_char(char c) { return std::string(group_chars()).find_first_of(c) != std::string::npos; }
+
+    /// @brief Checks if order has @p c dimension.
+    bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
 };
 
 /// @brief Represents memory formats (orders).
@@ -73,10 +76,14 @@ struct format {
         bfyx,                                   ///< the most common format for activations in clDNN.
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
+        bfuwzyx,                                ///< 7d tensor
+        bfvuwzyx,                               ///< 8d tensor
         yxfb,                                   ///< batch first, feature and than spatials
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
         bzyxf,
+        byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
                                                 ///< for user provided formats.
         b_fs_yx_fsv2,
         b_fs_zyx_fsv2,
@@ -107,10 +114,10 @@ struct format {
         bs_fs_zyx_bsv32_fsv32,                  ///< format used for big batches (batch and features blocked by 32)
         bs_fs_zyx_bsv32_fsv16,                  ///< format used for big batches (batch blocked by 32, features blocked by 16)
         fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        bs_xs_xsv8_bsv8,                        ///< format used only for fully connected
-        bs_xs_xsv8_bsv16,                       ///< format used only for fully connected
-        bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
-                                                ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
+        bs_fs_fsv8_bsv8,                        ///< format used only for fully connected
+        bs_fs_fsv8_bsv16,                       ///< format used only for fully connected
+        bs_f_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
+                                                ///< (responses slice), bsv16 - 16 values of single batch slice, f - flattened plane of (fyx)
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
@@ -124,9 +131,12 @@ struct format {
         iozyx,                                        ///< 3D weights format for deconvolutions
         iyxo,
         oyxi,
+        oyix,
+        oxiy,
         os_iyx_osv16,                                 ///< format used only for convolution weights
         o_is_yx_isv16,                                ///< format used only for convolution weights
         os_yxi_osv16,                                 ///< format used only for convolution weights
+        os_is_yx_osv16_isv2,                          ///< format used only for convolution weights
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
         os_is_zyx_osv64_isv16,
@@ -207,6 +217,7 @@ struct format {
         iy_xs_os_xsv2_osv16__ao32,
         i_yxs_os_yxsv2_osv16,
         os_i_yxs_osv4_yxsv4,
+        os_i_osv16,                                   ///< format used only for fully connected weights
         os_i_osv16__ai8,                              ///< format used only for fully connected weights
         os_i_osv8__ai8,                               ///< format used only for fully connected weights
         os_y_is_x_osv8_isv2,
@@ -325,11 +336,14 @@ struct format {
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(type fmt) {
         return (fmt == yxfb || fmt == byxf ||
+                fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
-                fmt == bfzyx || fmt == bfwzyx);
+                fmt == bfzyx || fmt == bfwzyx ||
+                fmt == bfuwzyx || fmt == bfvuwzyx);
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
+    static bool is_default_format(type fmt);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
@@ -391,6 +405,10 @@ struct format {
 
     std::string to_string() const;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const format& fmt) {
+    return os << fmt.to_string();
+}
 
 /// @}
 /// @}

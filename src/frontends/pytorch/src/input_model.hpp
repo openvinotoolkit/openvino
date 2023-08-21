@@ -31,8 +31,7 @@ class InputModel : public ov::frontend::InputModel {
     friend class ::ov::frontend::pytorch::Place;
 
 public:
-    // TODO: pass telemetry extension to this ctor
-    explicit InputModel(std::shared_ptr<TorchDecoder> model_decoder);
+    explicit InputModel(const std::shared_ptr<TorchDecoder>& model_decoder);
 
     std::vector<frontend::Place::Ptr> get_inputs() const override;
     std::vector<frontend::Place::Ptr> get_outputs() const override;
@@ -42,6 +41,7 @@ public:
     void set_element_type(const frontend::Place::Ptr& place, const ov::element::Type& type) override;
     ov::element::Type get_element_type(const frontend::Place::Ptr& place) const override;
     void set_tensor_value(const frontend::Place::Ptr& place, const void* value) override;
+    const std::string& decoder_type_name() const;
 
 private:
     std::shared_ptr<TorchDecoder> m_model_decoder;

@@ -118,9 +118,9 @@ public:
         std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
         std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
         std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-        params.end_mask = end_mask;
+        params.end_mask = std::move(end_mask);
         pad_vector_to_size(params.end_mask, dims_num, 0);
-        params.begin_mask = begin_mask;
+        params.begin_mask = std::move(begin_mask);
         pad_vector_to_size(params.begin_mask, dims_num, 0);
 
         params.new_axis_mask = new_axis_mask;
@@ -170,7 +170,7 @@ public:
                         std::swap(begin, end);
                         begin--;
                         end--;
-                    } else {
+                    } else if (begin_org != -1) {  // If begin is -1 with negative stride, clamping begin is already expected value
                         if (is_clamp_begin)
                             begin--;
                         if (is_clamp_end)
@@ -185,7 +185,6 @@ public:
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -224,3 +223,4 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::strided_slice)

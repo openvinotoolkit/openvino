@@ -61,6 +61,7 @@ void ReduceMaxTransformation::Run() {
 }
 
 TEST_P(ReduceMaxTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

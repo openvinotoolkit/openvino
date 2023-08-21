@@ -17,6 +17,10 @@ namespace cldnn {
 struct experimental_detectron_topk_rois : public primitive_base<experimental_detectron_topk_rois> {
     CLDNN_DECLARE_PRIMITIVE(experimental_detectron_topk_rois)
 
+    experimental_detectron_topk_rois() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /**
      * Construct ExperimentalDetectronTopKROIs privitive.
      * @param id primitive id
@@ -30,7 +34,7 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
               max_rois(max_rois) {}
 
     /// maximal numbers of output ROIs.
-    size_t max_rois;
+    size_t max_rois = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -45,6 +49,16 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
         auto rhs_casted = downcast<const experimental_detectron_topk_rois>(rhs);
 
         return max_rois == rhs_casted.max_rois;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<experimental_detectron_topk_rois>::save(ob);
+        ob << max_rois;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<experimental_detectron_topk_rois>::load(ib);
+        ib >> max_rois;
     }
 };
 

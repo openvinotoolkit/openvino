@@ -563,7 +563,7 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::f64) {
         return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
-        return create_tensor_random<short, short>(inputInfo.second);
+        return create_tensor_random<ov::float16, float>(inputInfo.second);
     } else if (type == ov::element::i32) {
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
@@ -765,7 +765,7 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                                                  return a.first.size() < b.first.size();
                                              })
                                 ->first.size();
-        for (auto inputLog : logOutput[i]) {
+        for (const std::pair<const std::string, std::string>& inputLog : logOutput[i]) {
             slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
         }
     }

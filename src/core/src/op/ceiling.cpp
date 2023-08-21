@@ -23,6 +23,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Ceiling>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ceiling {
 namespace {
 // function used by TYPE_CASE
@@ -66,7 +67,7 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Ceiling_evaluate);
-    return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Ceiling::has_evaluate() const {

@@ -31,10 +31,6 @@ set_property(SOURCE ${MIXED_SRC}
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-endif()
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -62,6 +58,14 @@ openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
 # Install interface libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(ov_core_dev ${OV_CPACK_COMP_CORE})
 
+# Fix error LNK1248: image size (...) exceeds maximum allowable size (FFFFFFFF)
+# the symbolic debugging information will be stored in a separate .pdb file.
+if(WIN32)
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Z7" "/Zi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
 #
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
@@ -80,12 +84,15 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
+ov_add_version_defines(src/version.cpp ngraph_obj)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util
-                                         openvino::pugixml ov_shape_inference openvino::core::dev)
+target_link_libraries(ngraph_obj PRIVATE openvino::builders openvino::reference openvino::util
+                                         openvino::pugixml openvino::shape_inference openvino::core::dev)
 
 ie_mark_target_as_cc(ngraph_obj)
+
+# ngraph is public API => need to mark this library as important for ABI free
+ov_abi_free_target(ngraph_obj)
 
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -97,12 +104,12 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
+    # ngraph is linked against openvino::builders, openvino::reference, openvino::shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
     #
-    # The possible way is to use object libraries for ngraph_builders, ngraph_reference
+    # The possible way is to use object libraries for openvino::builders, openvino::reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
     if(BUILD_SHARED_LIBS)
@@ -112,7 +119,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
-    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

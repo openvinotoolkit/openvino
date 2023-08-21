@@ -13,8 +13,6 @@
 
 namespace BehaviorTestsUtils {
 
-using namespace CommonTestUtils;
-
 class IEInferRequestTestBase :  public ov::test::behavior::APIBaseTest {
 private:
     void set_api_entity() override {
@@ -64,7 +62,7 @@ public:
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(target_device);
+        function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
         cnnNet = InferenceEngine::CNNNetwork(function);
         // Load CNNNetwork to target plugins
         execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
@@ -90,8 +88,8 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     InferenceEngine::Core ie;
 #ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "openvino_template_plugin" IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName),
-        CommonTestUtils::DEVICE_TEMPLATE);
+    ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(), pluginName),
+        ov::test::utils::DEVICE_TEMPLATE);
 #endif // !OPENVINO_STATIC_LIBRARY
     return ie;
 }
@@ -147,6 +145,8 @@ typedef std::tuple<
 class BehaviorTestsBasicBase : public testing::WithParamInterface<BehaviorBasicParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorBasicParams> obj) {
+        using namespace ov::test::utils;
+
         InferenceEngine::Precision  netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;

@@ -6,9 +6,9 @@
 
 #include <cmath>
 #include <functional>
-#include <lstm_cell_shape_inference.hpp>
 
 #include "itt.hpp"
+#include "lstm_cell_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -158,10 +158,9 @@ void op::v0::LSTMCell::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
                           "match.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes =
         {x_pshape, ht_pshape, ct_pshape, w_pshape, r_pshape, b_pshape, p_pshape};
-    shape_infer(this, input_shapes, output_shapes);
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
     // Mark inputs which are relevant to output parameters
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -176,13 +175,13 @@ void op::v0::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 Shape{s_gates_count * get_hidden_size()},
+                                                 Shape{lstm_cell::gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
 Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 Shape{s_peepholes_count * get_hidden_size()},
+                                                 Shape{lstm_cell::peepholes_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
@@ -232,7 +231,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                              get_clip(),
                                              m_input_forget);
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
 
@@ -352,10 +351,8 @@ void op::v4::LSTMCell::validate_and_infer_types() {
                           "Element types for X, initial_hidden_state, initial_cell_state, W, R and B do not "
                           "match.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {x_pshape, ht_pshape, ct_pshape, w_pshape, r_pshape, b_pshape};
-    shape_infer(this, input_shapes, output_shapes);
-
+    std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
     // Mark inputs which are relevant to output parameters
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -370,7 +367,7 @@ void op::v4::LSTMCell::validate_and_infer_types() {
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
     return Output<Node>{op::v0::Constant::create(get_input_element_type(0),
-                                                 Shape{s_gates_count * get_hidden_size()},
+                                                 Shape{lstm_cell::gates_count * get_hidden_size()},
                                                  vector<float>{0.f})};
 }
 
@@ -401,6 +398,6 @@ shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new
                                      get_activations_beta(),
                                      get_clip());
     } else {
-        throw ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 }

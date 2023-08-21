@@ -14,36 +14,52 @@ namespace ov {
 namespace frontend {
 class FRONTEND_API GeneralFailure : public AssertFailure {
 public:
-    GeneralFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : AssertFailure(check_loc_info, "FrontEnd API failed with GeneralFailure: " + context, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit GeneralFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 class FRONTEND_API InitializationFailure : public AssertFailure {
 public:
-    InitializationFailure(const CheckLocInfo& check_loc_info,
-                          const std::string& context,
-                          const std::string& explanation)
-        : AssertFailure(check_loc_info, "FrontEnd API failed with InitializationFailure: " + context, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit InitializationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 class FRONTEND_API OpValidationFailure : public AssertFailure {
 public:
-    OpValidationFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : AssertFailure(check_loc_info, "FrontEnd API failed with OpValidationFailure: " + context, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit OpValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 class FRONTEND_API OpConversionFailure : public AssertFailure {
 public:
-    OpConversionFailure(const CheckLocInfo& check_loc_info, const std::string& context, const std::string& explanation)
-        : AssertFailure(check_loc_info, "FrontEnd API failed with OpConversionFailure: " + context, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit OpConversionFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 class FRONTEND_API NotImplementedFailure : public AssertFailure {
 public:
-    NotImplementedFailure(const CheckLocInfo& check_loc_info,
-                          const std::string& context,
-                          const std::string& explanation)
-        : AssertFailure(check_loc_info, "FrontEnd API failed with NotImplementedFailure: " + context, explanation) {}
+    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit NotImplementedFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
 /// \brief Macro to check whether a boolean condition holds.

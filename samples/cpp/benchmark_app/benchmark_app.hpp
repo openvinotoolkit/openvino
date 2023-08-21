@@ -44,7 +44,7 @@ static const char hint_message[] =
     "                               'cumulative_throughput' or 'ctput': device performance mode will be set to "
     "CUMULATIVE_THROUGHPUT.\n"
     "                               'latency': device performance mode will be set to LATENCY.\n"
-    "                               'none': device performance mode will be set to UNDEFINED.\n"
+    "                               'none': no device performance mode will be set.\n"
     "                              Using explicit 'nstreams' or other device-specific options, please set hint to "
     "'none'";
 
@@ -149,7 +149,7 @@ static constexpr char outputs_precision_message[] = "Optional. Specifies precisi
 
 static constexpr char iop_message[] =
     "Optional. Specifies precision for input and output layers by name.\n"
-    "                                             Example: -iop \"input:FP16, output:FP16\".\n"
+    "                                             Example: -iop \"input:f16, output:f16\".\n"
     "                                             Notice that quotes are required.\n"
     "                                             Overwrites precision from ip and op options for "
     "specified layers.";
@@ -245,18 +245,10 @@ static const char load_config_message[] =
     "properties.\n"
     "                                       {\n"
     "                                               \"AUTO\": {\n"
-    "                                                       \"PERFORMANCE_HINT\": \"\",\n"
+    "                                                       \"PERFORMANCE_HINT\": \"THROUGHPUT\",\n"
     "                                                       \"PERF_COUNT\": \"NO\",\n"
-    "                                                       \"DEVICE_PROPERTIES\": {\n"
-    "                                                       \"CPU\": {\n"
-    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                                           \"NUM_STREAMS\": \"3\"\n"
-    "                                                       },\n"
-    "                                                       \"GPU\": {\n"
-    "                                                           \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-    "                                                           \"NUM_STREAMS\": \"5\"\n"
-    "                                                       }\n"
-    "                                                   }\n"
+    "                                                       \"DEVICE_PROPERTIES\": "
+    "\"{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}\"\n"
     "                                               }\n"
     "                                       }";
 
@@ -327,7 +319,7 @@ DEFINE_string(nstreams, "", infer_num_streams_message);
 /// @brief Define flag for inference only mode <br>
 DEFINE_bool(inference_only, true, inference_only_message);
 
-/// @brief Define flag for inference precision
+/// @brief Define flag for inference precision hint
 DEFINE_string(infer_precision, "", inference_precision_message);
 
 /// @brief Specify precision for all input layers of the network
@@ -337,7 +329,7 @@ DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 
 /// @brief Specify precision for input and output layers by name.\n"
-///        Example: -iop \"input:FP16, output:FP16\".\n"
+///        Example: -iop \"input:f16, output:f16\".\n"
 ///        Notice that quotes are required.\n"
 ///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);

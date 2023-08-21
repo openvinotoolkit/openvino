@@ -9,13 +9,14 @@
 #include <openvino/op/util/variable_context.hpp>
 
 #include "evaluates_map.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "perf_counter.hpp"
 #include "tensor_conversion_util.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 
 class DynamicTensor : public ngraph::runtime::HostTensor {
@@ -45,7 +46,6 @@ protected:
 };
 
 inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (!t) {
         return std::make_shared<DynamicTensor>(ov::element::dynamic);
     } else if (t.get_shape() == ov::Shape{0, std::numeric_limits<size_t>::max()}) {
@@ -53,7 +53,6 @@ inline ngraph::HostTensorPtr make_tmp_host_tensor(const ov::Tensor& t) {
     } else {
         return std::make_shared<ngraph::runtime::HostTensor>(t.get_element_type(), t.get_shape(), t.data());
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
@@ -75,23 +74,27 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
 }  // namespace
 
 class TemporaryOverrideOutputs {
-    std::shared_ptr<ov::Node> node;
-    std::vector<ov::PartialShape> orig_shapes;
+    std::shared_ptr<ov::Model> model;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::PartialShape> orig_paramter_shapes_map;
 
 public:
-    TemporaryOverrideOutputs(std::shared_ptr<ov::Node> node, const std::vector<ov::Tensor>& args) : node(node) {
-        for (size_t i = 0; i < args.size(); ++i) {
-            auto output = node->get_input_source_output(i);
-            orig_shapes.push_back(output.get_partial_shape());
-            output.get_tensor().set_partial_shape(args[i].get_shape());
+    TemporaryOverrideOutputs(std::shared_ptr<ov::Model>& model,
+                             const std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor>& tensor_map)
+        : model(model) {
+        for (const auto& param : model->get_parameters()) {
+            auto output_tensor = param->output(0).get_tensor_ptr();
+            orig_paramter_shapes_map.insert({output_tensor, param->get_partial_shape()});
+            param->set_partial_shape(tensor_map.at(output_tensor).get_shape());
         }
+        model->validate_nodes_and_infer_types();
     }
 
     ~TemporaryOverrideOutputs() {
-        for (size_t i = 0; i < orig_shapes.size(); ++i) {
-            auto output = node->get_input_source_output(i);
-            output.get_tensor().set_partial_shape(orig_shapes[i]);
+        for (const auto& param : model->get_parameters()) {
+            auto output_tensor = param->output(0).get_tensor_ptr();
+            param->set_partial_shape(orig_paramter_shapes_map.at(output_tensor));
         }
+        model->validate_nodes_and_infer_types();
     }
 };
 
@@ -103,9 +106,44 @@ ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov:
     set_parameters_and_results(*m_model);
 }
 
+void ov::runtime::interpreter::INTExecutable::cancel() {
+    m_cancel_execution = true;
+}
+
 bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
-                                                   const std::vector<ov::Tensor>& inputs) {
-    // map function params -> HostTensor
+                                                   const std::vector<ov::Tensor>& inputs,
+                                                   bool collect_performance) {
+    EvaluationContext eval_context;
+    ov::op::util::VariableContext variable_context;
+    eval_context.emplace("VariableContext", variable_context);
+
+    // for each ordered op in the graph
+    for (const auto& op : m_nodes) {
+        if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+            auto variable = var_extension->get_variable();
+            if (!variable_context.get_variable_value(variable)) {
+                auto h_tensor = ov::Tensor(op->get_input_element_type(0), op->get_input_shape(0));
+                variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(h_tensor));
+            }
+        }
+    }
+
+    return call(outputs, inputs, eval_context, collect_performance);
+}
+
+bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
+                                                   const std::vector<ov::Tensor>& inputs,
+                                                   const ov::EvaluationContext& context,
+                                                   bool collect_performance) {
+#define CHECK_TERMINATE()                          \
+    if (m_cancel_execution) {                      \
+        std::lock_guard<std::mutex> lock(m_mutex); \
+        m_cancel_execution = false;                \
+        return false;                              \
+    }
+
+    CHECK_TERMINATE()
+    // map function params -> ov::Tensor
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> tensor_map;
     size_t input_count = 0;
     for (const auto& param : get_parameters()) {
@@ -116,23 +154,21 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
     }
 
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, size_t> results_map;
-    // map function outputs -> HostTensor
+    // map function outputs -> ov::Tensor
     for (size_t output_count = 0; output_count < get_results().size(); ++output_count) {
         auto output = get_results()[output_count]->output(0).get_tensor_ptr();
         if (!results_map.count(output))
             results_map.emplace(output, output_count);
     }
 
-    EvaluationContext eval_context;
-    ov::op::util::VariableContext variable_context;
-    eval_context.emplace("VariableContext", variable_context);
+    auto overrider = TemporaryOverrideOutputs(m_model, tensor_map);
 
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
+        CHECK_TERMINATE()
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
             continue;
         }
-
         // get op inputs from map
         std::vector<ov::Tensor> op_inputs;
         for (auto input : op->inputs()) {
@@ -140,20 +176,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_inputs.push_back(tensor_map.at(tensor));
         }
 
-        TemporaryOverrideOutputs overrider(op, op_inputs);
-        OutputVector output_ports;
-        for (size_t i = 0; i < op->inputs().size(); ++i) {
-            output_ports.push_back(op->get_input_source_output(i));
-        }
-        auto cloned_node = op->clone_with_new_inputs(output_ports);
-
         // get op outputs from map or create
         std::vector<ov::Tensor> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
             auto tensor = op->output(i).get_tensor_ptr();
             ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
-            auto output = cloned_node->output(i);
+            auto output = op->output(i);
             if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
                 host_tensor = ov::Tensor(output.get_element_type(),
                                          output.get_partial_shape().is_dynamic()
@@ -165,20 +194,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             op_outputs.push_back(host_tensor);
         }
 
-        if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(cloned_node)) {
-            auto variable = var_extension->get_variable();
-            if (!variable_context.get_variable_value(variable)) {
-                auto h_tensor = ov::Tensor(cloned_node->get_input_element_type(0), cloned_node->get_input_shape(0));
-                // h_tensor->write(h_tensor->get_data_ptr(), h_tensor->get_size_in_bytes());
-                const auto tensor_input = make_tmp_host_tensor(h_tensor);
-                variable_context.set_variable_value(variable,
-                                                    std::make_shared<ov::op::util::VariableValue>(tensor_input));
+        {
+            PERF(op, collect_performance);
+            // Call evaluate for cloned_node with static shapes
+            if (!op->evaluate(op_outputs, op_inputs, context)) {
+                // TODO: extend evaluate map for the context
+                evaluate_node(op, op_outputs, op_inputs);
             }
-        }
-
-        // Call evaluate for cloned_node with static shapes
-        if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
-            evaluate_node(cloned_node, op_outputs, op_inputs);
         }
         // Update tensors in tensor map
         for (size_t i = 0; i < op->get_output_size(); ++i) {
@@ -200,13 +222,13 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
 
 std::shared_ptr<ov::op::v0::Parameter> ov::runtime::interpreter::INTExecutable::get_parameter(size_t index) const {
     const ParameterVector& parameters = get_parameters();
-    NGRAPH_CHECK(index < parameters.size(), "create_tensor for input out of bounds");
+    OPENVINO_ASSERT(index < parameters.size(), "create_tensor for input out of bounds");
     return parameters[index];
 }
 
 std::shared_ptr<ov::op::v0::Result> ov::runtime::interpreter::INTExecutable::get_result(size_t index) const {
     const ResultVector& results = get_results();
-    NGRAPH_CHECK(index < results.size(), "create_tensor for input out of bounds");
+    OPENVINO_ASSERT(index < results.size(), "create_tensor for input out of bounds");
     return results[index];
 }
 ov::Tensor ov::runtime::interpreter::INTExecutable::create_input_tensor(size_t input_index) {
@@ -251,16 +273,15 @@ bool ov::runtime::interpreter::INTExecutable::evaluate_node(const std::shared_pt
     bool res = false;
     const auto tensor_inputs = create_tmp_tensors(inputs);
     auto tensor_outputs = create_tmp_tensors(outputs);
-    if (it != map.end()) {
-        res = it->second(node, tensor_outputs, tensor_inputs);
-        if (!res) {
-            throw ngraph::ngraph_error(std::string("Running evaluate method for OP ") + node->get_type_info().name +
-                                       std::string(" failed!"));
-        }
-        update_output_tensors(outputs, tensor_outputs);
-    } else {
-        throw ngraph::unsupported_op(std::string("Interpreter backend doesn't implement evaluate method for OP ") +
-                                     node->get_type_info().name);
-    }
+    OPENVINO_ASSERT(it != map.end(),
+                    "Interpreter backend doesn't implement evaluate method for OP ",
+                    node->get_type_info().name);
+    res = it->second(node, tensor_outputs, tensor_inputs);
+    OPENVINO_ASSERT(res, "Running evaluate method for OP ", node->get_type_info().name, " failed!");
+    update_output_tensors(outputs, tensor_outputs);
     return res;
+}
+
+std::shared_ptr<ov::Model> ov::runtime::interpreter::INTExecutable::get_model() const {
+    return m_model;
 }

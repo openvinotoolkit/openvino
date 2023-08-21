@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <openvino/op/convert.hpp>
+#include <openvino/op/parameter.hpp>
 #include <string>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -189,10 +190,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
-    OPENVINO_OP(BaseOp::get_type_info_static().name,
-                BaseOp::get_type_info_static().version_id,
-                BaseOp,
-                BaseOp::get_type_info_static().version);
+    OPENVINO_OP(BaseOp::get_type_info_static().name, BaseOp::get_type_info_static().version_id, BaseOp);
 
     using BaseOp::BaseOp;
 
@@ -226,16 +224,19 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
+
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
-    mutable std::mutex type_relax_mutex;
     void init() {
         validate_and_infer_types();
     }
 
+    bool evaluate_bound(TensorVector& outputs, bool is_upper) const;
     init_rt_result init_rt = init_rt_info(*this);
 };
 
@@ -299,6 +300,41 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 }
 OPENVINO_SUPPRESS_DEPRECATED_END
 
+std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>> OPENVINO_API
+convert_input_types(OutputVector& inputs, const element::TypeVector& types);
+ov::TensorVector OPENVINO_API get_output_tensors_of_original_type(const ov::TensorVector& fake_output_tensors,
+                                                                  const element::TypeVector& types);
+void OPENVINO_API
+reset_input_types(const std::unordered_map<size_t, std::pair<ov::Tensor, ov::Tensor>>& original_input_vals,
+                  OutputVector& inputs);
+bool OPENVINO_API convert_outputs_to_fake_type(ov::TensorVector& outputs,
+                                               ov::TensorVector& original_outputs,
+                                               bool is_upper);
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_bound(TensorVector& outputs, bool is_upper) const {
+    auto inputs = Op::input_values();
+    const auto& original_inputs = convert_input_types(inputs, m_input_data_types);
+    auto original_outputs = get_output_tensors_of_original_type(outputs, m_original_output_data_types);
+    if ((is_upper && !BaseOp::evaluate_upper(original_outputs)) ||
+        (!is_upper && !BaseOp::evaluate_lower(original_outputs))) {
+        reset_input_types(original_inputs, inputs);
+        return false;
+    }
+    reset_input_types(original_inputs, inputs);
+    return convert_outputs_to_fake_type(outputs, original_outputs, is_upper);
+}
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_lower(TensorVector& outputs) const {
+    return evaluate_bound(outputs, false);
+}
+
+template <typename BaseOp>
+bool TypeRelaxed<BaseOp>::evaluate_upper(TensorVector& outputs) const {
+    return evaluate_bound(outputs, true);
+}
+
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
     element::TypeVector old_input_types;
@@ -314,14 +350,28 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
 template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
-    std::lock_guard<std::mutex> lock(type_relax_mutex);
-    // copy then modify inputs
+    // thread safety: we protect inputs source output objects -- clone original op with fake parameters
+    OutputVector fake_new_inputs;
+    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+        auto origin_input_type = get_origin_input_type(i);
+        if (origin_input_type == element::undefined)
+            origin_input_type = BaseOp::get_input_element_type(i);
+        fake_new_inputs.push_back(
+            std::make_shared<v0::Parameter>(origin_input_type, BaseOp::get_input_partial_shape(i)));
+    }
+    auto base_op = BaseOp::clone_with_new_inputs(fake_new_inputs);
+    // since originally TypeRelaxed was copying everything from the original node, we continue doing the same
+    auto curr_base_op = BaseOp::shared_from_this();
+    base_op->add_node_control_dependents(curr_base_op);
+    base_op->add_node_control_dependencies(curr_base_op);
+    base_op->set_friendly_name(BaseOp::get_friendly_name());
+    base_op->get_rt_info() = {curr_base_op->get_rt_info()};
+
     std::shared_ptr<Node> new_node =
-        std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
+        std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*base_op), m_input_data_types, m_output_data_types);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
         new_node->input(i).replace_source_output(new_args[i]);
     }
-
     new_node->validate_and_infer_types();
     return new_node;
 }

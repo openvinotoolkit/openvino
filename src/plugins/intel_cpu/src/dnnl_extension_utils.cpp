@@ -3,10 +3,15 @@
 //
 
 #include "dnnl_extension_utils.h"
+
 #include "utils/general_utils.h"
-#include <vector>
+#include <oneapi/dnnl/dnnl.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
+
+#include <vector>
 
 using namespace dnnl;
 
@@ -27,6 +32,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
         return 1;
     case dnnl::memory::data_type::bin:
         return 1;
+    case dnnl::memory::data_type::f16:
+        return 2;
     case dnnl::memory::data_type::undef:
         return 0;
     default:
@@ -49,6 +56,8 @@ memory::data_type DnnlExtensionUtils::IEPrecisionToDataType(const InferenceEngin
             return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
             return memory::data_type::bin;
+        case InferenceEngine::Precision::FP16:
+            return memory::data_type::f16;
         case InferenceEngine::Precision::UNSPECIFIED:
             return memory::data_type::undef;
         default: {
@@ -71,6 +80,8 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
             return InferenceEngine::Precision::U8;
         case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
+        case memory::data_type::f16:
+            return InferenceEngine::Precision::FP16;
         case memory::data_type::undef:
             return InferenceEngine::Precision::UNSPECIFIED;
         default: {
@@ -174,27 +185,102 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     return std::string(res);
 }
 
-bool DnnlExtensionUtils::hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType) {
-    primitive_desc_iterator& itpd = desc;
-
-    while (itpd) {
-        const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
-
-        if (descImplType == implType) {
-            return true;
-        }
-
-        if (!itpd.next_impl())
-            break;
-    }
-
-    return false;
+bool DnnlExtensionUtils::find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type) {
+    return DnnlExtensionUtils::find_implementation(desc,
+                                                   [impl_type](impl_desc_type cur_impl_type){
+                                                       return cur_impl_type == impl_type;
+                                                   });
 }
 
 dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc) {
     dnnl_memory_desc_t cloned_md = nullptr;
     dnnl_memory_desc_clone(&cloned_md, cdesc);
     return cloned_md;
+}
+
+dnnl_primitive_desc_t DnnlExtensionUtils::clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc) {
+    dnnl_primitive_desc_t cloned_md = nullptr;
+    dnnl_primitive_desc_clone(&cloned_md, cprim_desc);
+    return cloned_md;
+}
+
+const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
+    return pd->info();
+}
+
+dnnl::algorithm DnnlExtensionUtils::convertToDnnlAlgorithm(Algorithm alg) {
+    switch (alg) {
+        case Algorithm::EltwiseRelu: return dnnl::algorithm::eltwise_relu;
+        case Algorithm::EltwiseTanh: return dnnl::algorithm::eltwise_tanh;
+        case Algorithm::EltwiseElu: return dnnl::algorithm::eltwise_elu;
+        case Algorithm::EltwiseAbs: return dnnl::algorithm::eltwise_abs;
+        case Algorithm::EltwiseSqrt: return dnnl::algorithm::eltwise_sqrt;
+        case Algorithm::EltwiseSwish: return dnnl::algorithm::eltwise_swish;
+        case Algorithm::EltwiseHswish: return dnnl::algorithm::eltwise_hardswish;
+        case Algorithm::EltwiseSoftRelu: return dnnl::algorithm::eltwise_soft_relu;
+        case Algorithm::EltwiseMish: return dnnl::algorithm::eltwise_mish;
+        case Algorithm::EltwiseExp: return dnnl::algorithm::eltwise_exp;
+        case Algorithm::EltwiseGeluErf: return dnnl::algorithm::eltwise_gelu_erf;
+        case Algorithm::EltwiseGeluTanh: return dnnl::algorithm::eltwise_gelu_tanh;
+        case Algorithm::EltwiseSigmoid: return dnnl::algorithm::eltwise_logistic;
+        case Algorithm::EltwiseClamp: return dnnl::algorithm::eltwise_clip;
+        case Algorithm::EltwisePowerStatic: return dnnl::algorithm::eltwise_pow;
+        case Algorithm::EltwiseHsigmoid: return dnnl::algorithm::eltwise_hsigmoid;
+        case Algorithm::EltwiseRoundHalfToEven: return dnnl::algorithm::eltwise_round_half_to_even;
+        case Algorithm::EltwiseRoundHalfAwayFromZero: return dnnl::algorithm::eltwise_round_half_away_from_zero;
+        case Algorithm::EltwiseAdd: return dnnl::algorithm::binary_add;
+        case Algorithm::EltwiseMultiply: return dnnl::algorithm::binary_mul;
+        case Algorithm::EltwiseSubtract: return dnnl::algorithm::binary_sub;
+        case Algorithm::EltwiseDivide: return dnnl::algorithm::binary_div;
+        case Algorithm::EltwiseMaximum: return dnnl::algorithm::binary_max;
+        case Algorithm::EltwiseMinimum: return dnnl::algorithm::binary_min;
+        case Algorithm::EltwiseEqual: return dnnl::algorithm::binary_eq;
+        case Algorithm::EltwiseNotEqual: return dnnl::algorithm::binary_ne;
+        case Algorithm::EltwiseGreater: return dnnl::algorithm::binary_gt;
+        case Algorithm::EltwiseGreaterEqual: return dnnl::algorithm::binary_ge;
+        case Algorithm::EltwiseLess: return dnnl::algorithm::binary_lt;
+        case Algorithm::EltwiseLessEqual: return dnnl::algorithm::binary_le;
+        case Algorithm::EltwisePrelu: return dnnl::algorithm::binary_prelu;
+        case Algorithm::ReduceMax: return dnnl::algorithm::reduction_max;
+        case Algorithm::ReduceMin: return dnnl::algorithm::reduction_min;
+        case Algorithm::ReduceSum: return dnnl::algorithm::reduction_sum;
+        case Algorithm::ReduceMean: return dnnl::algorithm::reduction_mean;
+        case Algorithm::FQCommon: return dnnl::algorithm::quantization_quantize_dequantize;
+        case Algorithm::FQQuantization: return dnnl::algorithm::quantization_quantize;
+        case Algorithm::FQBinarization: return dnnl::algorithm::binarization_depthwise;
+        default: return dnnl::algorithm::undef;
+    }
+}
+
+bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
+#if defined(OV_CPU_WITH_ACL)
+    return one_of(alg, Algorithm::EltwiseRelu,
+                       Algorithm::EltwiseTanh,
+                       Algorithm::EltwiseElu,
+                       Algorithm::EltwiseAbs,
+                       Algorithm::EltwiseSqrt,
+                       Algorithm::EltwiseSoftRelu,
+                       Algorithm::EltwiseSigmoid);
+#elif defined(OPENVINO_ARCH_X86_64)
+    return one_of(alg, Algorithm::EltwiseRelu,
+                       Algorithm::EltwiseGeluErf,
+                       Algorithm::EltwiseGeluTanh,
+                       Algorithm::EltwiseElu,
+                       Algorithm::EltwiseSigmoid,
+                       Algorithm::EltwiseClamp,
+                       Algorithm::EltwiseTanh,
+                       Algorithm::EltwiseSwish,
+                       Algorithm::EltwiseHswish,
+                       Algorithm::EltwiseMish,
+                       Algorithm::EltwiseHsigmoid,
+                       Algorithm::EltwiseRoundHalfToEven,
+                       Algorithm::EltwiseRoundHalfAwayFromZero,
+                       Algorithm::EltwiseAbs,
+                       Algorithm::EltwiseSqrt,
+                       Algorithm::EltwiseSoftRelu);
+#else
+    return false;
+#endif
 }
 
 }   // namespace intel_cpu

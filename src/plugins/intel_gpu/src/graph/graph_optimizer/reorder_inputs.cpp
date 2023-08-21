@@ -14,6 +14,7 @@
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "reshape_inst.h"
+#include "fully_connected_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -98,10 +99,10 @@ struct travel_direction_wrapper {
     }
 
     template <typename T>
-    static T& first(T& current, T& /*next*/) { return current; }
+    static const T& first(const T& current, const T& /*next*/) { return current; }
 
     template <typename T>
-    static T& second(T& /*current*/, T& next) { return next; }
+    static const T& second(const T& /*current*/, const T& next) { return next; }
 };
 
 template <>
@@ -111,10 +112,10 @@ struct travel_direction_wrapper<direction_e::backwards> {
     }
 
     template <typename T>
-    static T& first(T& /*current*/, T& next) { return next; }
+    static const T& first(const T& /*current*/, const T& next) { return next; }
 
     template <typename T>
-    static T& second(T& current, T& /*next*/) { return current; }
+    static const T& second(const T& current, const T& /*next*/) { return current; }
 };
 
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *next) {
@@ -247,7 +248,7 @@ bool can_propagate_formats_rec<direction_e::backwards>(
     if (reverse_reorders > 0)
         return false;
 
-    for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
+    for (const auto& next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
         if (!can_propagate_formats_rec<direction_e::backwards>(fmt_map, lo, node, next.first, fmt))
@@ -285,6 +286,8 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!next->is_in_data_flow())
             continue;
+        if (!can_propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt))
+            continue;
         propagate_formats_rec<dir>(fmt_map, lo, node, next, fmt);
     }
 }
@@ -314,7 +317,7 @@ void propagate_formats_rec<direction_e::backwards>(std::map<program_node*, forma
     fmt_map.at(node) = fmt;
     GPU_DEBUG_LOG << "Propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
 
-    for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
+    for (const auto& next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
         propagate_formats_rec<direction_e::backwards>(fmt_map, lo, node, next.first, fmt);
@@ -347,14 +350,14 @@ void propagate_formats_in_dir<direction_e::backwards>(std::map<program_node*, fo
                                                       program_node* node) {
     auto fmt = fmt_map.at(node);
 
-    for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
+    for (const auto& next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
         if (!can_propagate_formats_rec<direction_e::backwards>(fmt_map, lo, node, next.first, fmt))
             return;
     }
 
-    for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
+    for (const auto& next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
         propagate_formats_rec<direction_e::backwards>(fmt_map, lo, node, next.first, fmt);
@@ -414,7 +417,7 @@ reorder_cnt count_reorders_in_dir<direction_e::backwards>(const std::map<program
     size_t cnt = 0;
     size_t size = 0;
 
-    for (auto next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
+    for (const auto& next : travel_direction_wrapper<direction_e::backwards>::next_nodes(node)) {
         if (!next.first->is_in_data_flow())
             continue;
 
@@ -458,7 +461,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
                 for (auto user : node->get_users()) {
                     io_formats.insert(fmt_map.at(user));
                 }
-                for (auto dep : node->get_dependencies()) {
+                for (const auto& dep : node->get_dependencies()) {
                     if (!dep.first->is_in_data_flow())
                         continue;
                     io_formats.insert(fmt_map.at(dep.first));
@@ -495,7 +498,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             }
         }
 
-        for (auto dep : node->get_dependencies()) {
+        for (const auto& dep : node->get_dependencies()) {
             if (!dep.first->is_in_data_flow())
                 continue;
 
@@ -511,6 +514,10 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
             continue;
 
         for (auto new_fmt : local_formats) {
+            // Avoid setting of formats which will require transform from higher rank to smaller one which requires dimension squeeze
+            // TODO: Needs to be updated once we improve layout assignment logic
+            if (fmt_map.at(node) != format::any && format::dimension(fmt_map.at(node)) > format::dimension(new_fmt))
+                continue;
             fmt_map.at(node) = new_fmt;
 
             auto reorders_cnt = count_reorders(fmt_map, lo, node);
@@ -561,7 +568,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
+        GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any)
@@ -574,8 +581,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(dir) << "  " << reorder_node.id()
-                          << "  Reorder is added" << std::endl;
+            GPU_DEBUG_LOG << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, next),
                                *travel_direction_wrapper<dir>::first(node, next),
@@ -590,7 +596,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
     auto fmt = fmt_map.at(node);
 
     auto next_cpy = travel_direction_wrapper<direction_e::backwards>::next_nodes(node);
-    for (auto next : next_cpy) {
+    for (const auto& next : next_cpy) {
         if (!next.first->is_in_data_flow())
             continue;
 
@@ -610,8 +616,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
 
-        GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(direction_e::backwards)
-                      << "  " << node->id() << " --> " << next.first->id() << " ## "
+        GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << node->id() << " --> " << next.first->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any)
@@ -624,8 +629,7 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_LOG << __func__ << ":" << __LINE__ << ":" << dir_msg(direction_e::backwards) << "  " << reorder_node.id()
-                          << "  Reorder is added" << std::endl;
+            GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<direction_e::backwards>::second(node, next.first),
                                *travel_direction_wrapper<direction_e::backwards>::first(node, next.first),
@@ -710,7 +714,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         for (auto node_ptr : p.get_processing_order()) {
             if (fmt_map.count(node_ptr) == 0 || fmt_map.at(node_ptr) == format::any)
                 continue;
-            for (auto prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
+            for (const auto& prev_ptr : travel_direction_wrapper<direction_e::backwards>::next_nodes(node_ptr)) {
                 if (!prev_ptr.first->is_in_data_flow() || fmt_map.at(prev_ptr.first) == fmt_map.at(node_ptr))
                     continue;
                 if (lo.can_fuse_reorder(*prev_ptr.first, *node_ptr, fmt_map.at(prev_ptr.first), fmt_map.at(node_ptr))) {
@@ -735,9 +739,10 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
             for (size_t i = 0; i < detection_output_node.get_dependencies().size(); i++) {
                 auto& input = detection_output_node.get_dependency(i);
+                auto input_layout = input.get_output_layout();
                 auto new_input = rf.get_reorder(input.id(),
-                                                input.get_output_layout(),
-                                                layout{ data_types::f32, format::bfyx, input.get_output_layout().get_tensor() });
+                                                input_layout,
+                                                layout{ input_layout.get_partial_shape(), data_types::f32, format::bfyx });
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
@@ -859,8 +864,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             onednn_add_fusing_helpers::for_eltwise(conv_node, eltwise_mode::sum,
                 [&](const program_node& p_node, const fused_primitive_desc& desc) {
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(p_node, desc);
-                    if (fusing_type == add_fusing_type::binary_per_tensor) {
-                        auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+                    if (fusing_type == add_fusing_type::binary_per_tensor && desc.has_outer_dep()) {
+                        auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
                         auto d_layout = dep_node.get_output_layout();
                         auto d_format = d_layout.format;
                         auto expected_format = format::any;
@@ -882,9 +887,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                             new_layout.format = expected_format;
                             auto new_input = rf.get_reorder(dep_node.id(), d_layout, new_layout);
                             if (new_input.first) {
-                                p.add_intermediate(new_input.first, conv_node, desc.dep_start_idx, !new_input.second);
+                                p.add_intermediate(new_input.first, conv_node, desc.outer_dep_start_idx, !new_input.second);
                             }
-                            conv_node.get_dependency(desc.dep_start_idx).set_output_layout(new_layout, false);
+                            conv_node.get_dependency(desc.outer_dep_start_idx).set_output_layout(new_layout, false);
                         }
                     }
                 });
@@ -962,7 +967,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
                     !activation_desc->additional_params_input.empty()) {
                     const auto expected_dt = data_types::f32;
-                    const auto dep_idx = fused_desc.dep_start_idx;
+                    const auto dep_idx = fused_desc.outer_dep_start_idx;
                     const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
                     if (orig_layout.data_type == expected_dt)
                         continue;
@@ -989,14 +994,18 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             for (const auto& fused_prim : node->get_fused_primitives()) {
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
+                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
 
                     auto gemm_layout = node->get_output_layout();
+                    auto data_layout = data.get_output_layout();
+
+                    if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
                     auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                                  cldnn::format::dimension(gemm_layout.format),
                                                                  false);
 
-                    auto data_layout = data.get_output_layout();
                     auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                                  cldnn::format::dimension(data_layout.format),
                                                                  false);
@@ -1009,7 +1018,51 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(), ov::AxisSet{});
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.dep_start_idx, true);
+                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
+                    broadcast_node.recalc_output_layouts(false);
+                }
+            }
+        } else if (node->is_type<fully_connected>() && node->get_preferred_impl_type() == impl_types::onednn) {
+            for (const auto& fused_prim : node->get_fused_primitives()) {
+                if (fused_prim.is_type<eltwise>() &&
+                    one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
+                    auto fc_layout = node->get_output_layout();
+                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
+                    auto data_layout = data.get_output_layout();
+
+                    if (fc_layout.is_dynamic() || data_layout.is_dynamic())
+                        continue;
+
+                    // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
+                    // ---------+-----------+-----------+-----------+--------------------
+                    // 1        | 1         | 1         | 1         | no broadcast
+                    // 1        | 1         | 1         | N         | N/A
+                    // 1        | 1         | N         | 1         | N/A
+                    // 1        | 1         | N         | N         | N/A
+                    // 1        | N         | 1         | 1         | implicit broadcast
+                    // 1        | N         | 1         | N         | no broadcast
+                    // 1        | N         | N         | 1         | N/A
+                    // 1        | N         | N         | N         | N/A
+                    // N        | 1         | 1         | 1         | implicit broadcast
+                    // N        | 1         | 1         | N         | N/A
+                    // N        | 1         | N         | 1         | no broadcast
+                    // N        | 1         | N         | N         | N/A
+                    // N        | N         | 1         | 1         | implicit broadcast
+                    // N        | N         | 1         | N         | explicit broadcast
+                    // N        | N         | N         | 1         | explicit broadcast
+                    // N        | N         | N         | N         | no broadcast
+                    if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
+                        (data_layout.batch() == 1 && data_layout.feature() == 1) ||
+                        (fc_layout.count() == data_layout.count())) {
+                        continue;
+                    }
+
+                    static size_t idx = 0;
+                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
+                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(), ov::AxisSet{});
+
+                    auto& broadcast_node = p.get_or_create(broadcast_prim);
+                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
                     broadcast_node.recalc_output_layouts(false);
                 }
             }

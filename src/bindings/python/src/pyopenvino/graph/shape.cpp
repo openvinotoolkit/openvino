@@ -12,6 +12,7 @@
 #include <string>
 
 #include "openvino/core/dimension.hpp"  // ov::Dimension
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/shape.hpp"
 
 namespace py = pybind11;
@@ -57,7 +58,7 @@ void regclass_graph_Shape(py::module m) {
     });
 
     shape.def("__repr__", [](const ov::Shape& self) -> std::string {
-        return "<Shape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
+        return "<" + Common::get_class_name(self) + ": " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
     shape.def("to_string", &ov::Shape::to_string);

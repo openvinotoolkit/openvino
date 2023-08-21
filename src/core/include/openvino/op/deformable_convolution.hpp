@@ -16,7 +16,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
+    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -53,6 +53,7 @@ public:
                           const int64_t deformable_group = 1);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    void validate_and_infer_types() override;
 };
 }  // namespace v1
 

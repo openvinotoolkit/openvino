@@ -59,6 +59,17 @@ struct primitive_type_base : primitive_type {
         }
     }
 
+    std::set<impl_types> get_available_impls(const cldnn::program_node& node) const override {
+        OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::get_available_impls: primitive type mismatch");
+        auto kernel_impl_params = *node.get_kernel_impl_params();
+
+        OPENVINO_ASSERT(!kernel_impl_params.input_layouts.empty(), "[GPU] Can't get available implementations for node with empty input layouts");
+        auto in_dt = kernel_impl_params.get_input_layout().data_type;
+        auto target_shape_type = get_shape_type(kernel_impl_params);
+
+        return implementation_map<PType>::query_available_impls(in_dt, target_shape_type);
+    }
+
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {
         return does_an_implementation_exist(node, *node.get_kernel_impl_params());
     }
@@ -89,7 +100,13 @@ struct primitive_type_base : primitive_type {
 
     cldnn::layout calc_output_layout(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::calc_output_layout: primitive type mismatch");
-        return typed_primitive_inst<PType>::calc_output_layout(node, impl_param);
+        for (auto& t : impl_param.input_layouts) {
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " input tensor: " << t.to_short_string() << std::endl;
+        }
+        auto res = typed_primitive_inst<PType>::calc_output_layout(node, impl_param);
+
+        GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " output tensor: " << res.to_short_string() << std::endl;
+        return res;
     }
 
     std::vector<cldnn::layout> calc_output_layouts(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
@@ -107,15 +124,11 @@ struct primitive_type_base : primitive_type {
 
         return res;
     }
+
     kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const override {
         return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);
     }
-    std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) const override {
-        return typed_primitive_inst<PType>::extend_input_shape_to_6d(orig_impl_param, input_idx);
-    }
-    std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) const override {
-        return typed_primitive_inst<PType>::extend_output_shape_to_6d(orig_impl_param, output_idx);
-    }
+
     std::string to_string(const cldnn::program_node& node) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::to_string: primitive type mismatch");
         return typed_primitive_inst<PType>::to_string(node);

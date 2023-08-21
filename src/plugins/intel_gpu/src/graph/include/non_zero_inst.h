@@ -40,9 +40,6 @@ public:
     static std::string to_string(count_nonzero_node const& node);
 
     typed_primitive_inst(network& network, count_nonzero_node const& node);
-
-private:
-    void on_execute() override;
 };
 
 using count_nonzero_inst = typed_primitive_inst<count_nonzero>;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
@@ -10,7 +11,6 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/opsets/opset5.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -81,8 +81,7 @@ TEST(attributes, interpolate_op4) {
 TEST(attributes, interpolate_op11) {
     NodeBuilder::get_ops().register_factory<opset11::Interpolate>();
     const auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    const auto scales = op::v0::Constant::create(element::f32, {2}, {2.0, 2.0});
-    const auto axes = op::v0::Constant::create(element::i32, {2}, {2, 3});
+    const auto scales = op::v0::Constant::create(element::f32, {4}, {1.0, 1.0, 2.0, 2.0});
 
     op::v11::Interpolate::InterpolateAttrs attrs;
     attrs.mode = op::v11::Interpolate::InterpolateMode::BILINEAR_PILLOW;
@@ -94,7 +93,7 @@ TEST(attributes, interpolate_op11) {
     attrs.antialias = true;
     attrs.cube_coeff = -0.75;
 
-    auto interpolate = make_shared<opset11::Interpolate>(img, scales, axes, attrs);
+    auto interpolate = make_shared<opset11::Interpolate>(img, scales, attrs);
     NodeBuilder builder(interpolate, {img, scales});
     auto g_interpolate = ov::as_type_ptr<opset11::Interpolate>(builder.create());
 

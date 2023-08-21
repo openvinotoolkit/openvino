@@ -56,6 +56,7 @@ void op::v3::NonZero::validate_and_infer_types() {
 
     set_input_is_relevant_to_shape(0);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (const auto& input_constant = get_constant_from_source(input_value(0))) {
         // input_value is available to calculate output shape
         const auto& input_data = std::make_shared<HostTensor>(input_constant);
@@ -70,6 +71,7 @@ void op::v3::NonZero::validate_and_infer_types() {
         get_output_tensor(0).set_lower_value(t);
         get_output_tensor(0).set_upper_value(t);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -78,6 +80,7 @@ shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace nonzero {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUT_ET>

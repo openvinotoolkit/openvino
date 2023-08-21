@@ -215,14 +215,15 @@ int main(int argc, char* argv[]) {
                                                                           numFrames * numFrameElements);
                     slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
                                << slog::endl;
-                    scale_factors_per_input[model->input(i).get_any_name()] = floatScaleFactor;
+                    scale_factors_per_input[strip_name(model->input(i).get_any_name())] = floatScaleFactor;
                 }
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         const std::unordered_map<std::string, ov::intel_gna::HWGeneration> StringHWGenerationMap{
             {"GNA_TARGET_1_0", ov::intel_gna::HWGeneration::GNA_1_0},
+            {"GNA_TARGET_1_0_E", ov::intel_gna::HWGeneration::GNA_1_0_E},
             {"GNA_TARGET_2_0", ov::intel_gna::HWGeneration::GNA_2_0},
             {"GNA_TARGET_3_0", ov::intel_gna::HWGeneration::GNA_3_0},
             {"GNA_TARGET_3_1", ov::intel_gna::HWGeneration::GNA_3_1},

@@ -1,5 +1,13 @@
 # OpenVINO™ Python API Exclusives {#openvino_docs_OV_UG_Python_API_exclusives}
 
+@sphinxdirective
+
+.. meta::
+   :description: OpenVINO™ Runtime Python API includes additional features to 
+                 improve user experience and provide simple yet powerful tool 
+                 for Python users.
+
+
 OpenVINO™ Runtime Python API offers additional features and helpers to enhance user experience. The main goal of Python API is to provide user-friendly and simple yet powerful tool for Python users.
 
 Easier Model Compilation
@@ -9,7 +17,7 @@ Easier Model Compilation
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [auto_compilation]
 
 
@@ -20,7 +28,7 @@ Besides functions aligned to C++ API, some of them have their Python counterpart
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [properties_example]
 
 
@@ -33,7 +41,7 @@ Python API allows passing data as tensors. The ``Tensor`` object holds a copy of
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [tensor_basics]
 
 
@@ -44,7 +52,7 @@ Shared Memory Mode
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [tensor_shared_mode]
 
 
@@ -57,7 +65,7 @@ All infer methods allow users to pass data as popular *numpy* arrays, gathered i
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [passing_numpy_array]
 
 
@@ -65,7 +73,7 @@ Results from inference can be obtained in various ways:
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [getting_results]
 
 
@@ -76,8 +84,32 @@ Python API provides different synchronous calls to infer model, which block the 
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [sync_infer]
+
+
+Inference Results - OVDict
+++++++++++++++++++++++++++
+
+
+Synchronous calls return a special data structure called ``OVDict``. It can be compared to a "frozen dictionary". There are various ways of accessing the object's elements:
+
+
+.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+   :language: python
+   :fragment: [ov_dict]
+
+
+.. note:: 
+   
+   It is possible to convert ``OVDict`` to a native dictionary using the ``to_dict()`` method.
+
+
+.. warning:: 
+
+   Using ``to_dict()`` results in losing access via strings and integers. Additionally, 
+   it performs a shallow copy, thus any modifications may affect the original 
+   object as well.
 
 
 AsyncInferQueue
@@ -91,9 +123,13 @@ The ``start_async`` function call is not required to be synchronized - it waits 
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [asyncinferqueue]
 
+.. warning:: 
+
+   ``InferRequest`` objects that can be acquired by iterating over a ``AsyncInferQueue`` object or by ``[id]`` guaranteed to work with read-only methods like getting tensors.
+   Any mutating methods (e.g. start_async, set_callback) of a single request will put the parent AsyncInferQueue object in an invalid state.
 
 Acquiring Results from Requests
 -------------------------------
@@ -102,7 +138,7 @@ After the call to ``wait_all``, jobs and their data can be safely accessed. Acqu
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [asyncinferqueue_access]
 
 
@@ -115,7 +151,7 @@ The callback of ``AsyncInferQueue`` is uniform for every job. When executed, GIL
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [asyncinferqueue_set_callback]
 
 
@@ -127,7 +163,7 @@ To create an input tensor with such element types, you may need to pack your dat
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [packing_data]
 
 
@@ -135,7 +171,7 @@ To extract low precision values from a tensor into the *numpy* array, you can us
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [unpacking]
 
 
@@ -146,7 +182,7 @@ Some functions in Python API release the Global Lock Interpreter (GIL) while run
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py
-   :language: cpp
+   :language: python
    :fragment: [releasing_gil]
 
 
@@ -178,3 +214,5 @@ List of Functions that Release the GIL
 * openvino.runtime.InferRequest.query_state
 * openvino.runtime.Model.reshape
 * openvino.preprocess.PrePostProcessor.build
+
+@endsphinxdirective

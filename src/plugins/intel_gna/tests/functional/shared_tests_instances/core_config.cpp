@@ -8,6 +8,7 @@
 #include <string>
 
 #include "functional_test_utils/blob_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
     const float MAX_VAL_2B_FEAT = 16384.0f;
@@ -57,3 +58,11 @@ void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {
         configuration[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
     }
 }
+
+namespace ov {
+namespace test {
+
+void core_configuration(ov::test::SubgraphBaseTest* test) {}
+
+}  // namespace test
+}  // namespace ov

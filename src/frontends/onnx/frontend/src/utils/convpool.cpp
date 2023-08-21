@@ -12,6 +12,8 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/validation_util.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+
 namespace ngraph {
 namespace onnx_import {
 namespace convpool {
@@ -137,6 +139,7 @@ void calculate_auto_pads(const Shape& data_shape,
         padding_above.clear();
         // Extract kernel shape - remove (N,C) channels
         Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
+        OPENVINO_SUPPRESS_DEPRECATED_START
         ngraph::infer_auto_padding(data_shape,
                                    kernel_shape,
                                    strides,
@@ -144,6 +147,7 @@ void calculate_auto_pads(const Shape& data_shape,
                                    pad_type,
                                    padding_above,
                                    padding_below);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 }
 
@@ -166,3 +170,5 @@ Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters, i
 }  // namespace convpool
 }  // namespace onnx_import
 }  // namespace ngraph
+
+OPENVINO_SUPPRESS_DEPRECATED_END

@@ -6,10 +6,17 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -32,13 +39,17 @@ Output<Node> broadcast_const_to_channel_dim(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_batch_norm(NodeContext& context) {
+OutputVector translate_batch_norm(const NodeContext& context) {
     // Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var,
     // bool training, float momentum, float eps, bool cudnn_enabled) -> Tensor
     num_inputs_check(context, 8, 9);
     auto input = context.get_input(0);
     Output<Node> weight;
     Output<Node> bias;
+    Output<Node> running_mean;
+    Output<Node> running_var;
+    Output<Node> current_mean;
+    Output<Node> current_var;
     if (!context.input_is_none(1)) {
         weight = context.get_input(1);
     } else {
@@ -53,15 +64,44 @@ OutputVector translate_batch_norm(NodeContext& context) {
     }
     // index 3 running_mean and index 4 running_var can be none for training case only, check that not training before
     auto training = context.const_input<bool>(5);
-    FRONT_END_OP_CONVERSION_CHECK(!training, "Translation for aten::batch_norm do not support training mode.");
-    auto running_mean = context.get_input(3);
-    auto running_var = context.get_input(4);
-    // Input with index 6 is momentum, it is used only in training mode
+    // if training for batch norm activated, but model in eval mode, it uses current statistics instead of running
+    if (training) {
+        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+        auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
+        auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+        auto rank_unsq = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
+        auto rank = context.mark_node(std::make_shared<v0::Squeeze>(rank_unsq, zero));
+        auto after_channel_dims = context.mark_node(std::make_shared<v0::Range>(two, rank, one));
+        auto axes = context.mark_node(std::make_shared<v0::Concat>(OutputVector{zero_1d, after_channel_dims}, 0));
+        current_mean = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, false));
+        auto mean = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, true));
+        auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(input, mean));
+        auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
+        current_var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, false));
+    }
+    if (!training) {
+        running_mean = context.get_input(3);
+    } else {
+        running_mean = current_mean;
+    }
+    if (!training) {
+        running_var = context.get_input(4);
+    } else {
+        running_var = current_var;
+    }
+    // Input with index 6 is momentum, it is used only for updating running_mean accumulation during training
     auto epsilon = context.const_input<float>(7);
     // Input with index 8 is flag "cudnn_enabled" we can ignore it
     return {context.mark_node(
         std::make_shared<v5::BatchNormInference>(input, weight, bias, running_mean, running_var, epsilon))};
 };
+
+OutputVector translate_batch_norm_fx(const NodeContext& context) {
+    auto output = translate_batch_norm(context);
+    return {context.mark_node(make_list_construct(output))};
+}
 
 }  // namespace op
 }  // namespace pytorch

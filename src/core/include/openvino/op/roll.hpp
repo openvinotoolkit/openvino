@@ -13,7 +13,7 @@ namespace v7 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Roll : public Op {
 public:
-    OPENVINO_OP("Roll", "opset7", op::Op, 7);
+    OPENVINO_OP("Roll", "opset7", op::Op);
 
     Roll() = default;
 

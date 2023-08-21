@@ -19,19 +19,23 @@ namespace cldnn {
 ///        <tr><th>Data type               <th>activation format       <th>weights format
 ///        <tr><td rowspan="7">F32         <td rowspan="4">bfyx        <td>yxfb
 ///        <tr>                                                        <td>fyxb
-///        <tr>                                                        <td>bs_xs_xsv8_bsv8
-///        <tr>                                                        <td>bs_x_bsv16
+///        <tr>                                                        <td>bs_fs_fsv8_bsv8
+///        <tr>                                                        <td>bs_f_bsv16
 ///        <tr>                            <td rowspan="3">yxfb        <td>bfyx
 ///        <tr>                                                        <td>yxfb
-///        <tr>                                                        <td>bs_xs_xsv8_bsv8
+///        <tr>                                                        <td>bs_fs_fsv8_bsv8
 ///        <tr><td rowspan="4">F16         <td rowspan="3">bfyx        <td>yxfb
 ///        <tr>                                                        <td>fyxb
-///        <tr>                                                        <td>bs_x_bsv16
+///        <tr>                                                        <td>bs_f_bsv16
 ///        <tr>                            <td >yxfb                   <td>bfyx
 /// </table>
 
 struct fully_connected : public primitive_base<fully_connected> {
     CLDNN_DECLARE_PRIMITIVE(fully_connected)
+
+    fully_connected() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
@@ -43,11 +47,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& weights,
                     const primitive_id& bias = "",
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const size_t weights_rank = 2)
         : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          weights_rank(weights_rank)
     {}
 
     /// @brief Constructs fully connected layer.
@@ -61,11 +67,13 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& bias,
                     const data_types data_type,
                     const padding& output_padding = padding(),
-                    const size_t input_size = 2)
+                    const size_t input_size = 2,
+                    const size_t weights_rank = 2)
         : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
-          input_size(input_size)
+          input_size(input_size),
+          weights_rank(weights_rank)
     {}
 
     /// @brief Primitive id containing weights data.
@@ -73,11 +81,14 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @brief Primitive id containing bias data.
     primitive_id bias;
     /// @brief Primitive dimension size.
-    size_t input_size;
+    size_t input_size = 2;
+    /// @brief Primitive weights rank.
+    size_t weights_rank = 2;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, input_size);
+        seed = hash_combine(seed, weights_rank);
         seed = hash_combine(seed, bias.empty());
         return seed;
     }
@@ -89,7 +100,24 @@ struct fully_connected : public primitive_base<fully_connected> {
         auto rhs_casted = downcast<const fully_connected>(rhs);
 
         return input_size == rhs_casted.input_size &&
+               weights_rank == rhs_casted.weights_rank &&
                bias.empty() == rhs_casted.bias.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<fully_connected>::save(ob);
+        ob << weights;
+        ob << bias;
+        ob << input_size;
+        ob << weights_rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<fully_connected>::load(ib);
+        ib >> weights;
+        ib >> bias;
+        ib >> input_size;
+        ib >> weights_rank;
     }
 
 protected:

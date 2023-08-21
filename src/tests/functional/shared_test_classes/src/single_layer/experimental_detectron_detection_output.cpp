@@ -20,7 +20,7 @@ namespace {
     ss << "post_nms_count=" << attributes.post_nms_count << "_";
     ss << "max_detections_per_image=" << attributes.max_detections_per_image << "_";
     ss << "class_agnostic_box_regression=" << (attributes.class_agnostic_box_regression ? "true" : "false") << "_";
-    ss << "deltas_weights=" << CommonTestUtils::vec2str(attributes.deltas_weights);
+    ss << "deltas_weights=" << ov::test::utils::vec2str(attributes.deltas_weights);
     return ss;
 }
 } // namespace
@@ -164,7 +164,7 @@ void ExperimentalDetectronDetectionOutputLayerTest::generate_inputs(
     const auto& funcInputs = function->inputs();
     for (auto i = 0ul; i < funcInputs.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors[i]});

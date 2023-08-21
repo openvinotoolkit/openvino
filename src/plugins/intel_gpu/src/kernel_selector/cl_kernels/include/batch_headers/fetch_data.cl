@@ -76,6 +76,68 @@
     (i4)*CAT(prefix, _PITCHES)[4] + \
     (i5)*CAT(prefix, _PITCHES)[5]
 
+#define GET_DATA_INDEX_7D(prefix, b, f, u, w, z, y, x)  \
+    CAT(prefix, _OFFSET) +                              \
+    (x)*CAT(prefix, _X_PITCH) +                         \
+    (y)*CAT(prefix, _Y_PITCH) +                         \
+    (z)*CAT(prefix, _Z_PITCH) +                         \
+    (w)*CAT(prefix, _W_PITCH) +                         \
+    (u)*CAT(prefix, _U_PITCH) +                         \
+    (f)*CAT(prefix, _FEATURE_PITCH) +                   \
+    (b)*CAT(prefix, _BATCH_PITCH)
+
+#define GET_DATA_INDEX_7D_SAFE(prefix, b, f, u, w, z, y, x)         \
+    CAT(prefix, _OFFSET) +                                          \
+    (x % CAT(prefix, _SIZE_X     ))*CAT(prefix, _X_PITCH) +         \
+    (y % CAT(prefix, _SIZE_Y     ))*CAT(prefix, _Y_PITCH) +         \
+    (z % CAT(prefix, _SIZE_Z     ))*CAT(prefix, _Z_PITCH) +         \
+    (w % CAT(prefix, _SIZE_W     ))*CAT(prefix, _W_PITCH) +         \
+    (u % CAT(prefix, _SIZE_U     ))*CAT(prefix, _U_PITCH) +         \
+    (f % CAT(prefix, _FEATURE_NUM))*CAT(prefix, _FEATURE_PITCH) +   \
+    (b % CAT(prefix, _BATCH_NUM  ))*CAT(prefix, _BATCH_PITCH)
+
+#define GET_DATA_INDEX_7D_RAW(prefix, i0, i1, i2, i3, i4, i5, i6) \
+    CAT(prefix, _OFFSET) + \
+    (i0)*CAT(prefix, _PITCHES)[0] + \
+    (i1)*CAT(prefix, _PITCHES)[1] + \
+    (i2)*CAT(prefix, _PITCHES)[2] + \
+    (i3)*CAT(prefix, _PITCHES)[3] + \
+    (i4)*CAT(prefix, _PITCHES)[4] + \
+    (i5)*CAT(prefix, _PITCHES)[5] + \
+    (i6)*CAT(prefix, _PITCHES)[6]
+
+#define GET_DATA_INDEX_8D(prefix, b, f, v, u, w, z, y, x)   \
+    CAT(prefix, _OFFSET) +                                  \
+    (x)*CAT(prefix, _X_PITCH) +                             \
+    (y)*CAT(prefix, _Y_PITCH) +                             \
+    (z)*CAT(prefix, _Z_PITCH) +                             \
+    (w)*CAT(prefix, _W_PITCH) +                             \
+    (u)*CAT(prefix, _U_PITCH) +                             \
+    (v)*CAT(prefix, _V_PITCH) +                             \
+    (f)*CAT(prefix, _FEATURE_PITCH) +                       \
+    (b)*CAT(prefix, _BATCH_PITCH)
+
+#define GET_DATA_INDEX_8D_SAFE(prefix, b, f, v, u, w, z, y, x)      \
+    CAT(prefix, _OFFSET) +                                          \
+    (x % CAT(prefix, _SIZE_X     ))*CAT(prefix, _X_PITCH) +         \
+    (y % CAT(prefix, _SIZE_Y     ))*CAT(prefix, _Y_PITCH) +         \
+    (z % CAT(prefix, _SIZE_Z     ))*CAT(prefix, _Z_PITCH) +         \
+    (w % CAT(prefix, _SIZE_W     ))*CAT(prefix, _W_PITCH) +         \
+    (u % CAT(prefix, _SIZE_U     ))*CAT(prefix, _U_PITCH) +         \
+    (v % CAT(prefix, _SIZE_V     ))*CAT(prefix, _V_PITCH) +         \
+    (f % CAT(prefix, _FEATURE_NUM))*CAT(prefix, _FEATURE_PITCH) +   \
+    (b % CAT(prefix, _BATCH_NUM  ))*CAT(prefix, _BATCH_PITCH)
+
+#define GET_DATA_INDEX_8D_RAW(prefix, i0, i1, i2, i3, i4, i5, i6, i7) \
+    CAT(prefix, _OFFSET) + \
+    (i0)*CAT(prefix, _PITCHES)[0] + \
+    (i1)*CAT(prefix, _PITCHES)[1] + \
+    (i2)*CAT(prefix, _PITCHES)[2] + \
+    (i3)*CAT(prefix, _PITCHES)[3] + \
+    (i4)*CAT(prefix, _PITCHES)[4] + \
+    (i5)*CAT(prefix, _PITCHES)[5] + \
+    (i6)*CAT(prefix, _PITCHES)[6] + \
+    (i7)*CAT(prefix, _PITCHES)[7]
 
 #define GET_DATA_BS_FYX_BSV8_INDEX(prefix, b, f, y, x, sub_group_size)  \
     CAT(prefix, _OFFSET) +                                              \
@@ -1194,4 +1256,3 @@ inline uint get_bs_fs_zyx_bsv_fsv_index(uint b, uint f,  uint z, uint y, uint x,
         CAT(prefix, _PAD_AFTER_SIZE_Y),                                  \
         CAT(prefix, _PAD_BEFORE_SIZE_X),                                 \
         CAT(prefix, _PAD_AFTER_SIZE_X), 16, 16)
-

@@ -24,6 +24,10 @@ namespace cldnn {
 struct border : public primitive_base<border> {
     CLDNN_DECLARE_PRIMITIVE(border)
 
+    border() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief whether the input is const or not
     enum PAD_NON_CONST_INPUT {
         BEGIN = 0x1,
@@ -63,11 +67,11 @@ struct border : public primitive_base<border> {
     /// @brief Sizes of border that needs to be added from right (in X dimension) and from bottom (in Y dimension).
     ov::CoordinateDiff pads_end;
     /// @brief Type of border that needs to be added to the input.
-    ov::op::PadMode pad_mode;
+    ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT;
     /// @brief Border value that is used in constant mode.
-    float pad_value;
+    float pad_value = 0.0f;
     /// @brief Bit mask whether input is non-constant or not. Position is defined at PAD_NON_CONST_INPUT.
-    int32_t non_constant_input_mask;
+    int32_t non_constant_input_mask = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -89,6 +93,24 @@ struct border : public primitive_base<border> {
                pads_end == rhs_casted.pads_end &&
                pad_mode == rhs_casted.pad_mode &&
                pad_value == rhs_casted.pad_value;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<border>::save(ob);
+        ob << pads_begin;
+        ob << pads_end;
+        ob << make_data(&pad_mode, sizeof(ov::op::PadMode));
+        ob << pad_value;
+        ob << non_constant_input_mask;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<border>::load(ib);
+        ib >> pads_begin;
+        ib >> pads_end;
+        ib >> make_data(&pad_mode, sizeof(ov::op::PadMode));
+        ib >> pad_value;
+        ib >> non_constant_input_mask;
     }
 };
 }  // namespace cldnn

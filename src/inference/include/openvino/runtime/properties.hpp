@@ -36,6 +36,7 @@ namespace ov {
 enum class PropertyMutability {
     RO,  //!< Read-only property values can not be passed as input parameter
     RW,  //!< Read/Write property key may change readability in runtime
+    WO,  //!< Write-only property can not be read
 };
 
 /** @cond INTERNAL */
@@ -234,21 +235,15 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
- * @brief Hint for device to use specified precision for inference
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
-
-/**
  * @brief Namespace with hint properties
  */
 namespace hint {
 
 /**
- * @brief An alias for inference_precision property for backward compatibility
+ * @brief Hint for device to use specified precision for inference
  * @ingroup ov_runtime_cpp_prop_api
  */
-using ov::inference_precision;
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
  * @brief Enum to define possible priorities hints
@@ -271,7 +266,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        OPENVINO_THROW("Unsupported performance measure hint");
+        OPENVINO_THROW("Unsupported model priority value");
     }
 }
 
@@ -284,6 +279,8 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
         priority = Priority::MEDIUM;
     } else if (str == "HIGH") {
         priority = Priority::HIGH;
+    } else if (str == "DEFAULT") {
+        priority = Priority::DEFAULT;
     } else {
         OPENVINO_THROW("Unsupported model priority: ", str);
     }
@@ -303,7 +300,8 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
+    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
+        -1,                     //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
@@ -312,8 +310,10 @@ enum class PerformanceMode {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
     case PerformanceMode::UNDEFINED:
         return os << "UNDEFINED";
+        OPENVINO_SUPPRESS_DEPRECATED_END
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -335,7 +335,9 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
     } else if (str == "UNDEFINED") {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         performance_mode = PerformanceMode::UNDEFINED;
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         OPENVINO_THROW("Unsupported performance mode: ", str);
     }
@@ -350,6 +352,94 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
+
+/**
+ * @enum       SchedulingCoreType
+ * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
+ */
+enum class SchedulingCoreType {
+    ANY_CORE = 0,    //!<  Any processors can be used.
+    PCORE_ONLY = 1,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 2,  //!<  Only processors of efficient-cores can be used.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core_type) {
+    switch (core_type) {
+    case SchedulingCoreType::ANY_CORE:
+        return os << "ANY_CORE";
+    case SchedulingCoreType::PCORE_ONLY:
+        return os << "PCORE_ONLY";
+    case SchedulingCoreType::ECORE_ONLY:
+        return os << "ECORE_ONLY";
+    default:
+        OPENVINO_THROW("Unsupported core type!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type) {
+    std::string str;
+    is >> str;
+    if (str == "ANY_CORE") {
+        core_type = SchedulingCoreType::ANY_CORE;
+    } else if (str == "PCORE_ONLY") {
+        core_type = SchedulingCoreType::PCORE_ONLY;
+    } else if (str == "ECORE_ONLY") {
+        core_type = SchedulingCoreType::ECORE_ONLY;
+    } else {
+        OPENVINO_THROW("Unsupported core type: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines CPU core type which can be used during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
+ * all definition of core type.
+ *
+ * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
+ *
+ * @code
+ * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
+/**
+ * @brief This property allows CPU threads pinning during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
+ * set value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_cpu_pinning(true));
+ * ie.set_property(ov::hint::enable_cpu_pinning(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
+
+/**
+ * @brief This property define if using hyper threading during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU pinning during inference. If user does not explicitly set
+ * value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_hyper_threading(true));
+ * ie.set_property(ov::hint::enable_hyper_threading(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_hyper_threading{"ENABLE_HYPER_THREADING"};
 
 /**
  * @brief (Optional) property that backs the (above) Performance Hints
@@ -377,16 +467,13 @@ static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALL
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class ExecutionMode {
-    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
-    PERFORMANCE = 1,  //!<  Optimize for max performance
+    PERFORMANCE = 1,  //!<  Optimize for max performance, may apply properties which slightly affect accuracy
     ACCURACY = 2,     //!<  Optimize for max accuracy
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     switch (mode) {
-    case ExecutionMode::UNDEFINED:
-        return os << "UNDEFINED";
     case ExecutionMode::PERFORMANCE:
         return os << "PERFORMANCE";
     case ExecutionMode::ACCURACY:
@@ -403,8 +490,6 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
         mode = ExecutionMode::PERFORMANCE;
     } else if (str == "ACCURACY") {
         mode = ExecutionMode::ACCURACY;
-    } else if (str == "UNDEFINED") {
-        mode = ExecutionMode::UNDEFINED;
     } else {
         OPENVINO_THROW("Unsupported execution mode: ", str);
     }
@@ -595,6 +680,17 @@ static constexpr Property<std::tuple<unsigned int, unsigned int, unsigned int>, 
 static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FORCE_TBB_TERMINATE"};
 
 /**
+ * @brief Read-write property to configure `mmap()` use for model read. Enabled by default.
+ * For the moment only IR Frontend supports the property.
+ *
+ * value type: boolean
+ *   - True enable `mmap()` use and map model
+ *   - False disable `mmap()` use and read model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
+
+/**
  * @brief Namespace with device properties
  */
 namespace device {
@@ -748,6 +844,45 @@ inline std::istream& operator>>(std::istream& is, UUID& device_uuid) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<UUID, PropertyMutability::RO> uuid{"DEVICE_UUID"};
+
+/**
+ * @brief Structure which defines format of LUID.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct LUID {
+    static const uint64_t MAX_LUID_SIZE = 8;  //!< Max size of luid array (64 bits)
+    std::array<uint8_t, MAX_LUID_SIZE> luid;  //!< Array with luid for a device
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const LUID& device_luid) {
+    std::stringstream s;
+    for (auto& c : device_luid.luid) {
+        s << std::hex << std::setw(2) << std::setfill('0') << +c;
+    }
+    return os << s.str();
+}
+
+inline std::istream& operator>>(std::istream& is, LUID& device_luid) {
+    std::string s;
+    auto flags = is.flags();
+    for (size_t i = 0; i < LUID::MAX_LUID_SIZE; i++) {
+        is >> std::setw(2) >> s;
+        std::istringstream ss2(s);
+        int val;
+        ss2 >> std::hex >> val;
+        device_luid.luid[i] = static_cast<uint8_t>(val);
+    }
+    is.flags(flags);
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property which defines the LUID of the device.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<LUID, PropertyMutability::RO> luid{"DEVICE_LUID"};
 
 /**
  * @brief Enum to define possible device types

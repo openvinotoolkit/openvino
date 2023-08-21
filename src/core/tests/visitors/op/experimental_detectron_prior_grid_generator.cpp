@@ -4,11 +4,11 @@
 
 #include <vector>
 
+#include "common_test_utils/visitor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset6.hpp"
-#include "util/visitor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -29,7 +29,7 @@ TEST(attributes, detectron_prior_grid_generator) {
     attrs.stride_y = 64;
 
     auto priors = std::make_shared<op::Parameter>(element::f32, Shape{3, 4});
-    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 16, 100, 100});
+    auto feature_map = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 100, 100});
     auto im_data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 100, 200});
 
     auto proposals = std::make_shared<ExperimentalGenerator>(priors, feature_map, im_data, attrs);

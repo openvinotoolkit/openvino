@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace InferenceEngine {
 
@@ -94,6 +95,13 @@ using ov::with_cpu_x86_avx;
 using ov::with_cpu_x86_avx2;
 
 /**
+ * @brief      Checks whether CPU supports AVX2_VNNI capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is AVX2_VNNI instructions are available, `false` otherwise
+ */
+using ov::with_cpu_x86_avx2_vnni;
+
+/**
  * @brief      Checks whether CPU supports AVX 512 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is AVX512F (foundation) instructions are available, `false` otherwise
@@ -122,6 +130,13 @@ using ov::with_cpu_x86_avx512_core_vnni;
 using ov::with_cpu_x86_bfloat16;
 
 /**
+ * @brief      Checks whether CPU supports fp16 capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is tAVX512_FP16 instructions are available, `false` otherwise
+ */
+using ov::with_cpu_x86_avx512_core_fp16;
+
+/**
  * @brief      Checks whether CPU supports AMX int8 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is tAMX_INT8 instructions are available, `false` otherwise
@@ -143,7 +158,69 @@ using ov::with_cpu_x86_avx512_core_amx_bf16;
 using ov::with_cpu_x86_avx512_core_amx;
 
 /**
- * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
+ * @brief      Checks whether CPU mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+using ov::is_cpu_map_available;
+
+/**
+ * @brief      Get number of numa nodes
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of numa nodes
+ */
+using ov::get_num_numa_nodes;
+
+/**
+ * @brief      Get number of sockets
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Number of sockets
+ */
+using ov::get_num_sockets;
+
+/**
+ * @brief      Returns number of CPU cores on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  plugin_task plugin task.
+ * @return     Number of CPU cores with core_type.
+ */
+using ov::get_proc_type_table;
+
+/**
+ * @brief      Returns original number of CPU cores on Linux/Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  plugin_task plugin task.
+ * @return     Number of original CPU cores with core_type.
+ */
+using ov::get_org_proc_type_table;
+
+/**
+ * @brief      Get and reserve available cpu ids
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  streams_info_table streams information table.
+ * @param[in]  stream_processors processors grouped in stream
+ * @param[in]  cpu_status set cpu status
+ */
+using ov::reserve_available_cpus;
+
+/**
+ * @brief      Set flag bit 'Used' of CPU
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cup_mapping.
+ * @param[in]  used flag bit
+ */
+using ov::set_cpu_used;
+
+/**
+ * @brief      Get socket id by current numa node id
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  numa_node_id numa node id
+ * @return     socket id
+ */
+using ov::get_socket_by_numa_node;
+
+/**
+ * @brief      This enum contains definition of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
  * The following are two example of processor type table.
@@ -162,7 +239,7 @@ using ov::with_cpu_x86_avx512_core_amx;
 using ov::ColumnOfProcessorTypeTable;
 
 /**
- * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
+ * @brief      This enum contains definition of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
  *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
@@ -184,5 +261,10 @@ using ov::ColumnOfProcessorTypeTable;
  *       7             0          5          2          2        0
  */
 using ov::ColumnOfCPUMappingTable;
+
+/**
+ * @brief      definition of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+using ov::ProcessorUseStatus;
 
 }  // namespace InferenceEngine

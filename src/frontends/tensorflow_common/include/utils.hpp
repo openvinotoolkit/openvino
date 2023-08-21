@@ -7,7 +7,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 #ifndef TENSORFLOW_OP_VALIDATION
@@ -20,7 +19,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-using OpMap = std::unordered_map<std::string, std::vector<ov::Output<ov::Node>>>;
+using OpMap = std::unordered_map<std::string, NamedOutputVector>;
 
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
@@ -68,7 +67,9 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size) + " inputs, but requested input port index to be " +
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto constant = get_constant_from_source(ov_input)) {
+        OPENVINO_SUPPRESS_DEPRECATED_END
         *vector = constant->cast_vector<T>();
         return;
     }
@@ -98,6 +99,62 @@ ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string&
 Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,
                                           bool as_scalar = false);
+
+std::shared_ptr<ov::opset10::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
+                                                       const ov::AxisVector& input_order);
+
+std::shared_ptr<ov::opset10::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                   const std::vector<int64_t>& new_shape);
+
+template <typename T>
+void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (dst.size() >= 2) {
+        FRONT_END_GENERAL_CHECK(src.size() > 2,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 2.");
+        dst[0] = src[1];
+        dst[1] = src[2];
+    }
+    if (dst.size() >= 3) {
+        FRONT_END_GENERAL_CHECK(src.size() > 3,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 3.");
+        dst[2] = src[3];
+    }
+}
+
+template <typename T>
+void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (dst.size() >= 2) {
+        FRONT_END_GENERAL_CHECK(src.size() > 3,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 3.");
+        dst[0] = src[2];
+        dst[1] = src[3];
+    }
+    if (dst.size() >= 3) {
+        FRONT_END_GENERAL_CHECK(src.size() > 4,
+                                "[TensorFlow Frontend] Internal error: source vector size must be greater than 4.");
+        dst[2] = src[4];
+    }
+}
+
+void convert_nhwc_to_nchw(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank = ov::Rank::dynamic());
+
+void convert_nchw_to_nhwc(bool need_convert, ov::Output<ov::Node>& node, ov::Rank input_rank = ov::Rank::dynamic());
+
+template <typename T>
+void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
+    if (is_nhwc) {
+        convert_nhwc_to_hw(src, dst);
+    } else {
+        convert_nchw_to_hw(src, dst);
+    }
+}
+
+// retrieve data slices collected in a range [start; stop) by the first dimension
+ov::Output<ov::Node> get_data_slice(const ov::Output<ov::Node>& data,
+                                    const int64_t& start,
+                                    const int64_t& stop,
+                                    const int64_t& step);
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

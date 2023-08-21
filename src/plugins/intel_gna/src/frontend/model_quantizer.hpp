@@ -92,11 +92,12 @@ private:
             // We are looking for infinite loop by using algorithm of compute prefix function, complexity O(N)
             // (a part of the Knuth–Morris–Pratt algorithm).
             std::map<int, int> prefix_function;
-            int32_t k = inf_loop_history.size();
-            for (int32_t i = inf_loop_history.size() - 2; i >= 0; i--) {
-                while (k < inf_loop_history.size() && inf_loop_history[k - 1] != inf_loop_history[i]) {
+            auto k = static_cast<int>(inf_loop_history.size());
+            for (int32_t i = static_cast<int32_t>(inf_loop_history.size()) - 2; i >= 0; i--) {
+                while (k < static_cast<int>(inf_loop_history.size()) &&
+                       inf_loop_history[k - 1] != inf_loop_history[i]) {
                     auto iter = prefix_function.find(k);
-                    k = iter == prefix_function.end() ? inf_loop_history.size() : iter->second;
+                    k = iter == prefix_function.end() ? static_cast<int>(inf_loop_history.size()) : iter->second;
                 }
 
                 if (inf_loop_history[k - 1] == inf_loop_history[i]) {
@@ -127,7 +128,7 @@ private:
                         log::debug() << "\t " << s << '\n';
                     }
                     inf_loop_pattern.clear();
-                    int pattern_len = (inf_loop_history.size() - i) / 2;
+                    auto pattern_len = (static_cast<int>(inf_loop_history.size()) - i) / 2;
                     log::debug() << "pattern_len: " << pattern_len << '\n';
                     for (int j = 0; j < pattern_len; j++) {
                         inf_loop_pattern.emplace_back(inf_loop_history[inf_loop_history.size() - pattern_len + j]);
@@ -148,13 +149,28 @@ private:
                 inf_loop_count++;
             } else {
                 if (inf_loop_count > 0 &&
-                    (inf_loop_history.size() % inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
-                    !std::equal(inf_loop_history.begin() + (inf_loop_history.size() - inf_loop_pattern.size()),
-                                inf_loop_history.end(),
-                                inf_loop_pattern.begin())) {
-                    inf_loop_count = 0;
-                    inf_loop_pattern.clear();
-                    log::debug() << "infinite loop fixed\n";
+                    ((inf_loop_pattern.size() > 0 && (inf_loop_history.size() % inf_loop_pattern.size() == 0)) ||
+                     sf.allLayersProcessed())) {
+                    size_t history_shift = 0;
+                    size_t pattern_shift = 0;
+
+                    if (inf_loop_history.size() > inf_loop_pattern.size()) {
+                        history_shift = inf_loop_history.size() - inf_loop_pattern.size();
+                    } else {
+                        pattern_shift = inf_loop_pattern.size() - inf_loop_history.size();
+                    }
+
+                    if (!std::equal(inf_loop_history.begin() + history_shift,
+                                    inf_loop_history.end(),
+                                    inf_loop_pattern.begin() + pattern_shift)) {
+                        inf_loop_count = 0;
+                        log::debug() << "inf_loop_pattern:\n";
+                        for (const auto& s : inf_loop_pattern) {
+                            log::debug() << "\t " << s << '\n';
+                        }
+                        inf_loop_pattern.clear();
+                        log::debug() << "infinite loop fixed\n";
+                    }
                 }
             }
 

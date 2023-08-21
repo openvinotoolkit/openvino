@@ -34,9 +34,10 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
         set_input_is_relevant_to_value(i);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& data_type = get_input_element_type(0);
     for (size_t i = 0; i < output_shapes.size(); ++i) {
@@ -50,6 +51,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace variadic_split {
 namespace {
 inline bool evaluate(const HostTensorPtr& in,
@@ -84,14 +86,15 @@ bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inpu
     NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
                  "split_lengths element type is not integral data type");
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
     axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::vector<ov::PartialShape> input_shapes = {data_tensor->get_partial_shape(),
                                                   axis_tensor->get_partial_shape(),
                                                   split_lengths_tensor->get_partial_shape()};
-    std::vector<ov::PartialShape> output_shapes;
-    shape_infer(this, input_shapes, output_shapes, {{1, axis_tensor}, {2, split_lengths_tensor}});
+    auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor(inputs));
 
     const auto data_shape = data_tensor->get_shape();
     std::vector<size_t> lower_bounds(data_shape.size(), 0);
@@ -141,5 +144,7 @@ bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) cons
 }
 
 bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

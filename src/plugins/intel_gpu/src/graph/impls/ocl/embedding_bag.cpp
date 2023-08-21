@@ -65,3 +65,4 @@ attach_embedding_bag_impl::attach_embedding_bag_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::embedding_bag_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::embedding_bag)

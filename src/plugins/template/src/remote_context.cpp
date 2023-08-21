@@ -10,10 +10,13 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/itensor.hpp"
+#include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
 
-namespace {
+namespace ov {
+namespace template_plugin {
 
+// ! [vector_impl_t:implementation]
 template <class T>
 class VectorTensorImpl : public ov::IRemoteTensor {
     void update_strides() {
@@ -78,68 +81,28 @@ public:
         return m_dev_name;
     }
 };
+// ! [vector_impl_t:implementation]
 
-}  // namespace
+// ! [remote_context:ctor]
+RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
+// ! [remote_context:ctor]
 
-class VectorImpl : public ov::IRemoteTensor {
-private:
-    std::shared_ptr<ov::IRemoteTensor> m_tensor;
-
-public:
-    VectorImpl(const std::shared_ptr<ov::IRemoteTensor>& tensor) : m_tensor(tensor) {}
-
-    template <class T>
-    operator std::vector<T>&() const {
-        auto impl = std::dynamic_pointer_cast<VectorTensorImpl<T>>(m_tensor);
-        OPENVINO_ASSERT(impl, "Cannot get vector. Type is incorrect!");
-        return impl->get();
-    }
-
-    void set_shape(ov::Shape shape) override {
-        m_tensor->set_shape(std::move(shape));
-    }
-
-    const ov::element::Type& get_element_type() const override {
-        return m_tensor->get_element_type();
-    }
-
-    const ov::Shape& get_shape() const override {
-        return m_tensor->get_shape();
-    }
-
-    size_t get_size() const override {
-        return m_tensor->get_size();
-    }
-
-    size_t get_byte_size() const override {
-        return m_tensor->get_byte_size();
-    }
-
-    const ov::Strides& get_strides() const override {
-        return m_tensor->get_strides();
-    }
-
-    const ov::AnyMap& get_properties() const override {
-        return m_tensor->get_properties();
-    }
-
-    const std::string& get_device_name() const override {
-        return m_tensor->get_device_name();
-    }
-};
-
-ov::template_plugin::RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
-
-const std::string& ov::template_plugin::RemoteContext::get_device_name() const {
+// ! [remote_context:get_device_name]
+const std::string& RemoteContext::get_device_name() const {
     return m_name;
 }
-const ov::AnyMap& ov::template_plugin::RemoteContext::get_property() const {
+// ! [remote_context:get_device_name]
+
+// ! [remote_context:get_property]
+const ov::AnyMap& RemoteContext::get_property() const {
     return m_property;
 }
+// ! [remote_context:get_property]
 
-std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_tensor(const ov::element::Type& type,
-                                                                                     const ov::Shape& shape,
-                                                                                     const ov::AnyMap& params) {
+// ! [remote_context:create_tensor]
+ov::SoPtr<ov::IRemoteTensor> RemoteContext::create_tensor(const ov::element::Type& type,
+                                                          const ov::Shape& shape,
+                                                          const ov::AnyMap& params) {
     std::shared_ptr<ov::IRemoteTensor> tensor;
 
     switch (type) {
@@ -189,3 +152,7 @@ std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_te
     }
     return std::make_shared<VectorImpl>(tensor);
 }
+// ! [remote_context:create_tensor]
+
+}  // namespace template_plugin
+}  // namespace ov

@@ -63,26 +63,26 @@ KERNEL(reorder_biplanar_nv12)(
     G -= VALUE_TO_SUBTRACT[1];
     B -= VALUE_TO_SUBTRACT[2];
 #elif defined MEAN_SUBTRACT_IN_BUFFER
-    uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 0, w, z, y, x);
-    R -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, msv.s5, msv.s6)];
+    uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 0, 0, 0, w, z, y, x);
+    R -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
 
-    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 1, w, z, y, x);
-    G -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, msv.s5, msv.s6)];
+    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 1, 0, 0, w, z, y, x);
+    G -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
 
-    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 2, w, z, y, x);
-    B -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, msv.s5, msv.s6)];
+    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 2, 0, 0, w, z, y, x);
+    B -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s0, msv.s1, msv.s6, msv.s7)];
 #endif
 
-    uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, 0, 0, w, z, y, x);
+    uint output_idx = FUNC_CALL(get_output_index)(ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
 
-    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, 0, 0, w, z, y, x);
+    output_idx = FUNC_CALL(get_output_index)(ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
 
-    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
+    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, 0, 0, w, z, y, x);
+    output_idx = FUNC_CALL(get_output_index)(ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
 
 

@@ -21,7 +21,7 @@
 #include "utils/cpu_utils.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/shape_inference/shape_inference_pass_through.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -33,8 +33,9 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
 
+#if defined(OPENVINO_ARCH_X86_64)
+namespace {
 struct jit_has_subnormals_base : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_subnormals_base)
 
@@ -229,6 +230,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 }
 
 }   // namespace
+#endif
 
 Input::Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
@@ -264,29 +266,36 @@ void Input::cloneBlobIfRequired() {
     }
 
     auto cloneBlob = [&, this] () {
-        Memory memory{ getEngine() };
+        MemoryPtr memory;
 
         // CVS-74980
         // oneDNN always allocate 1byte for element type with bitWidth < 8 (u4,u1...)
         // but ngraph Constant uses actual bitWidth for data storage allocation
         // in that case we make a copy to avoid overflow
         if (constOp->get_byte_size() >= memDesc.getCurrentMemSize()) {
-            memory.Create(memDesc, constOp->get_data_ptr());
+            memory = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
         } else {
-            memory.Create(memDesc);
-            memcpy(memory.GetPtr(), constOp->get_data_ptr(), constOp->get_byte_size());
+            memory = std::make_shared<Memory>(getEngine(), memDesc);
+            memcpy(memory->getData(), constOp->get_data_ptr(), constOp->get_byte_size());
         }
 
-        MemoryPtr ptr = MemoryPtr(new Memory(getEngine()));
-        ptr->Create(memDesc);
-        ptr->SetData(memory, needFlushDenormalsToZero);
+        MemoryPtr ptr = std::make_shared<StaticMemory>(getEngine(), memDesc);
+        ptr->load(*memory.get(), needFlushDenormalsToZero);
 
         return ptr;
     };
 
     auto isBlobAligned = [&, this] () {
         const void *ptr = constOp->get_data_ptr();
-        return prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        bool blobAlignedOnSSE = true;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+        // Majority of arithmetic and data processing instructions in legacy SSE isa requires
+        // the memory address in the operands must be aligned on 16-byte boundary. To ensure
+        // safely reusing ngraph const blob memory, need to check address alignment.
+        blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+#endif
+        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
+        return blobAlignedWithPrec && blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -297,6 +306,7 @@ void Input::cloneBlobIfRequired() {
             if (!size)
                 return false;
 
+#if defined(OPENVINO_ARCH_X86_64)
             if (auto fn = jit_has_subnormals_function()) {
                 static const size_t batch_size = 2048;
                 const size_t iterations_num = size / batch_size + 1;
@@ -318,11 +328,12 @@ void Input::cloneBlobIfRequired() {
                 });
 
                 return has_subnormals;
-            } else {
-                for (size_t i = 0; i < size; ++i) {
-                    if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
-                        return true;
-                    }
+            }
+#endif
+
+            for (size_t i = 0; i < size; ++i) {
+                if (u32data[i] && (u32data[i] & (0xFF << 23)) == 0) {
+                    return true;
                 }
             }
         }
@@ -360,17 +371,16 @@ void Input::cloneBlobIfRequired() {
     };
 
     auto weightCache = context->getWeightsCache();
+
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const Memory>(ptr);
+        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
     } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        auto ptr = new Memory(getEngine());
-        ptr->Create(memDesc, constOp->get_data_ptr());
-        memoryPtr = MemoryCPtr(ptr);
+        memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
-        memoryPtr = std::const_pointer_cast<const Memory>(cloneBlob());
+        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
     }
 }
 
@@ -430,13 +440,13 @@ void Input::initSupportedPrimitiveDescriptors() {
 
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
-        auto &dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+        auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " to node " << getChildEdgeAt(i)->getChild()->getName() << ".";
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto &srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        auto srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate for node " << getName()
                                << " from node " << getParentEdgeAt(i)->getParent()->getName() << ".";

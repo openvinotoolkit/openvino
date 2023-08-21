@@ -18,6 +18,8 @@
 #include <set>
 #include <string>
 
+#include "openvino/util/log.hpp"
+
 namespace ngraph {
 
 /**
@@ -28,7 +30,7 @@ namespace ngraph {
 class Mask : public std::vector<std::set<uint64_t>>, public std::enable_shared_from_this<Mask> {
 public:
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", 0, "0"};
+        static const ::ov::DiscreteTypeInfo type_info_static{"Mask", "0"};
         return type_info_static;
     }
 
@@ -211,7 +213,7 @@ public:
 
     bool add_callback(const std::function<bool(Mask::Ptr)>& receive_callback, Mask::Ptr mask) {
         if (m_callbacks.find(mask.get()) != m_callbacks.end())
-            NGRAPH_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
+            OPENVINO_DEBUG << "Attempt to rewrite callback, could lead to unexpected behaviour";
 
         m_callbacks[mask.get()] = receive_callback;
         m_dependencies.push_back(mask.get());

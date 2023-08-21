@@ -35,7 +35,9 @@ void op::v0::Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
@@ -48,18 +50,18 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto repeats_val = read_index_vector(axis);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto repeats_rank = repeats_val.size();
 
-    auto axis_tensor = Tensor(axis->get_element_type(), axis->get_shape(), axis->get_data_ptr());
-    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis_tensor}};
-
     const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};
-    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
+    const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
@@ -84,8 +86,7 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
 
     std::vector<ov::PartialShape> input_shapes = {data.get_shape(), axis.get_shape()};
 
-    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis}};
-    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
+    const auto& output_shape = shape_infer(this, input_shapes, make_tensor_accessor(input_values)).front().to_shape();
     output.set_shape(output_shape);
     repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
     ngraph::runtime::reference::tile(static_cast<const char*>(data.data()),
@@ -109,6 +110,7 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
     OV_OP_SCOPE(v0_Tile_evaluate);
     return evaluate_tile(outputs, inputs);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_lower);
@@ -126,5 +128,7 @@ bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(v0_Tile_evaluate_label);
     OPENVINO_ASSERT(output_labels.size() == 1);
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

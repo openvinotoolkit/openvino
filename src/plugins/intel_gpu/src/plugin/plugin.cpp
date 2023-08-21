@@ -4,6 +4,7 @@
 
 #include <limits>
 #include <algorithm>
+#include <mutex>
 #include <string>
 #include <map>
 #include <vector>
@@ -11,11 +12,15 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
-#include "ie_metric_helpers.hpp"
-#include <ie_ngraph_utils.hpp>
-#include <ie_algorithm.hpp>
+
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
 
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/util/common_util.hpp"
+
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
@@ -24,24 +29,14 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/plugin/legacy_api_helper.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ie_plugin_config.hpp"
-#include "gpu/gpu_config.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "ie_icore.hpp"
-
-#include "dimension_tracker.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/utils/utils.hpp>
-
-#include <openvino/pass/manager.hpp>
-#include <openvino/util/common_util.hpp>
+#include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <performance_heuristics.hpp>
 
@@ -131,12 +126,23 @@ InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEng
         GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
             auto path_base = debug_config->dump_graphs + "/" + network.getName() + "_" +  "transformed_func";
             ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(nGraphFunc);
-    }
+        }
     }
     return clonedNetwork;
 }
 
-Plugin::Plugin() : m_default_contexts({}) {
+std::map<std::string, RemoteCLContext::Ptr> Plugin::get_default_contexts() const {
+    std::call_once(m_default_contexts_once, [this]() {
+        // Create default context
+        for (auto& device : device_map) {
+            auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
+            m_default_contexts.insert({device.first, ctx});
+        }
+    });
+    return m_default_contexts;
+}
+
+Plugin::Plugin() {
     _pluginName = "GPU";
     register_primitives();
     // try loading gpu engine and get info from it
@@ -148,14 +154,12 @@ Plugin::Plugin() : m_default_contexts({}) {
         // Set default configs for each device
         for (auto& device : device_map) {
             m_configs_map.insert({device.first, ExecutionConfig(ov::device::id(device.first))});
-            auto ctx = std::make_shared<RemoteCLContext>(GetName() + "." + device.first, std::vector<cldnn::device::ptr>{ device.second });
-            m_default_contexts.insert({device.first, ctx});
         }
     }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
-    for (auto ii : _networkInputs) {
+    for (const auto& ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 &&
             input_precision != InferenceEngine::Precision::FP32 &&
@@ -169,23 +173,10 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            IE_THROW(NotImplemented)
-                << "Input image format " << input_precision << " is not supported yet...";
+            OPENVINO_THROW("Input image format ", input_precision, " is not supported yet...");
         }
     }
 };
-
-void Plugin::update_memory_statistics(const RemoteContextImpl::Ptr& context) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::update_memory_statistics");
-    {
-        std::lock_guard<std::mutex> lock(engine_mutex);
-
-        // if the same context exists, the statistics is replaced with the latest one
-        // (currently, memory usage is accumulated for several networks in the same context)
-        // if it does not exist, a new statistics is added
-        statistics_map[context] = context->get_engine().get_memory_statistics();
-    }
-}
 
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                            const std::map<std::string, std::string> &orig_config) {
@@ -208,7 +199,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
-        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -220,7 +210,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     check_inputs(_networkInputs);
 
     auto context_impl = get_context_impl(context);
-    auto device_id = InferenceEngine::DeviceIDParser{context_impl->get_device_name()}.getDeviceID();
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
@@ -238,7 +228,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
     }
 
     std::vector<RemoteContextImpl::Ptr> known_contexts;
-    for (auto& c : m_default_contexts) {
+    for (auto& c : get_default_contexts()) {
         known_contexts.push_back(c.second->get_impl());
     }
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
@@ -257,9 +247,9 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
 }
 
 RemoteCLContext::Ptr Plugin::get_default_context(const std::string& device_id) const {
-    OPENVINO_ASSERT(m_default_contexts.find(device_id) != m_default_contexts.end(), "[GPU] Context was not initialized for ", device_id, " device");
-
-    return m_default_contexts.at(device_id);;
+    auto contexts = get_default_contexts();
+    OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
+    return contexts.at(device_id);
 }
 
 InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& params) {
@@ -282,9 +272,11 @@ void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
         }
     };
 
-    if (config.find(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID) != config.end()) {
-        std::string device_id = config.at(PluginConfigInternalParams::KEY_CONFIG_DEVICE_ID);
-        update_config(m_configs_map.at(device_id), config);
+    if (config.find(ov::internal::config_device_id.name()) != config.end()) {
+        std::string device_id = config.at(ov::internal::config_device_id.name());
+        auto config_for_device = config;
+        config_for_device.erase(ov::internal::config_device_id.name());
+        update_config(m_configs_map.at(device_id), config_for_device);
     } else {
         std::string device_id = get_device_id_from_config(config);
         if (!device_id.empty()) {
@@ -310,13 +302,11 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
     config.set_user_property(preprocess_config(orig_config));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
-    Program prog(ctx->get_engine(), config);
+    ProgramBuilder prog(ctx->get_engine(), config);
     bool dyn_shape_batch_found = false;
 
     auto model = network.getFunction();
-    if (model == nullptr) {
-        IE_THROW() << "Only ngraph-based models are supported!";
-    }
+    OPENVINO_ASSERT(model != nullptr, "[GPU] Only ngraph-based models are supported!");
 
     auto supported = GetSupportedNodes(model,
     [&](std::shared_ptr<ov::Model>& model) {
@@ -331,7 +321,7 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
                     return false;
 
                 auto pshape = node->get_output_partial_shape(0);
-                if (pshape.rank().is_dynamic())
+                if (pshape.rank().is_dynamic() || pshape.size() > cldnn::layout::max_rank())
                     return false;
 
                 int dynCount = 0;
@@ -365,18 +355,27 @@ QueryNetworkResult Plugin::QueryNetwork(const CNNNetwork& network,
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::map<std::string, std::string>& config) {
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return ImportNetwork(networkModel, context, config);
+}
+
+InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istream& networkModel,
+                                                                       const std::shared_ptr<InferenceEngine::RemoteContext>& context,
                                                                        const std::map<std::string, std::string>& orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
-    std::string device_id = get_device_id(orig_config);
-    auto context = get_default_context(device_id);
+
+    auto context_impl = get_context_impl(context);
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
-    config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
+    config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        cldnn::BinaryInputBuffer ib(networkModel, context->get_impl()->get_engine());
+        cldnn::BinaryInputBuffer ib(networkModel, context_impl->get_engine());
 
         InputsDataMap inputs;
         OutputsDataMap outputs;
@@ -534,7 +533,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
             auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
             exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config, &inputs, &outputs);
         } else {
-            exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
+            exeNetwork = std::make_shared<CompiledModel>(ib, context, config, &inputs, &outputs);
             exeNetwork->SetPointerToPlugin(shared_from_this());
         }
 
@@ -542,14 +541,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
         exeNetwork->setNetworkOutputs(outputs);
         exeNetwork->setInputs(new_params);
         exeNetwork->setOutputs(new_results);
-        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
 
 Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetConfig");
-
+    OPENVINO_ASSERT(!device_map.empty(), "[GPU] Can't get ", name, " property as no supported devices found or an error happened during devices query.\n"
+                                         "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n");
     std::string device_id = default_device_id;
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
@@ -591,6 +590,35 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    // The metrics below don't depend on the device ID, so we should handle those
+    // earler than querying actual ID to avoid exceptions when no devices are found
+    if (name == ov::supported_properties) {
+        return decltype(ov::supported_properties)::value_type {get_supported_properties()};
+    } else if (ov::internal::supported_properties == name) {
+        return decltype(ov::internal::supported_properties)::value_type{get_supported_internal_properties()};
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, LegacyAPIHelper::get_supported_configs());
+    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
+        std::vector<std::string> availableDevices = { };
+        for (auto const& dev : device_map)
+            availableDevices.push_back(dev.first);
+        return decltype(ov::available_devices)::value_type {availableDevices};
+    } else if (name == ov::internal::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties;
+        cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::inference_precision.name(), PropertyMutability::RW));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
+        return decltype(ov::internal::caching_properties)::value_type(cachingProperties);
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
+    }
+
     auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
@@ -602,16 +630,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     auto device_info = device->get_info();
     bool is_new_api = IsNewAPI();
 
-    if (name == ov::supported_properties) {
-        return decltype(ov::supported_properties)::value_type {get_supported_properties()};
-    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
-    } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        std::vector<std::string> availableDevices = { };
-        for (auto const& dev : device_map)
-            availableDevices.push_back(dev.first);
-        return decltype(ov::available_devices)::value_type {availableDevices};
-    } else if (name == ov::intel_gpu::device_total_mem_size) {
+    if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
     } else if (name == ov::device::type) {
         if (is_new_api) {
@@ -653,15 +672,13 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
                name == ov::optimal_batch_size) {
         return decltype(ov::optimal_batch_size)::value_type {get_optimal_batch_size(options)};
     } else if (name == ov::device::uuid) {
-        ov::device::UUID uuid = {};
-        std::copy_n(std::begin(device_info.uuid.val), cldnn::device_uuid::max_uuid_size, std::begin(uuid.uuid));
-        return decltype(ov::device::uuid)::value_type {uuid};
+        return decltype(ov::device::uuid)::value_type {device_info.uuid};
+    } else if (name == ov::device::luid) {
+        return decltype(ov::device::luid)::value_type {device_info.luid};
     } else if (name == ov::device::full_name) {
         auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
         deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
         return decltype(ov::device::full_name)::value_type {deviceName};
-    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, LegacyAPIHelper::get_supported_configs());
     } else if (name == ov::device::capabilities) {
         return decltype(ov::device::capabilities)::value_type {get_device_capabilities(device_info)};
     } else if (name == ov::range_for_async_infer_requests) {
@@ -672,32 +689,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS) ||
                name == ov::intel_gpu::memory_statistics) {
-        std::map<std::string, uint64_t> statistics;
-        for (auto const &item : statistics_map) {
-            // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
-            update_memory_statistics(item.first);
-            for (auto const &kv : item.second) {
-                if (!statistics.count(kv.first)) {
-                    statistics[kv.first] = kv.second;
-                } else {
-                    statistics[kv.first] += kv.second;
-                }
-            }
-        }
-        return decltype(ov::intel_gpu::memory_statistics)::value_type {statistics};
+        const auto& ctx = get_default_context(device_id)->get_impl();
+        return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
                name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(get_max_batch_size(options))};
-    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
-        IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
-    } else if (name == ov::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties;
-        cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::inference_precision.name(), PropertyMutability::RW));
-        cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
-        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
     } else if (name == ov::intel_gpu::device_id) {
@@ -716,8 +712,10 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         }
         return decltype(ov::device::architecture)::value_type {s.str()};
     } else {
-        IE_THROW() << "Unsupported metric key " << name;
+        OPENVINO_THROW("Unsupported metric key ", name);
     }
+
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
@@ -729,10 +727,10 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
         ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::max_batch_size.name(), PropertyMutability::RO},
-        ov::PropertyName{ov::caching_properties.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::full_name.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::uuid.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::luid.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
@@ -748,17 +746,26 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
+}
+
+std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
+    static const std::vector<ov::PropertyName> supported_internal_properties = {
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
+    return supported_internal_properties;
 }
 
 std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) const {
@@ -782,7 +789,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
-    auto context = m_default_contexts.at(device_id)->get_impl();
+    auto context = get_default_contexts().at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
     uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
@@ -816,11 +823,11 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
             auto n_streams_str = it_streams->second.as<std::string>();
             if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
                 n_streams_str != util::to_string(ov::streams::AUTO)) {
-                IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+                OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"");
             }
             n_streams = std::max(/* config.GetDefaultNStreamsForThroughputMode() */2u, device_info.num_ccs);
         } else {
-            IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
+            OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"");
         }
     }
 
@@ -832,10 +839,10 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
             available_device_mem = std::min(static_cast<int64_t>(available_device_mem), available_device_mem_it->second.as<int64_t>());
             GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
         } else {
-            IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type";
+            OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type");
         }
         if (available_device_mem < 0) {
-            IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::intel_gpu::hint::available_device_mem value should be greater than 0 for max batch size calculation";
+            OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] ov::intel_gpu::hint::available_device_mem value should be greater than 0 for max batch size calculation");
         }
     }
 
@@ -844,7 +851,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
     if (model_param.is<std::shared_ptr<ngraph::Function>>()) {
         model = model_param.as<std::shared_ptr<ngraph::Function>>();
     } else {
-        IE_THROW() << "[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
+        OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
 
     InferenceEngine::CNNNetwork network(model);
@@ -852,7 +859,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
     auto& engine = get_default_context(device_id)->get_impl()->get_engine();
 
-    std::shared_ptr<Program> program;
+    std::shared_ptr<ProgramBuilder> program;
 
     GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
         size_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
@@ -912,7 +919,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         auto nGraphFunc = cloned_network.getFunction();
         TransformationsPipeline transformations(config, device_info);
         transformations.apply(nGraphFunc);
-        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        program = std::make_shared<ProgramBuilder>(cloned_network, engine, config, false, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);
@@ -932,7 +939,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
     auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
-    auto context = m_default_contexts.at(device_id)->get_impl();
+    auto context = get_default_contexts().at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {
         return pow(2, ceil(std::log(x)/std::log(2)));
@@ -949,7 +956,7 @@ uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& 
     try {
         model = model_param->second.as<std::shared_ptr<ngraph::Function>>();
     } catch (...) {
-        IE_THROW() << "[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type";
+        OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
     GPU_DEBUG_INFO << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major

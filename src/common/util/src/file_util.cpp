@@ -27,6 +27,9 @@
 #    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
 /// @brief Windows-specific 'stat' wrapper
 #    define stat _stat
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#        define wstat _wstat
+#    endif
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
@@ -84,7 +87,7 @@ std::string ov::util::get_directory(const std::string& s) {
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
+        rc = s.substr(0, pos ? pos : 1);
         return rc;
     }
     // Windows-style separator
@@ -403,6 +406,21 @@ bool ov::util::directory_exists(const std::string& path) {
     return false;
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+bool ov::util::directory_exists(const std::wstring& path) {
+#    ifdef _WIN32
+    struct stat sb;
+
+    if (wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+    return false;
+#    else
+    return directory_exists(wstring_to_string(path));
+#    endif
+}
+#endif
+
 namespace {
 
 template <typename C,
@@ -504,6 +522,37 @@ ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin) {
     return ov::util::to_file_path(lib_name);
 }
 
+ov::util::FilePath ov::util::get_compiled_plugin_path(const std::string& plugin) {
+    const auto ov_library_path = get_ov_lib_path();
+
+    // plugin can be found either:
+
+    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
+    std::ostringstream str;
+    str << "openvino-" << OpenVINO_VERSION;
+    const auto sub_folder = str.str();
+
+    std::string abs_file_path = ov::util::path_join({ov_library_path, sub_folder, plugin});
+    if (ov::util::file_exists(abs_file_path))
+        return ov::util::to_file_path(abs_file_path);
+
+    // 2. in the openvino.so location
+    abs_file_path = ov::util::path_join({ov_library_path, plugin});
+    if (ov::util::file_exists(abs_file_path))
+        return ov::util::to_file_path(abs_file_path);
+
+    auto lib_name = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        lib_name = ov::util::make_plugin_library_name({}, plugin);
+
+    // For 4th case
+    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
+    if (ov::util::file_exists(lib_path))
+        return lib_path;
+    return ov::util::to_file_path(lib_name);
+}
+
 ov::util::FilePath ov::util::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
@@ -572,6 +621,11 @@ std::vector<uint8_t> ov::util::load_binary(const std::string& path) {
 }
 
 void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary) {
+    save_binary(path, reinterpret_cast<const char*>(&binary[0]), binary.size());
+    return;
+}
+
+void ov::util::save_binary(const std::string& path, const char* binary, size_t bin_size) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = ov::util::string_to_wstring(path);
     const wchar_t* filename = widefilename.c_str();
@@ -580,8 +634,27 @@ void ov::util::save_binary(const std::string& path, std::vector<uint8_t> binary)
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write(reinterpret_cast<const char*>(&binary[0]), binary.size());
+        out_file.write(binary, bin_size);
     } else {
         throw std::runtime_error("Could not save binary to " + path);
     }
+}
+
+const char* ov::util::trim_file_name(const char* const fname) {
+    static const auto pattern_native_sep =
+        std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + FileTraits<char>::file_separator;
+
+    const auto has_native_sep_pattern_ptr = std::strstr(fname, pattern_native_sep.c_str());
+    auto fname_trim_ptr = has_native_sep_pattern_ptr ? has_native_sep_pattern_ptr + pattern_native_sep.size() : fname;
+
+#if defined(_WIN32)
+    // On windows check also forward slash as in some case the __FILE__ can have it instead native backward slash.
+    if (fname_trim_ptr == fname) {
+        static const auto pattern_fwd_sep = std::string(OV_NATIVE_PARENT_PROJECT_ROOT_DIR) + '/';
+        if (const auto has_fwd_sep_pattern_ptr = std::strstr(fname, pattern_fwd_sep.c_str())) {
+            fname_trim_ptr = has_fwd_sep_pattern_ptr + pattern_fwd_sep.size();
+        }
+    }
+#endif
+    return fname_trim_ptr;
 }

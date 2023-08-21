@@ -9,6 +9,16 @@
  */
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(IE_LEGACY_HEADER_INCLUDED)
+#    define IE_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The Inference Engine API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <map>
 #include <memory>
 #include <string>
@@ -17,13 +27,14 @@
 #include "ie_parameter.hpp"
 
 namespace InferenceEngine {
+IE_SUPPRESS_DEPRECATED_START
 class RemoteContext;
 
 /**
  * @brief This class represents an Inference Engine abstraction to the memory allocated
  * on the remote (non-CPU) accelerator device
  */
-class RemoteBlob : public MemoryBlob {
+class INFERENCE_ENGINE_1_0_DEPRECATED RemoteBlob : public MemoryBlob {
 public:
     /**
      * @brief A smart pointer to the RemoteBlob object
@@ -72,4 +83,5 @@ public:
      */
     virtual std::shared_ptr<RemoteContext> getContext() const noexcept = 0;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

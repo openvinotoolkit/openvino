@@ -30,7 +30,7 @@ struct FQReshapeFusionTestCase {
     bool is_negative;
 };
 
-class nGraphFQReshapeFusionTests : public CommonTestUtils::TestsCommon,
+class nGraphFQReshapeFusionTests : public ov::test::TestsCommon,
                                    public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
 public:
     std::shared_ptr<ngraph::Function> f, ref_f;
@@ -123,12 +123,12 @@ private:
 };
 
 TEST_P(nGraphFQReshapeFusionTests, ReshapeMatMul) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::FakeQuantizeReshapeFusion>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

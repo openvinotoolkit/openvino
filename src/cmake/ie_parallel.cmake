@@ -2,32 +2,67 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
     if(NOT TBB_FOUND)
         return()
     endif()
 
-    foreach(property INTERFACE_LINK_LIBRARIES
-                     IMPORTED_LOCATION_RELEASE
-                     IMPORTED_LOCATION_RELWITHDEBINFO
-                     IMPORTED_LOCATION_NONE
-                     IMPORTED_LOCATION)
-        get_target_property(_tbb_lib_location ${tbb_target} ${property})
-        if(_tbb_lib_location)
-            if(property STREQUAL INTERFACE_LINK_LIBRARIES)
-                # pkg-config can set multiple libraries as interface, need to filter out
-                foreach(tbb_lib IN LISTS _tbb_lib_location)
-                    if(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
-                        set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
-                        return()
-                    endif()
-                endforeach()
-            else()
-                set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
-                return()
+    function(_get_target_location target lib_location_var)
+        if(NOT TARGET ${target})
+            message(FATAL_ERROR "Internal error: ${target} does not represent a target")
+        endif()
+
+        get_target_property(_imported_configs ${target} IMPORTED_CONFIGURATIONS)
+        if(NOT _imported_configs)
+            # if IMPORTED_CONFIGURATIONS property is not set, then set a common list
+            set(_imported_configs RELEASE NONE)
+        endif()
+
+        # generate a list of locations
+        foreach(_imported_config IN LISTS _imported_configs)
+            list(APPEND _location_properties IMPORTED_LOCATION_${_imported_config})
+        endforeach()
+        # add some more locations which are used by package managers
+        list(APPEND _location_properties IMPORTED_LOCATION)
+
+        foreach(_location_property IN LISTS _location_properties)
+            get_target_property(_lib_location ${target} ${_location_property})
+            if(_lib_location)
+                set(${lib_location_var} "${_lib_location}" PARENT_SCOPE)
+                break()
             endif()
+        endforeach()
+    endfunction()
+
+    macro(_handle_tbb_target _tbb_target)
+        _get_target_location(${_tbb_target} "_tbb_lib_location")
+        if(_tbb_lib_location)
+            set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
+            return()
+        endif()
+    endmacro()
+
+    # handle INTERFACE_LINK_LIBRARIES
+    get_target_property(_tbb_interface_link_libraries ${tbb_target} INTERFACE_LINK_LIBRARIES)
+    # pkg-config can set multiple libraries as interface, need to filter out
+    foreach(tbb_lib IN LISTS _tbb_interface_link_libraries)
+        # handle cases like in conan: $<$<CONFIG:Release>:CONAN_LIB::onetbb_TBB_tbb_tbb_RELEASE>
+        if(${tbb_lib} MATCHES "CONAN_LIB::([A-Za-z0-9_]*)")
+            set(tbb_lib_parsed "CONAN_LIB::${CMAKE_MATCH_1}")
+            _handle_tbb_target(${tbb_lib_parsed})
+        elseif(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
+            # tbb_lib just a full path to a library itself
+            set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
+            return()
         endif()
     endforeach()
+
+    # handle case of usual target
+    _handle_tbb_target(${tbb_target})
 
    message(FATAL_ERROR "Failed to detect TBB library location")
 endfunction()
@@ -63,48 +98,48 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR)
 
             # try tbb.pc from system
-            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
-                find_package(PkgConfig QUIET)
-                if(PkgConfig_FOUND)
-                    macro(_ov_pkg_config_tbb_unset)
-                        # unset since it affects OpenVINOConfig.cmake.in
-                        unset(tbb_FOUND)
-                        unset(tbb_FOUND CACHE)
-                    endmacro()
-                    pkg_search_module(tbb QUIET
-                                      IMPORTED_TARGET GLOBAL
-                                      tbb)
-                    if(tbb_FOUND)
-                        # parse version
-                        string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
-                        if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
-                            _ov_pkg_config_tbb_unset()
-                            message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
-                        elseif(TARGET PkgConfig::tbb)
-                            add_library(TBB::tbb ALIAS PkgConfig::tbb)
-                            set(TBB_VERSION ${tbb_VERSION})
-                            set(TBB_FOUND ${tbb_FOUND})
+            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND)
+                macro(_ov_pkg_config_tbb_unset)
+                    # unset since it affects OpenVINOConfig.cmake.in
+                    unset(tbb_FOUND)
+                    unset(tbb_FOUND CACHE)
+                endmacro()
+                pkg_search_module(tbb QUIET
+                                  IMPORTED_TARGET
+                                  # we need to set GLOBAL in order to create ALIAS later
+                                  # ALIAS creation for non-GLOBAL targets is available since cmake 3.18
+                                  ${OV_PkgConfig_VISILITY}
+                                  tbb)
+                if(tbb_FOUND)
+                    # parse version
+                    string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
+                    if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
+                        _ov_pkg_config_tbb_unset()
+                        message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
+                    elseif(TARGET PkgConfig::tbb)
+                        add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                        set(TBB_VERSION ${tbb_VERSION})
+                        set(TBB_FOUND ${tbb_FOUND})
 
-                            # note: for python wheels we need to find and install tbbmalloc as well
-                            _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
-                            string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
-                            if(EXISTS "${tbbmalloc_loc}")
-                                add_library(TBB::tbbmalloc SHARED IMPORTED)
-                                set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
-                            endif()
-
-                            message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
-                        else()
-                            _ov_pkg_config_tbb_unset()
-
-                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
-                                # package managers require system TBB
-                                set(message_type FATAL_ERROR)
-                            else()
-                                set(message_type WARNING)
-                            endif()
-                            message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                        # note: for python wheels we need to find and install tbbmalloc as well
+                        _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
+                        string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
+                        if(EXISTS "${tbbmalloc_loc}")
+                            add_library(TBB::tbbmalloc SHARED IMPORTED)
+                            set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
                         endif()
+
+                        message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                    else()
+                        _ov_pkg_config_tbb_unset()
+
+                        if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
+                            # package managers require system TBB
+                            set(message_type FATAL_ERROR)
+                        else()
+                            set(message_type WARNING)
+                        endif()
+                        message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
                     endif()
                 endif()
             endif()
@@ -124,7 +159,7 @@ macro(ov_find_package_tbb)
                 endif()
 
                 # try to find one more time
-                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                              # TBB_DIR can be provided by ov_download_tbb
                              HINTS ${TBB_DIR}
                              ${_tbb_paths}
@@ -143,20 +178,37 @@ macro(ov_find_package_tbb)
             endforeach()
 
             if(WIN32 AND TARGET TBB::tbbbind_2_5)
-                # Add HWLOC::hwloc_2_5 target to check via Apivalidator
-                get_target_property(TBB_location TBB::tbb IMPORTED_LOCATION_RELEASE)
-                get_filename_component(TBB_dir "${TBB_location}" DIRECTORY)
-                set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
-                find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
-                
-                if(NOT HWLOC_DLL)
-                    message(FATAL_ERROR "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
+                # some package managers provide hwloc.pc file within installation package
+                # let's try it first
+                if(PkgConfig_FOUND)
+                    pkg_search_module(HWLOC QUIET
+                                      IMPORTED_TARGET
+                                      hwloc)
                 endif()
 
-                add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
-                set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-                set_target_properties(HWLOC::hwloc_2_5 PROPERTIES
-                    IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+                if(TARGET PkgConfig::HWLOC)
+                    # dependency is satisfied
+                    add_library(HWLOC::hwloc_2_5 ALIAS PkgConfig::HWLOC)
+                else()
+                    # Add HWLOC::hwloc_2_5 target to check via ApiValidator
+                    get_target_property(imported_configs TBB::tbbbind_2_5 IMPORTED_CONFIGURATIONS)
+                    foreach(imported_config RELEASE RELWITHDEBINFO DEBUG)
+                        if(imported_config IN_LIST imported_configs)
+                            get_target_property(TBBbind_location TBB::tbbbind_2_5 IMPORTED_LOCATION_${imported_config})
+                            get_filename_component(TBB_dir "${TBBbind_location}" DIRECTORY)
+                            break()
+                        endif()
+                    endforeach()
+
+                    set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                    find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
+
+                    if(HWLOC_DLL)
+                        add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
+                        set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+                        set_target_properties(HWLOC::hwloc_2_5 PROPERTIES IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+                    endif()
+                endif()
             endif()
         endif()
 
@@ -223,7 +275,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                     foreach(include_directory IN LISTS include_directories)
                         # cannot include /usr/include headers as SYSTEM
                         if(NOT "${include_directory}" MATCHES "^/usr.*$")
-                            target_include_directories(${TARGET_NAME} SYSTEM BEFORE
+                            target_include_directories(${TARGET_NAME} SYSTEM
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                         else()
                             set(_system_library ON)

@@ -50,7 +50,9 @@ void op::v1::Reverse::validate_and_infer_types() {
                               "In 'index' mode the second input must contain integer values.");
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, get_input_element_type(0), output_shape);
 }
 
@@ -68,6 +70,7 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
     return allowed_values.at(mode);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace reverseop {
 template <element::Type_t ET>
 void get_axes(AxisSet& axes, const HostTensorPtr& in) {

@@ -234,10 +234,10 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
     } catch (InferenceEngine::Exception& e) {
         EXPECT_THAT(e.what(),
                     testing::HasSubstr(std::string("Unsupported dynamic ops: \n"
-                                                   "v0::Parameter param () -> (f32[...])\n"
-                                                   "v0::Relu relu (param[0]:f32[...]) -> (f32[...])\n"
-                                                   "v3::NonZero non_zero (relu[0]:f32[...]) -> (i64[?,?])\n"
-                                                   "v0::Result result (non_zero[0]:i64[?,?]) -> (i64[?,?])")));
+                                                   "opset1::Parameter param () -> (f32[...])\n"
+                                                   "opset1::Relu relu (param[0]:f32[...]) -> (f32[...])\n"
+                                                   "opset3::NonZero non_zero (relu[0]:f32[...]) -> (i64[?,?])\n"
+                                                   "opset1::Result result (non_zero[0]:i64[?,?]) -> (i64[?,?])")));
     }
 }
 

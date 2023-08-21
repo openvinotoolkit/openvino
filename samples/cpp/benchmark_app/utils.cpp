@@ -61,6 +61,7 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
+                                                                                {"NPU", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -107,6 +108,17 @@ std::vector<float> split_float(const std::string& s, char delim) {
     return result;
 }
 
+bool can_measure_as_static(const std::vector<benchmark_app::InputsInfo>& app_input_info) {
+    for (const benchmark_app::InputsInfo& info : app_input_info) {
+        for (const auto& pair : info) {
+            if (pair.second.partialShape.is_dynamic() && app_input_info.size() > 1) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};
 bool is_virtual_device(const std::string& device_name) {
     return std::find(meta_plugins.begin(), meta_plugins.end(), device_name) != meta_plugins.end();
@@ -119,6 +131,41 @@ bool is_virtual_device_found(const std::vector<std::string>& device_names) {
         }
     }
     return false;
+}
+
+void update_device_properties_setting(const std::string& device_name,
+                                      ov::AnyMap& config,
+                                      std::pair<std::string, ov::Any> device_property) {
+    // overriding if property {key, value} is already existed in config["DEVICE_PROPERTIES"][device_name],
+    // if not, insert this {key, value} into config["DEVICE_PROPERTIES"][device_name].
+
+    // check and create property {"DEVICE_PROPERTIES": ov::AnyMap{hw_device, ov::AnyMap{}}} if not exist in config
+    if (config.find(ov::device::properties.name()) == config.end()) {
+        config[ov::device::properties.name()] = ov::AnyMap{};
+        config[ov::device::properties.name()].as<ov::AnyMap>().insert({device_name, ov::AnyMap{device_property}});
+        return;
+    }
+
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (config[ov::device::properties.name()].is<std::string>()) {
+        config[ov::device::properties.name()] = config[ov::device::properties.name()].as<ov::AnyMap>();
+    }
+
+    auto& device_properties = config[ov::device::properties.name()].as<ov::AnyMap>();
+    if (device_properties.find(device_name) == device_properties.end()) {
+        device_properties.insert({device_name, ov::AnyMap{device_property}});
+        return;
+    }
+
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (device_properties[device_name].is<std::string>()) {
+        device_properties[device_name] = device_properties[device_name].as<ov::AnyMap>();
+    }
+
+    auto& secondary_property = device_properties[device_name].as<ov::AnyMap>();
+    // overwrite if this config existed
+    secondary_property.erase(device_property.first);
+    secondary_property.insert(device_property);
 }
 
 std::vector<std::string> parse_devices(const std::string& device_string) {
@@ -184,9 +231,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
 template <typename T>
 void update_device_config_for_virtual_device(const std::string& value,
                                              ov::AnyMap& device_config,
-                                             ov::Property<T, ov::PropertyMutability::RW> property,
-                                             std::map<std::string, bool>& is_dev_set_property,
-                                             bool is_load_config) {
+                                             ov::Property<T, ov::PropertyMutability::RW> property) {
     // check if the element contains the hardware device property
     if (split(value, ':').size() == 1) {
         device_config[property.name()] = value;
@@ -198,52 +243,21 @@ void update_device_config_for_virtual_device(const std::string& value,
         for (const auto& it : devices_property) {
             const auto& device_name = it.first;
             const auto& device_value = it.second;
-            if (device_config.find(ov::device::properties.name()) == device_config.end() ||
-                (is_load_config && is_dev_set_property[device_name])) {
-                // Create ov::device::properties with ov::num_stream/ov::inference_precision and
-                // 1. Insert this ov::device::properties into device config if this
-                // ov::device::properties isn't existed. Otherwise,
-                // 2. Replace the existed ov::device::properties within device config.
-                is_dev_set_property[device_name] = false;
-                device_config.erase(device_name);
-                device_config[ov::device::properties.name()] = ov::AnyMap{};
-                auto& secondary_property = device_config.at(ov::device::properties.name()).as<ov::AnyMap>();
-                secondary_property[device_name] = ov::AnyMap{{property.name(), device_value}};
-            } else {
-                auto& secondary_property = device_config.at(ov::device::properties.name()).as<ov::AnyMap>();
-                if (secondary_property.count(device_name)) {
-                    auto& device_property = secondary_property.at(device_name).as<ov::AnyMap>();
-                    device_property.emplace(property(device_value));
-                } else {
-                    secondary_property[device_name] = ov::AnyMap{{property.name(), device_value}};
-                }
-            }
+            update_device_properties_setting(device_name, device_config, property(device_value));
         }
     }
 }
 
 void update_device_config_for_virtual_device(const std::string& value,
                                              ov::AnyMap& device_config,
-                                             ov::Property<ov::streams::Num, ov::PropertyMutability::RW> property,
-                                             std::map<std::string, bool>& is_dev_set_property,
-                                             bool is_load_config) {
-    return update_device_config_for_virtual_device<ov::streams::Num>(value,
-                                                                     device_config,
-                                                                     property,
-                                                                     is_dev_set_property,
-                                                                     is_load_config);
+                                             ov::Property<ov::streams::Num, ov::PropertyMutability::RW> property) {
+    return update_device_config_for_virtual_device<ov::streams::Num>(value, device_config, property);
 }
 
 void update_device_config_for_virtual_device(const std::string& value,
                                              ov::AnyMap& device_config,
-                                             ov::Property<ov::element::Type, ov::PropertyMutability::RW> property,
-                                             std::map<std::string, bool>& is_dev_set_property,
-                                             bool is_load_config) {
-    return update_device_config_for_virtual_device<ov::element::Type>(value,
-                                                                      device_config,
-                                                                      property,
-                                                                      is_dev_set_property,
-                                                                      is_load_config);
+                                             ov::Property<ov::element::Type, ov::PropertyMutability::RW> property) {
+    return update_device_config_for_virtual_device<ov::element::Type>(value, device_config, property);
 }
 
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
@@ -605,7 +619,18 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
+                ov::PartialShape p_shape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
+                if (p_shape.is_dynamic()) {
+                    throw std::logic_error("Data shape always should be static, " + p_shape.to_string() +
+                                           " is dynamic.");
+                }
+                if (info.partialShape.compatible(p_shape)) {
+                    info.dataShape = p_shape.to_shape();
+                } else {
+                    throw std::logic_error("Data shape " + p_shape.to_string() + "provided for input " + name +
+                                           "is not compatible with partial shape " + info.partialShape.to_string() +
+                                           " for this input.");
+                }
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {

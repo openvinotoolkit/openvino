@@ -1,5 +1,15 @@
 #include <openvino/runtime/core.hpp>
+#ifndef IN_OV_COMPONENT
+#    define IN_OV_COMPONENT
+#    define WAS_OV_LIBRARY_DEFINED
+#endif
+
 #include <inference_engine.hpp>
+
+#ifdef WAS_OV_LIBRARY_DEFINED
+#    undef IN_OV_COMPONENT
+#    undef WAS_OV_LIBRARY_DEFINED
+#endif
 
 int main_new() {
     ov::Core core;
@@ -25,7 +35,7 @@ auto model = core.read_model("sample.xml");
 auto compiled_model = core.compile_model(model, "MULTI",
     ov::device::priorities("GPU", "CPU"),
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::inference_precision(ov::element::f32));
+    ov::hint::inference_precision(ov::element::f32));
 //! [core_compile_model]
 
 //! [compiled_model_set_property]

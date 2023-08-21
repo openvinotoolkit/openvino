@@ -45,7 +45,7 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return sizeof(uint16_t);
     }
-    throw ngraph_error("unsupported element type");
+    OPENVINO_THROW("unsupported element type");
 }
 namespace {
 using namespace ONNX_NAMESPACE;
@@ -65,7 +65,7 @@ const std::map<element::Type_t, TensorProto_DataType> NG_2_ONNX_TYPES = {
     {element::Type_t::boolean, TensorProto_DataType::TensorProto_DataType_BOOL}};
 }  // namespace
 
-element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type) {
+element::Type_t onnx_to_ng_data_type(const ONNX_NAMESPACE::TensorProto_DataType& onnx_type) {
     const auto result =
         std::find_if(NG_2_ONNX_TYPES.begin(),
                      NG_2_ONNX_TYPES.end(),
@@ -73,7 +73,7 @@ element::Type_t onnx_to_ng_data_type(const TensorProto_DataType& onnx_type) {
                          return pair.second == onnx_type;
                      });
     if (result == std::end(NG_2_ONNX_TYPES)) {
-        throw ngraph_error(
+        OPENVINO_THROW(
             "unsupported element type: " +
             ONNX_NAMESPACE::TensorProto_DataType_Name(static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
     }

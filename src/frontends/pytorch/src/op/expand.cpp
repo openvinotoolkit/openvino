@@ -30,7 +30,7 @@ OutputVector base_expand(const NodeContext& context, const Output<Node>& x, cons
 };
 }  // namespace
 
-OutputVector translate_expand(NodeContext& context) {
+OutputVector translate_expand(const NodeContext& context) {
     // aten::expand(Tensor(a) self, SymInt[] size, *, bool implicit=False) -> Tensor(a)
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
@@ -41,11 +41,29 @@ OutputVector translate_expand(NodeContext& context) {
     return base_expand(context, x, sizes);
 };
 
-OutputVector translate_expand_as(NodeContext& context) {
+OutputVector translate_expand_as(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(y, element::i32));
+    return base_expand(context, x, sizes);
+};
+
+OutputVector translate_expand_fx(const NodeContext& context) {
+    // aten::expand(Tensor(a) self, SymInt[] size, *, bool implicit=False) -> Tensor(a)
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    // TODO: This is a temporary solution to optimize out Broadcast if the input and
+    // output shapes are same. This should be removed after a proper optimization is
+    // implemented.
+    auto sizes_const = context.const_input<Shape>(1);
+    if (x.get_shape() == sizes_const) {
+        return {x};
+    }
+    auto sizes = context.get_input(1);
+    // TODO: figure out what implicit means
+    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(2) || context.const_input<bool>(2) == false,
+                                  "Unexpected value of implicit for expand operation");
     return base_expand(context, x, sizes);
 };
 

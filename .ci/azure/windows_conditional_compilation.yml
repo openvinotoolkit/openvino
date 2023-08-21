@@ -65,11 +65,11 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.11.2'
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
 
   - script: |
@@ -78,6 +78,8 @@ jobs:
       python --version
       where java
       java -version
+      where cmake
+      cmake --version
       wmic computersystem get TotalPhysicalMemory
       wmic cpu list
       wmic logicaldisk get description,name
@@ -110,10 +112,11 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
+      call "$(MSVS_VARS_PATH)" && cmake ^
+        -G Ninja ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
-        -DENABLE_FASTER_BUILD=ON ^
+        -DENABLE_PLUGINS_XML=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^
@@ -145,12 +148,11 @@ jobs:
     displayName: 'List csv files'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+      call "$(MSVS_VARS_PATH)" && cmake ^
+        -G "Visual Studio 16 2019" ^
         -DVERBOSE_BUILD=ON ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
-        -DENABLE_FASTER_BUILD=ON ^
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^

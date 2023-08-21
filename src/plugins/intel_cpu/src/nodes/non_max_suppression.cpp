@@ -16,9 +16,9 @@
 #include "utils/general_utils.h"
 
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -33,6 +33,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
 struct jit_uni_nms_kernel_f32 : public jit_uni_nms_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_nms_kernel_f32)
@@ -551,10 +552,10 @@ private:
         dw(0x0001);
     }
 };
+#endif
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV9 = ngraph::op::v9::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV9::get_type_info_static(),
                     ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -584,6 +585,8 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
     }
 
     errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
+    if (one_of(op->get_type_info(), ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static()))
+        m_outStaticShape = true;
 
     if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
@@ -594,13 +597,12 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
     if (const auto nms9 = std::dynamic_pointer_cast<const ngraph::op::v9::NonMaxSuppression>(op)) {
         boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
         sortResultDescending = nms9->get_sort_result_descending();
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ov::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
             sortResultDescending = nmsIe->m_sort_result_descending;
         } else {
             const auto &typeInfo = op->get_type_info();
-            IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version;
+            IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version_id;
         }
 
         const auto &boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
@@ -648,14 +650,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i) {
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         Precision inPrecision = i == NMS_MAXOUTPUTBOXESPERCLASS ? Precision::I32 : Precision::FP32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
-    for (int i = 0; i < outputShapes.size(); ++i) {
+    for (size_t i = 0; i < outputShapes.size(); ++i) {
         Precision outPrecision = i == NMS_SELECTEDSCORES ? Precision::FP32 : Precision::I32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
@@ -701,6 +703,7 @@ bool NonMaxSuppression::isExecutable() const {
 }
 
 void NonMaxSuppression::createJitKernel() {
+#if defined(OPENVINO_ARCH_X86_64)
     auto jcp = jit_nms_config_params();
     jcp.box_encode_type = boxEncodingType;
     jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
@@ -715,24 +718,25 @@ void NonMaxSuppression::createJitKernel() {
 
     if (nms_kernel)
         nms_kernel->create_ker();
+#endif
 }
 
 void NonMaxSuppression::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors() || (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS &&
-            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0] == 0)) {
+            reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->getData())[0] == 0)) {
         redefineOutputMemory({{0, 3}, {0, 3}, {1}});
-        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr()) = 0;
+        *reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->getData()) = 0;
         return;
     }
     execute(strm);
 }
 
 void NonMaxSuppression::execute(dnnl::stream strm) {
-    const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
-    const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
+    const float *boxes = reinterpret_cast<const float *>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
+    const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
 
     if (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
-        maxOutputBoxesPerClass = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
+        maxOutputBoxesPerClass = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->getData())[0];
     }
 
     maxOutputBoxesPerClass = std::min(maxOutputBoxesPerClass, numBoxes);
@@ -742,20 +746,20 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     }
 
     if (inputShapes.size() > NMS_IOUTHRESHOLD)
-        iouThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        iouThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->getData())[0];
 
     if (inputShapes.size() > NMS_SCORETHRESHOLD)
-        scoreThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        scoreThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->getData())[0];
 
     if (inputShapes.size() > NMS_SOFTNMSSIGMA)
-        softNMSSigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->GetPtr())[0];
+        softNMSSigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->getData())[0];
     scale = 0.0f;
     if (softNMSSigma > 0.0) {
         scale = -0.5f / softNMSSigma;
     }
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     const auto maxNumberOfBoxes = maxOutputBoxesPerClass * numBatches * numClasses;
     std::vector<filteredBoxes> filtBoxes(maxNumberOfBoxes);
@@ -795,16 +799,15 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (isDynamicNode()) {
+    if (!m_outStaticShape) {
         VectorDims newDims{validOutputs, 3};
         redefineOutputMemory({newDims, newDims, {1}});
     }
 
-    int selectedIndicesStride = indicesMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    int selectedIndicesStride = indicesMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
 
-    int *selectedIndicesPtr = reinterpret_cast<int *>(indicesMemPtr->GetPtr());
-    float *selectedScoresPtr = reinterpret_cast<float *>(scoresMemPtr->GetPtr());
+    int *selectedIndicesPtr = reinterpret_cast<int *>(indicesMemPtr->getData());
+    float *selectedScoresPtr = reinterpret_cast<float *>(scoresMemPtr->getData());
 
     size_t idx = 0lu;
     for (; idx < validOutputs; idx++) {
@@ -819,13 +822,12 @@ void NonMaxSuppression::execute(dnnl::stream strm) {
         selectedScoresPtr += selectedIndicesStride;
     }
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (!isDynamicNode()) {
+    if (m_outStaticShape) {
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1);
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);
     }
 
-    int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    int *valid_outputs = reinterpret_cast<int *>(getChildEdgesAtPort(NMS_VALIDOUTPUTS)[0]->getMemoryPtr()->getData());
     *valid_outputs = static_cast<int>(validOutputs);
 }
 
@@ -889,7 +891,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float *boxes, const float *scores
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);  // score, box_id, suppress_begin_index
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (int box_idx = 0; box_idx < static_cast<int>(numBoxes); box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
         }
@@ -998,7 +1000,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float *boxes, const float *sco
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
 
         std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
-        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+        for (size_t box_idx = 0; box_idx < numBoxes; box_idx++) {
             if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
         }

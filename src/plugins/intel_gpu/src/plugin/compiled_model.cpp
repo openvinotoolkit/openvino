@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_metric_helpers.hpp"
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
+
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -14,10 +18,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/async_infer_request_legacy.hpp"
-#include "intel_gpu/plugin/legacy_api_helper.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 
-#include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -45,7 +46,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::InputsDataMap* inputs,
                              InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
@@ -68,9 +69,13 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     }
 }
 
-CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config) :
+CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
+                             InferenceEngine::RemoteContext::Ptr context,
+                             const ExecutionConfig& config,
+                             InferenceEngine::InputsDataMap* inputs,
+                             InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
@@ -90,11 +95,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib, InferenceEngine::Remo
     auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         ib.seekg(pos);
-        auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
+        auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n, inputs, outputs);
         m_graphs.push_back(graph);
-        if (n == 0) {
-            ib.setNetwork(graph->GetNetwork().get());
-        }
     }
 }
 
@@ -142,16 +144,16 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequest");
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     if (m_graphs.empty()) {
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            IE_THROW(NetworkNotLoaded);
+            OPENVINO_THROW("[GPU] Model not loaded");
         }
 
         if (!graph->IsLoaded()) {
-            IE_THROW(NetworkNotLoaded) << ": no networks created";
+            OPENVINO_THROW("[GPU] Model not loaded: no networks created");
         }
     }
 
@@ -185,7 +187,7 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
 void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
 
     cldnn::BinaryOutputBuffer ob(networkModel);
 
@@ -193,7 +195,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
     {
         ob << GetInputsInfo().size();
 
-        for (const auto & in : GetInputsInfo()) {
+        for (const auto& in : GetInputsInfo()) {
             ob << in.first;
             std::string precision(in.second->getPrecision().name());
             ob << precision;
@@ -205,7 +207,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
         ob << GetOutputsInfo().size();
 
-        for (const auto & out : GetOutputsInfo()) {
+        for (const auto& out : GetOutputsInfo()) {
             ob << out.first;
             std::string precision(out.second->getPrecision().name());
             ob << precision;
@@ -218,17 +220,17 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
     // Inputs
     {
-        std::vector<std::shared_ptr<const ov::Node>> const_params = getInputs();
+        const std::vector<std::shared_ptr<const ov::Node>>& const_params = getInputs();
         ob << const_params.size();
 
         for (const auto& param : const_params) {
             auto new_param = ov::as_type_ptr<const ov::op::v0::Parameter>(param);
-            std::string param_name = new_param->get_friendly_name();
             ov::element::Type param_element_type = new_param->get_element_type();
-            ov::PartialShape param_shape = new_param->get_partial_shape();
-            ov::Layout param_layout = new_param->get_layout();
-            // ov::RTMap param_rt_info = new_param->output(0).get_rt_info();
-            auto param_names = new_param->output(0).get_tensor().get_names();
+
+            const std::string& param_name = new_param->get_friendly_name();
+            const ov::PartialShape& param_shape = new_param->get_partial_shape();
+            const ov::Layout& param_layout = new_param->get_layout();
+            const auto& param_names = new_param->output(0).get_tensor().get_names();
 
             ob << param_name;
             std::stringstream ss;
@@ -237,7 +239,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             ob << param_shape;
             ob << param_layout.to_string();
             ob << param_names.size();
-            for (auto name : param_names) {
+            for (const auto& name : param_names) {
                 ob << name;
             }
         }
@@ -250,14 +252,14 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
         for (const auto& param : const_results) {
             auto new_param = ov::as_type_ptr<const ov::op::v0::Result>(param);
-
             ov::element::Type fake_element_type = new_param->get_input_element_type(0);
-            ov::PartialShape fake_shape = new_param->get_input_partial_shape(0);
-            std::string fake_name = new_param->get_input_node_ptr(0)->get_friendly_name();
 
-            std::string param_name = new_param->get_friendly_name();
-            ov::Layout param_layout = new_param->get_layout();
-            auto param_names = new_param->output(0).get_tensor().get_names();
+            const std::string& fake_name = new_param->get_input_node_ptr(0)->get_friendly_name();
+            const std::string& param_name = new_param->get_friendly_name();
+            const ov::PartialShape& fake_shape = new_param->get_input_partial_shape(0);
+            const ov::Layout& param_layout = new_param->get_layout();
+            const auto& param_names = new_param->output(0).get_tensor().get_names();
+
 
             std::stringstream ss;
             ss << fake_element_type;
@@ -267,7 +269,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             ob << param_name;
             ob << param_layout.to_string();
             ob << param_names.size();
-            for (auto name : param_names) {
+            for (const auto& name : param_names) {
                 ob << name;
             }
         }
@@ -285,7 +287,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
     if (m_graphs.empty())
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
 
     return m_graphs.front()->GetExecGraphInfo();
 }
@@ -319,18 +321,19 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
-        IE_ASSERT(!m_graphs.empty());
+        OPENVINO_ASSERT(!m_graphs.empty());
         return decltype(ov::model_name)::value_type {m_graphs[0]->getName()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -345,7 +348,6 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             CONFIG_KEY(PERFORMANCE_HINT),
             CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS),
             CONFIG_KEY(PERF_COUNT),
-            CONFIG_KEY(DYN_BATCH_ENABLED),
             CONFIG_KEY(CONFIG_FILE),
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
@@ -367,7 +369,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->getDeviceName()};
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        OPENVINO_THROW("[GPU] Unsupported CompiledModel property: ", name);
     }
 }
 

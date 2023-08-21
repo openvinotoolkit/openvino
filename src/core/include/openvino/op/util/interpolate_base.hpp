@@ -63,7 +63,7 @@ public:
         bool antialias = false;
         // Specifies the parameter *a* for the cubic interpolation .
         // (see, e.g. [article](https://ieeexplore.ieee.org/document/1163711/)).
-        // *cube_coeff* takes effect only when `mode == CUBIC`
+        // *cube_coeff* takes effect only when `mode == CUBIC` or `mode == BICUBIC_PILLOW`
         double cube_coeff = -0.75f;
 
         InterpolateAttrs() = default;
@@ -145,12 +145,6 @@ protected:
     void validate_scales_element_type(const element::Type& et) const;
     void validate_sizes_element_type(const element::Type& et) const;
     void validate_axes_element_type(const element::Type& et) const;
-
-    template <class T>
-    friend void correct_pads_attr(const InterpolateBase* op,
-                                  std::vector<size_t>& pads_begin,
-                                  std::vector<size_t>& pads_end,
-                                  const std::vector<T>& input_shapes);
 };
 }  // namespace util
 }  // namespace op

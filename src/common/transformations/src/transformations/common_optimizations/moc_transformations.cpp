@@ -5,6 +5,7 @@
 #include <memory>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/adaptive_pool_to_reduce.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
@@ -15,6 +16,7 @@
 #include <transformations/common_optimizations/conv_to_binary_conv.hpp>
 #include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/common_optimizations/dilated_convolution_converter.hpp>
 #include <transformations/common_optimizations/disable_random_uniform_constant_folding.hpp>
@@ -38,6 +40,7 @@
 #include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/mvn_fusion.hpp>
 #include <transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp>
+#include <transformations/common_optimizations/nonzero_horizontal_fusion.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/normalize_l2_fusion.hpp>
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
@@ -56,6 +59,7 @@
 #include <transformations/common_optimizations/ric_fusion.hpp>
 #include <transformations/common_optimizations/select_with_one_value_condition.hpp>
 #include <transformations/common_optimizations/sequence_fusion.hpp>
+#include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -74,11 +78,13 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/op_conversions/convert_negative.hpp>
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
+#include "transformations/resolve_names_collisions.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -188,6 +194,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, RandomUniformFusion)
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
+    ADD_MATCHER(common_fusions, ConvolutionToGroupConvolutionFusion)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
@@ -200,6 +207,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     ADD_MATCHER(common_fusions, PReluFusion)
     ADD_MATCHER(common_fusions, DepthToSpaceFusion)
     ADD_MATCHER(common_fusions, ShuffleChannelsFusion, !m_use_shapes)
+    ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
+    ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, BinarizeWeights)
@@ -208,6 +217,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, ConvertDivideWithConstant)
+    ADD_MATCHER(decomp, ConvertSubtractWithConstant)
     ADD_MATCHER(decomp, ConvertNegative)
 
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
@@ -235,8 +245,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
-
+    REGISTER_PASS(manager, ResolveNameCollisions)
     manager.run_passes(f);
 
     if (!m_use_shapes) {
@@ -244,8 +255,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
         for (auto&& param : f->get_parameters()) {
             param->set_partial_shape(input_shapes.at(param.get()));
         }
-        f->validate_nodes_and_infer_types();
     }
+    f->validate_nodes_and_infer_types();
 
     return false;
 }

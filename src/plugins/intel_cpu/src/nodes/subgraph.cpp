@@ -21,11 +21,19 @@
 #include <ie_ngraph_utils.hpp>
 
 #include <snippets/op/subgraph.hpp>
-#include "emitters/cpu_generator.hpp"
+#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
-#include "snippets_transformations/fuse_load_store_and_convert.hpp"
-#include "snippets_transformations/mul_add_to_fma.hpp"
-#include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include "emitters/x64/cpu_generator.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
+#include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/remove_converts.hpp"
+#include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
+#include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
+#include "transformations/defs.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -36,68 +44,33 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
 
-/* This class implementation is a temporal WA
-   TODO: revise the implementation to remove the node reference*/    
-class SnippetShapeInfer : public ShapeInferEmptyPads {
-public:
-    SnippetShapeInfer(Snippet* node) : m_node(node) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_node->shapeInfer(), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    Snippet* m_node;
-};
-
-class SnippetShapeInferFactory : public ShapeInferFactory {
-public:
-    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<SnippetShapeInfer>(m_node);
-    }
-
-private:
-    Snippet* m_node;
-};
-} // namespace
-
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-    original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
+    original_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     if (!original_snippet) {
         IE_THROW(NotImplemented) << "Node is not an instance of snippets::op::Subgraph";
     }
 }
 
 void Snippet::copy_snippet() {
-    ngraph::OutputVector subgraph_node_inputs;
+    ov::OutputVector subgraph_node_inputs;
     for (const auto &input : original_snippet->input_values()) {
-        auto new_input = std::make_shared<ngraph::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
+        auto new_input = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
         subgraph_node_inputs.push_back(new_input);
     }
-    std::shared_ptr<ov::Model> new_body = nullptr;
-    // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
-    if (original_snippet->has_type_relaxed_ops()) {
-        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
-        new_body = original_snippet->body_ptr()->clone();
-    } else {
-        new_body = original_snippet->body_ptr()->clone();
-    }
-    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(original_snippet, snippet);
+    std::shared_ptr<ov::Model> new_body = original_snippet->body_ptr()->clone();
+    snippet = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ov::copy_runtime_info(original_snippet, snippet);
     snippet->set_friendly_name(original_snippet->get_friendly_name());
+#if defined(OPENVINO_ARCH_X86_64)
     snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
     isa_num_lanes =  snippet->get_generator()->get_target_machine()->get_lanes();
+#else
+    IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void Snippet::initSupportedPrimitiveDescriptors() {
@@ -105,7 +78,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::I8, Precision::U8 };
+    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8 };
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -175,17 +148,21 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
         size_t offset = 0;
         NodeConfig config;
-        config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            auto precision = getOriginalInputPrecisionAtPort(i);
+            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
+            const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
+                                     context->getConfig().inferencePrecision == ov::element::bf16 &&
+                                     snippet->has_domain_sensitive_ops()) ?
+                static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
+                originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
             const auto equalPrecisions = getOriginalOutputPrecisions().size() == 1 &&
                     precision == getOriginalOutputPrecisionAtPort(0);
 
-            BlockedMemoryDesc::CmpMask inputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask inputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace((!i && canBeInPlace() && equalPrecisions) ? 0 : -1);
             portConfig.constant(false);
@@ -201,7 +178,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
             if (supportedPrecisions.count(precision) == 0)
                 IE_THROW() << "Subgraph node with name `" << getName() << "` doesn't support " << precision << " precision.";
 
-            BlockedMemoryDesc::CmpMask outputMask = BLOCKED_DESC_SKIP_OFFSET_MASK;
+            BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
             portConfig.inPlace(-1);
             portConfig.constant(false);
@@ -229,14 +206,14 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 }
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     std::vector<InferenceEngine::Precision> inputPrecisions;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -256,11 +233,11 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
         auto collapseLastDims = [](VectorDims& dims, size_t dimsToCollapse) {
             if (dimsToCollapse >= dims.size() - 1)
                 IE_THROW() << "Got invalid number of dims to collapse. Expected < " << dims.size() - 1 << " got " << dimsToCollapse;
-            for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            for (int i = dims.size() - 2; i > static_cast<int>(dims.size() - dimsToCollapse - 2); i--) {
                 dims[dims.size() - 1] *= dims[i];
             }
 
-            for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            for (int i = dims.size() - 2; i >= static_cast<int>(dimsToCollapse); i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 
@@ -312,19 +289,19 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
 }
 ov::PartialShape Snippet::canonicalizeBody() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
-        const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        const auto blockedDesc = edge->getMemory().getDescWithType<BlockedMemoryDesc>();
         std::vector<Dimension> dims;
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
             dims.emplace_back(d == Shape::UNDEFINED_DIM ? -1 : d);
-        ngraph::PartialShape shape(dims);
-        ngraph::AxisVector blocking(blockedDesc->getOrder());
-        ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
-        return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
+        ov::PartialShape shape(dims);
+        ov::AxisVector blocking(blockedDesc->getOrder());
+        ov::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
+        return snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
     };
     inputShapeIsBlocked.resize(inputShapes.size(), false);
     masterShapeIsBlocked = false;
-    ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
+    snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getParentEdgesAtPort(i)[0]);
         inputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -333,7 +310,7 @@ ov::PartialShape Snippet::canonicalizeBody() {
     }
 
     outputShapeIsBlocked.resize(outputShapes.size(), false);
-    ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
+    ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto blockedShape = edgeToBlockedShape(getChildEdgesAtPort(i)[0]);
         outputShapeIsBlocked[i] = std::get<0>(blockedShape).size() != std::get<1>(blockedShape).size();
@@ -404,7 +381,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         return success;
     };
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
+        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().getShape().getDims()};
         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
             inDims.insert(inDims.end(), 1);
         // todo: this is a simple master_shape inference for shape-agnostic operations,
@@ -420,7 +397,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
         errorMessage << ". Input shapes = ( ";
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
+            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().getShape().toString() << ", ";
         }
         errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
         IE_THROW() << errorMessage.str();
@@ -442,17 +419,21 @@ std::vector<VectorDims> Snippet::shapeInfer() {
 
 void Snippet::prepareParams() {
     masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
-    for (auto& pshape : normInputShapes)
+    std::vector<size_t> original_input_shape_ranks;
+    for (auto& pshape : normInputShapes) {
+        original_input_shape_ranks.push_back(pshape.size());
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
+    }
     for (auto& pshape : normOutputShapes)
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
 
     tileRank = 1;
+    bool dims_collapsed = false;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
     if (snippet->has_domain_sensitive_ops()) {
         tileRank = 2;
     } else {
-        optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+        dims_collapsed = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
     }
     exec_domain = masterShape;
 
@@ -464,7 +445,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numInputs; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
+            start_offset_in[i] =  memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
         }
         const size_t numOutputs = outputShapes.size();
         start_offset_out.resize(numOutputs);
@@ -472,7 +453,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numOutputs; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
+            start_offset_out[i] = memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
         }
     };
     // initialize start offsets to src and dst memory
@@ -489,10 +470,16 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
-    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
-    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
-    body_rt_info["PluginShapesOverride"] = new_shapes;
+    if (dims_collapsed) {
+        std::vector<ov::Shape> new_shapes;
+        for (size_t i = 0; i < normInputShapes.size(); i++) {
+            const auto norm_shape = normInputShapes[i];
+            size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
+            new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());
+        }
+        snippet->reshape_body(new_shapes);
+    }
+
     snippet->set_master_shape(ov::PartialShape(masterShape));
     snippet->set_tile_rank(tileRank);
 }
@@ -531,36 +518,45 @@ bool Snippet::created() const {
 }
 
 void Snippet::generate(const jit_snippets_compile_args* jcp) {
-    ov::pass::Manager optManager;
-    optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
-    optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
-    optManager.register_pass<ConvertToSwishCPU>();
-    optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
+    ov::pass::Manager pre_dialect;
+    pre_dialect.register_pass<ConvertToSwishCPU>();
+    if (context->getConfig().inferencePrecision == ov::element::bf16 && snippet->has_domain_sensitive_ops()) {
+        // enforce BF16 precisions to supported operations
+        // MatMul has to be decomposed to Brgemm operations before enforcement
+        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
+        CPU_REGISTER_PASS_X64(pre_dialect, ov::snippets::pass::MatMulToBrgemm);
+        CPU_REGISTER_PASS_X64(pre_dialect, pass::EnforcePrecision, element::f32, element::bf16);
+    }
 
-    // LoadConvert uses Load emitter that support conversion from any type to only f32
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_destination_type() != ov::element::f32;
-                return true;
-            });
+    ov::pass::Manager post_dialect;
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
-    // StoreConvert uses Store emitter that support conversion from only f32 to any types
-    optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_input_element_type(0) != ov::element::f32;
-                return true;
-            });
-    schedule = snippet->generate(optManager, reinterpret_cast<const void*>(jcp));
+    ov::pass::Manager post_precision;
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
+    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
+
+    schedule = snippet->generate(
+        pre_dialect,
+        post_dialect,
+        post_precision,
+        control_flow_markup_pipeline,
+        control_flow_pipeline,
+        reinterpret_cast<const void*>(jcp));
 }
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->getData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->getData()) + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =

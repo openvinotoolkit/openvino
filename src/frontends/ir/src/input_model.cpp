@@ -105,8 +105,8 @@ void parse_pre_process(pugi::xml_node& root,
     const size_t channels = mean_scalar_shape[0];
 
     uint64_t next_channel_id{0};
-    std::set<std::pair<size_t, float>> mean_scalar_values;
-    std::set<std::pair<size_t, std::pair<int64_t, int64_t>>> mean_values;
+    std::set<std::pair<uint64_t, float>> mean_scalar_values;
+    std::set<std::pair<uint64_t, std::pair<uint64_t, uint64_t>>> mean_values;
 
     auto input_type = input_node->get_output_element_type(0);
     FOREACH_CHILD (chan, ppNode, "channel") {
@@ -174,7 +174,9 @@ void parse_pre_process(pugi::xml_node& root,
             const char* data = weights->get_ptr<char>() + offset;
             per_channel_values[item.first] = ngraph::opset1::Constant::create(input_type, mean_shape, data);
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto const_node = get_constant_from_source(std::make_shared<ngraph::opset1::Concat>(per_channel_values, 0));
+        OPENVINO_SUPPRESS_DEPRECATED_END
         IE_ASSERT(const_node);
         const auto& consumers = input_node->output(0).get_target_inputs();
         auto add = std::make_shared<ngraph::opset1::Subtract>(input_node, const_node);

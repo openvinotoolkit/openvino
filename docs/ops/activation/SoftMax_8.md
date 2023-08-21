@@ -1,30 +1,36 @@
 # SoftMax {#openvino_docs_ops_activation_SoftMax_8}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about SoftMax-8 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *SoftMax-8*
 
 **Category**: *Activation function*
 
-**Short description**: [Reference](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#softmax)
+**Short description**: `Reference <https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions#softmax>`__
 
-**Detailed description**: [Reference](http://cs231n.github.io/linear-classify/#softmax)
+**Detailed description**: `Reference <http://cs231n.github.io/linear-classify/#softmax>`__
 
 **Attributes**
 
 * *axis*
 
-  * **Description**: *axis* represents the axis of which the *SoftMax* is calculated. Negative value means counting 
-                     dimensions from the back. *axis* equal 1 is a default value.
-  * **Range of values**: `[-rank, rank - 1]`
+  * **Description**: *axis* represents the axis of which the *SoftMax* is calculated. Negative value means counting dimensions from the back. *axis* equal 1 is a default value.
+  * **Range of values**: ``[-rank, rank - 1]``
   * **Type**: int
   * **Default value**: 1
   * **Required**: *no*
 
 **Mathematical Formulation**
 
-\f[
-y_{c} = \frac{e^{Z_{c}}}{\sum_{d=1}^{C}e^{Z_{d}}}
-\f]
-where \f$C\f$ is a size of tensor along *axis* dimension.
+.. math::
+
+   y_{c} = \frac{e^{Z_{c}}}{\sum_{d=1}^{C}e^{Z_{d}}}
+
+where :math:`C` is a size of tensor along *axis* dimension.
 
 **Inputs**:
 
@@ -36,10 +42,13 @@ where \f$C\f$ is a size of tensor along *axis* dimension.
 
 **Example**
 
-```xml
-<layer ... type="SoftMax" ... >
-    <data axis="1" />
-    <input> ... </input>
-    <output> ... </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+   <layer ... type="SoftMax" ... >
+       <data axis="1" />
+       <input> ... </input>
+       <output> ... </output>
+   </layer>
+
+@endsphinxdirective

@@ -5,11 +5,10 @@
 #include "openvino/op/util/topk_base.hpp"
 
 #include <limits>
-#include <ngraph/validation_util.hpp>
-#include <topk_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "topk_shape_inference.hpp"
 
 namespace {
 constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
@@ -45,7 +44,9 @@ void ov::op::util::TopKBase::validate_and_infer_types() {
 
     set_axis(get_input_partial_shape(0).rank(), get_provided_axis());
 
-    const auto output_shapes = op::util::shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);
@@ -149,7 +150,9 @@ void ov::op::util::TopKBase::set_axis(const int64_t axis) {
 }
 
 void ov::op::util::TopKBase::set_axis(const Rank& input_rank, const int64_t axis) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_normalized_axis = input_rank.is_static() ? normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     m_axis = axis;
 }
 

@@ -8,15 +8,22 @@
 
    openvino_docs_deployment_optimization_guide_common
    openvino_docs_OV_UG_Performance_Hints
+   openvino_docs_OV_UG_Precision_Control
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced
    openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
+   openvino_docs_memory_optimization_guide
+
+.. meta::
+   :description: Improving inference performance involves model and runtime 
+                 optimizations that can be done independently. Inference 
+                 speed depends on latency and throughput.
 
 
 Runtime optimization, or deployment optimization, focuses on tuning inference parameters and execution means (e.g., the optimum number of requests executed simultaneously). Unlike model-level optimizations, they are highly specific to the hardware and case they are used for, and often come at a cost.
-`ov::inference_precision <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gad605a888f3c9b7598ab55023fbf44240>`__ is a "typical runtime configuration" which trades accuracy for performance, allowing ``fp16/bf16`` execution for the layers that remain in ``fp32`` after quantization of the original ``fp32`` model.
+`ov::hint::inference_precision <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gad605a888f3c9b7598ab55023fbf44240>`__ is a "typical runtime configuration" which trades accuracy for performance, allowing ``fp16/bf16`` execution for the layers that remain in ``fp32`` after quantization of the original ``fp32`` model.
 
 Therefore, optimization should start with defining the use case. For example, if it is about processing millions of samples by overnight jobs in data centers, throughput could be prioritized over latency. On the other hand, real-time usages would likely trade off throughput to deliver the results at minimal latency. A combined scenario is also possible, targeting the highest possible throughput, while maintaining a specific latency threshold.
 

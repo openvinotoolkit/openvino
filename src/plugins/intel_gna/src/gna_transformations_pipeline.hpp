@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "cpp/ie_cnn_network.h"
+#include "gna_data_types.hpp"
 #include "gna_plugin_config.hpp"
 #include "openvino/core/model.hpp"
 
@@ -18,7 +19,8 @@ public:
     explicit TransformationsPipeline(const Config& config) : config(config) {
         effective_compile_target = config.target->get_effective_compile_target();
     }
-    void apply(const std::shared_ptr<ov::Model>& model);
+    void apply(const std::shared_ptr<ov::Model>& model,
+               ov::intel_gna::PrePostProcessModels* input_output_subgraphs = nullptr);
     IE_SUPPRESS_DEPRECATED_START
     void apply_legacy(const InferenceEngine::CNNNetwork& network, bool runBeforeCopy);
     void convert_precision_legacy(InferenceEngine::CNNNetwork& network);

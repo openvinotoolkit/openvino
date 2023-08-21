@@ -38,7 +38,7 @@ static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, s
             else
                 return kernel_selector::gather_elements_axis::X;
         case 5: return kernel_selector::gather_elements_axis::X;
-        default: IE_THROW() << "Incorrect gather_elements axis.";
+        default: OPENVINO_THROW("Incorrect gather_elements axis.");
     }
 }
 
@@ -69,7 +69,6 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
        auto kernel_params = get_kernel_params(impl_param, true);
        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-       update_kernels_list_to_skip();
     }
 };
 
@@ -102,3 +101,4 @@ attach_gather_elements_impl::attach_gather_elements_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_elements_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gather_elements)

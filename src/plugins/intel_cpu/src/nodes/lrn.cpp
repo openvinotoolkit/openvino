@@ -9,7 +9,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <memory>
 #include <string>
@@ -151,20 +151,20 @@ void Lrn::getSupportedDescriptors() {
     }
 }
 
-std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     } else {
         if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
+            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
         }
-        return DnnlExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
+        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
 }
 
 void Lrn::prepareParams() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << errorPrefix << " input memory did not allocate";
     if (!dstMemPtr || !dstMemPtr->isAllocated())
@@ -174,7 +174,7 @@ void Lrn::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << errorPrefix << "preferable primitive descriptor did not set";
 
-    auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
     dnnl::primitive_attr attr;
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
@@ -182,8 +182,8 @@ void Lrn::prepareParams() {
     LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
     auto engine = getEngine();
 
-    auto builder = [&engine](const LrnKey& key) -> dnnl::primitive {
-        auto desc = std::make_shared<dnnl::lrn_forward::primitive_desc>(
+    auto builder = [&engine](const LrnKey& key) -> executorPtr {
+        auto prim_desc = dnnl::lrn_forward::primitive_desc(
             engine,
             dnnl::prop_kind::forward_inference,
             key.alg,
@@ -195,35 +195,32 @@ void Lrn::prepareParams() {
             key.k,
             key.attr);
 
-        dnnl::lrn_forward::primitive_desc prim_desc;
-        dnnl::primitive_desc_iterator itpd = *desc;
+        const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
-        while (itpd) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                return dnnl::lrn_forward();
-        }
+        if (!found)
+            return nullptr;
 
-        return dnnl::lrn_forward(prim_desc);
+        return std::make_shared<DnnlExecutor>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
+    execPtr = result.first;
+    if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
-    prim = result.first;
 
-    auto pd = prim.get_primitive_desc();
-    auto scratchpadMem = getScratchPadMem(pd);
+    auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
-    auto src = srcMemPtr->GetPrimitive();
-    auto dst = dstMemPtr->GetPrimitive();
-    primArgs = { {DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()} };
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
+    primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        auto pd = execPtr->getPrimitiveDesc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 bool Lrn::created() const {
@@ -248,6 +245,14 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         k);
 
     descs.push_back(desc);
+}
+
+void Lrn::execute(dnnl::stream strm) {
+    if (execPtr) {
+        execPtr->exec(primArgs, strm);
+    } else {
+        IE_THROW() << errorPrefix << " doesn't have an initialized executor";
+    }
 }
 
 void Lrn::executeDynamicImpl(dnnl::stream strm) {

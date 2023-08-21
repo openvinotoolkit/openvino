@@ -1,4 +1,5 @@
 import importlib
+import shutil
 import os
 import sys
 import subprocess
@@ -34,11 +35,13 @@ def getParams():
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
     customCfgPath = args.__dict__["configuration"]
-    cfgFile = open(presetCfgPath)
-    presetCfgData = json.load(cfgFile)
+    presetCfgData = None
+    with open(presetCfgPath) as cfgFile:
+        presetCfgData = json.load(cfgFile)
     cfgFile.close()
-    cfgFile = open(customCfgPath)
-    customCfgData = json.load(cfgFile)
+    customCfgData = None
+    with open(customCfgPath) as cfgFile:
+        customCfgData = json.load(cfgFile)
     cfgFile.close()
     # customize cfg
     for key in customCfgData:
@@ -75,15 +78,47 @@ def getBlobDiff(file1, file2):
 
 
 def absolutizePaths(cfg):
+    pl = sys.platform
+    if pl == "linux" or pl == "linux2":
+        cfg["workPath"] = cfg["linWorkPath"]
+        cfg["os"] = "linux"
+    elif pl == "win32":
+        wp = cfg["winWorkPath"]
+        wp = "echo {path}".format(path=wp)
+        wp = subprocess.check_output(wp, shell=True)
+        wp = wp.decode()
+        wp = wp.rstrip()
+        cfg["workPath"] = wp
+        cfg["os"] = "win"
+    else:
+        raise CfgError(
+            "No support for current OS: {pl}".format(pl=pl)
+            )
+    if cfg["dlbConfig"]["launchedAsJob"]:
+        cfg["appPath"] = cfg["dlbConfig"]["appPath"]
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
         path = os.path.abspath(path)
         cfg[item] = path
-    if "preprocess" in cfg["runConfig"]:
+    if "preprocess" in cfg["runConfig"] and "file" in cfg["runConfig"]["preprocess"]:
         prepFile = cfg["runConfig"]["preprocess"]["file"]
         prepFile = os.path.abspath(prepFile)
-        cfg["runConfig"]["preprocommArgcess"]["file"] = prepFile
+        cfg["runConfig"]["preprocess"]["file"] = prepFile
+    if "envVars" in cfg:
+        updatedEnvVars = []
+        for env in cfg["envVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            # format ov-path in envvars for e2e case
+            if "{gitPath}" in envVal:
+                envVal = envVal.format(gitPath=cfg["gitPath"])
+                envVal = os.path.abspath(envVal)
+                updatedVar = {"name": envKey, "val": envVal}
+                updatedEnvVars.append(updatedVar)
+            else:
+                updatedEnvVars.append(env)
+        cfg["envVars"] = updatedEnvVars
     return cfg
 
 
@@ -141,7 +176,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     "utils.preprocess.{pp}".format(pp=prePrName)
                 )
                 preProcess = getattr(mod, prePrName)
-                preProcess(cfgData)
+                preProcess(cfgData, commit)
                 continue
         makeCmd = cfgData["makeCmd"]
         strCommand = cmd["cmd"].format(commit=commit, makeCmd=makeCmd)
@@ -180,7 +215,7 @@ def runCommandList(commit, cfgData, enforceClean=False):
                     raise CmdError(checkOut)
 
 
-def fetchAppOutput(cfg):
+def fetchAppOutput(cfg, commit):
     newEnv = os.environ.copy()
     if "envVars" in cfg:
         for env in cfg["envVars"]:
@@ -189,12 +224,20 @@ def fetchAppOutput(cfg):
             newEnv[envKey] = envVal
     appCmd = cfg["appCmd"]
     appPath = cfg["appPath"]
+    commitLogger = getCommitLogger(cfg, commit)
+    commitLogger.info("Run command: {command}".format(
+        command=appCmd)
+    )
+    shellFlag = True
+    if cfg["os"] == "linux":
+        shellFlag = False
     p = subprocess.Popen(
         appCmd.split(),
         cwd=appPath,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
+        shell=shellFlag
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
@@ -226,7 +269,8 @@ def setupLogger(name, logPath, logFileName, level=log.INFO):
     if not os.path.exists(logPath):
         os.makedirs(logPath)
     logFileName = logPath + logFileName
-    open(logFileName, "w").close()  # clear old log
+    with open(logFileName, "w"):  # clear old log
+        pass
     handler = log.FileHandler(logFileName)
     formatter = log.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)
@@ -252,14 +296,19 @@ def getActualPath(pathName, cfg):
     return curPath.format(workPath=workPath)
 
 
-def safeClearDir(path):
+def safeClearDir(path, cfg):
     if not os.path.exists(path):
         os.makedirs(path)
-    p = subprocess.Popen(
-        "rm -rf *", cwd=path,
-        stdout=subprocess.PIPE, shell=True
-    )
-    p.wait()
+    if cfg["os"] == "win":
+        shutil.rmtree(path)
+    else:
+        # WA, because of unstability of rmtree()
+        # in linux environment
+        p = subprocess.Popen(
+            "rm -rf *", cwd=path,
+            stdout=subprocess.PIPE, shell=True
+        )
+        p.wait()
     return
 
 

@@ -29,7 +29,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<read_value>());
+        OPENVINO_ASSERT(arg.is_type<read_value>());
         const auto& node = arg.as<read_value>();
         variable_id = node.get_primitive()->variable_id;
     }
@@ -62,7 +62,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         return instance.get_network().get_stream().create_user_event(true);
     }
 
-    void init_kernels(const kernels_cache&) override {}
+    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {
@@ -81,3 +81,4 @@ attach_read_value_impl::attach_read_value_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::read_value_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::read_value)

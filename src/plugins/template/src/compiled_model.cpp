@@ -7,18 +7,19 @@
 #include <memory>
 
 #include "async_infer_request.hpp"
-#include "ie_ngraph_utils.hpp"
-#include "ie_plugin_config.hpp"
 #include "itt.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "perf_counter.hpp"
 #include "plugin.hpp"
-#include "template/config.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ! [compiled_model:ctor]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                  const ov::RemoteContext& context,
+                                                  const ov::SoPtr<ov::IRemoteContext>& context,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                                   const Configuration& cfg,
                                                   bool loaded_from_cache)
@@ -31,9 +32,6 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
     // In this case, m_wait_executor should also be created per device.
     try {
         compile_model(m_model);
-    } catch (const InferenceEngine::Exception& e) {
-        // Some transformations can throw legacy exception
-        OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -48,7 +46,16 @@ void transform_model(const std::shared_ptr<ov::Model>& model);
 
 void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
-    transform_model(model);
+    if (!m_cfg.disable_transformations)
+        transform_model(model);
+
+    // Integrate performance counters to the compiled model
+    for (const auto& op : model->get_ops()) {
+        auto& rt_info = op->get_rt_info();
+        rt_info[ov::runtime::interpreter::PERF_COUNTER_NAME] =
+            std::make_shared<ov::runtime::interpreter::PerfCounter>();
+    }
+
     // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [compiled_model:compile_model]
@@ -75,13 +82,37 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
 
 // ! [compiled_model:set_property]
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    m_cfg = Configuration{properties, m_cfg};
 }
 // ! [compiled_model:set_property]
 
 // ! [compiled_model:get_runtime_model]
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
-    return m_model;
+    auto model = m_model->clone();
+    // Add execution information into the model
+    size_t exec_order = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto& info = op->get_rt_info();
+        const auto& it = info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
+        OPENVINO_ASSERT(it != info.end(), "Operation ", op, " doesn't contain performance counter");
+        auto perf_count = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();
+        OPENVINO_ASSERT(perf_count, "Performance counter is empty");
+        info[ov::exec_model_info::LAYER_TYPE] = op->get_type_info().name;
+        info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(exec_order++);
+        info[ov::exec_model_info::IMPL_TYPE] = "ref";
+        info[ov::exec_model_info::PERF_COUNTER] = m_cfg.perf_count && perf_count && perf_count->avg() != 0
+                                                      ? std::to_string(perf_count->avg())
+                                                      : "not_executed";
+
+        std::string original_names = ov::getFusedNames(op);
+        if (original_names.empty()) {
+            original_names = op->get_friendly_name();
+        } else if (original_names.find(op->get_friendly_name()) == std::string::npos) {
+            original_names = op->get_friendly_name() + "," + original_names;
+        }
+        info[ov::exec_model_info::ORIGINAL_NAMES] = original_names;
+    }
+    return model;
 }
 // ! [compiled_model:get_runtime_model]
 
@@ -107,9 +138,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id,
-                                                    ov::enable_profiling,
-                                                    ov::template_plugin::throughput_streams};
+        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
         return rw_properties;
     };
     const auto& to_string_vector = [](const std::vector<ov::PropertyName>& properties) {
@@ -119,22 +148,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         }
         return ret;
     };
-    // TODO: return more supported values for metrics
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
-        auto metrics = default_ro_properties();
-        add_ro_properties(METRIC_KEY(SUPPORTED_METRICS), metrics);
-        add_ro_properties(METRIC_KEY(SUPPORTED_CONFIG_KEYS), metrics);
-        return to_string_vector(metrics);
-    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
-                                            .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
-        for (auto&& configKey : streamExecutorConfigKeys) {
-            configs.emplace_back(configKey);
-        }
-        return to_string_vector(configs);
-    } else if (ov::model_name == name) {
+    if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {

@@ -4,13 +4,14 @@
 
 #include "op_extension.hpp"
 
+#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/tensorflow/extension/op.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
-#include "so_extension.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;
+using namespace ov::frontend::tensorflow::tests;
 
 using TFOpExtensionTest = FrontEndOpExtensionTest;
 

@@ -18,7 +18,7 @@ namespace v5 {
 class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic, 5);
+    OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic);
 
     /// \brief Constructs a round operation.
     Round() = default;
@@ -34,9 +34,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
     RoundMode get_mode() const {

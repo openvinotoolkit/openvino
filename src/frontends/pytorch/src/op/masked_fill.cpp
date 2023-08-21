@@ -18,7 +18,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_masked_fill(NodeContext& context) {
+OutputVector translate_masked_fill(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto data = context.get_input(0);
     auto mask = context.get_input(1);

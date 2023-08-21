@@ -1,20 +1,20 @@
-# GPU plugin structure
+# GPU Plugin Structure
 
-Historically GPU plugin was built on top of standalone [clDNN library](https://github.com/intel/clDNN) for DNNs inference on Intel® GPUs,
+Historically, GPU plugin was built on top of standalone [clDNN library](https://github.com/intel/clDNN) for DNNs inference on Intel® GPUs,
 but at some point clDNN became a part of OpenVINO, so now it's a part of overall GPU plugin code. Intel® Arc™ Graphics Xe-HPG is supported
 via embedding of [oneDNN library](https://github.com/oneapi-src/oneDNN) 
 
 OpenVINO GPU plugin is responsible for:
- 1. [IE Plugin API](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html) implementation.
- 2. Translation of model from common IE semantic (ov::Function) into plugin specific one (cldnn::topology) which is then compiled into
- gpu graph representation (cldnn::network).
+ 1. [IE Plugin API](https://docs.openvino.ai/2023.0/openvino_docs_ie_plugin_dg_overview.html) implementation.
+ 2. Translation of a model from common IE semantic (`ov::Function`) into plugin-specific one (`cldnn::topology`), which is then compiled into
+ GPU graph representation (`cldnn::network`).
  3. Implementation of OpenVINO operation set for Intel® GPU.
- 4. Device specific graph transformations.
+ 4. Device-specific graph transformations.
  5. Memory allocation and management logic.
- 6. Processing of incoming InferRequests using clDNN objects.
+ 6. Processing of incoming InferRequests, using clDNN objects.
  7. Actual execution on GPU device.
 
-As Intel GPU Plugin source code structure is shown below:
+Intel GPU Plugin source code structure is shown below:
 <pre>
 src/plugins/intel_gpu                  - root GPU plugin folder
              ├── include               
@@ -49,19 +49,20 @@ src/plugins/intel_gpu                  - root GPU plugin folder
                  └── rapidjson  - thirdparty <a href="https://github.com/Tencent/rapidjson">RapidJSON</a> lib for reading json files (cache.json)
 </pre>
 
-One last thing that is worth mentioning is functional tests which is located in the following location:
+It is worth it to mention the functional tests, which are located in:
 ```
 src/tests/functional/plugin/gpu
 ```
-Most of the tests are reused across plugins, and each plugin only need to add test instances with some specific parameters.
+Most of the tests are reused across plugins, and each plugin only needs to add the test instances with some specific parameters.
 
-Shared tests are located here:
+Shared tests are located in:
 ```
 src/tests/functional/plugin/shared                        <--- test definitions
 src/tests/functional/plugin/gpu/shared_tests_instances    <--- instances for GPU plugin
 ```
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)

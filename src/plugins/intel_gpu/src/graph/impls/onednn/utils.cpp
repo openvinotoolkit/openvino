@@ -68,24 +68,35 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
 dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
     auto sizes = t.sizes(default_fmt_for_dims(dims, false));
     dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 3) {
-        for (size_t i = 0; i < dims - 3; i++) {
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
             res[i + 1] *= res[i];
         }
-        res.erase(res.begin(), res.begin() + dims - 3);
+        res.erase(res.begin(), res.begin() + dims - 4);
     }
-    if (res.size() == 3 && batched_dims_can_be_removed) {
-        res.erase(res.begin());
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
     }
     return res;
 }
 
-dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims) {
-    if (dims.size() > 3)
-        throw std::runtime_error("[clDNN] Unsupported dims size for onednn gemm: should be <= 3");
-    return dims.size() == 3 ? dnnl::memory::format_tag::abc : dnnl::memory::format_tag::ab;
+dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
+    if (dims.size() == target.dimension()) {
+        auto tag = convert_data_format(target);
+        if (tag != dnnl::memory::format_tag::undef) {
+            return tag;
+        } else {
+            throw std::invalid_argument("[clDNN] Unsupported conversion from "+ target.to_string() + " to onednn format_tag");
+        }
+    } else {
+        switch (dims.size()) {
+        case 2: return dnnl::memory::format_tag::ab;
+        case 3: return dnnl::memory::format_tag::abc;
+        case 4: return dnnl::memory::format_tag::abcd;
+        default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
+        }
+    }
 }
-
 
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims) {
     auto spatials = t.spatial;
@@ -115,6 +126,9 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
         { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
+        { cldnn::format::byfx, dnnl::memory::format_tag::acbd },
+        { cldnn::format::bxfy, dnnl::memory::format_tag::adbc },
+        { cldnn::format::fyxb, dnnl::memory::format_tag::bcda },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
@@ -172,10 +186,14 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
     l.set_partial_shape(new_shape);
 }
 
-int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
+    auto b_padding = l.data_padding.lower_size().batch[0];
     auto f_padding = l.data_padding.lower_size().feature[0];
-    if (f_padding != 0) {
+    if (b_padding != 0) {
+        auto input_pitches = l.get_pitches();
+        offset = b_padding * input_pitches.batch[0];
+    } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
             offset *= l.spatial(i);

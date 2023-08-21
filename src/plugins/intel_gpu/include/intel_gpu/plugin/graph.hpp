@@ -25,7 +25,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_blob.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -41,12 +41,17 @@ public:
     using variable_states_map = std::map<std::string, std::vector<cldnn::network::VariableState::Ptr>>;
 
     Graph(InferenceEngine::CNNNetwork& network,
-          RemoteContextImpl::Ptr context,
+          const RemoteContextImpl::Ptr& context,
           const ExecutionConfig& config,
           uint16_t stream_id = 0,
           InferenceEngine::InputsDataMap* inputs = nullptr,
           InferenceEngine::OutputsDataMap* outputs = nullptr);
-    Graph(cldnn::BinaryInputBuffer& ib, RemoteContextImpl::Ptr context,  const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib,
+          const RemoteContextImpl::Ptr& context,
+          const ExecutionConfig& config,
+          uint16_t stream_id = 0,
+          InferenceEngine::InputsDataMap* inputs = nullptr,
+          InferenceEngine::OutputsDataMap* outputs = nullptr);
     explicit Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     void Export(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ngraph::Function> GetExecGraphInfo();
@@ -91,7 +96,7 @@ public:
 
 protected:
     RemoteContextImpl::Ptr m_context;
-    std::shared_ptr<Program> m_program;
+    std::shared_ptr<ProgramBuilder> m_program;
     std::string m_networkName;
     ExecutionConfig m_config;
     uint16_t m_stream_id;

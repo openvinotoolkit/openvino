@@ -30,15 +30,15 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
-        size_t output_offset = (1 + GetFusedPrimitiveInputsCount(params)) * 6;
-        auto x = toCodeString(output.X(), output_offset + 5);
-        auto y = toCodeString(output.Y(), output_offset + 4);
-        auto z = toCodeString(output.Z(), output_offset + 3);
-        auto w = toCodeString(output.W(), output_offset + 2);
-        auto f = toCodeString(output.Feature(), output_offset + 1);
-        auto b = toCodeString(output.Batch(), output_offset);
-
-        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({x, y, z, w, f, b})));
+        DimensionAccessHelper dims(output);
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
+                                                                                              dims.y(),
+                                                                                              dims.z(),
+                                                                                              dims.w(),
+                                                                                              dims.u(),
+                                                                                              dims.v(),
+                                                                                              dims.f(),
+                                                                                              dims.b()})));
     } else {
         jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }
@@ -54,69 +54,61 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
         auto sz = inputDims.size();
 
         for (size_t i = 0; i < params.reduceAxes.size(); ++i) {
-            switch (params.reduceAxes[i]) {
-                case 0:
-                    res.push_back(0);
-                    break;
-                case 1:
-                    res.push_back(1);
-                    break;
-                case 2:
-                    res.push_back(sz == 6 ? 5 : sz == 5 ? 4 : 3);
-                    break;
-                case 3:
-                    res.push_back(sz == 6 ? 4 : sz == 5 ? 3 : 2);
-                    break;
-                case 4:
-                    res.push_back(sz == 6 ? 3 : 2);
-                    break;
-                case 5:
-                    res.push_back(2);
-                    break;
+            auto axis = params.reduceAxes[i];
+            if (axis < 2) {
+                res.push_back(axis);
+            } else {
+                res.push_back(static_cast<int32_t>(sz + 1 - axis));
             }
         }
         return res;
     };
 
     auto getDimSizeNameByNum = [&](size_t dim) -> std::string {
-        if (params.inputs[0].Dimentions() == 6) {
+        if (params.inputs[0].Dimentions() == 8) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_W";
-                case 3:
-                    return "SIZE_Z";
-                case 4:
-                    return "SIZE_Y";
-                case 5:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_V";
+                case 3: return "SIZE_U";
+                case 4: return "SIZE_W";
+                case 5: return "SIZE_Z";
+                case 6: return "SIZE_Y";
+                case 7: return "SIZE_X";
+            }
+        } else if (params.inputs[0].Dimentions() == 7) {
+            switch (dim) {
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_U";
+                case 3: return "SIZE_W";
+                case 4: return "SIZE_Z";
+                case 5: return "SIZE_Y";
+                case 6: return "SIZE_X";
+            }
+        } else  if (params.inputs[0].Dimentions() == 6) {
+            switch (dim) {
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_W";
+                case 3: return "SIZE_Z";
+                case 4: return "SIZE_Y";
+                case 5: return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 5) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_Z";
-                case 3:
-                    return "SIZE_Y";
-                case 4:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_Z";
+                case 3: return "SIZE_Y";
+                case 4: return "SIZE_X";
             }
         } else if (params.inputs[0].Dimentions() == 4) {
             switch (dim) {
-                case 0:
-                    return "BATCH_NUM";
-                case 1:
-                    return "FEATURE_NUM";
-                case 2:
-                    return "SIZE_Y";
-                case 3:
-                    return "SIZE_X";
+                case 0: return "BATCH_NUM";
+                case 1: return "FEATURE_NUM";
+                case 2: return "SIZE_Y";
+                case 3: return "SIZE_X";
             }
         }
         return "";
@@ -189,6 +181,12 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
             case 5:
                 jit.AddConstant(MakeJitConstant("REDUCE_W", 1));
                 break;
+            case 6:
+                jit.AddConstant(MakeJitConstant("REDUCE_U", 1));
+                break;
+            case 7:
+                jit.AddConstant(MakeJitConstant("REDUCE_V", 1));
+                break;
         }
     }
 
@@ -254,6 +252,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     auto& kernel = kd.kernels[0];

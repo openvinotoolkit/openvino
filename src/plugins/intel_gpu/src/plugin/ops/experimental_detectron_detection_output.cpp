@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/experimental_detectron_detection_output.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 
@@ -13,12 +13,12 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronDetectionOutputOp(
-    Program& p,
-    const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronDetectionOutput>& op) {
+    ProgramBuilder& p,
+    const std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOutput>& op) {
     validate_inputs_count(op, {4});
 
     if (op->get_output_size() != 3) {
-        IE_THROW() << "ExperimentalDetectronDetectionOutput requires 3 outputs";
+        OPENVINO_THROW("ExperimentalDetectronDetectionOutput requires 3 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);
@@ -54,7 +54,7 @@ static void CreateExperimentalDetectronDetectionOutputOp(
 
     const auto expectedPrimInputCount = 4 + 2; // 4 operation inputs plus 2 input-outputs
     if (inputs.size() != expectedPrimInputCount) {
-        IE_THROW() << "experimental_detectron_detection_output primitive requires 6 inputs";
+        OPENVINO_THROW("experimental_detectron_detection_output primitive requires 6 inputs");
     }
 
     const cldnn::experimental_detectron_detection_output prim{layer_name,

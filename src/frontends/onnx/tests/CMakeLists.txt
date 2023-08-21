@@ -6,13 +6,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 ov_try_use_gold_linker()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4267)
-    ie_add_compiler_flags(/wd4305)
-    ie_add_compiler_flags(/wd4756)
-endif()
-
 message(STATUS "ONNX frontend test enabled")
 
 add_compile_definitions(
@@ -70,16 +63,18 @@ set(MULTI_TEST_SRC
     onnx_import_convpool.in.cpp
     onnx_import_deprecated.in.cpp
     onnx_import_dyn_shapes.in.cpp
-    onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
     onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
+    onnx_import_signal.in.cpp
     onnx_import_quant.in.cpp
     onnx_test_utils.in.cpp
     onnx_import_with_editor.in.cpp)
 set(SRC
     conversion.cpp
+    convert_tests.cpp
+    convert_partially_tests.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
@@ -142,8 +137,8 @@ if(ONNX_TESTS_DEPENDENCIES)
     add_dependencies(ov_onnx_frontend_tests ${ONNX_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common funcTestUtils)
+target_link_libraries(ov_onnx_frontend_tests PRIVATE gtest_main_manifest openvino::runtime::dev
+    openvino_onnx_frontend openvino_onnx_common func_test_utils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
@@ -151,7 +146,7 @@ target_include_directories(ov_onnx_frontend_tests
     SYSTEM PRIVATE
         $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-        ${Protobuf_INCLUDE_DIRS})
+        $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 target_compile_definitions(ov_onnx_frontend_tests PRIVATE ENABLE_OV_ONNX_FRONTEND)
 

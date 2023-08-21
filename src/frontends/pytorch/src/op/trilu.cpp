@@ -60,11 +60,11 @@ OutputVector translate_base_triu_tril(const NodeContext& context, bool upper) {
 }
 };  // namespace
 
-OutputVector translate_triu(NodeContext& context) {
+OutputVector translate_triu(const NodeContext& context) {
     return translate_base_triu_tril(context, true);
 };
 
-OutputVector translate_tril(NodeContext& context) {
+OutputVector translate_tril(const NodeContext& context) {
     return translate_base_triu_tril(context, false);
 };
 

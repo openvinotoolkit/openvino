@@ -72,12 +72,13 @@ protected:
 };
 
 class GNALayersLimit20Test : public GNALayersLimitTest {};
-class GNALayersLimit30Test : public GNALayersLimitTest {};
+class GNALayersLimit3XTest : public GNALayersLimitTest {};
 
 TEST_P(GNALayersLimit20Test, CompareWithRefs) {
     Run();
 }
-TEST_P(GNALayersLimit30Test, CompareWithRefs) {
+
+TEST_P(GNALayersLimit3XTest, CompareWithRefs) {
     Run();
 }
 
@@ -86,27 +87,30 @@ std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXA
 std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}}};
 
-std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
-                                                           {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}}};
+std::vector<std::map<std::string, std::string>> configs_3X{{{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
+                                                           {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}},
+                                                           {{"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}},
+                                                           {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_5"}}};
 
 // for GNA v2.0 limit is 4096
 std::vector<size_t> layer_limits_20{64, 4096, 4160};
-// for GNA v3.0 limit is 8191
-std::vector<size_t> layer_limits_30{64, 8192, 8200};
+// for GNA >= v3.0 limit is 8192
+std::vector<size_t> layer_limits_3X{64, 8192, 8200};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
                          GNALayersLimit20Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
                                             ::testing::ValuesIn(configs_20),
                                             ::testing::ValuesIn(layer_limits_20)),
                          GNALayersLimitTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
-                         GNALayersLimit30Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         GNALayersLimit3XTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
-                                            ::testing::ValuesIn(configs_30),
-                                            ::testing::ValuesIn(layer_limits_30)),
+                                            ::testing::ValuesIn(configs_3X),
+                                            ::testing::ValuesIn(layer_limits_3X)),
                          GNALayersLimitTest::getTestCaseName);
+
 }  // namespace LayerTestsDefinitions

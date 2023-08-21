@@ -20,7 +20,7 @@ namespace low_precision {
 
 ReluTransformation::ReluTransformation(const Params& params) : LayerTransformation(params) {
     MATCHER_SCOPE(ReluTransformation);
-    auto matcher = pattern::wrap_type<opset1::Relu>({ pattern::wrap_type<opset1::Multiply>() });
+    auto matcher = pattern::wrap_type<ov::opset1::Relu>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();

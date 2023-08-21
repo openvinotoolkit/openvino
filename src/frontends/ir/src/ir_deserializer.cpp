@@ -8,10 +8,10 @@
 #include <regex>
 
 #include "ie_ngraph_utils.hpp"
-#include "meta_data.hpp"
 #include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/meta_data.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "utils.hpp"
@@ -614,18 +614,15 @@ private:
     }
 
     void parse() const {
-        // Thread safety is implemented on ov::Model level
-        if (m_parsed)
-            return;
-        const pugi::xml_node& node = m_meta.child(m_name.c_str());
-        m_parsed_map = parse_node(node);
-
-        m_parsed = true;
+        std::call_once(m_oc, [this]() {
+            const pugi::xml_node& node = m_meta.child(m_name.c_str());
+            m_parsed_map = parse_node(node);
+        });
     }
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
-    mutable bool m_parsed{false};
+    mutable std::once_flag m_oc;
 };
 
 void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
@@ -771,7 +768,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     const std::string& type_name = translate_type_name(params.type);
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    ov::DiscreteTypeInfo type(type_name.c_str(), 0, params.version.c_str());
+    ov::DiscreteTypeInfo type(type_name.c_str(), params.version.c_str());
     auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
@@ -885,7 +882,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
                 item.print(ss);
                 IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
             }
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
+            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {
                 if (attr.is<ov::RuntimeAttribute>()) {

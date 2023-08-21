@@ -4,12 +4,12 @@
 
 #include <array>
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/matmul.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
@@ -29,7 +29,7 @@ namespace intel_gpu {
 
 static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const PartialShape& shape_a,
                                                                        const PartialShape& shape_b,
-                                                                       const std::shared_ptr<ngraph::op::v0::MatMul>& matmul) {
+                                                                       const std::shared_ptr<ov::op::v0::MatMul>& matmul) {
     PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
     auto rank_a = shape_a_aligned.rank().get_length();
     auto rank_b = shape_b_aligned.rank().get_length();
@@ -62,7 +62,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
             }
         } else {
             if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                IE_THROW() << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
+                OPENVINO_THROW("Shapes can't be aligned: ", shape_a_aligned, " ", shape_b_aligned);
             }
             auto max_value = std::max(a_dim.get_length(), b_dim.get_length());
             shape_a_aligned[i] = shape_b_aligned[i] = max_value;
@@ -71,7 +71,7 @@ static std::tuple<bool, PartialShape, PartialShape> get_aligned_shapes(const Par
     return {true, shape_a_aligned, shape_b_aligned};
 }
 
-static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::MatMul>& op) {
+static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::MatMul>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -96,7 +96,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
     if (is_fc) {
         if (shape_a_aligned.size() < 2 || shape_b_aligned.size() < 2) {
-            IE_THROW() << "MatMul " << op->get_friendly_name() << " shapes are inconsistent.";
+            OPENVINO_THROW("MatMul ", op->get_friendly_name(), " shapes are inconsistent.");
         }
 
         auto inputName = inputs[0].pid;
@@ -133,7 +133,8 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size());
+                                             rank_a,
+                                             rank_b);
 
         p.add_primitive(*op, fcPrim);
 
@@ -171,33 +172,43 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
         auto transA = op->get_transpose_a();
         auto transB = op->get_transpose_b();
 
-        std::array<ngraph::PartialShape, 2> inputShapes{
+        std::array<ov::PartialShape, 2> inputShapes{
             op->get_input_partial_shape(0),
             op->get_input_partial_shape(1)
         };
 
-        auto canTransposeInputs = [] (const std::array<ngraph::PartialShape, 2>& shapes, bool transA, bool transB) -> bool {
+        auto canTransposeInputs = [&] (const std::array<ov::PartialShape, 2>& shapes, bool transA, bool transB, ov::element::Type type) -> bool {
             if (!transA && !transB)
                 return false;
-            if (shapes[0].rank().is_dynamic() ||
-                shapes[1].rank().is_dynamic())
+
+            // dynamic shapes and 1D tensors are not transposed
+            if (shapes[0].is_dynamic() || shapes[1].is_dynamic() ||
+                shapes[0].size() < 2 || shapes[1].size() < 2)
                 return false;
 
             // don't transpose inputs if they're aligned to 16
             bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
-                                             [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
+                                             [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
                                  std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
-                                             [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; });
+                                             [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; });
             if (inputsAligned)
                 return false;
 
-            return std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; }) &&
-                   std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
-                               [] (const ngraph::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Heuristic condition for permute and tiled_opt kernel perform better than ref kernel.
+            bool in0_large = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
+                                        [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            bool in1_large = std::all_of(shapes[1].rbegin(), shapes[1].rbegin() + 2,
+                                        [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() >= 64; });
+            // Optimized for clDNN
+            auto is_u8_i8 = (type == ov::element::Type_t::i8 || type == ov::element::Type_t::u8);
+            bool in0_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool in1_very_large = tensor_from_dims(shapes[0].to_shape()).count() > 100000;
+            bool needs_to_transpose_inputs = (in0_very_large || in1_very_large) && !is_u8_i8 && !p.get_engine().get_device_info().supports_immad;
+
+            return (in0_large && in1_large) || needs_to_transpose_inputs;
         };
 
-        auto transposeInput = [] (Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::PartialShape& shape,
+        auto transposeInput = [] (ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const ov::PartialShape& shape,
                                   const std::string& suffix, const cldnn::primitive_id& primitiveId) -> cldnn::input_info {
             std::vector<uint16_t> transposeOrder(shape.size());
             std::iota(transposeOrder.begin(), transposeOrder.end(), 0);
@@ -211,7 +222,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
             return cldnn::input_info(permuteName);
         };
 
-        if (canTransposeInputs(inputShapes, transA, transB)) {
+        if (canTransposeInputs(inputShapes, transA, transB, op->get_input_element_type(0))) {
             if (transA) {
                 inputs[0] = transposeInput(p, op, inputShapes[0], "/transpose_a", inputs[0].pid);
                 transA = false;

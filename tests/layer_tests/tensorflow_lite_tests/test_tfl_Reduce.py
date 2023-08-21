@@ -1,10 +1,9 @@
-import itertools
-
 import pytest
 import tensorflow as tf
 
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.utils.tflite_utils import data_generators, additional_test_params
+from common.utils.tflite_utils import additional_test_params
+from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
     {'op_name': 'MEAN', 'op_func': tf.math.reduce_mean},
@@ -21,27 +20,13 @@ test_params = [
     {'shape': [2, 10]}
 ]
 
-
-test_data = list(itertools.product(test_ops, test_params))
-for i, (parameters, shapes) in enumerate(test_data):
-    parameters.update(shapes)
-    test_data[i] = parameters.copy()
-
-
-test_data = list(itertools.product(test_data, additional_test_params[0]))
-for i, (parameters, additional_test_params[0]) in enumerate(test_data):
-    parameters.update(additional_test_params[0])
-    test_data[i] = parameters.copy()
+test_data = parametrize_tests(test_ops, test_params)
+test_data = parametrize_tests(test_data, additional_test_params[0])
 
 
 class TestTFLiteReduceLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["ReduceOperation"]
-
-    def _prepare_input(self, inputs_dict, generator=None):
-        if generator is None:
-            return super()._prepare_input(inputs_dict)
-        return data_generators[generator](inputs_dict)
 
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape', 'axis'})) == 4, \
@@ -50,8 +35,8 @@ class TestTFLiteReduceLayerTest(TFLiteLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
-                                                    name=TestTFLiteReduceLayerTest.inputs[0])
-            params['op_func'](place_holder, axis=params['axis'], name=TestTFLiteReduceLayerTest.outputs[0])
+                                                    name=self.inputs[0])
+            params['op_func'](place_holder, axis=params['axis'], name=self.outputs[0])
             net = sess.graph_def
         return net
 

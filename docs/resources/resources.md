@@ -3,13 +3,15 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Learn more about OpenVINO from benchmark results, case studies 
+                 and lists of supported models, operations and devices.
+
 .. toctree::
    :maxdepth: 1
    :hidden:
 
    openvino_docs_performance_benchmarks
-   openvino_ir
-   prerelease_information
 
 .. toctree::
    :maxdepth: 1
@@ -17,7 +19,8 @@
 
    openvino_docs_OV_UG_supported_plugins_Supported_Devices
    openvino_supported_models
-   openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers
+   openvino_resources_supported_operations
+   openvino_resources_supported_operations_frontend
 
 .. toctree::
    :maxdepth: 1
@@ -34,13 +37,13 @@ and its proprietary model format, OpenVINO IR.
 
 :doc:`Performance Benchmarks <openvino_docs_performance_benchmarks>` contain results from benchmarking models with OpenVINO on Intel hardware.
 
-:doc:`OpenVINO IR format <openvino_ir>` is the proprietary model format of OpenVINO. Read more details on its operations and usage. 
-
 :doc:`Supported Devices <openvino_docs_OV_UG_supported_plugins_Supported_Devices>` is compatibility information about supported hardware accelerators.
 
-:doc:`Supported Models <openvino_supported_models>` is a table of models officially supported by OpenVINO. 
+:doc:`Supported Models <openvino_supported_models>` is a table of models officially supported by OpenVINO.
 
-:doc:`Supported Framework Layers <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>` are lists of framework layers supported by OpenVINO. 
+:doc:`Supported Operations <openvino_resources_supported_operations>` is a listing of framework layers supported by OpenVINO. 
+
+:doc:`Supported Operations <openvino_resources_supported_operations_frontend>` is a listing of layers supported by OpenVINO inference devices.
 
 :doc:`Glossary <openvino_docs_OV_Glossary>` contains terms used in OpenVINO.
 

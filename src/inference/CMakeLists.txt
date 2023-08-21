@@ -16,20 +16,6 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
-# TODO: WA for OneHot pass usage in reshape
-set(LEGACY_ROOT "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy")
-set(LEGACY_LIBRARY_SHARED_SRCS
-    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    "${LEGACY_ROOT}/src/ngraph_ops/nms_ie.cpp"
-    "${LEGACY_ROOT}/src/ngraph_ops/onehot_ie.cpp")
-
-set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE"
-    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
-    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
-
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
@@ -50,7 +36,14 @@ if(WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-elseif(NOT (APPLE OR EMSCRIPTEN))
+elseif(APPLE)
+    file (GLOB LIBRARY_SRC
+        ${LIBRARY_SRC}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+        ${LIBRARY_HEADERS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.hpp)
+elseif(NOT EMSCRIPTEN)
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
           ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
@@ -74,8 +67,6 @@ if(ENABLE_SSE42)
         set_source_files_properties(${SSE_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     endif()
 endif()
-
-addVersionDefines(src/ie_version.cpp CI_BUILD_NUMBER)
 
 set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -121,10 +112,11 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${IE_STATIC_DEPENDENT_FILES}
-            ${LEGACY_LIBRARY_SHARED_SRCS}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+ov_add_version_defines(src/ie_version.cpp ${TARGET_NAME}_obj)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -136,6 +128,7 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:PROXY_PLUGIN_ENABLED>
     $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
@@ -144,20 +137,24 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
+    $<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    # for static ie_plugins.hpp
-    "${CMAKE_CURRENT_BINARY_DIR}"
+    # for ov_plugins.hpp
+    $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
-    "${LEGACY_ROOT}/include"
+    "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
 ie_mark_target_as_cc(${TARGET_NAME}_obj)
+
+# IE is public API => need to mark this library as important for ABI free
+ov_abi_free_target(${TARGET_NAME}_obj)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
@@ -180,6 +177,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+            $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)

@@ -46,8 +46,7 @@ def parse_and_check_command_line():
 
     if is_network_compiled and is_precisiton_set:
         raise Exception("Cannot set precision for a compiled model. " \
-                        "Please re-compile your model with required precision " \
-                        "using compile_tool")
+                        "Please re-compile your model with required precision.")
 
     return args, is_network_compiled
 
@@ -71,15 +70,12 @@ def main():
         device_name = args.target_device
 
         devices = parse_devices(device_name)
-        is_dev_set_property = {device: True for device in devices}
         device_number_streams = parse_value_per_device(devices, args.number_streams, "nstreams")
         device_infer_precision = parse_value_per_device(devices, args.infer_precision, "infer_precision")
 
         config = {}
-        is_load_config = False
         if args.load_config:
             load_config(args.load_config, config)
-            is_load_config = True
 
         if is_network_compiled:
             logger.info("Model is compiled")
@@ -108,23 +104,31 @@ def main():
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
 
-        def get_performance_hint(device) -> properties.hint.PerformanceMode:
+        def set_performance_hint(device):
             perf_hint = properties.hint.PerformanceMode.UNDEFINED
             supported_properties = benchmark.core.get_property(device, properties.supported_properties())
             if properties.hint.performance_mode() in supported_properties:
                 if is_flag_set_in_command_line('hint'):
-                    if args.perf_hint=='none':
-                        logger.warning(f"No device {device} performance hint is set.")
+                    if args.perf_hint == "throughput" or args.perf_hint == "tput":
+                        perf_hint = properties.hint.PerformanceMode.THROUGHPUT
+                    elif args.perf_hint == "latency":
+                        perf_hint = properties.hint.PerformanceMode.LATENCY
+                    elif args.perf_hint == "cumulative_throughput" or args.perf_hint == "ctput":
+                        perf_hint = properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT
+                    elif args.perf_hint=='none':
                         perf_hint = properties.hint.PerformanceMode.UNDEFINED
                     else:
-                        perf_hint = properties.hint.PerformanceMode(args.perf_hint.upper())
+                        raise RuntimeError("Incorrect performance hint. Please set -hint option to"
+                            "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
                 else:
                     perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
+                if perf_hint != properties.hint.PerformanceMode.UNDEFINED:
+                    config[device][properties.hint.performance_mode()] = perf_hint
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
-            return perf_hint
+
 
         def get_device_type_from_name(name) :
             new_name = str(name)
@@ -163,10 +167,7 @@ def main():
                 config[device] = {}
 
             ## high-level performance modes
-            if properties.hint.performance_mode() not in config[device].keys():
-                config[device][properties.hint.performance_mode()] = get_performance_hint(device)
-
-            perf_hint = config[device][properties.hint.performance_mode()]
+            set_performance_hint(device)
 
             if is_flag_set_in_command_line('nireq'):
                 config[device][properties.hint.num_requests()] = str(args.number_infer_requests)
@@ -199,14 +200,6 @@ def main():
             ## insert or append property into hw device properties list
             def update_configs(hw_device, property_name, property_value):
                 (key, value) = properties.device.properties({hw_device:{property_name:property_value}})
-                is_set_streams_auto = property_name == properties.num_streams() and property_value == properties.streams.Num.AUTO
-                if not is_set_streams_auto and is_load_config and is_dev_set_property[hw_device] and hw_device in config[device].keys():
-                    # overwrite the device properties loaded from configuration file if
-                    # 1. not setting 'NUM_STREAMS' to default value 'AUTO',
-                    # 2. enable loading device properties from configuration file,
-                    # 3. device properties in config[device] is loaded from configuration file, and never setting device properties before
-                    is_dev_set_property[hw_device] = False
-                    del config[device][key]
                 # add property into hw device properties list.
                 if key not in config[device].keys():
                     config[device][key] = value
@@ -215,10 +208,10 @@ def main():
                     if hw_device not in current_config.keys():
                         current_config.update(value.get())
                     else:
-                        current_device_config = current_config[hw_device].get()
+                        current_device_config = current_config[hw_device]
                         for prop in value.get().items():
-                            current_device_config.update(prop[1].get())
-                        current_config[hw_device].set(current_device_config)
+                            current_device_config.update(prop[1])
+                        current_config[hw_device].update(current_device_config)
                     config[device][key].set(current_config)
 
             def update_device_config_for_virtual_device(value, config, key):
@@ -320,7 +313,6 @@ def main():
                 if device in device_number_streams.keys():
                     del device_number_streams[device]
 
-        perf_counts = perf_counts
         device_config = {}
         for device in config:
             if benchmark.device.find(device) == 0:
@@ -331,7 +323,7 @@ def main():
         ## If set batch size, disable the auto batching
         if args.batch_size:
             logger.warning("Batch size is set. Auto batching will be disabled")
-            benchmark.set_allow_auto_batching(False)
+            device_config["ALLOW_AUTO_BATCHING"] = False
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
@@ -460,7 +452,7 @@ def main():
                 if k == properties.device.properties():
                     for device_key in value.keys():
                         logger.info(f'  {device_key}:')
-                        for k2, value2 in value.get(device_key).get().items():
+                        for k2, value2 in value.get(device_key).items():
                             if k2 not in skip_keys:
                                 logger.info(f'    {k2}: {value2}')
                 else:
@@ -470,10 +462,10 @@ def main():
         for device in device_number_streams.keys():
             try:
                 key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
-                device_number_streams[device] = benchmark.core.get_property(device, key)
+                device_number_streams[device] = compiled_model.get_property(key)
             except:
                 key = 'NUM_STREAMS'
-                device_number_streams[device] = benchmark.core.get_property(device, key)
+                device_number_streams[device] = compiled_model.get_property(key)
 
         # ------------------------------------ 9. Creating infer requests and preparing input data ----------------------
         next_step()
@@ -495,8 +487,8 @@ def main():
         static_mode = check_for_static(app_inputs_info)
         allow_inference_only_or_sync = can_measure_as_static(app_inputs_info)
         if not allow_inference_only_or_sync and benchmark.api_type == 'sync':
-            raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
-                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
+            raise Exception("Benchmarking of the model with dynamic shapes is available for async API only. "
+                            "Please use -api async -hint latency -nireq 1 to emulate sync behavior.")
 
         if benchmark.inference_only == None:
             if static_mode:
@@ -507,7 +499,7 @@ def main():
             raise Exception("Benchmarking dynamic model available with input filling in measurement loop only!")
 
         # update batch size in case dynamic network with one data_shape
-        if benchmark.inference_only and batch_size.is_dynamic:
+        if allow_inference_only_or_sync and batch_size.is_dynamic:
             batch_size = Dimension(data_queue.batch_sizes[data_queue.current_group_id])
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)

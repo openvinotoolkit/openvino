@@ -31,6 +31,7 @@ public:
     void withMeanImage();
     MemoryCPtr getMemoryPtr() const;
 
+    void execute(dnnl::stream strm) override {}
     void executeDynamicImpl(dnnl::stream strm) override {}
     bool isExecutable() const override {
         return false;

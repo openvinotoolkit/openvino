@@ -53,6 +53,31 @@ void regclass_frontend_NodeContext(py::module m) {
                                                                                           "NodeContext",
                                                                                           py::dynamic_attr());
 
+    auto cast_attribute = [](const ov::Any& any, const py::object& dtype) -> py::object {
+        CAST_TO_PY(any, dtype, int32_t);
+        CAST_TO_PY(any, dtype, int64_t);
+        CAST_TO_PY(any, dtype, bool);
+        CAST_TO_PY(any, dtype, std::string);
+        CAST_TO_PY(any, dtype, float);
+        CAST_TO_PY(any, dtype, double);
+        CAST_TO_PY(any, dtype, ov::element::Type);
+        CAST_TO_PY(any, dtype, ov::PartialShape);
+
+        CAST_VEC_TO_PY(any, dtype, std::vector<int32_t>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<int64_t>);
+#ifndef __APPLE__
+        // TODO: investigate the issue in pybind11 on MacOS
+        CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
+#endif
+        CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<float>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<double>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
+        CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);
+
+        return py::none();
+    };
+
     ext.def(
         "get_attribute",
         [=](NodeContext& self, const std::string& name, const py::object& default_value, const py::object& dtype)
@@ -60,7 +85,7 @@ void regclass_frontend_NodeContext(py::module m) {
             auto any = self.get_attribute_as_any(name);
 
             auto type = m.attr("Type");
-            if (dtype == type) {
+            if (dtype.is(type)) {
                 if (any.is<int32_t>() || any.is<int64_t>()) {
                     return py::cast(self.get_attribute<ov::element::Type>(name));
                 } else if (any.is<std::vector<int32_t>>() || any.is<std::vector<int64_t>>()) {
@@ -68,24 +93,9 @@ void regclass_frontend_NodeContext(py::module m) {
                 }
             }
 
-            CAST_TO_PY(any, dtype, int32_t);
-            CAST_TO_PY(any, dtype, int64_t);
-            CAST_TO_PY(any, dtype, bool);
-            CAST_TO_PY(any, dtype, std::string);
-            CAST_TO_PY(any, dtype, double);
-            CAST_TO_PY(any, dtype, ov::element::Type);
-            CAST_TO_PY(any, dtype, ov::PartialShape);
-
-            CAST_VEC_TO_PY(any, dtype, std::vector<int32_t>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<int64_t>);
-#ifndef __APPLE__
-            // TODO: investigate the issue in pybind11 on MacOS
-            CAST_VEC_TO_PY(any, dtype, std::vector<bool>);
-#endif
-            CAST_VEC_TO_PY(any, dtype, std::vector<std::string>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<double>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<ov::element::Type>);
-            CAST_VEC_TO_PY(any, dtype, std::vector<ov::PartialShape>);
+            auto casted = cast_attribute(any, dtype);
+            if (!casted.is_none())
+                return casted;
 
             if (default_value.is_none())
                 FRONT_END_GENERAL_CHECK(false, "Attribute ", name, " can't be converted to defined types.");
@@ -107,6 +117,26 @@ void regclass_frontend_NodeContext(py::module m) {
     ext.def("get_input", [](NodeContext& self, const std::string& name, int idx) {
         return self.get_input(name, idx);
     });
+
+    ext.def(
+        "get_values_from_const_input",
+        [=](NodeContext& self, int idx, const py::object& default_value, const py::object& dtype) -> py::object {
+            auto any = self.get_values_from_const_input(idx);
+            if (any.empty())
+                return py::none();
+
+            auto casted = cast_attribute(any, dtype);
+            if (!casted.is_none())
+                return casted;
+
+            if (default_value.is_none())
+                FRONT_END_GENERAL_CHECK(false, "Const input with index ", idx, " can't be converted to defined types.");
+            else
+                return default_value;
+        },
+        py::arg("idx"),
+        py::arg("default_value") = py::none(),
+        py::arg("dtype") = py::none());
 
     ext.def("get_input_size", [](NodeContext& self) {
         return self.get_input_size();

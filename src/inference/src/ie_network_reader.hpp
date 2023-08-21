@@ -22,13 +22,15 @@ namespace details {
  * @param exts vector with extensions
  * @param ov_exts vector with OpenVINO extensions
  * @param newAPI Whether this function is called from OpenVINO 2.0 API
+ * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& modelPath,
                        const std::string& binPath,
                        const std::vector<IExtensionPtr>& exts,
                        const std::vector<ov::Extension::Ptr>& ov_exts,
-                       bool newAPI);
+                       bool newAPI,
+                       bool enable_mmap);
 /**
  * @brief Reads IR xml and bin (with the same name) files
  * @param model string with IR

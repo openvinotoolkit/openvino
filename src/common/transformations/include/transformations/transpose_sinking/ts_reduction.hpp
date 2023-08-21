@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/transpose_sinking/ts_base.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -21,10 +22,10 @@ class TRANSFORMATIONS_API TSReductionBackward;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeReductionForward transformation sinks Transpose through Reduce, Squeeze, Unsqueeze operations
+ * @brief TSReductionForward transformation sinks Transpose through Reduce operations
  * in the forward direction.
  */
-class ov::pass::transpose_sinking::TSReductionForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSReductionForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
     OPENVINO_RTTI("ov::pass::TSReductionForward", "0");
     TSReductionForward();
@@ -32,7 +33,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeReductionBackward transformation sinks Transpose through Reduce, Squeeze, Unsqueeze operations
+ * @brief TSReductionBackward transformation sinks Transpose through Reduce operations
  * in the backward direction.
  */
 class ov::pass::transpose_sinking::TSReductionBackward : public ov::pass::MatcherPass {

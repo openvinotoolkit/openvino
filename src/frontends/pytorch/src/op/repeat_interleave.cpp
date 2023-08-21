@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
@@ -34,7 +35,7 @@ OutputVector generate_indices_from_repeats_tensor(const NodeContext& context, co
 };
 }  // namespace
 
-OutputVector translate_repeat_interleave(NodeContext& context) {
+OutputVector translate_repeat_interleave(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     // constants
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -68,8 +69,8 @@ OutputVector translate_repeat_interleave(NodeContext& context) {
     } else {
         // repeats is not Constant or single element constant
         // Curently we support only case when repeats contains only one element. Otherwise next Reshape will fail.
-        auto repeats_input =
-            context.mark_node(std::make_shared<v1::Reshape>(context.get_input(1), const_1_list, false));
+        auto repeats_input = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::i32));
+        repeats_input = context.mark_node(std::make_shared<v1::Reshape>(repeats_input, const_1_list, false));
         auto repeats = context.mark_node(std::make_shared<v0::Concat>(OutputVector{repeats_input, const_1_list}, 0));
         auto shape_perm = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
         if (context.input_is_none(2)) {

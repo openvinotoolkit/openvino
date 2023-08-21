@@ -9,10 +9,12 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(MatMulConstTransposesExtractionTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 
 TEST_P(QuantizedMatMulConstTransposesExtractionTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 

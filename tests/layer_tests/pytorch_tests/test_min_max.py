@@ -123,19 +123,15 @@ class TestPrimMax(PytorchLayerTest):
         {"first_input": 0, "second_input": 1, "dtype": "int"},
         {"first_input": 1, "second_input": 1, "dtype": "int"},
         {"first_input": 2, "second_input": 1, "dtype": "int"},
-        # is not supported by OV
-        pytest.param({"first_input": 0, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 1, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 2, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
+        {"first_input": 0, "second_input": 1, "dtype": "bool"},
+        {"first_input": 1, "second_input": 1, "dtype": "bool"},
+        {"first_input": 2, "second_input": 1, "dtype": "bool"},
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_min_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model(case),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False)
 
 class TestPrimMin(PytorchLayerTest):
     def _prepare_input(self, first_input, second_input, dtype="float"):
@@ -187,16 +183,12 @@ class TestPrimMin(PytorchLayerTest):
         {"first_input": 0, "second_input": 1, "dtype": "int"},
         {"first_input": 1, "second_input": 1, "dtype": "int"},
         {"first_input": 2, "second_input": 1, "dtype": "int"},
-        # is not supported by OV
-        pytest.param({"first_input": 0, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 1, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
-        pytest.param({"first_input": 2, "second_input": 1,
-                      "dtype": "bool"}, marks=pytest.mark.xfail),
+        {"first_input": 0, "second_input": 1, "dtype": "bool"},
+        {"first_input": 1, "second_input": 1, "dtype": "bool"},
+        {"first_input": 2, "second_input": 1, "dtype": "bool"},
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_min(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model(case),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False)

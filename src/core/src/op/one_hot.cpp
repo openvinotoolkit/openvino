@@ -51,10 +51,9 @@ void op::v1::OneHot::validate_and_infer_types() {
     const auto& on_value_shape = get_input_partial_shape(2);
     const auto& off_value_shape = get_input_partial_shape(3);
 
-    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape},
-                              output_shapes = {PartialShape{}};
+    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape};
     resolve_axis(this);
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, on_value_et, output_shapes[0]);
 }
@@ -71,6 +70,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace one_hot {
 namespace {
 template <element::Type_t T>
@@ -106,8 +106,10 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v1_OneHot_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto& ind_Pshape = input_values[0]->get_partial_shape();
     const auto& out_Pshape = output_values[0]->get_partial_shape();

@@ -11,10 +11,11 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder) : m_model_decoder(model_decoder) {
+InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_model_decoder(model_decoder) {
     const auto& inputs = m_model_decoder->inputs();
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto in_place = std::make_shared<pytorch::Place>(*this, inputs[i]);
+        m_name_to_place.emplace(std::to_string(inputs[i]), std::dynamic_pointer_cast<frontend::Place>(in_place));
         for (const auto& name : in_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(in_place));
         }
@@ -28,6 +29,7 @@ InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder) : m_model_de
     const auto& outputs = m_model_decoder->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto out_place = std::make_shared<pytorch::Place>(*this, outputs[i]);
+        m_name_to_place.emplace(std::to_string(inputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }
@@ -45,6 +47,12 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     for (const auto& input_idx : m_model_decoder->inputs()) {
         auto place_it = m_name_to_place.find(std::to_string(input_idx));
         FRONT_END_GENERAL_CHECK(place_it != m_name_to_place.end(), "Couldn't find Place for input.");
+        const auto& names = place_it->second->get_names();
+        if (input_idx == 0 && std::any_of(names.cbegin(), names.cend(), [](const std::string& n) {
+                return n.find("self") != std::string::npos;
+            })) {
+            continue;
+        }
         res.push_back(place_it->second);
     }
     return res;
@@ -129,6 +137,10 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
     } else {
         FRONT_END_GENERAL_CHECK(false, "Place is not known.");
     }
+}
+
+const std::string& InputModel::decoder_type_name() const {
+    return m_model_decoder->decoder_type_name();
 }
 
 }  // namespace pytorch

@@ -92,7 +92,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    size_t levels = 1;
+    uint32_t levels = 1;
     float valueAcc = 0.0f;
     const auto min_values_size = data.weights_quant_params.GetMinValues().size();
 
@@ -101,7 +101,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
         input_high = data.weights_quant_params.GetMaxValues(true).front();
         output_low = data.weights_quant_params.GetMinValues(false).front();
         output_high = data.weights_quant_params.GetMaxValues(false).front();
-        levels = data.weights_quant_params.GetLevels();
+        levels = static_cast<uint32_t>(data.weights_quant_params.GetLevels());
     }
 
     for (size_t row = 0; row < data.num_rows; row++) {
@@ -114,8 +114,9 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 input_high = data.weights_quant_params.GetMaxValues(true).at(idx);
                 output_low = data.weights_quant_params.GetMinValues(false).at(idx);
                 output_high = data.weights_quant_params.GetMaxValues(false).at(idx);
-                levels = data.weights_quant_params.GetLevels();
-                channel_multiplier = ((input_high - input_low) * data.scale_factor) / (levels - 1);
+                levels = static_cast<uint32_t>(data.weights_quant_params.GetLevels());
+                channel_multiplier =
+                    static_cast<uint32_t>(((input_high - input_low) * data.scale_factor) / (levels - 1));
             } else {
                 float scaled_row_max = 0;
                 for (size_t col = 0; col < data.num_columns; col++) {
@@ -126,7 +127,8 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                     }
                 }
 
-                channel_multiplier = (scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f);
+                channel_multiplier =
+                    static_cast<uint32_t>((scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT) + 0.5f));
             }
 
             if (channel_multiplier > MAX_OUT_MULTIPLIER) {
@@ -150,7 +152,7 @@ void QuantizeWeights<int8_t>(const QuantizationData& data,
                 if (quantized_weights) {
                     value -= MAX_VAL_1B_WEIGHT;
                 } else {
-                    value = value * (data.scale_factor / channel_multiplier) + rounding_value;
+                    value = value * (data.scale_factor / ptr_int_biases[row].multiplier) + rounding_value;
                 }
             } else {
                 value = value * data.scale_factor + rounding_value;
@@ -183,7 +185,7 @@ void QuantizeWeights<int16_t>(const QuantizationData& data,
     auto input_high = 0.0f;
     auto output_low = 0.0f;
     auto output_high = 0.0f;
-    size_t levels = 1;
+    uint32_t levels = 1;
     const auto min_values_size = data.weights_quant_params.GetMinValues().size();
 
     if (min_values_size > 0) {
@@ -191,7 +193,7 @@ void QuantizeWeights<int16_t>(const QuantizationData& data,
         input_high = data.weights_quant_params.GetMaxValues(true).front();
         output_low = data.weights_quant_params.GetMinValues(false).front();
         output_high = data.weights_quant_params.GetMaxValues(false).front();
-        levels = data.weights_quant_params.GetLevels();
+        levels = static_cast<uint32_t>(data.weights_quant_params.GetLevels());
     }
 
     for (size_t row = 0; row < data.num_rows; row++) {

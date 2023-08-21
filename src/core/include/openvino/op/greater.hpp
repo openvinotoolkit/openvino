@@ -13,7 +13,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Greater : public util::BinaryElementwiseComparison {
 public:
-    OPENVINO_OP("Greater", "opset1", op::util::BinaryElementwiseComparison, 1);
+    OPENVINO_OP("Greater", "opset1", op::util::BinaryElementwiseComparison);
     /// \brief Constructs a greater-than operation.
     Greater() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a greater-than operation.

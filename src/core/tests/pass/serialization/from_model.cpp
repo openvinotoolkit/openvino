@@ -8,10 +8,15 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
 
 using ModelBuilder = std::function<std::shared_ptr<ov::Model>()>;
 using SerializationFromModelParams = std::tuple<ModelBuilder, std::string>;
@@ -30,7 +35,7 @@ public:
 
     void SetUp() override {
         m_builder = std::get<0>(GetParam());
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -73,12 +78,12 @@ std::shared_ptr<ov::Model> create_model_if_mixed_inputs() {
     Ze->output(0).get_tensor().set_names({"Z_else"});
     auto cond = std::make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
     auto axis_then = std::make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
-    auto split_y = std::make_shared<opset8::Split>(Yt, axis_then, 2);
-    auto then_op = std::make_shared<opset8::Subtract>(Xt, split_y->output(0));
+    auto split_y = std::make_shared<op::v1::Split>(Yt, axis_then, 2);
+    auto then_op = std::make_shared<op::v1::Subtract>(Xt, split_y->output(0));
     auto res0 = std::make_shared<op::v0::Result>(then_op);
     auto axis_else = std::make_shared<op::v0::Constant>(element::i32, Shape{}, 0);
-    auto split_z = std::make_shared<opset8::Split>(Ze, axis_else, 4);
-    auto else_op = std::make_shared<opset8::Relu>(split_z);
+    auto split_z = std::make_shared<op::v1::Split>(Ze, axis_else, 4);
+    auto else_op = std::make_shared<op::v0::Relu>(split_z);
     auto res1 = std::make_shared<op::v0::Result>(else_op);
     auto then_body = std::make_shared<ov::Model>(OutputVector{res0}, ParameterVector{Yt, Xt}, "then_body");
     auto else_body = std::make_shared<ov::Model>(OutputVector{res1}, ParameterVector{Ze}, "else_body");
@@ -105,7 +110,7 @@ std::vector<SerializationFromModelParams> get_models() {
             p1->output(0).set_names({"X"});
             auto p2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
             p2->output(0).set_names({"Y"});
-            auto op = std::make_shared<opset8::Add>(p1, p2);
+            auto op = std::make_shared<op::v1::Add>(p1, p2);
             auto res = std::make_shared<op::v0::Result>(op);
             return std::make_shared<Model>(OutputVector{res}, ParameterVector{p1, p2});
         };
@@ -125,7 +130,7 @@ std::vector<SerializationFromModelParams> get_models() {
                 p1->output(0).set_names({"X"});
                 auto c1 = std::make_shared<op::v0::Constant>(element::u8, shape, data.data());
                 c1->output(0).set_names({"C"});
-                auto op = std::make_shared<opset8::Add>(p1, c1);
+                auto op = std::make_shared<op::v1::Add>(p1, c1);
                 auto res = std::make_shared<op::v0::Result>(op);
                 return std::make_shared<Model>(OutputVector{res}, ParameterVector{p1});
             };
@@ -154,7 +159,7 @@ public:
     }
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -178,7 +183,7 @@ TEST_P(SerializationFromModelTest_large, DISABLED_Model_very_large) {
         p1->output(0).set_names({"X"});
         auto c1 = std::make_shared<op::v0::Constant>(element::u8, shape, data.data());
         c1->output(0).set_names({"C"});
-        auto op = std::make_shared<opset8::Add>(p1, c1);
+        auto op = std::make_shared<op::v1::Add>(p1, c1);
         auto res = std::make_shared<op::v0::Result>(op);
         auto model = std::make_shared<Model>(OutputVector{res}, ParameterVector{p1});
         ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model);

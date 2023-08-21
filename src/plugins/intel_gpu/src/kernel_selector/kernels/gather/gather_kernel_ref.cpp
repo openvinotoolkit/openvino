@@ -65,7 +65,7 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
         auto shape_raw = data_tensor.LogicalDims();
         auto shape = shape_raw;
         int shape_idx = 0;
-        for (int i = 0; i < static_cast<int>(Tensor::DataChannelName::COUNT); i++) {
+        for (size_t i = 0; i < DataTensor::max_rank(); i++) {
             int shape_raw_idx =
                 data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
             if (shape_raw_idx >= 0)
@@ -90,22 +90,47 @@ static int64_t GetGatherBatchDim(const gather_params& params) {
         return params.batch_dim;
 }
 
-static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
+static inline Tensor::Dim GetGatherIndexDim(const gather_params& params) {
     switch (params.axis) {
     case GatherAxis::BATCH:
-        return std::to_string(params.inputs[0].Batch().v);
+        return params.inputs[0].Batch();
     case GatherAxis::FEATURE:
-        return std::to_string(params.inputs[0].Feature().v);
+        return params.inputs[0].Feature();
     case GatherAxis::W:
-        return std::to_string(params.inputs[0].W().v);
+        return params.inputs[0].W();
     case GatherAxis::Z:
-        return std::to_string(params.inputs[0].Z().v);
+        return params.inputs[0].Z();
     case GatherAxis::Y:
-        return std::to_string(params.inputs[0].Y().v);
+        return params.inputs[0].Y();
     case GatherAxis::X:
-        return std::to_string(params.inputs[0].X().v);
+        return params.inputs[0].X();
+    default:
+        OPENVINO_THROW("Unknown gather axis=", static_cast<int>(params.axis));
     }
-    throw "Error";
+}
+
+static inline int64_t GetGatherAxisIndexInShapeInfo(const gather_params& params) {
+    switch (params.axis) {
+    case GatherAxis::BATCH:
+        return 0;
+    case GatherAxis::FEATURE:
+        return 1;
+    case GatherAxis::W:
+        return 4;
+    case GatherAxis::Z:
+        return 5;
+    case GatherAxis::Y:
+        return 6;
+    case GatherAxis::X:
+        return 7;
+    default:
+        OPENVINO_THROW("Unknown gather axis=", static_cast<int>(params.axis));
+    }
+}
+
+static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
+    auto index_dim = GetGatherIndexDim(params);
+    return std::to_string(index_dim.v);
 }
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
@@ -199,7 +224,7 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
                        {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
-        IE_THROW() << "Unknown rank: rank=" << rank;
+        OPENVINO_THROW("Unknown rank: rank=", rank);
     }
 
     dispatchData.lws =
@@ -215,6 +240,12 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
     if (params.support_neg_ind)
         jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
+
+    if (!GetGatherIndexDim(params).is_dynamic)
+        jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
+
+    if (params.is_shape_agnostic)
+        jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
@@ -283,6 +314,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
 
     FillCLKernelData(kernel,

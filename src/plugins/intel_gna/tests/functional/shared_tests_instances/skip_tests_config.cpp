@@ -34,8 +34,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 46416
         R"(.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers*.*)",
         // TODO: Issue 24839
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(1.3\).*)",
-        R"(.*ConvolutionLayerTest.CompareWithRefs.*D=\(3.1\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(1.3\).*)",
+        R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(3.1\).*)",
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         R"(.*importExportedFunctionParameterResultOnly.*)",
@@ -43,18 +43,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*importExportedIENetworkConstantResultOnly.*)",
         R"(.*importExportedIENetworkParameterResultOnly.*)",
 
-        // TODO: Issue 57368 (accuracy)
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=3.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=4.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*iteration_count=10.*IS=\(1.10\).*)",
-        R"(.*smoke_MemoryTest.*LOW_LATENCY.*iteration_count=10.*IS=\(1.2\).*)",
+        // Issue 57368 (accuracy)
+        R"(.*smoke_MemoryTest.*transformation=LOW_LATENCY.*)",
+
         // Not implemented yet
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(canSetConfigToExecNet|canSetConfigToExecNetWithIncorrectConfig).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(canSetConfigToCompiledModel|canSetConfigToCompiledModelWithIncorrectConfig).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution|CheckExecGraphInfoSerialization).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTestOptional.*(CheckExecGraphInfoBeforeExecution|CheckExecGraphInfoAfterExecution).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(canCreateTwoCompiledModelAndCheckTheir).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
         // Not implemented yet (dynamic cases)
         R"(.*Behavior.*OVInferenceChaining.*(StaticOutputToDynamicInput).*)",
         R"(.*Behavior.*OVInferenceChaining.*(DynamicOutputToDynamicInput).*)",
@@ -62,17 +64,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVInferRequestDynamicTests.*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
-        R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
-        R"(.*OVExecutableNetworkBaseTest.*canLoadNetworkFromMemory.*)",
+        R"(.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
+        R"(.*OVCompiledModelBaseTest.*canGetInputsInfoAndCheck.*)",
+        R"(.*OVCompiledModelBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVCompiledModelBaseTest.*canCompileModelFromMemory.*)",
         R"(.*(OVClass|IEClass)HeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*LoadNetwork*.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*QueryNetwork*.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
+        R"(.*QueryModel*.*QueryModel(HETEROWithDeviceIDNoThrow|WithBigDeviceID|WithInvalidDeviceID)*.*)",
         R"(.*LoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
-        R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
-        R"(.*OVExecGraphImportExportTest.*readFromV10IR.*)",
+        R"(.*OVCompiledGraphImportExportTest.*readFromV10IR.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
         // TODO: Issue: 69639
@@ -93,5 +96,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
         R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
         R"(.*smoke_Multi_BehaviorTests.*)",
+        // unsupported metrics
+        R"(.*smoke_MultiHeteroOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
+        // TODO: Issue: 111556
+        R"(.*SplitConvTest.CompareWithRefImpl.*IS=\(1.(128|256)\).*IC=4.*OC=4.*configItem=GNA_DEVICE_MODE_GNA_SW_FP32)",
+        // TODO: Issue: 114149
+        R"(.*smoke_Decompose2DConv.*)",
     };
 }

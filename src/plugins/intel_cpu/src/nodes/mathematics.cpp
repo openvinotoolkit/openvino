@@ -10,7 +10,7 @@
 #include "ie_parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -58,7 +58,7 @@ void Math::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,
@@ -71,9 +71,9 @@ void Math::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Math::execute(dnnl::stream strm) {
-    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
-    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
+    const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
 
     switch (getAlgorithm()) {
         case Algorithm::MathAbs:
@@ -136,11 +136,6 @@ void Math::execute(dnnl::stream strm) {
             beta = (beta == 0.0f) ? 0.5f : beta;
             parallel_for(dataSize, [&](size_t i) {
                 dst_data[i] = (std::max)(0.f, (std::min)(1.f, alpha * src_data[i] + beta));
-            });
-            break;
-        case Algorithm::MathLog:
-            parallel_for(dataSize, [&](size_t i) {
-                dst_data[i] = logf(src_data[i]);
             });
             break;
         case Algorithm::MathNegative:
@@ -241,9 +236,6 @@ std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_pt
             node.algorithm = Algorithm::MathHardSigmoid;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
-        }},
-        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
-            node.algorithm = Algorithm::MathLog;
         }},
         {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Math& node) {
             node.algorithm = Algorithm::MathNegative;

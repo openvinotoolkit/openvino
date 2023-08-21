@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_convolution_mode(NodeContext& context) {
+OutputVector translate_convolution_mode(const NodeContext& context) {
     // Schema: aten::_convolution_mode(Tensor input, Tensor weight, Tensor? bias, int[] stride, str padding, int[]
     // dilation, int groups) -> Tensor
     num_inputs_check(context, 7, 7);

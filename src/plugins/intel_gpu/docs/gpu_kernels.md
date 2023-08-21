@@ -1,18 +1,18 @@
-# GPU kernels implementation overview
+# GPU Kernels Implementation Overview
 
 As mentioned in [GPU plugin structure](./source_code_structure.md), kernels for GPU plugin are located in `src/plugins/intel_gpu/src/kernel_selector` folder.
 
-For each operation we usually have multiple kernels that can support different parameters and/or optimized for different scenarios.
+For each operation, there are usually multiple kernels that can support different parameters and/or are optimized for different scenarios.
 
 Each operation has 3 major entities in kernel selector:
  - Operation specific `kernel_selector` instance
  - Operation parameters descriptor
  - Kernels itself with a set of heuristics inside for optimal selection
 
- ## Kernel selector instance
-For each operation we create kernel_selector class derived from `kernel_selector_base`. Basically, this class is needed to specify available kernels
-for given operation. Each kernel selector is used as singleton. For example:
+## Kernel selector instance
 
+For each operation, you create `kernel_selector` class derived from `kernel_selector_base`. Basically, this class is needed to specify available kernels
+for a given operation. Each kernel selector is used as a singleton. For example:
 
 ```cpp
 class mvn_kernel_selector : public kernel_selector_base {
@@ -57,7 +57,7 @@ auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_para
 
 ## Operation parameters
 
-The parameters of operation for kernel_selector are defined in corresponding `${op_name}_params` class which is derived from `base_params`. For example:
+The parameters of operation for `kernel_selector` are defined in corresponding `${op_name}_params` class which is derived from `base_params`. For example:
 ```cpp
 struct mvn_params : public base_params {
     mvn_params() : base_params(KernelType::MVN) {}
@@ -79,9 +79,9 @@ struct mvn_params : public base_params {
 };
 ```
 
-The derived class should parameterize base class with specific `KernelType` and add operation-specific parameters. The only method that must be implemented
-is `GetParamsKey()` which is used as a quick check for kernels applicability for current parameters, i.e. we take `ParamsKey` object calculated for input
-operation parameters and `ParamsKey` object for each kernel, so we can compare them and discard the kernels that don't support current parameters.
+The derived class should parameterize base class with a specific `KernelType` and add operation-specific parameters. The only method that must be implemented
+is `GetParamsKey()` which is used as a quick check for kernels applicability for current parameters. In other words, you take a `ParamsKey` object calculated for input
+operation parameters and a `ParamsKey` object for each kernel. Then, you can compare them and discard the kernels that do not support current parameters.
 `ParamsKey` is implemented as a set of bit masks, so the applicability check is quite simple:
 ```cpp
 const ParamsKey implKey = some_implementation->GetSupportedKey();
@@ -97,15 +97,15 @@ if (!((implKey.mask & paramsKey.mask) == paramsKey.mask))
 
 Each kernel must specify the following things:
 - Input parameters checks
-  - `GetSupportedKey()` method implementation which returns `ParamsKey` object for current implementation
-  - `Validate()` method that do more complex checks (optional)
-- Dispatch data (global/local workgroup sizes, scheduling algorithm, etc)
+  - `GetSupportedKey()` method implementation, which returns `ParamsKey` object for current implementation.
+  - `Validate()` method, that does more complex checks (optional).
+- Dispatch data (global/local workgroup sizes, scheduling algorithm, etc.)
 - Kernel name - must be passes to base class c-tor
 - Kernel arguments specification - description of each argument in corresponding OpenCL™ kernel
-- Additional JIT constants required for kernel - set of macro definitions that must be added to thi kernel template to make full specialization for given params
-- Supported fused operations (if any) - a list of supported operations that can be fused into current kernel
+- Additional JIT constants required for kernel - set of macro definitions that must be added to the kernel template to make full specialization for given params
+- Supported fused operations (if any) - a list of supported operations that can be fused into the current kernel.
 
-Let's have a look at the key methods of each kernel implementation:
+Key methods of each kernel implementation are as follows:
 
 ```cpp
 class MVNKernelRef : public MVNKernelBase {
@@ -132,6 +132,7 @@ protected:
 ```
 
 ## See also
+
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)

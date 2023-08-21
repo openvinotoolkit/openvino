@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor.hpp"
 #include "utils.hpp"
@@ -14,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_floor_divide(NodeContext& context) {
+OutputVector translate_floor_divide(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);

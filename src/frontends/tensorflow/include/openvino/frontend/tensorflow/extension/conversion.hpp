@@ -23,14 +23,19 @@ public:
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 
-    const ov::frontend::CreatorFunction& get_converter() const {
+    ConversionExtension(const std::string& op_type,
+                        const ov::frontend::tensorflow::CreatorFunctionNamedAndIndexed& converter)
+        : ConversionExtensionBase(op_type),
+          m_converter(converter) {}
+
+    const ov::frontend::tensorflow::CreatorFunction& get_converter() const {
         return m_converter;
     }
 
     ~ConversionExtension() override;
 
 private:
-    ov::frontend::CreatorFunction m_converter;
+    ov::frontend::tensorflow::CreatorFunction m_converter;
 };
 
 }  // namespace tensorflow

@@ -38,7 +38,7 @@ endif()
 
 # remove OpenCV related sources
 find_package(OpenCV QUIET COMPONENTS core imgcodecs)
-if(NOT OpenCV_FOUND)
+if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
 endif()
 
@@ -60,7 +60,11 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/common/util/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new/")
+                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/paddle/include")
+
 ov_mark_target_as_cc(${TARGET_NAME})
 
 if(TARGET OpenCL::OpenCL)

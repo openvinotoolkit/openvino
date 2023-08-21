@@ -22,7 +22,7 @@ public:
              const std::vector<ov::element::Type>& output_types,
              const std::vector<ov::PartialShape>& output_shapes,
              const std::shared_ptr<DecoderBase>& decoder = nullptr)
-        : InternalOperation(decoder, OutputVector{}, 1),
+        : InternalOperation(decoder, OutputVector{}, 1, "Iterator"),
           m_shared_name(shared_name),
           m_container(container),
           m_output_types(output_types),

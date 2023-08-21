@@ -7,7 +7,9 @@
 #include <string>
 
 #include "ngraph/node.hpp"
+#include "openvino/core/deprecated.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 std::shared_ptr<ov::Node> NullNode::clone_with_new_inputs(const ov::OutputVector& /* new_args */) const {
@@ -27,3 +29,4 @@ bool ngraph::op::is_null(const std::shared_ptr<ngraph::Node>& node) {
 bool ngraph::op::is_null(const Output<ngraph::Node>& output) {
     return is_null(output.get_node());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END

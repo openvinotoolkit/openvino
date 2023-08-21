@@ -28,13 +28,13 @@ using namespace ngraph;
 using namespace std;
 
 TEST(nop_elimination, eliminate_convert) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
         Shape shape{};
         auto type = element::f32;
         auto A = make_shared<op::Parameter>(type, shape);
         auto c = make_shared<op::v0::Convert>(A, element::f32);
-        f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
+        f = make_shared<ov::Model>(make_shared<op::v0::Abs>(c), ParameterVector{A});
     }
 
     pass::Manager pass_manager;
@@ -46,14 +46,13 @@ TEST(nop_elimination, eliminate_convert) {
 
 TEST(nop_elimination, convert_type_agnostic) {
     Shape shape{};
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
-        auto type = element::from<int8_t>();
-        auto A = make_shared<op::Parameter>(type, shape);
-        auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
-        auto c = make_shared<op::v0::Convert>(c1, element::f32);
+        auto A = make_shared<op::Parameter>(ov::element::i8, shape);
+        auto c1 = make_shared<op::v0::Convert>(A, ov::element::u8);
+        auto c = make_shared<op::v0::Convert>(c1, ov::element::f32);
         auto z = make_shared<op::v3::NonZero>(c);
-        f = make_shared<Function>(make_shared<op::v0::Abs>(z), ParameterVector{A});
+        f = make_shared<ov::Model>(make_shared<op::v0::Abs>(z), ParameterVector{A});
     }
 
     pass::Manager pass_manager;
@@ -66,12 +65,12 @@ TEST(nop_elimination, convert_type_agnostic) {
 
 template <typename Op>
 void test_nop_eliminate_broadcast() {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
         Shape shape{1};
         auto A = make_shared<op::Parameter>(element::f32, shape);
         auto b = make_shared<Op>(A, op::Constant::create(element::u64, Shape{1}, {1}));
-        f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
+        f = make_shared<ov::Model>(make_shared<op::v0::Abs>(b), ParameterVector{A});
     }
 
     pass::Manager pass_manager;
@@ -102,7 +101,7 @@ TEST(nop_elimination, reshape_elimination_v1) {
         auto reshape_v1_org = std::make_shared<op::v1::Reshape>(arg, pattern_org, zero);
         auto reshape_v1 = std::make_shared<op::v1::Reshape>(reshape_v1_org, pattern, zero);
         auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
-        return std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg});
+        return std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg});
     };
 
     auto func = generate_func(false);
@@ -145,7 +144,7 @@ TEST(nop_elimination, reshape_v1_1D) {
 }
 
 TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
         auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
 
@@ -162,7 +161,7 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
 
         auto abs = std::make_shared<opset4::Abs>(reshape);
 
-        f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg});
+        f = std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg});
     }
 
     pass::Manager pass_manager;
@@ -180,7 +179,7 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
 }
 
 TEST(nop_elimination, squeeze_unsqueeze_elimination) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
         auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
 
@@ -197,7 +196,7 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination) {
 
         auto abs = std::make_shared<opset4::Abs>(unsqueeze);
 
-        f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg});
+        f = std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg});
     }
 
     pass::Manager pass_manager;
@@ -219,7 +218,7 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     auto pattern = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
     auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
-    auto f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg, pattern});
+    auto f = std::make_shared<ov::Model>(NodeVector{abs}, ParameterVector{arg, pattern});
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
@@ -227,7 +226,7 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
 }
 
 TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
-    std::shared_ptr<Function> f;
+    std::shared_ptr<ov::Model> f;
     {
         auto arg = std::make_shared<opset4::Parameter>(element::f32, PartialShape{8, 16, 1, 3});
 
@@ -242,7 +241,7 @@ TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
         auto relu = std::make_shared<opset4::Relu>(reshape_1);
         relu->set_friendly_name("relu");
 
-        f = std::make_shared<Function>(NodeVector{reshape_2, relu}, ParameterVector{arg});
+        f = std::make_shared<ov::Model>(NodeVector{reshape_2, relu}, ParameterVector{arg});
     }
 
     pass::Manager pass_manager;
@@ -256,7 +255,7 @@ TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
 TEST(nop_elimination, concat_elimination_single_node) {
     int64_t a = 0;
     auto A = make_shared<op::Parameter>(element::f32, Shape{2, 3});
-    auto f = make_shared<Function>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
+    auto f = make_shared<ov::Model>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Validate>();
@@ -270,7 +269,7 @@ TEST(nop_elimination, concat_elimination_single_input) {
     int64_t a = 0;
     auto A = make_shared<op::Parameter>(element::f32, Shape{2, 3});
     auto B = make_shared<op::v0::Concat>(NodeVector{A}, a);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
+    auto f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Validate>();
@@ -284,7 +283,7 @@ TEST(nop_elimination, concat_elimination_single_input_dynamic) {
     int64_t a = 0;
     auto A = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 3});
     auto B = make_shared<op::v0::Concat>(NodeVector{A}, a);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
+    auto f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Validate>();
@@ -299,7 +298,7 @@ TEST(nop_elimination, unsqueeze_elimination) {
     const auto A =
         make_shared<op::Parameter>(element::f32, PartialShape{3, Dimension::dynamic(), Dimension::dynamic()});
     const auto unsqueeze = make_shared<op::v0::Unsqueeze>(A, axis);
-    auto f = make_shared<Function>(unsqueeze, ParameterVector{A});
+    auto f = make_shared<ov::Model>(unsqueeze, ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Validate>();
@@ -369,8 +368,8 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
             B1 = make_shared<op::v0::Squeeze>(B, sq_axes);
         }
 
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
 
         pass::Manager pass_manager;
         pass_manager.register_pass<ov::pass::Validate>();
@@ -561,8 +560,8 @@ TEST(nop_elimination, squeeze_squeeze_overlap_elimination) {
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Squeeze>(A1, sq_axes_1);
         auto B1 = make_shared<op::v0::Squeeze>(B, sq_axes_2);
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
 
         pass::Manager pass_manager;
         pass_manager.register_pass<ov::pass::Validate>();
@@ -595,8 +594,8 @@ TEST(nop_elimination, unsqueeze_unsqueeze_overlap_elimination) {
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Unsqueeze>(A1, unsq_axes_1);
         auto B1 = make_shared<op::v0::Unsqueeze>(B, unsq_axes_2);
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
 
         pass::Manager pass_manager;
         pass_manager.register_pass<ov::pass::Validate>();
@@ -623,7 +622,7 @@ TEST(nop_elimination, unsqueeze_squeeze_elimination) {
         auto A1 = make_shared<op::v0::Abs>(A);
         auto B = make_shared<op::v0::Unsqueeze>(A1, axes);
         auto B1 = make_shared<op::v0::Squeeze>(B, axes);
-        return make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        return make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
     };
 
     auto check_usecase = [&](const Shape& shape, const std::vector<int64_t>& axes_val) {
@@ -656,8 +655,8 @@ TEST(nop_elimination, reshape_unsqueeze_elimination) {
             auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
             auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
             auto B1 = make_shared<op::v0::Unsqueeze>(B, axes);
-            auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-            auto optimized_f = clone_function(*baseline_f);
+            auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+            auto optimized_f = baseline_f->clone();
             ngraph::pass::Manager manager;
             manager.register_pass<ov::pass::NopElimination>();
             manager.run_passes(optimized_f);
@@ -684,8 +683,8 @@ TEST(nop_elimination, reshape_squeeze_elimination) {
             auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
             auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
             auto B1 = make_shared<op::v0::Squeeze>(B, axes);
-            auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-            auto optimized_f = clone_function(*baseline_f);
+            auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+            auto optimized_f = baseline_f->clone();
             ngraph::pass::Manager manager;
             manager.register_pass<ov::pass::NopElimination>();
             manager.run_passes(optimized_f);
@@ -711,8 +710,8 @@ TEST(nop_elimination, reshape_reshape_elimination) {
         auto B = make_shared<op::v1::Reshape>(A1, pat, zero);
         auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{2}, std::vector<int64_t>{0, -1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, true);
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
@@ -737,8 +736,8 @@ TEST(nop_elimination, squeeze_reshape_elimination) {
         auto B = make_shared<op::v0::Squeeze>(A1, indices);
         auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
@@ -764,8 +763,8 @@ TEST(nop_elimination, unsqueeze_reshape_elimination) {
         auto B = make_shared<op::v0::Unsqueeze>(A1, indices);
         auto pat2 = op::Constant::create<int64_t>(element::i64, Shape{1}, std::vector<int64_t>{-1});
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
@@ -787,8 +786,8 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative) {
         auto indices = op::Constant::create(element::i64, Shape{indices_val.size()}, indices_val);
         auto input = make_shared<op::Parameter>(element::f32, shape);
         auto squeeze = make_shared<ngraph::opset1::Squeeze>(input, indices);
-        auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(squeeze, ParameterVector{input});
+        auto optimized_f = baseline_f->clone();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
@@ -809,8 +808,8 @@ TEST(nop_elimination, topk_convert_elimination) {
                                            op::v1::TopK::Mode::MAX,
                                            op::v1::TopK::SortType::NONE);
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(C), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
@@ -860,8 +859,8 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
         }
         auto G = make_shared<op::v1::Gather>((multiout ? A1->output(0) : A1), indices, axis);
 
-        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(G), ParameterVector{A});
-        auto optimized_f = clone_function(*baseline_f);
+        auto baseline_f = make_shared<ov::Model>(make_shared<op::v0::Abs>(G), ParameterVector{A});
+        auto optimized_f = baseline_f->clone();
 
         pass::Manager pass_manager;
         pass_manager.register_pass<ov::pass::Validate>();
@@ -971,6 +970,7 @@ public:
 
 std::vector<element::Type> types{
     element::f32,
+    element::f16,
     element::f64,
     element::i32,
     element::u32,
@@ -1048,13 +1048,13 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
         ASSERT_FALSE(true) << "Invalid OpType";
     }
     auto abs = make_shared<opset8::Abs>(node);
-    function = make_shared<Function>(abs, ParameterVector{parameter});
+    function = make_shared<ov::Model>(abs, ParameterVector{parameter});
 
     manager.register_pass<ov::pass::NopElimination>();
 
     if (can_fuse) {
         auto abs = make_shared<opset8::Abs>(parameter);
-        function_ref = make_shared<Function>(abs, ParameterVector{parameter});
+        function_ref = make_shared<ov::Model>(abs, ParameterVector{parameter});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -1130,13 +1130,13 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
         auto convert = make_shared<opset8::Convert>(constant, element::f32);
         auto sub = make_shared<opset8::Subtract>(convert, opset8::Constant::create(element::f32, Shape{}, {0}));
         auto mul = make_shared<opset8::Multiply>(sub, opset8::Constant::create(element::f32, Shape{}, {1}));
-        function = make_shared<Function>(mul, ParameterVector{});
+        function = make_shared<ov::Model>(mul, ParameterVector{});
     }
     {
         auto constant = opset8::Constant::create(element::i8, Shape{}, {2});
         auto convert = make_shared<opset8::Convert>(constant, element::f32);
         auto mul = make_shared<opset8::Multiply>(convert, opset8::Constant::create(element::f32, Shape{}, {1}));
-        function_ref = make_shared<Function>(mul, ParameterVector{});
+        function_ref = make_shared<ov::Model>(mul, ParameterVector{});
     }
 
     manager.register_pass<ov::pass::NopElimination>();
@@ -1164,7 +1164,7 @@ struct SplitConcatEliminationParams {
 };
 
 class SplitConcatElimination : public testing::WithParamInterface<SplitConcatEliminationParams>,
-                               public CommonTestUtils::TestsCommon {};
+                               public ov::test::TestsCommon {};
 
 TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     const auto& p = GetParam();
@@ -1309,4 +1309,169 @@ TEST(SplitConcatElimination, no_sequence_found) {
                                                                   "The number of Concat ops is not 1";
     EXPECT_EQ(count_ops_of_type<ov::opset9::Split>(model), 1) << "SplitConcatElimination transformation has failed. "
                                                                  "The number of Split ops is not 1";
+}
+
+TEST(nop_elimination, gather_to_squeeze) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<ov::Model>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 0);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 1);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
+}
+
+TEST(nop_elimination, not_gather_to_squeeze_with_vector_indices) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{1, 1}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<ov::Model>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 0);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
+}
+
+TEST_F(TransformationTestsF, Nopv1Broadcast) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto broadcast_shape = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(data, broadcast_shape);
+        auto relu = std::make_shared<op::v0::Relu>(broadcast);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, Nopv3Broadcast) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto broadcast_shape = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(data, broadcast_shape);
+        auto relu = std::make_shared<op::v0::Relu>(broadcast);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NopTile) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto repeats = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto tile = std::make_shared<op::v0::Tile>(data, repeats);
+        auto relu = std::make_shared<op::v0::Relu>(tile);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto start = opset10::Constant::create(element::i32, Shape{1}, {0});
+        auto stop = opset10::Constant::create(element::i32, Shape{1}, {2});
+        auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
+        auto axis = opset10::Constant::create(element::i32, Shape{1}, {-1});
+        auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step, axis);
+
+        auto indices = std::make_shared<opset10::Parameter>(element::i64, PartialShape{-1, -1, -1, -1});
+        auto gather_elements = std::make_shared<op::v6::GatherElements>(slice, indices, 2);
+
+        auto relu = std::make_shared<op::v0::Relu>(gather_elements);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
+        manager.register_pass<ov::pass::NopSliceBeforeGatherElements>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto indices = std::make_shared<opset10::Parameter>(element::i64, PartialShape{-1, -1, -1, -1});
+
+        auto gather_elements = std::make_shared<op::v6::GatherElements>(data, indices, 2);
+
+        auto relu = std::make_shared<op::v0::Relu>(gather_elements);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
+    }
+}
+
+TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
+
+        auto axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(data, axis);
+
+        auto binary =
+            std::make_shared<op::v1::Multiply>(squeeze, op::v0::Constant::create(element::f32, Shape{}, {0.2}));
+
+        auto reshape =
+            std::make_shared<op::v1::Reshape>(binary, op::v0::Constant::create(element::i32, Shape{1}, {1}), false);
+
+        auto relu = std::make_shared<op::v0::Relu>(reshape);
+        model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1});
+        auto binary = std::make_shared<op::v1::Multiply>(data, op::v0::Constant::create(element::f32, Shape{1}, {0.2}));
+        auto relu = std::make_shared<op::v0::Relu>(binary);
+        model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+    }
 }

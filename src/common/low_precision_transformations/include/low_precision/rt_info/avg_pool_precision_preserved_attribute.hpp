@@ -23,7 +23,7 @@ namespace ngraph {
  */
 class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public PrecisionPreservedAttribute {
 public:
-    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
+    OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
     void merge_attributes(std::vector<ov::Any>& attributes);
     bool is_skipped() const;

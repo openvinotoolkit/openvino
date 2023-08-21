@@ -30,15 +30,8 @@ public:
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
+                        std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Internal error: the get_input_node method of the fake node decoder is invoked.");
-    }
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        size_t& producer_output_port_index,
-                        const OpTypeByName& op_type_by_name) const override {
         FRONT_END_OP_CONVERSION_CHECK(false,
                                       "Internal error: the get_input_node method of the fake node decoder is invoked.");
     }
@@ -58,11 +51,26 @@ private:
 };
 
 class InternalOperation : public ov::frontend::tensorflow::FrameworkNode {
-public:
-    InternalOperation(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs, size_t num_outputs)
+protected:
+    InternalOperation(const std::shared_ptr<DecoderBase>& decoder,
+                      const OutputVector& inputs,
+                      size_t num_outputs,
+                      const std::string& no_conversion_reason)
         : ov::frontend::tensorflow::FrameworkNode(decoder != nullptr ? decoder : std::make_shared<DecoderFake>(),
                                                   inputs,
-                                                  num_outputs) {}
+                                                  num_outputs),
+          m_no_conversion_reason(no_conversion_reason) {}
+
+public:
+    // get a reason why some operation is unable to convert to OpenVINO opset
+    // we store this information for InternalOperation to elaborate the reason
+    // for cases such as Constant node of string type
+    std::string get_no_conversion_reason() const {
+        return m_no_conversion_reason;
+    }
+
+private:
+    std::string m_no_conversion_reason;
 };
 }  // namespace tensorflow
 }  // namespace frontend

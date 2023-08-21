@@ -9,10 +9,12 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(MatMulMultiplyFusion, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 
 TEST_P(QuantizedMatMulMultiplyFusion, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 }
 } // namespace SubgraphTestsDefinitions

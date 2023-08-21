@@ -14,17 +14,17 @@
 #include <openvino/opsets/opset9.hpp>
 #include <ops/copy.hpp>
 
-#include "ops/util/util.hpp"
+#include "common/graph_utils.hpp"
 
 using namespace ov::intel_gna::pass;
-using namespace ov::intel_gna::ngraph_util;
+using namespace ov::intel_gna::graph_utils;
 using namespace ov::opset9;
 
-NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer", 0);
-NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer", 0);
-NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory", 0);
-NGRAPH_RTTI_DEFINITION(MatchNonComputationalLayers, "MatchNonComputationalLayers", 0);
-NGRAPH_RTTI_DEFINITION(HandleNonFunctionalSubgraphs, "HandleNonFunctionalSubgraphs", 0);
+NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer");
+NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer");
+NGRAPH_RTTI_DEFINITION(HandleMultiConnectedLayerToConcatAndMemory, "HandleMultiConnectedLayerToConcatAndMemory");
+NGRAPH_RTTI_DEFINITION(MatchNonComputationalLayers, "MatchNonComputationalLayers");
+NGRAPH_RTTI_DEFINITION(HandleNonFunctionalSubgraphs, "HandleNonFunctionalSubgraphs");
 
 namespace {
 void insert_copy_layer_between(std::shared_ptr<ngraph::Node> input_op,
@@ -157,8 +157,7 @@ InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
 
             // Crop -> Memory, Input -> Split -> Memory, Concat -> Memory
             if ((std::dynamic_pointer_cast<ngraph::op::CropIE>(current_node) && !is_crop_affined(current_node)) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Concat>(current_node) ||
-                std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
+                is_concat(current_node) || std::dynamic_pointer_cast<ngraph::opset8::Split>(current_node) ||
                 std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(current_node)) {
                 insert_copy_layer_between(matched_node_input, node, i);
             }
@@ -258,7 +257,7 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
             std::vector<FuncChildrenInfo> results;
             for (auto& child : current_node->output(0).get_target_inputs()) {
                 auto next_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
-                auto result = find_func_layers(next_node, current_node, child.get_index());
+                auto result = find_func_layers(next_node, current_node, static_cast<int32_t>(child.get_index()));
                 results.insert(results.end(), result.begin(), result.end());
             }
 
@@ -276,12 +275,12 @@ bool HandleMultiConnectedLayerToConcatAndMemory::run_on_model(const std::shared_
             std::vector<FuncChildrenInfo> concat_nodes, memory_nodes;
             for (auto& child : input_to) {
                 auto current_node = std::dynamic_pointer_cast<ngraph::Node>(child.get_node()->shared_from_this());
-                auto children_info = find_func_layers(current_node, node, child.get_index());
+                auto children_info = find_func_layers(current_node, node, static_cast<int32_t>(child.get_index()));
 
                 for (const auto& child_info : children_info) {
                     auto child = std::get<1>(child_info);
 
-                    if (std::dynamic_pointer_cast<ngraph::opset8::Concat>(child)) {
+                    if (is_concat(child)) {
                         concat_nodes.push_back(child_info);
                     } else if (std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(child) ||
                                std::dynamic_pointer_cast<ngraph::op::AssignBase>(child)) {

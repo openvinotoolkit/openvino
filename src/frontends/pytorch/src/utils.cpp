@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
@@ -66,7 +67,8 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
     auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, output_type));
     Output<Node> rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, output_type));
     if (as_scalar) {
-        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+        auto axis_0 = context.mark_node(opset10::Constant::create(output_type, Shape{}, {0}));
+        rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank, axis_0));
     }
     return std::make_tuple(shape, rank);
 }
@@ -110,11 +112,17 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
-    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, element::i32));
-    auto reduced_rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+    Output<Node> reduced_rank;
+    std::tie(std::ignore, reduced_rank) = get_shape_rank(context, x, true);
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
+
+Output<Node> normalize_axis(const NodeContext& context, const Output<Node>& axis, const Output<Node>& rank) {
+    auto axis_rank = context.mark_node(std::make_shared<opset10::Add>(axis, rank));
+    auto is_less = context.mark_node(std::make_shared<opset10::Less>(axis_rank, rank));
+    auto new_axis = context.mark_node(std::make_shared<opset10::Select>(is_less, axis_rank, axis));
+    return new_axis;
+}
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
@@ -123,15 +131,20 @@ std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
 };
 
 namespace {
-const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
-                                                                  {1, element::i8},
-                                                                  {2, element::i16},
-                                                                  {3, element::i32},
-                                                                  {4, element::i64},
-                                                                  {5, element::f16},
-                                                                  {6, element::f32},
-                                                                  {7, element::f64},
-                                                                  {11, element::boolean}};
+const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
+    {0, element::u8},
+    {1, element::i8},
+    {2, element::i16},
+    {3, element::i32},
+    {4, element::i64},
+    {5, element::f16},
+    {6, element::f32},
+    {7, element::f64},
+    {11, element::boolean},
+    {12, element::i8},  // quantized i8
+    {13, element::u8},  // quantized u8
+    {14, element::i32}  // quantized i32
+};
 
 const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
                                                                             {"same", ov::op::PadType::SAME_UPPER}};
@@ -142,18 +155,33 @@ element::Type convert_dtype(int64_t pt_type) {
     return TORCH_TO_OV_TYPE.at(pt_type);
 };
 
+Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (std::dynamic_pointer_cast<opset10::Constant>(
+            context.get_input_from_visible_context(dtype_port).get_node_shared_ptr())) {
+        auto dtype = convert_dtype(context.const_input<int64_t>(dtype_port));
+        return context.mark_node(std::make_shared<opset10::Convert>(input_tensor, dtype));
+    } else if (const auto& fw_node =
+                   cast_fw_node(context.get_input(static_cast<int>(dtype_port)).get_node_shared_ptr(), "prim::dtype")) {
+        auto out_tensor = fw_node->input_value(0);
+        return context.mark_node(std::make_shared<opset10::ConvertLike>(input_tensor, out_tensor));
+    } else {
+        FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+    }
+    return input_tensor;
+};
+
 ov::op::PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
-std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
-    if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
+Output<Node> concat_list_construct(const Output<Node>& input) {
+    if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
         auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
-            auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
+            auto node = concat_list_construct(list_inputs[i]);
             auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }
@@ -162,21 +190,43 @@ std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     return input;
 }
 
-OutputVector make_framework_node(NodeContext& context) {
+namespace {
+std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
+                                                               const ov::OutputVector& inputs,
+                                                               size_t num_outputs,
+                                                               const std::string& exception_message) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+    context.mark_node(fw_node);
+    auto attrs = fw_node->get_attrs();
+    std::string message(exception_message);
+    if (!message.empty()) {
+        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
+                  " with schema " + context.get_schema() + '\n' + message;
+    }
+    attrs[PtFrameworkNode::failed_conversion_key] = message;
+    fw_node->set_attrs(attrs);
+    return fw_node;
+}
+}  // namespace
+
+OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
+    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    return fw_node->outputs();
+}
+
+OutputVector make_framework_node(const NodeContext& context, const std::string& exception) {
     auto schema = context.get_schema();
     // TODO: properly process schema to get the actual position of mutable input
     // Hack. Can indicate mutable inputs, but can it be reliable?
     if (schema.find('!') != std::string::npos) {
         // We create additional output for such nodes. It contains new tensor that represents input that was changed.
         auto fw_node =
-            std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), context.get_output_size() + 1);
-        fw_node->set_friendly_name(context.get_op_type());
+            create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
         auto outputs = fw_node->outputs();
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
         context.mutate_input(0, outputs.back());
         OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
-        context.mark_node(fw_node);
         // For simplification we do not expect such operations to have extra bodies
         FRONT_END_OP_CONVERSION_CHECK(context.get_decoder()->get_subgraph_size() == 0,
                                       "Mutable operation has subgraphs.");
@@ -225,9 +275,10 @@ OutputVector make_framework_node(NodeContext& context) {
         num_body_outs > context.get_output_size() ? num_body_outs - context.get_output_size() : 0;
 
     // We need to reduce number of outputs, because some outputs are outputs from body
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(),
-                                                     context.inputs(),
-                                                     context.get_output_size() - num_body_outs + num_skip_body_outputs);
+    auto fw_node = create_fw_node_with_exception(context,
+                                                 context.inputs(),
+                                                 context.get_output_size() - num_body_outs + num_skip_body_outputs,
+                                                 exception);
     fw_node->set_friendly_name(context.get_op_type());
     for (size_t i = 0; i < bodies.size(); ++i) {
         fw_node->set_function(static_cast<int>(i), bodies[i]);
@@ -275,10 +326,30 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     const auto& attrs = fw_node->get_attrs();
-    if (attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
+    if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end() || attrs.at(PtFrameworkNode::op_type_key) != type) {
         return nullptr;
     }
     return fw_node;
+}
+
+std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs) {
+    auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("PTFrameworkNode");
+    attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
+    list_construct->set_attrs(attrs);
+    list_construct->validate_and_infer_types();
+    return list_construct;
+}
+
+bool is_none_node(const Output<Node>& node) {
+    if (const auto& fw_node_inp = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
+        const auto& attrs = fw_node_inp->get_attrs();
+        if (attrs.find("none_value") != attrs.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 Any simplified_type_interpret(Any type) {
@@ -313,6 +384,19 @@ std::unordered_map<size_t, element::Type> bit_to_int{
 void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Output<Node>& rhs, bool align_scalars) {
     const auto& lhs_type = lhs.get_element_type();
     const auto& rhs_type = rhs.get_element_type();
+    auto out_type = context.get_output_type(0);
+    if (out_type.is<element::Type>()) {
+        auto otype = out_type.as<element::Type>();
+        if (otype.is_real()) {
+            if (otype != lhs_type) {
+                lhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(lhs, otype));
+            }
+            if (otype != rhs_type) {
+                rhs = context.mark_node(std::make_shared<ov::op::v0::Convert>(rhs, otype));
+            }
+            return;
+        }
+    }
     if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
         // if any of types is not known, align to lhs type.
         // TODO: can be fixed with special operation?
@@ -332,33 +416,24 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     // consider dynamic rank as non scalar
     const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
     const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
-    if (is_lhs_scalar && is_rhs_scalar) {
-        // if both scalar, align to lhs
-        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
-    }
     auto lhs_dst_type = lhs_type;
     auto rhs_dst_type = rhs_type;
-    if (is_lhs_scalar) {
-        if (lhs_type.is_real() && !rhs_type.is_real()) {
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                lhs_dst_type = element::f32;
-            rhs_dst_type = element::f32;
-        } else {
-            lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
-            return;
-        }
-    } else if (is_rhs_scalar) {
-        if (!lhs_type.is_real() && rhs_type.is_real()) {
+    if (is_lhs_scalar && lhs_type.is_real() && !rhs_type.is_real()) {
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
             lhs_dst_type = element::f32;
-            // if div we need to also align float types to highest bitness regardless of scalar
-            if (!align_scalars)
-                rhs_dst_type = element::f32;
-        } else {
-            rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-            return;
-        }
+        rhs_dst_type = element::f32;
+    } else if (is_rhs_scalar && !lhs_type.is_real() && rhs_type.is_real()) {
+        lhs_dst_type = element::f32;
+        // if div we need to also align float types to highest bitness regardless of scalar
+        if (!align_scalars)
+            rhs_dst_type = element::f32;
+    } else if (is_lhs_scalar) {
+        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
+        return;
+    } else if (is_rhs_scalar) {
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
+        return;
     }
 
     if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
@@ -393,18 +468,30 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     }
 }
 
+void align_output_types(const NodeContext& context, OutputVector& outputs) {
+    for (size_t i = 0; i < outputs.size(); i++) {
+        auto dtype_any = context.get_output_type(i);
+        if (dtype_any.is<element::Type>()) {
+            auto dtype = dtype_any.as<element::Type>();
+            if (dtype.is_static() && dtype != outputs[i].get_element_type()) {
+                outputs[i] = std::make_shared<opset10::Convert>(outputs[i], dtype);
+            }
+        }
+    }
+}
+
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
     std::deque<Output<Node>> res;
     auto current_output = start;
     while (const auto& input_fw_node =
                std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
-        if (attrs.find("PtTypeName") == attrs.end()) {
+        if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end()) {
             break;
         }
-        if (attrs.at("PtTypeName") == "aten::append") {
+        if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
             res.push_front(input_fw_node->input(1).get_source_output());
-        } else if (attrs.at("PtTypeName") == "aten::add") {
+        } else if (attrs.at(PtFrameworkNode::op_type_key) == "aten::add") {
             const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
             res.insert(res.end(), lhs_list.begin(), lhs_list.end());
         } else {
@@ -422,6 +509,38 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
         res.push_front(current_output);
     }
     return res;
+}
+
+void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg) {
+    if (auto fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
+        auto attrs = fw_node->get_attrs();
+        attrs[PtFrameworkNode::failed_conversion_key] = msg;
+        fw_node->set_attrs(attrs);
+    }
+}
+
+void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
+                                ov::NodeVector to,
+                                const ov::NodeVector& additional_rt_info_src) {
+    if (to.size() == 1) {
+        // We do 1 to 1 matching, no need to process names, just inherit initial name
+        to[0]->set_friendly_name(from->get_friendly_name());
+    } else {
+        std::unordered_set<std::string> unique_names;
+        size_t idx = 0;
+        for (auto& op : to) {
+            auto new_name = from->get_friendly_name() + '/' + op->get_type_name();
+            if (unique_names.count(new_name)) {
+                new_name += '_' + std::to_string(idx++);
+            } else {
+                unique_names.insert(new_name);
+            }
+            op->set_friendly_name(new_name);
+        }
+    }
+    copy_runtime_info(from, to);
+    if (!additional_rt_info_src.empty())
+        copy_runtime_info(additional_rt_info_src, to);
 }
 
 }  // namespace pytorch

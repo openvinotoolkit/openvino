@@ -59,6 +59,7 @@ void ReshapeTransformation::Run() {
 }
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

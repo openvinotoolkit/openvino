@@ -8,7 +8,7 @@
 #include <gna2-inference-api.h>
 #include <gna2-model-export-api.h>
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
     #ifdef libGNAStubs_EXPORTS
         #define GNA_STUBS_EXPORT __declspec(dllexport)
     #else

@@ -18,7 +18,7 @@ class GNAPluginForNetworkMetricsTest : public GNAPlugin {
 public:
     GNAPluginForNetworkMetricsTest(const std::map<std::string, std::string>& configMap) : GNAPlugin(configMap) {
         gnamem.reset(new gna_memory_float(memory::GNAFloatAllocator{}));
-        graphCompiler.setGNAMemoryPtr(gnamem);
+        m_graph_compiler->setGNAMemoryPtr(gnamem);
         gnadevice.reset();
     }
 };
@@ -58,9 +58,10 @@ TEST_F(GnaExecutableNetworkMetricsTest, TestNetworkName) {
 TEST_F(GnaExecutableNetworkMetricsTest, TestSupportedProperties) {
     std::string supportedProperties =
         "SUPPORTED_PROPERTIES AVAILABLE_DEVICES OPTIMAL_NUMBER_OF_INFER_REQUESTS RANGE_FOR_ASYNC_INFER_REQUESTS "
-        "OPTIMIZATION_CAPABILITIES FULL_DEVICE_NAME GNA_LIBRARY_FULL_VERSION CACHING_PROPERTIES "
+        "OPTIMIZATION_CAPABILITIES FULL_DEVICE_NAME GNA_LIBRARY_FULL_VERSION "
         "GNA_DEVICE_MODE PERFORMANCE_HINT LOG_LEVEL EXECUTION_DEVICES "
         "GNA_SCALE_FACTOR_PER_INPUT GNA_FIRMWARE_MODEL_IMAGE GNA_HW_EXECUTION_TARGET GNA_HW_COMPILE_TARGET "
-        "GNA_PWL_DESIGN_ALGORITHM GNA_PWL_MAX_ERROR_PERCENT INFERENCE_PRECISION_HINT PERFORMANCE_HINT_NUM_REQUESTS";
+        "GNA_PWL_DESIGN_ALGORITHM GNA_PWL_MAX_ERROR_PERCENT INFERENCE_PRECISION_HINT EXECUTION_MODE_HINT "
+        "PERFORMANCE_HINT_NUM_REQUESTS";
     Run(ov::supported_properties.name(), supportedProperties);
 }

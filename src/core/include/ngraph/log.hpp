@@ -4,6 +4,16 @@
 
 #pragma once
 
+#if !defined(IN_OV_COMPONENT) && !defined(NGRAPH_LEGACY_HEADER_INCLUDED)
+#    define NGRAPH_LEGACY_HEADER_INCLUDED
+#    ifdef _MSC_VER
+#        pragma message( \
+            "The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    else
+#        warning("The nGraph API is deprecated and will be removed in the 2024.0 release. For instructions on transitioning to the new API, please refer to https://docs.openvino.ai/latest/openvino_2_0_transition_guide.html")
+#    endif
+#endif
+
 #include <chrono>
 #include <cstdarg>
 #include <deque>
@@ -19,8 +29,11 @@
 #include <ngraph/ngraph_visibility.hpp>
 #include <vector>
 
+#include "ngraph/deprecated.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 namespace ngraph {
-class ConstString {
+class NGRAPH_API_DEPRECATED ConstString {
 public:
     template <size_t SIZE>
     constexpr ConstString(const char (&p)[SIZE]) : m_string(p),
@@ -41,20 +54,24 @@ private:
     size_t m_size;
 };
 
+NGRAPH_API_DEPRECATED
 constexpr const char* find_last(ConstString s, size_t offset, char ch) {
     return offset == 0 ? s.get_ptr(0) : (s[offset] == ch ? s.get_ptr(offset + 1) : find_last(s, offset - 1, ch));
 }
 
+NGRAPH_API_DEPRECATED
 constexpr const char* find_last(ConstString s, char ch) {
     return find_last(s, s.size() - 1, ch);
 }
 
+NGRAPH_API_DEPRECATED
 constexpr const char* get_file_name(ConstString s) {
     return find_last(s, '/');
 }
-constexpr const char* trim_file_name(ConstString root, ConstString s) {
-    return s.get_ptr(root.size());
-}
+NGRAPH_API_DEPRECATED
+NGRAPH_API
+const char* trim_file_name(const char* const fname);
+
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
     _LOG_TYPE_WARNING,
@@ -62,7 +79,7 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG,
 };
 
-class NGRAPH_API LogHelper {
+class NGRAPH_API_DEPRECATED NGRAPH_API LogHelper {
 public:
     LogHelper(LOG_TYPE, const char* file, int line, std::function<void(const std::string&)> m_handler_func);
     ~LogHelper();
@@ -76,7 +93,7 @@ private:
     std::stringstream m_stream;
 };
 
-class Logger {
+class NGRAPH_API_DEPRECATED Logger {
     friend class LogHelper;
 
 public:
@@ -92,38 +109,37 @@ private:
     static std::deque<std::string> m_queue;
 };
 
+NGRAPH_API_DEPRECATED
 NGRAPH_API
 void default_logger_handler_func(const std::string& s);
 
-#ifndef PROJECT_ROOT_DIR
-#    define PROJECT_ROOT_DIR ""
-#endif
+NGRAPH_SUPPRESS_DEPRECATED_END
 
-#define NGRAPH_ERR                                                        \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,                  \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define NGRAPH_ERR                                         \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_ERROR,   \
+                      ngraph::trim_file_name(__FILE__),    \
+                      __LINE__,                            \
+                      ngraph::default_logger_handler_func) \
         .stream()
 
-#define NGRAPH_WARN                                                       \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING,                \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define NGRAPH_WARN                                        \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_WARNING, \
+                      ngraph::trim_file_name(__FILE__),    \
+                      __LINE__,                            \
+                      ngraph::default_logger_handler_func) \
         .stream()
 
-#define NGRAPH_INFO                                                       \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,                   \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define NGRAPH_INFO                                        \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_INFO,    \
+                      ngraph::trim_file_name(__FILE__),    \
+                      __LINE__,                            \
+                      ngraph::default_logger_handler_func) \
         .stream()
 
-#define NGRAPH_DEBUG                                                      \
-    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
-                      ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \
-                      __LINE__,                                           \
-                      ngraph::default_logger_handler_func)                \
+#define NGRAPH_DEBUG                                       \
+    ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,   \
+                      ngraph::trim_file_name(__FILE__),    \
+                      __LINE__,                            \
+                      ngraph::default_logger_handler_func) \
         .stream()
 }  // namespace ngraph

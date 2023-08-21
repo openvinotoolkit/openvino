@@ -17,7 +17,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Split : public Op {
 public:
-    OPENVINO_OP("Split", "opset1", op::Op, 1);
+    OPENVINO_OP("Split", "opset1", op::Op);
 
     /// \brief Constructs a split operation.
     Split() = default;

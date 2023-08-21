@@ -22,7 +22,7 @@ class LP_TRANSFORMATIONS_API MVNTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("MVNTransformation", "0");
     MVNTransformation(const Params& params = Params());
-    bool transform(TransformationContext &context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext &context, ov::pass::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };

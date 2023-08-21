@@ -47,7 +47,6 @@ class GNADeviceHelper : public GNADevice {
     uint32_t nGnaDeviceIndex = 0;
     bool useDeviceEmbeddedExport = false;
     uint32_t maxLayersCount_ = 0;
-    size_t m_mem_alignment = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -124,12 +123,9 @@ public:
     void getGnaPerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
 
+    bool isHwAvailable();
     const GnaAllocations& getAllAllocations() const {
         return allAllocations;
-    }
-
-    const size_t getMemAlignment() const {
-        return m_mem_alignment;
     }
 
     /**
@@ -176,7 +172,14 @@ private:
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
     static bool is_up_to_20_hw(const target::DeviceVersion device_version) {
-        return device_version <= target::DeviceVersion::GNA2_0 && is_hw_target(device_version);
+        switch (device_version) {
+        case target::DeviceVersion::GNA1_0:
+        case target::DeviceVersion::GNAEmbedded1_0:
+        case target::DeviceVersion::GNA2_0:
+            return true;
+        default:
+            return false;
+        }
     }
     void createVirtualDevice(const target::DeviceVersion& devVersion);
     void updateGnaDeviceVersion();

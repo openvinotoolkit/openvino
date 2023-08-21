@@ -58,7 +58,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
                           "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, data_type, output_shape);
 }
 
@@ -73,10 +75,10 @@ bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& vi
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const {
     if (outputs[0]->get_partial_shape().is_dynamic()) {
-        std::map<size_t, HostTensorPtr> constant_data;
         std::vector<ov::PartialShape> input_shapes;
         input_shapes.reserve(inputs.size());
 
@@ -85,10 +87,9 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
             if (input_shapes.back().is_dynamic()) {
                 return false;
             }
-            constant_data.emplace(i, inputs[i]);
         }
 
-        const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+        const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
 
         outputs[0]->set_element_type(inputs[0]->get_element_type());
         outputs[0]->set_shape(output_shape);
@@ -100,7 +101,7 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 
     auto data_shape = data->get_shape();
 
-    if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
+    if (!(data->get_shape().size() == 3 || data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
         return false;
     }
 

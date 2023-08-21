@@ -199,7 +199,7 @@ ov_core_read_model_from_memory(const ov_core_t* core,
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
+ * @param ... property paramater: Optional pack of pairs: <char* property_key, char* property_value> relevant only
  * for this load operation operation. Supported property key please see ov_property.h.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -338,7 +338,8 @@ ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_na
  * @ingroup ov_core_c_api
  * @param versions A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
+OPENVINO_C_API(void)
+ov_core_versions_free(ov_core_version_list_t* versions);
 
 /**
  * @brief Creates a new remote shared context object on the specified accelerator device
@@ -348,7 +349,7 @@ OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
  * @param device_name Device name to identify a plugin.
  * @param context_args_size How many property args will be for this remote context creation.
  * @param context A pointer to the newly created remote context.
- * @param variadic parmameters Actual context property parameter for remote context
+ * @param ... variadic parmameters Actual context property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
@@ -366,7 +367,7 @@ ov_core_create_context(const ov_core_t* core,
  * @param context A pointer to the newly created remote context.
  * @param property_args_size How many args will be for this compiled model.
  * @param compiled_model A pointer to the newly created compiled_model.
- * @param variadic parmameters Actual property parameter for remote context
+ * @param ... variadic parmameters Actual property parameter for remote context
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)

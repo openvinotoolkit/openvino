@@ -1,5 +1,11 @@
 # Tan  {#openvino_docs_ops_arithmetic_Tan_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Tan-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Tan-1*
 
 **Category**: *Arithmetic unary*
@@ -8,19 +14,25 @@
 
 **Detailed description**:  Operation takes one input tensor and performs the element-wise tangent function on a given input tensor, based on the following mathematical formula:
 
-\f[
-a_{i} = tan(a_{i})
-\f]
+.. math::
+
+   a_{i} = tan(a_{i})
 
 *Example 1*
 
-    input = [0.0, 0.25, -0.25, 0.5, -0.5]
-    output = [0.0, 0.25534192, -0.25534192, 0.54630249, -0.54630249]
+.. code-block:: xml
+   :force:
+
+   input = [0.0, 0.25, -0.25, 0.5, -0.5]
+   output = [0.0, 0.25534192, -0.25534192, 0.54630249, -0.54630249]
 
 *Example 2*
 
-    input = [-2, -1, 0, 1, 2]
-    output = [2, -2, 0, 2, -2]
+.. code-block:: xml
+   :force:
+
+   input = [-2, -1, 0, 1, 2]
+   output = [2, -2, 0, 2, -2]
 
 **Attributes**: *tan*  operation has no attributes.
 
@@ -39,19 +51,22 @@ a_{i} = tan(a_{i})
 
 **Examples**
 
-```xml
-<layer ... type="Tan">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force: 
+
+    <layer ... type="Tan">
+        <input>
+            <port id="0">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1">
+                <dim>256</dim>
+                <dim>56</dim>
+            </port>
+        </output>
+    </layer>
+
+@endsphinxdirective

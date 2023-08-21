@@ -33,7 +33,7 @@ public:
         return getOutputShapeAtPort(0).getRank() == 3 ? 2 : 1;
     }
 
-    const std::vector<impl_desc_type>& getPrimitivesPriority() override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
@@ -44,8 +44,8 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
-    std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -55,8 +55,16 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
+    bool canBeExecutedInInt8() const override;
+    void keepWeightsNonTransposed(bool weightsNonTransposed) {
+        this->weightsNonTransposed = weightsNonTransposed;
+    }
 
-    void setDynamicBatchLim(int lim) override;
+    void fuseDecompressionMultiply(const NodePtr& constData);
+    const std::vector<float>& getDecompressionMultiply() const { return decompressionMultiply; }
+
+    void fuseDecompressionSubtract(const NodePtr& constData);
+    const std::vector<float>& getDecompressionSubtract() const { return decompressionSubtract; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,
@@ -76,29 +84,14 @@ private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
-    dnnl::memory::data_type outputDataType;
+    dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
 
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
     bool useConv1x1 = false;
-    impl_desc_type implementationTypeIP;
+    impl_desc_type implementationTypeIP = impl_desc_type::unknown;
     MemoryDescPtr weightDescIP;
-    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
-    // different shapes. Weights will be cached in privateWeightCache.
-    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
-    // reference
-    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
     dnnl::primitive_attr attr;
-
-    class ExecutorInnerProduct : public DnnlExecutor {
-        public:
-            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
-    };
-
-    class ExecutorConv1x1 : public DnnlExecutor {
-        public:
-            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
-    };
 
     static dnnl::convolution_forward::primitive_desc
     createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
@@ -109,13 +102,29 @@ private:
                                     const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
-    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
+    void fuseDecompressionConstant(const NodePtr& constData, std::vector<float>& decompressionValues);
 
     // sparse weights
     bool useSparseWeights = false;
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
+    VectorDims expectedBiasDims {};
+    bool useMlas = false;
+#ifdef OV_CPU_WITH_MLAS
+    int64_t M, N, K;
+    MemoryPtr mlasPackedPtr = nullptr;
+    void executeMLAS();
+    void prepackMLASWeight();
+#endif
+
+    bool useWeightsDecompressionImpl = false;
+    std::vector<float> decompressionSubtract;
+    std::vector<float> decompressionMultiply;
+
+    // FC with transposed weights
+    bool weightsNonTransposed = false;
+    DnnlMemoryDescPtr makeTransposedWeightDescriptor();
 };
 
 }   // namespace node

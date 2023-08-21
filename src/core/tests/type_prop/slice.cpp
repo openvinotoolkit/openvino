@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dimension_tracker.hpp>
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "ngraph/ngraph.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
-#include "util/type_prop.hpp"
 
 using namespace ngraph;
 using namespace testing;
@@ -1190,4 +1190,62 @@ TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
     auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
+}
+
+using SliceV8IntervalParams =
+    std::tuple<ov::PartialShape, ov::PartialShape, ov::PartialShape, int64_t, int64_t, int64_t, ov::PartialShape>;
+
+class SliceV8IntervalTest : public TypePropOpTest<op::v8::Slice>, public WithParamInterface<SliceV8IntervalParams> {
+protected:
+    void SetUp() override {
+        std::tie(data_shape, start_shape, stop_shape, start_offset, stop_offset, step, exp_shape) = GetParam();
+    }
+
+    ov::PartialShape data_shape, start_shape, stop_shape, exp_shape;
+    int64_t start_offset, stop_offset, step;
+};
+
+INSTANTIATE_TEST_SUITE_P(type_prop,
+                         SliceV8IntervalTest,
+                         Values(SliceV8IntervalParams({1024}, {{0, 20}}, {{10, 20}}, 0, 0, 1, {{0, 20}}),
+                                SliceV8IntervalParams({1024}, {{0, 20}}, {{10, 20}}, 0, 0, 1, {{0, 20}}),
+                                SliceV8IntervalParams({-1}, {{0, 20}}, {{10, 20}}, 10, 0, 1, {{0, 20}}),
+                                SliceV8IntervalParams({1024}, {{0, 10}}, {{0, 5}}, 0, 10, 1, {{1004, 1019}}),
+                                SliceV8IntervalParams({{120, 1024}}, {{0, 10}}, {{0, 5}}, 0, 10, 1, {{100, 1019}}),
+                                SliceV8IntervalParams({1024}, {{0, 1030}}, {{0, 2000}}, 1025, 10, 1, {{0, 1024}}),
+                                SliceV8IntervalParams({1024}, {{1, 12}}, {{0, 18}}, 10, 0, 2, {{0, 9}}),
+                                SliceV8IntervalParams({1024}, {{10, 20}}, {{0, 20}}, 0, 10, 2, {{0, 507}}),
+                                SliceV8IntervalParams({{100, 1024}}, {{10, 20}}, {{0, 20}}, 0, 10, 2, {{0, 507}}),
+                                SliceV8IntervalParams({1024}, {10}, {30}, 0, 0, 2, {10}),
+                                SliceV8IntervalParams({{20, 1024}}, {{10, 15}}, {{30, 40}}, 0, 0, 2, {{3, 15}}),
+                                // reverse stride
+                                SliceV8IntervalParams({1024}, {{0, 20}}, {{10, 20}}, 10, 0, -1, {{0, 1013}}),
+                                SliceV8IntervalParams({-1}, {{0, 20}}, {{10, 20}}, 10, 0, -1, {-1}),
+                                SliceV8IntervalParams({1024}, {30}, {10}, 35, 40, -1, {25}),
+                                SliceV8IntervalParams({1024}, {{0, 2000}}, {{0, 1030}}, 10, 1026, -1, {{0, 1024}}),
+                                SliceV8IntervalParams({1024}, {30}, {10}, 0, 0, -2, {10}),
+                                SliceV8IntervalParams({1024}, {{20, 30}}, {10}, 0, 0, -2, {{5, 10}}),
+                                SliceV8IntervalParams({1024}, {{20, 30}}, {10}, 40, 0, -2, {{497, 502}}),
+                                SliceV8IntervalParams({1024}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{3, 10}}),
+                                SliceV8IntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
+
+TEST_P(SliceV8IntervalTest, start_stop_as_interval) {
+    using namespace ov::opset9;
+
+    const auto p_start = std::make_shared<Parameter>(element::i64, start_shape);
+    const auto shape_of_start = std::make_shared<ShapeOf>(p_start);
+    const auto start =
+        std::make_shared<Subtract>(shape_of_start, Constant::create(element::i64, Shape{1}, {start_offset}));
+
+    const auto p_stop = std::make_shared<Parameter>(element::i64, stop_shape);
+    const auto shape_of_stop = std::make_shared<ShapeOf>(p_stop);
+    const auto stop =
+        std::make_shared<Subtract>(shape_of_stop, Constant::create(element::i64, Shape{1}, {stop_offset}));
+
+    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
+    const auto steps = Constant::create(element::i64, Shape{1}, {step});
+
+    const auto op = make_op(data, start, stop, steps);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
 }

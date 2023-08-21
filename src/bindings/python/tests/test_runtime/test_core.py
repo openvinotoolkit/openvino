@@ -8,16 +8,17 @@ import numpy as np
 import os
 from pathlib import Path
 
-from openvino.runtime import (
+from openvino import (
     Model,
     Core,
-    CompiledModel,
     Tensor,
     PartialShape,
-    Extension,
+    CompiledModel,
     tensor_from_file,
     compile_model,
 )
+
+from openvino.runtime import Extension
 
 from tests.conftest import (
     model_path,
@@ -30,6 +31,7 @@ from tests.test_utils.test_utils import (
     generate_relu_compiled_model,
     get_relu_model,
     plugins_path,
+    compare_models,
 )
 
 
@@ -158,9 +160,7 @@ def test_model_from_buffer_valid():
         xml = f.read()
     model = core.read_model(model=xml, weights=weights)
     ref_model = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert model.get_parameters() == ref_model.get_parameters()
-    assert model.get_results() == ref_model.get_results()
-    assert model.get_ordered_ops() == ref_model.get_ordered_ops()
+    assert compare_models(model, ref_model)
 
 
 def test_get_version(device):
@@ -176,11 +176,13 @@ def test_get_version(device):
 
 def test_available_devices(device):
     core = Core()
-    devices = core.available_devices
-    assert device in devices, (
-        f"Current device '{device}' is not listed in "
-        f"available devices '{', '.join(devices)}'"
-    )
+    devices_attr = core.available_devices
+    devices_method = core.get_available_devices()
+    for devices in (devices_attr, devices_method):
+        assert device in devices, (
+            f"Current device '{device}' is not listed in "
+            f"available devices '{', '.join(devices)}'"
+        )
 
 
 def test_get_property(device):
@@ -300,9 +302,7 @@ def test_unload_plugin(device):
     core.unload_plugin(device)
 
 
-@pytest.mark.template_plugin()
-@pytest.mark.skip(reason="Sporadically failed on mac with error:  Cannot add extension."
-                         "Cannot find entry point to the extension library")
+@pytest.mark.template_extension()
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

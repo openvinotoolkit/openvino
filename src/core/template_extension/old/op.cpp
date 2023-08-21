@@ -22,7 +22,7 @@ void Operation::validate_and_infer_types() {
 //! [op:copy]
 std::shared_ptr<ngraph::Node> Operation::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     if (new_args.size() != 1) {
-        throw ngraph::ngraph_error("Incorrect number of new arguments");
+        OPENVINO_THROW("Incorrect number of new arguments");
     }
 
     return std::make_shared<Operation>(new_args.at(0), add);

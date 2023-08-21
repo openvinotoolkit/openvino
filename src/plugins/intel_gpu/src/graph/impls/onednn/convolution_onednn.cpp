@@ -8,7 +8,7 @@
 #include "primitive_onednn_base.h"
 #include "implementation_map.hpp"
 
-#include "kernel_selector_common.h"
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include "utils.hpp"
 
@@ -38,12 +38,14 @@ protected:
 
         {
             auto weights = instance.weights_memory();
-            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.bias_term()) {
             auto bias = instance.bias_memory();
-            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         if (instance.activations_zero_points_term()) {
@@ -130,40 +132,18 @@ protected:
         return attrs;
     }
 
-    static kernel_selector::WeightsReorderParams get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd, bool rotate) {
-        kernel_selector::WeightsReorderParams weights_reorder_params;
-        auto& reorderKS = kernel_selector::ReorderWeightsKernelSelctor::Instance();
-        kernel_selector::reorder_weights_params r_params;
-
+    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd, bool rotate) {
         auto cldnn_prim = impl_params.typed_desc<convolution>();
-        auto weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        cldnn::format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
-        kernel_selector::WeightsLayout reqLayout = to_weights_layout(out_fmt, cldnn_prim->grouped_weights_shape);
 
-        set_params(impl_params, r_params);
-        r_params.layerID = cldnn_prim->id + "_reorder_";
-        r_params.input = convert_weights_tensor(weights_layout, cldnn_prim->grouped_weights_shape);
-        r_params.output = r_params.input.TransformIgnorePadding(reqLayout, r_params.input.GetDType(), cldnn_prim->groups, false);
-        r_params.rotate_180 = rotate;
+        auto input_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
 
-        kernel_selector::reorder_optional_params op;
-        kernel_selector::KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
+        auto output_weights_layout = input_weights_layout;
+        output_weights_layout.format = out_fmt;
 
-        if (kernels_data.empty()) {
-            throw std::runtime_error("No suitable kernel found for weights reorder from " +
-                                        kernel_selector::toString(r_params.input.GetLayout()) + " to " +
-                                        kernel_selector::toString(r_params.output.GetLayout()));
-        }
-
-        weights_reorder_params.engine = kernel_selector::WeightsReorderParams::Engine::GPU;
-        weights_reorder_params.clKernel = std::make_shared<kernel_selector::clKernelData>(kernels_data[0].kernels[0]);
-        weights_reorder_params.dest = r_params.output;
-
-        return weights_reorder_params;
+        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, rotate, grouped_weights);
     }
-
-
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
@@ -196,7 +176,7 @@ public:
             _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
         }
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
         auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
@@ -232,6 +212,8 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         }
+
+        _scratchpad_md = _pd.scratchpad_desc();
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;

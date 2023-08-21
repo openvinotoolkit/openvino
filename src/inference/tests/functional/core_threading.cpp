@@ -19,8 +19,8 @@
 #include "openvino/util/file_util.hpp"
 #ifdef __GLIBC__
 #    include <gnu/libc-version.h>
-#    if __GLIBC_MINOR__ >= 34
-#        define OV_TEST_GLIBC_VERSION_GREATER_2_34
+#    if __GLIBC_MINOR__ < 34
+#        define OV_TEST_GLIBC_VERSION_LESS_2_34
 #    endif
 #endif
 
@@ -30,14 +30,14 @@ protected:
 
 public:
     void SetUp() override {
-        auto prefix = CommonTestUtils::generateTestFilePrefix();
+        auto prefix = ov::test::utils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);
     }
 
     void TearDown() override {
-        CommonTestUtils::removeIRFiles(modelName, weightsName);
+        ov::test::utils::removeIRFiles(modelName, weightsName);
     }
 
     void runParallel(std::function<void(void)> func,
@@ -62,7 +62,7 @@ public:
     void safeAddExtension(InferenceEngine::Core& ie) {
         try {
             auto extension = std::make_shared<InferenceEngine::Extension>(
-                ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::Exception& ex) {
@@ -94,7 +94,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
     runParallel(
         [&]() {
             const std::string deviceName = std::to_string(index++);
-            ie.RegisterPlugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+            ie.RegisterPlugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                  std::string("mock_engine") + IE_BUILD_POSTFIX),
                               deviceName);
             ie.GetVersions(deviceName);
@@ -114,7 +114,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << CommonTestUtils::getExecutableDirectory();
+        file << ov::test::utils::getExecutableDirectory();
         file << ov::util::FileTraits<char>::file_separator;
         file << ov::util::FileTraits<char>::library_prefix();
         file << "mock_engine";
@@ -146,7 +146,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some initialization (e.g. thread/dlopen) sporadically fails during such stress-test scenario
 TEST_F(CoreThreadingTests, GetAvailableDevices) {
-#ifndef OV_TEST_GLIBC_VERSION_GREATER_2_34
+#ifdef OV_TEST_GLIBC_VERSION_LESS_2_34
     GTEST_SKIP();
 #endif
     InferenceEngine::Core ie;

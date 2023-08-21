@@ -33,7 +33,7 @@ using EltwiseShape = ngraph::Shape;
 using IsNegative = bool;
 
 class ConvFusionTests
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public testing::WithParamInterface<std::tuple<InputShape, WeightsShape, EltwiseType, EltwiseShape, IsNegative>> {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -80,7 +80,7 @@ private:
         } else if (eltwise_type == ngraph::opset5::Multiply::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset5::Multiply>(conv, const_node);
         } else {
-            throw ngraph::ngraph_error("Unsupported element type");
+            OPENVINO_THROW("Unsupported element type");
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltwise.get_node_shared_ptr()},
@@ -121,7 +121,7 @@ private:
                 std::make_shared<ngraph::opset5::Multiply>(weights, ov::op::util::reshapeTo(const_node, const_shape));
             conv = conv.get_node_shared_ptr()->copy_with_new_inputs({input, weights});
         } else {
-            throw ngraph::ngraph_error("Unsupported element type");
+            OPENVINO_THROW("Unsupported element type");
         }
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv.get_node_shared_ptr()},
@@ -130,13 +130,13 @@ private:
 };
 
 TEST_P(ConvFusionTests, CompareFunctions) {
-    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
+    manager.register_pass<ov::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 

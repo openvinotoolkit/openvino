@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/util/embeddingbag_offsets_base.hpp"
+#include "openvino/op/util/embeddingbag_offsets_base.hpp"
 
 #include "embeddingbag_offsets_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
-
-using namespace std;
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,
@@ -80,7 +77,9 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
     }
 
     const auto& result_et = get_input_element_type(EMB_TABLE);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto input_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     set_output_type(0, result_et, shape_infer(this, input_shapes)[0]);
 }
 

@@ -8,7 +8,8 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <util/test_tools.hpp>
+
+#include "common_test_utils/test_tools.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -32,7 +33,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(RenameReLU, "RenameReLU", 0);
+NGRAPH_RTTI_DEFINITION(RenameReLU, "RenameReLU");
 
 class RenameSigmoid : public ngraph::pass::MatcherPass {
 public:
@@ -50,7 +51,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(RenameSigmoid, "RenameSigmoid", 0);
+NGRAPH_RTTI_DEFINITION(RenameSigmoid, "RenameSigmoid");
 
 class TestFunctionPass : public ngraph::pass::FunctionPass {
 public:
@@ -67,7 +68,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestFunctionPass, "TestFunctionPass", 0);
+NGRAPH_RTTI_DEFINITION(TestFunctionPass, "TestFunctionPass");
 
 class TestGraphRewritePass : public ngraph::pass::GraphRewrite {
 public:
@@ -78,7 +79,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestGraphRewritePass, "TestGraphRewritePass", 0);
+NGRAPH_RTTI_DEFINITION(TestGraphRewritePass, "TestGraphRewritePass");
 
 std::tuple<std::shared_ptr<Function>, std::shared_ptr<Node>, std::shared_ptr<Node>> get_test_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -289,7 +290,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedMatcher, "TestNestedMatcher", 0);
+NGRAPH_RTTI_DEFINITION(TestNestedMatcher, "TestNestedMatcher");
 
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
@@ -299,7 +300,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedGraphRewrite, "TestNestedGraphRewrite", 0);
+NGRAPH_RTTI_DEFINITION(TestNestedGraphRewrite, "TestNestedGraphRewrite");
 
 TEST(PassConfig, EnableDisablePasses10) {
     std::shared_ptr<Function> f;

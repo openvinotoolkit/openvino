@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import os
 
-from openvino.runtime import Core, Type, OVAny, properties
+from openvino import Core, Type, OVAny, properties
 
 
 ###
@@ -25,6 +25,13 @@ def test_properties_rw_base():
     with pytest.raises(TypeError) as e:
         properties.cache_dir(6)
     assert "incompatible function arguments" in str(e.value)
+
+
+def test_deprecation():
+    with pytest.warns(DeprecationWarning) as w:
+        _ = properties.hint.PerformanceMode.UNDEFINED
+    assert issubclass(w[0].category, DeprecationWarning)
+    assert "PerformanceMode.UNDEFINED is deprecated and will be removed" in str(w[0].message)
 
 
 ###
@@ -61,9 +68,16 @@ def test_properties_rw_base():
             ),
         ),
         (
+            properties.hint.SchedulingCoreType,
+            (
+                (properties.hint.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
+                (properties.hint.SchedulingCoreType.PCORE_ONLY, "SchedulingCoreType.PCORE_ONLY", 1),
+                (properties.hint.SchedulingCoreType.ECORE_ONLY, "SchedulingCoreType.ECORE_ONLY", 2),
+            ),
+        ),
+        (
             properties.hint.ExecutionMode,
             (
-                (properties.hint.ExecutionMode.UNDEFINED, "ExecutionMode.UNDEFINED", -1),
                 (properties.hint.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
                 (properties.hint.ExecutionMode.ACCURACY, "ExecutionMode.ACCURACY", 2),
             ),
@@ -145,6 +159,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
         (properties.device.uuid, "DEVICE_UUID"),
+        (properties.device.luid, "DEVICE_LUID"),
         (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (properties.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
         (properties.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
@@ -206,8 +221,8 @@ def test_properties_ro(ov_property_ro, expected_value):
             "AFFINITY",
             ((properties.Affinity.NONE, properties.Affinity.NONE),),
         ),
-        (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True),)),
-        (properties.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
+        (properties.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
+        (properties.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
         (properties.hint.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             properties.hint.model_priority,
@@ -220,9 +235,34 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((properties.hint.PerformanceMode.UNDEFINED, properties.hint.PerformanceMode.UNDEFINED),),
         ),
         (
+            properties.hint.enable_cpu_pinning,
+            "ENABLE_CPU_PINNING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.hint.scheduling_core_type,
+            "SCHEDULING_CORE_TYPE",
+            ((properties.hint.SchedulingCoreType.PCORE_ONLY, properties.hint.SchedulingCoreType.PCORE_ONLY),),
+        ),
+        (
+            properties.hint.enable_hyper_threading,
+            "ENABLE_HYPER_THREADING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             properties.hint.execution_mode,
             "EXECUTION_MODE_HINT",
-            ((properties.hint.ExecutionMode.UNDEFINED, properties.hint.ExecutionMode.UNDEFINED),),
+            ((properties.hint.ExecutionMode.PERFORMANCE, properties.hint.ExecutionMode.PERFORMANCE),),
         ),
         (
             properties.hint.num_requests,
@@ -247,6 +287,36 @@ def test_properties_ro(ov_property_ro, expected_value):
                 (2.0, 2.0),
             ),
         ),
+        (
+            properties.intel_auto.device_bind_buffer,
+            "DEVICE_BIND_BUFFER",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_startup_fallback,
+            "ENABLE_STARTUP_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            properties.intel_auto.enable_runtime_fallback,
+            "ENABLE_RUNTIME_FALLBACK",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
         (properties.device.id, "DEVICE_ID", (("0", "0"),)),
         (
             properties.log.level,
@@ -256,6 +326,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.intel_gpu.enable_loop_unrolling,
             "GPU_ENABLE_LOOP_UNROLLING",
+            ((True, True),),
+        ),
+        (
+            properties.intel_gpu.disable_winograd_convolution,
+            "GPU_DISABLE_WINOGRAD_CONVOLUTION",
             ((True, True),),
         ),
         (
@@ -319,12 +394,12 @@ def test_properties_device_properties():
           {"CPU": {"NUM_STREAMS": 2}})
     check({"CPU": make_dict(properties.streams.num(2))},
           {"CPU": {"NUM_STREAMS": properties.streams.Num(2)}})
-    check({"GPU": make_dict(properties.inference_precision(Type.f32))},
+    check({"GPU": make_dict(properties.hint.inference_precision(Type.f32))},
           {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}})
-    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32))},
+    check({"CPU": make_dict(properties.streams.num(2), properties.hint.inference_precision(Type.f32))},
           {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)}})
-    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32)),
-           "GPU": make_dict(properties.streams.num(1), properties.inference_precision(Type.f16))},
+    check({"CPU": make_dict(properties.streams.num(2), properties.hint.inference_precision(Type.f32)),
+           "GPU": make_dict(properties.streams.num(1), properties.hint.inference_precision(Type.f16))},
           {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)},
            "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": properties.streams.Num(1)}})
 
@@ -397,8 +472,11 @@ def test_single_property_setting(device):
                 properties.cache_dir("./"),
                 properties.inference_num_threads(9),
                 properties.affinity(properties.Affinity.NONE),
-                properties.inference_precision(Type.f32),
+                properties.hint.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
+                properties.hint.enable_cpu_pinning(True),
+                properties.hint.scheduling_core_type(properties.hint.SchedulingCoreType.PCORE_ONLY),
+                properties.hint.enable_hyper_threading(True),
                 properties.hint.num_requests(12),
                 properties.streams.num(5),
             ],
@@ -409,8 +487,11 @@ def test_single_property_setting(device):
             properties.cache_dir(): "./",
             properties.inference_num_threads(): 9,
             properties.affinity(): properties.Affinity.NONE,
-            properties.inference_precision(): Type.f32,
+            properties.hint.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+            properties.hint.enable_cpu_pinning(): True,
+            properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
+            properties.hint.enable_hyper_threading(): True,
             properties.hint.num_requests(): 12,
             properties.streams.num(): 5,
         },
@@ -422,8 +503,10 @@ def test_single_property_setting(device):
             properties.affinity(): "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+            properties.hint.scheduling_core_type(): properties.hint.SchedulingCoreType.PCORE_ONLY,
             properties.hint.num_requests(): 12,
             "NUM_STREAMS": properties.streams.Num(5),
+            "ENABLE_MMAP": "NO",
         },
     ],
 )

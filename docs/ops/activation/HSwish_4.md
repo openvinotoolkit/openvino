@@ -1,5 +1,11 @@
 # HSwish {#openvino_docs_ops_activation_HSwish_4}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about HSwish-4 - an element-wise, activation operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *HSwish-4*
 
 **Category**: *Activation function*
@@ -9,11 +15,12 @@
 **Detailed description**: For each element from the input tensor calculates corresponding
 element in the output tensor with the following formula:
 
-\f[
-HSwish(x) = x \cdot \frac{min(max(x + 3,\ 0),\ 6)}{6}
-\f]
+.. math::
 
-The HSwish operation is introduced in the following [article](https://arxiv.org/pdf/1905.02244.pdf).
+   HSwish(x) = x \cdot \frac{min(max(x + 3,\ 0),\ 6)}{6}
+
+
+The HSwish operation is introduced in the following `article <https://arxiv.org/pdf/1905.02244.pdf>`__.
 
 **Attributes**: operation has no attributes.
 
@@ -32,19 +39,23 @@ The HSwish operation is introduced in the following [article](https://arxiv.org/
 
 **Example**
 
-```xml
-<layer ... type="HSwish">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+   <layer ... type="HSwish">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

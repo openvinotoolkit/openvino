@@ -102,7 +102,7 @@ public:
                 if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
                     params.layoutBased = true;
             }
-        } else if (!params.inputs[0].SameDimsSizes(params.inputs[1])) {
+        } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
             params.broadcast = true;
         }
 
@@ -119,10 +119,33 @@ public:
         return {params, optional_params};
     }
 
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+
+        auto& output_layout = updated_impl_params.output_layouts[0];
+        auto out_pshape = output_layout.get_partial_shape();
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(out_pshape));
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            auto input_pshape = input_layout.get_partial_shape();
+            if (!broadcastable(input_pshape, out_pshape, use_new_shape_infer)) {
+                input_pshape = extend_shape_to_rank_from_begin(input_pshape, out_pshape.size());
+            }
+            input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_pshape));
+            input_layout.format = format::adjust_to_rank(input_layout.format, input_pshape.size());
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -141,7 +164,9 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
     };
 
     implementation_map<eltwise>::add(impl_types::ocl,
@@ -190,6 +215,20 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
         std::make_tuple(data_types::i64, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::bfuwzyx),
+        std::make_tuple(data_types::f16, format::bfuwzyx),
+        std::make_tuple(data_types::i8, format::bfuwzyx),
+        std::make_tuple(data_types::u8, format::bfuwzyx),
+        std::make_tuple(data_types::i32, format::bfuwzyx),
+        std::make_tuple(data_types::i64, format::bfuwzyx),
+
+        std::make_tuple(data_types::f32, format::bfvuwzyx),
+        std::make_tuple(data_types::f16, format::bfvuwzyx),
+        std::make_tuple(data_types::i8, format::bfvuwzyx),
+        std::make_tuple(data_types::u8, format::bfvuwzyx),
+        std::make_tuple(data_types::i32, format::bfvuwzyx),
+        std::make_tuple(data_types::i64, format::bfvuwzyx),
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
@@ -314,3 +353,4 @@ attach_eltwise_impl::attach_eltwise_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eltwise_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::eltwise)

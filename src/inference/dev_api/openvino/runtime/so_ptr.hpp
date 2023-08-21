@@ -44,13 +44,27 @@ struct SoPtr {
     SoPtr(const std::shared_ptr<T>& ptr, const std::shared_ptr<void>& so) : _ptr{ptr}, _so{so} {}
 
     /**
+     * @brief Constructs an object with existing shared object reference
+     * @param ptr pointer to the loaded object
+     */
+    SoPtr(const std::shared_ptr<T>& ptr) : _ptr{ptr}, _so{nullptr} {}
+
+    /**
+     * @brief Constructs an object with existing shared object reference
+     * @param ptr pointer to the loaded object
+     */
+    template <class U, typename std::enable_if<std::is_base_of<T, U>::value, bool>::type = true>
+    SoPtr(const std::shared_ptr<U>& ptr) : _ptr{std::dynamic_pointer_cast<T>(ptr)},
+                                           _so{nullptr} {}
+
+    /**
      * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
      * @param that copied SoPtr object
      */
     template <typename U>
     SoPtr(const SoPtr<U>& that) : _ptr{std::dynamic_pointer_cast<T>(that._ptr)},
                                   _so{that._so} {
-        IE_ASSERT(_ptr != nullptr);
+        OPENVINO_ASSERT(_ptr != nullptr);
     }
 
     /**

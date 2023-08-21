@@ -7,19 +7,21 @@
 namespace ov {
 namespace template_plugin {
 
+// ! [remote_context:header]
 class RemoteContext : public ov::IRemoteContext {
 public:
     RemoteContext();
     const std::string& get_device_name() const override;
     const ov::AnyMap& get_property() const override;
-    std::shared_ptr<IRemoteTensor> create_tensor(const ov::element::Type& type,
-                                                 const ov::Shape& shape,
-                                                 const ov::AnyMap& params = {}) override;
+    ov::SoPtr<IRemoteTensor> create_tensor(const ov::element::Type& type,
+                                           const ov::Shape& shape,
+                                           const ov::AnyMap& params = {}) override;
 
 private:
     std::string m_name;
     ov::AnyMap m_property;
 };
+// ! [remote_context:header]
 
 }  // namespace template_plugin
 }  // namespace ov

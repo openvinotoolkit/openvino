@@ -7,7 +7,6 @@
 #include <memory>
 #include <topk_shape_inference.hpp>
 
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
@@ -17,10 +16,12 @@
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace topk {
 namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -107,13 +108,14 @@ bool TopK_evaluate(const ov::op::util::TopKBase* const node,
                    const HostTensorVector& outputs,
                    const HostTensorVector& inputs) {
     const auto& arg_shape = inputs[0]->get_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto axis = normalize_axis(node, node->get_provided_axis(), arg_shape.size());
+    OPENVINO_SUPPRESS_DEPRECATED_END
     const auto compute_max = node->get_mode() == ov::op::TopKMode::MAX;
     const auto sort_type = node->get_sort_type();
 
     const auto input_shapes = vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
-    const auto constant_data = map<size_t, HostTensorPtr>{{1, inputs[1]}};
-    auto output_shape = shape_infer(node, input_shapes, constant_data).front().to_shape();
+    auto output_shape = shape_infer(node, input_shapes, ov::make_tensor_accessor(inputs)).front().to_shape();
 
     if (output_shape[axis] == 0) {
         // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
@@ -321,11 +323,10 @@ void ov::op::v11::TopK::validate_and_infer_types() {
     OV_OP_SCOPE(v11_TopK_validate_and_infer_types);
 
     if (m_stable) {
-        NODE_VALIDATION_CHECK(
-            this,
-            m_sort == TopKSortType::SORT_VALUES,
-            "Stable sort can only be used when TopK's sorting mode is set to 'VALUE'. Current sorting mode = ",
-            AttributeAdapter<TopKSortType>(m_sort).get());
+        NODE_VALIDATION_CHECK(this,
+                              m_sort == TopKSortType::SORT_VALUES || m_sort == TopKSortType::SORT_INDICES,
+                              "Stable sort can only be used when TopK's sorting mode is set to 'VALUE' or 'INDEX'.",
+                              AttributeAdapter<TopKSortType>(m_sort).get());
     }
 
     util::TopKBase::validate_and_infer_types();

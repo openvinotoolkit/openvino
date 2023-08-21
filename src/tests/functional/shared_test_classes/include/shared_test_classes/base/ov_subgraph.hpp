@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/model.hpp"
+#include "transformations/convert_precision.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -20,7 +21,7 @@ using ElementType = ov::element::Type_t;
 using Config = ov::AnyMap;
 using TargetDevice = std::string;
 
-class SubgraphBaseTest : public CommonTestUtils::TestsCommon {
+class SubgraphBaseTest : public ov::test::TestsCommon {
 public:
     virtual void run();
     virtual void serialize();
@@ -38,6 +39,13 @@ protected:
     virtual void validate();
 
     void init_input_shapes(const std::vector<InputShape>& shapes);
+
+    void TearDown() override {
+        if (this->HasFailure() && !is_reported) {
+            summary.setDeviceName(targetDevice);
+            summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+        }
+    }
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     std::string targetDevice;
@@ -57,10 +65,14 @@ protected:
 
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;
+    bool is_reported = false;
     double rel_influence_coef = 1.f;
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();
+    virtual precisions_map get_ref_precisions_convert_map();
+
+    friend void core_configuration(SubgraphBaseTest* test);
 };
 
 inline std::vector<InputShape> static_partial_shapes_to_test_representation(const std::vector<ov::PartialShape>& shapes) {

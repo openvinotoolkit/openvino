@@ -39,7 +39,7 @@ OV_CC_DOMAINS(ov_opset);
 #elif defined(SELECTIVE_BUILD)
 #    define OV_OP_SCOPE(region)                                        \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(ov_op, _, region)) == 0) \
-        throw ngraph::ngraph_error(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
+        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))) + " is disabled!")
 #    define REGISTER_OP(opset_name, op_name)
 #    define INSERT_OP(opset_name, op_name, op_namespace)                                \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT4(ov_opset_, opset_name, _, op_name)) == 1) \

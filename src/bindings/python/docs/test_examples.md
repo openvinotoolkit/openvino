@@ -1,6 +1,6 @@
 # How to test OpenVINO™ Python API?
 
-#### Building and environment
+## Building and environment
 Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
 Install the specific requirements file for testing:
@@ -10,10 +10,10 @@ python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 
 Make sure that Python libraries are added to the user environment variables: 
 ```
-export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python_api/python3.7
+export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python
 ```
-### Run OpenVINO™ Python API tests
-*For simplicity, all of these commands require to navigate to the main Python API folder first:*
+## Run OpenVINO™ Python API tests
+*For simplicity, all of these commands require to navigate to the [main Python API folder](./../) first:*
 ```shell
 cd .../openvino/src/bindings/python/
 ```
@@ -55,9 +55,9 @@ To run full test suite one can utilize `tox` command:
 tox
 ```
 
-### Check the codestyle of Python API
+## Check the codestyle of Python API
 There are two packages used in the project to check the codestyle of python code: *mypy* and *flake8*.
-Besides, OpenVINO™ uses a custom configuration file to exclude some strict rules.
+Besides, OpenVINO™ uses a [custom configuration file](./../setup.cfg) to exclude some strict rules.
 
 To check the codestyle of the Python API 2.0, run the following commands:
 ```
@@ -80,14 +80,14 @@ This check should be executed from the main Python API folder:
 ```
 python -m flake8 ./tests/ --config=setup.cfg
 ```
-### Writing OpenVINO™ Python API tests
-###### Before start
-Follow and complete `openvino/src/bindings/python/docs/code_examples.md`.
+## Writing OpenVINO™ Python API tests
+### Before start
+Follow and complete [Examples of OpenVINO™ Python API code](./code_examples.md).
 
-##### Adding new test-case in the correct place
+### Adding new test-case in the correct place
 Let's add a new test for OpenVINO™ Python API.
 
-First, the test should confirm that the new pybind11-based class of `MyTensor` is behaving correctly. Navigate to tests folder and create a new file that describes tests within it. It should be along the lines of:
+First, the test should confirm that the new pybind11-based class of `MyTensor` is behaving correctly. Navigate to [tests folder](./../tests/test_runtime/) and create a new file `test_mytensor.py` that describes tests within it. Final path should be along the lines of:
 
     tests/test_runtime/test_mytensor.py
 
@@ -102,7 +102,7 @@ Note that name of the file is connected to the class/module to be tested. This i
     tests/test_onnx               <-- ONNX Frontend tests and validation
     tests/test_transformations    <-- optimization passes for OV Models 
 
-##### Writing test itself
+### Writing of the test itself
 Let's add a test case for new class. Start with imports and simple test of the creation of a class:
 ```python
 import pytest
@@ -147,6 +147,11 @@ Notice that the test name is shared between cases. In a real-life pull request, 
 * ... or create reference values during runtime. Always use a good, thrust-worthy library for that!
 * Re-use common parts of the code (like multiple lines that create helper object) and move them out to make tests easier to read.
 
-###### Difference between *tests* and *tests_compatibility* directories
+### Difference between *tests* and *tests_compatibility* directories
 <!-- TO-DELETE when compatibility layer is no longer supported in the project -->
-Someone could notice two similar folders `tests` and `tests_compatibility`. First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO™ reviewers. Please do not duplicate tests in both directories if not necessary.
+Someone could notice two similar folders [`tests`](./../tests/) and [`tests_compatibility`](./../tests_compatibility/). First one is the desired place for all upcoming features and tests. Compatibility layer is only supported in specific cases and any updates to it should be explicitly approved by OpenVINO™ reviewers. Please do not duplicate tests in both directories if not necessary.
+
+## See also
+ * [OpenVINO™ README](../../../../README.md)
+ * [OpenVINO™ bindings README](../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)

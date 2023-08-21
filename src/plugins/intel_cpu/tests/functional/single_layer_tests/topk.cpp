@@ -10,18 +10,20 @@
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov::test;
+using SortMode = ov::op::TopKMode;
+using SortType = ov::op::TopKSortType;
 
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        int64_t,                        // keepK
-        int64_t,                        // axis
-        ngraph::opset4::TopK::Mode,     // mode
-        ngraph::opset4::TopK::SortType, // sort
-        ElementType,                    // Net precision
-        ElementType,                    // Input precision
-        ElementType,                    // Output precision
-        InputShape                      // inputShape
+        int64_t,                    // keepK
+        int64_t,                    // axis
+        SortMode,                   // mode
+        std::tuple<SortType, bool>, // sort and stable
+        ElementType,                // Net precision
+        ElementType,                // Input precision
+        ElementType,                // Output precision
+        InputShape                  // inputShape
 > basicTopKParams;
 
 typedef std::tuple<
@@ -39,11 +41,13 @@ public:
         std::tie(basicParamsSet, cpuParams, additionalConfig) = obj.param;
 
         int64_t keepK, axis;
-        ngraph::opset4::TopK::Mode mode;
-        ngraph::opset4::TopK::SortType sort;
+        SortMode mode;
+        std::tuple<SortType, bool> sortTypeStable;
         ElementType netPrecision, inPrc, outPrc;
         InputShape inputShape;
-        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
+        std::tie(keepK, axis, mode, sortTypeStable, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
+        SortType sort = std::get<0>(sortTypeStable);
+        bool stable = std::get<1>(sortTypeStable);
 
         std::ostringstream result;
         bool staticShape = inputShape.first.rank() == 0;
@@ -52,12 +56,13 @@ public:
         result << "axis=" << axis << "_";
         result << "mode=" << mode << "_";
         result << "sort=" << sort << "_";
+        result << "stable=" << (stable ? "True" : "False") << "_";
         result << "netPRC=" << netPrecision << "_";
         result << "inPRC=" << inPrc << "_";
         result << "outPRC=" << outPrc << "_";
-        result << "IS=" << CommonTestUtils::partialShape2str({inputShape.first}) << "_" << "TS=(";
+        result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_" << "TS=(";
         for (const auto& shape : inputShape.second) {
-            result << CommonTestUtils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
@@ -75,7 +80,7 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
 
         basicTopKParams basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -85,11 +90,13 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         int64_t keepK;
-        ngraph::opset4::TopK::Mode mode;
-        ngraph::opset4::TopK::SortType sort;
+        SortMode mode;
+        std::tuple<SortType, bool> sortTypeStable;
         ElementType inPrc, outPrc;
         InputShape inputShape;
-        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
+        std::tie(keepK, axis, mode, sortTypeStable, netPrecision, inPrc, outPrc, inputShape) = basicParamsSet;
+        sort = std::get<0>(sortTypeStable);
+        stable = std::get<1>(sortTypeStable);
 
         if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
             inPrc = outPrc = netPrecision = ElementType::bf16;
@@ -112,33 +119,34 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
 
         // static shape need specific const k to test different sorting algorithms, dynamic shape tests random param k
-        std::shared_ptr<ngraph::opset4::TopK> topk;
+        std::shared_ptr<ov::op::v11::TopK> topk;
         if (staticShape) {
-            auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
-            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+            auto k = std::make_shared<ov::op::v0::Constant>(ElementType::i64, ov::Shape{}, &keepK);
+            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         } else {
-            auto k = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i64, inputDynamicShapes[1]);
+            auto k = std::make_shared<ov::op::v0::Parameter>(ElementType::i64, inputDynamicShapes[1]);
             params.push_back(k);
-            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
-                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+            topk = std::dynamic_pointer_cast<ov::op::v11::TopK>(
+                    std::make_shared<ov::op::v11::TopK>(params[0], k, axis, mode, sort, ElementType::i32, stable));
         }
 
         topk->get_rt_info() = getCPUInfo();
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < topk->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset4::Result>(topk->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(topk->output(i)));
         }
 
         function = std::make_shared<ngraph::Function>(results, params, "TopK");
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
-        // Spec TopK_3.md allows to use unstable sorting, thus generate unreapeated input data to avoid a. and b.
+        // For unstable sorting, generate unrepeated input data to avoid a. and b. While for stable sorting,
+        // repeating values are explicitly set.
         // a. Skip comparing of index results, because an element in actual index tensor can be different with
         //    its counterpart in expected index tensor
         // b. If SortType is SORT_INDICES or NONE, the test program still needs to apply std::sort for all pairs
@@ -153,7 +161,11 @@ protected:
 
             // For int32, deliberately set big numbers which are not accurately representable in fp32
             int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : - static_cast<int>(size / 2);
-            std::iota(data.begin(), data.end(), start);
+            size_t set_size = sort == SortType::SORT_VALUES && stable ? size / 2 : size;
+            std::iota(data.begin(), data.begin() + set_size, start);
+            if (sort == SortType::SORT_VALUES && stable) {
+                std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+            }
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
@@ -178,7 +190,7 @@ protected:
             if (O * A * I != size)
                 FAIL() << "Incorrect blob shape " << shape;
 
-            auto *rawBlobDataPtr = static_cast<ngraph::bfloat16 *>(tensor.data());
+            auto *rawBlobDataPtr = static_cast<ov::bfloat16 *>(tensor.data());
             for (size_t o = 0; o < O; o++) {
                 for (size_t i = 0; i < I; i++) {
                     std::vector<int> data(A);
@@ -188,7 +200,7 @@ protected:
                     std::mt19937 gen(seed);
                     std::shuffle(data.begin(), data.end(), gen);
                     for (size_t a = 0; a < A; a++) {
-                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ngraph::bfloat16>(data[a]);
+                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
                     }
                 }
             }
@@ -198,20 +210,28 @@ protected:
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
 
         if (!staticShape) {
-            const auto& kPrecision = funcInputs[1].get_element_type();
-            const auto& kShape = targetInputStaticShapes[1];
-
-            const size_t startFrom = 1;
-            const size_t range = targetInputStaticShapes[0][axis];
-            const size_t seed = inferRequestNum++;
-            const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
-
-            inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
+            generate_dynamic_k(funcInputs, targetInputStaticShapes);
         }
     }
 
 private:
+    void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
+                            const std::vector<ov::Shape>& targetInputStaticShapes) {
+        const auto& kPrecision = funcInputs[1].get_element_type();
+        const auto& kShape = targetInputStaticShapes[1];
+
+        const size_t startFrom = 1;
+        const size_t range = targetInputStaticShapes[0][axis];
+        const size_t seed = inferRequestNum++;
+        const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
+
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
+    }
+
+private:
     int64_t axis;
+    SortType sort;
+    bool stable;
     size_t inferRequestNum = 0;
     ElementType netPrecision;
     bool staticShape;
@@ -236,14 +256,15 @@ std::vector<std::map<std::string, std::string>> additionalConfig = {
 const std::vector<int64_t> axes = {0, 1, 2, 3};
 const std::vector<int64_t> k = {1, 5, 7, 18, 21};
 
-const std::vector<ngraph::opset4::TopK::Mode> modes = {
-    ngraph::opset4::TopK::Mode::MIN,
-    ngraph::opset4::TopK::Mode::MAX
+const std::vector<SortMode> modes = {
+    SortMode::MIN,
+    SortMode::MAX
 };
 
-const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
-    ngraph::opset4::TopK::SortType::SORT_VALUES,
-    ngraph::opset4::TopK::SortType::SORT_INDICES,
+const std::vector<std::tuple<SortType, bool>> sortTypeStable = {
+    std::tuple<SortType, bool>{SortType::SORT_VALUES, false},
+    std::tuple<SortType, bool>{SortType::SORT_VALUES, true},
+    std::tuple<SortType, bool>{SortType::SORT_INDICES, false}
 };
 
 std::vector<ov::test::InputShape> inputShapes = {
@@ -266,7 +287,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK, TopKLayerCPUTest,
             ::testing::ValuesIn(k),
             ::testing::ValuesIn(axes),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -281,7 +302,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerCPUTest,
             ::testing::Values(1),
             ::testing::ValuesIn(axes),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -306,7 +327,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_int32, TopKLayerCPUTest,
             ::testing::ValuesIn(k_int32),
             ::testing::ValuesIn(axes),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::Values(ElementType::i32),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -321,7 +342,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_int32_dynamic, TopKLayerCPUTest,
             ::testing::Values(1),
             ::testing::ValuesIn(axes),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::Values(ElementType::i32),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -344,7 +365,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz, TopKLayerCPUTest
             ::testing::Values(1),
             ::testing::Values(1),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -359,7 +380,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_bubble_BLK_on_channel_horiz_dynamic, TopKLaye
             ::testing::Values(1),
             ::testing::Values(1),
             ::testing::ValuesIn(modes),
-            ::testing::ValuesIn(sortTypes),
+            ::testing::ValuesIn(sortTypeStable),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -381,8 +402,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Top1, TopKLayerCPUTest,
         ::testing::Combine(
             ::testing::Values(1),
             ::testing::Values(3),
-            ::testing::Values(ngraph::opset4::TopK::Mode::MAX),
-            ::testing::Values(ngraph::opset4::TopK::SortType::SORT_INDICES),
+            ::testing::Values(SortMode::MAX),
+            ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),
@@ -396,8 +417,8 @@ INSTANTIATE_TEST_CASE_P(smoke_Top1_dynamic, TopKLayerCPUTest,
         ::testing::Combine(
             ::testing::Values(1),
             ::testing::Values(3),
-            ::testing::Values(ngraph::opset4::TopK::Mode::MAX),
-            ::testing::Values(ngraph::opset4::TopK::SortType::SORT_INDICES),
+            ::testing::Values(SortMode::MAX),
+            ::testing::Values(std::tuple<SortType, bool>(SortType::SORT_INDICES, false)),
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ElementType::undefined),
             ::testing::Values(ElementType::undefined),

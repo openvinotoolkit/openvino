@@ -50,8 +50,8 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
-         input_layout.format == format::bs_x_bsv16 ||
-         input_layout.format == format::bs_xs_xsv8_bsv8))
+         input_layout.format == format::bs_f_bsv16 ||
+         input_layout.format == format::bs_fs_fsv8_bsv8))
         return format::yxfb;
 
     bool no_spatial_padding = true;
@@ -139,8 +139,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
+    auto output_type = input_layout.data_type;
+    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -148,18 +149,17 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     ov::op::v0::MatMul op;
     op.set_transpose_b(true);
-    std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-
-    format::type output_format = is_static ? get_preferred_format(node, impl_param) :
-                                             input_layout.format.value;
+    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
+                                              input_layout.format.value;
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
@@ -176,9 +176,15 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         auto updated_param = orig_impl_param;
         auto input_shape = orig_input_layout.get_partial_shape().to_shape();
         auto input_row_idx = input_shape.size() - 2;
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
         auto output_shape = orig_output_layout.get_partial_shape().to_shape();
         auto output_row_idx = output_shape.size() - 2;
+
+        // Vector by matrix multiplication sometimes works slower if we align it
+        if (input_shape[input_row_idx] == 1 && output_shape[output_row_idx] == 1 && input_shape[input_shape.size() - 1] >= 1024) {
+            return std::move(orig_impl_param);
+        }
+
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
         output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 8);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),

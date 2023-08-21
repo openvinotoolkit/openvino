@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "jit_generator.hpp"
-
-#include <xbyak/xbyak_util.h>
-
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
+#    if defined _WIN32 && !defined NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <xbyak/xbyak_util.h>
+
+#    include "jit_generator.hpp"
+#    include "ngraph/type/float16.hpp"
 
 namespace ngraph {
 namespace runtime {

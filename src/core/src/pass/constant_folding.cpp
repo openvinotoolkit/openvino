@@ -4,8 +4,7 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
-#include <openvino/cc/pass/itt.hpp>
-
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,8 +12,6 @@
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-
-using namespace std;
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -130,7 +127,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
             // propagation because we can't detect borders of shape_of sub-graphs, so we propagate can_be_folded
             // attribute through all nodes including nodes on data path. So to limit the spread of attribute to other
             // shape-of sub-graphs we do not propagate it through ShapeOf nodes.
-            can_be_folded = input_values.begin()->get_partial_shape().is_static();
+            can_be_folded = true;
         } else if (op::util::is_parameter(node) || op::util::is_output(node) || op::util::is_sink(node) ||
                    is_type<op::util::ReadValueBase>(node)) {
             can_be_folded = false;
@@ -143,8 +140,8 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         node->get_rt_info()["can_be_folded"] = can_be_folded;
     }
 
-    deque<shared_ptr<Node>> nodes;
-    set<shared_ptr<Node>> visited;
+    std::deque<std::shared_ptr<Node>> nodes;
+    std::set<std::shared_ptr<Node>> visited;
     for (auto& r : model->get_results())
         nodes.push_back(r);
     for (auto& r : model->get_sinks())

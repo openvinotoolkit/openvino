@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/except.hpp"
 #include "common_types.h"
 #include "common_tools.h"
 #include <vector>
@@ -32,6 +33,8 @@ enum DataLayout {
     byxf,                   // 3D+batch
     fyxb,                   // 3D+batch
     bfxy,                   // 3D+batch
+    byfx,
+    bxfy,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
@@ -66,6 +69,8 @@ enum DataLayout {
     fs_b_yx_fsv32,          // for FP16 kernels, 32 features to avoid partial writes
     b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
+    bfuwzyx,                // batch, feature, 5D spatial
+    bfvuwzyx,               // batch, feature, 6D spatial
     nv12,                   // media nv12 layout
     image_2d_rgba,          // image2d RGBA
     DataLayoutCount         // NUMBER OF ELEMENTS IN ENUM
@@ -80,6 +85,8 @@ enum WeightsLayout {
     oiyx,
     ioyx,
     oyxi,
+    oyix,
+    oxiy,
     iyxo,
     yxio,
     o_is_yx_isv16,
@@ -101,7 +108,8 @@ enum WeightsLayout {
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
-    os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
+    os_is_yx_osv16_isv2,
+    os_is_yx_osv16_isv16,           // weights for int8 blocked conv
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
@@ -237,8 +245,15 @@ enum WeightsLayout {
 struct Pad {
     size_t before;
     size_t after;
+    bool is_dynamic = false; // Currently cannot set pad_before and pad_after as dynamic separately
 
-    size_t Total() const { return before + after; }
+    Pad(size_t before, size_t after, bool is_dynamic = false) : before(before), after(after), is_dynamic(is_dynamic) {}
+
+    static size_t NumPadOffsetsPerDim() { return 2; /*pad_before/pad_after*/}
+    size_t Total() const {
+        OPENVINO_ASSERT(!is_dynamic, "Total() is called for dynamic pad!");
+        return before + after;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,7 +265,16 @@ struct Dim {
     Pad pad;
     bool is_dynamic;
 
-    size_t LogicalDimPadded() const { return v + pad.Total(); }
+    Dim(size_t v = 0, size_t pitch = 0, Pad pad = {0, 0, false}, bool is_dynamic = false)
+        : v(v),
+          pitch(pitch),
+          pad(pad),
+          is_dynamic(is_dynamic) {}
+
+    size_t LogicalDimPadded() const {
+        OPENVINO_ASSERT(!pad.is_dynamic, "LogicalDimPadded() is called for dynamic pad");
+        return v + pad.Total();
+    }
 };
 
 using NDims = std::vector<Dim>;
@@ -258,7 +282,7 @@ using NDims = std::vector<Dim>;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // extract code
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, FEATURE = 4, BATCH = 5, COUNT = 6 };
+enum class DataChannelName { X = 0, Y = 1, Z = 2, W = 3, U = 4, V = 5, FEATURE = 6, BATCH = 7, COUNT = 8 };
 
 enum class WeightsChannelName { X = 0, Y = 1, Z = 2, IFM = 3, OFM = 4, G = 5, COUNT = 6 };
 
@@ -269,6 +293,8 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::oiyx:
         case WeightsLayout::ioyx:
         case WeightsLayout::oyxi:
+        case WeightsLayout::oyix:
+        case WeightsLayout::oxiy:
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
@@ -287,11 +313,15 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::bfyx:
         case DataLayout::yxfb:
         case DataLayout::byxf:
+        case DataLayout::byfx:
+        case DataLayout::bxfy:
         case DataLayout::fyxb:
         case DataLayout::bfxy:
         case DataLayout::bfzyx:
         case DataLayout::bzyxf:
         case DataLayout::bfwzyx:
+        case DataLayout::bfuwzyx:
+        case DataLayout::bfvuwzyx:
             return true;
         default:
             return false;
@@ -427,26 +457,30 @@ public:
                                              [](size_t val, const Dim& d) { return val + d.pitch * d.pad.before; })),
           totalSize(sz),
           paddedVal(pv) {
-        if (totalSize == 0) {
+        if (!std::any_of(dims.begin(), dims.end(), [](const Dim& d) {
+                return d.pad.is_dynamic;
+            })) {
+            if (totalSize == 0) {
+                for (const auto& d : dims) {
+                    totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                }
+
+                totalSize += viewOffset;
+            }
+
+            size_t minimalPitch = 1;
+
             for (const auto& d : dims) {
-                totalSize = std::max(totalSize, d.pitch * (d.LogicalDimPadded()));
+                if (d.pitch < minimalPitch) {
+                    throw std::runtime_error("Tensor pitches didn't set correctly");
+                }
+
+                minimalPitch *= d.LogicalDimPadded();
             }
 
-            totalSize += viewOffset;
-        }
-
-        size_t minimalPitch = 1;
-
-        for (const auto& d : dims) {
-            if (d.pitch < minimalPitch) {
-                throw std::runtime_error("Tensor pitches didn't set correctly");
+            if (totalSize < (minimalPitch + viewOffset)) {
+                throw std::runtime_error("Tensor total Size didn't set correctly");
             }
-
-            minimalPitch *= d.LogicalDimPadded();
-        }
-
-        if (totalSize < (minimalPitch + viewOffset)) {
-            throw std::runtime_error("Tensor total Size didn't set correctly");
         }
     }
 
@@ -522,7 +556,7 @@ protected:
     template <typename ArrayT, typename ChannelName>
     static inline Dim Extract(const ArrayT& channelArr, Layout l, ChannelName channelName, const NDims& dims) {
         const int i = ChannelIndex(channelArr, l, channelName);
-        return ((i < 0) || (i >= static_cast<int>(dims.size()))) ? Dim{1, 1, {0, 0}} : dims[i];
+        return ((i < 0) || (i >= static_cast<int>(dims.size()))) ? Dim{1, 1, Pad{0, 0, false}} : dims[i];
     }
 
     template <typename ArrayT>
@@ -563,7 +597,8 @@ public:
         if (same) {
             for (size_t i = 0; i < dims.size(); i++) {
                 same &= dims[i].v == t.dims[i].v && dims[i].pad.before == t.dims[i].pad.before &&
-                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch;
+                        dims[i].pad.after == t.dims[i].pad.after && dims[i].pitch == t.dims[i].pitch &&
+                        dims[i].pad.is_dynamic == t.dims[i].pad.is_dynamic;
             }
         }
 
@@ -611,6 +646,8 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     Dim Y() const { return Extract(layout, DataChannelName::Y, dims); }
     Dim Z() const { return Extract(layout, DataChannelName::Z, dims); }
     Dim W() const { return Extract(layout, DataChannelName::W, dims); }
+    Dim U() const { return Extract(layout, DataChannelName::U, dims); }
+    Dim V() const { return Extract(layout, DataChannelName::V, dims); }
     Dim Feature() const { return Extract(layout, DataChannelName::FEATURE, dims); }
     Dim Batch() const { return Extract(layout, DataChannelName::BATCH, dims); }
 
@@ -618,6 +655,13 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor FlattenFeatureAndSpatials() const;
     DataTensor FlattenEverything() const;
     void SwapXY();
+    void SetDynamicShapeOffset(size_t offset) {
+        dynamic_shape_offset = offset;
+    }
+
+    size_t get_dynamic_shape_offset() const {
+        return dynamic_shape_offset;
+    }
 
     static inline Dim Extract(DataLayout l, DataChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(dataChannelArray, l, channel, d);
@@ -629,11 +673,14 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
 
     static inline uint32_t ChannelsCount(DataLayout l) { return TensorBaseT::ChannelsCount(dataChannelArray, l); }
 
+    static size_t max_rank() { return static_cast<size_t>(DataChannelName::COUNT); }
+
 private:
     using DataChannelDesc = std::pair<DataLayout, std::array<int, static_cast<size_t>(DataChannelName::COUNT)>>;
     using DataChannelArray = std::array<DataChannelDesc, DataLayout::DataLayoutCount>;
     static DataChannelArray dataChannelArray;
     static NDims GetSimpleDims(const std::vector<size_t>& d, DataLayout l);
+    size_t dynamic_shape_offset = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

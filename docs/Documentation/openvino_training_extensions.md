@@ -1,6 +1,12 @@
 # OpenVINO™ Training Extensions {#ote_documentation}
 
-@sphinxdirective 
+@sphinxdirective
+
+.. meta::
+   :description: OpenVINO™ Training Extensions include advanced algorithms used 
+                 to create, train and convert deep learning models with OpenVINO 
+                 Toolkit for optimized inference.
+
 
 OpenVINO™ Training Extensions provide a suite of advanced algorithms to train
 Deep Learning models and convert them using the `OpenVINO™
@@ -19,21 +25,22 @@ Detailed Workflow
    .. note:: 
       Prepare a separate dataset or split the dataset you have for more accurate quality evaluation.
 
-3. Having successful evaluation results received, you have an opportunity to deploy your model or continue optimizing it, using NNCF and POT. For more information about these frameworks, go to :doc:`Optimization Guide <openvino_docs_model_optimization_guide>`.
+3. Having successful evaluation results received, you have an opportunity to deploy your model or continue optimizing it, using NNCF. For more information about these frameworks, go to :doc:`Optimization Guide <openvino_docs_model_optimization_guide>`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 
 OpenVINO Training Extensions Components
 #######################################
 
-- `OpenVINO Training Extensions SDK <https://github.com/openvinotoolkit/training_extensions/tree/master/ote_sdk>`__
-- `OpenVINO Training Extensions CLI <https://github.com/openvinotoolkit/training_extensions/tree/master/ote_cli>`__
-- `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/master/external>`__
+* `OpenVINO Training Extensions API <https://github.com/openvinotoolkit/training_extensions/tree/develop/otx/api>`__
+* `OpenVINO Training Extensions CLI <https://github.com/openvinotoolkit/training_extensions/tree/develop/otx/cli>`__
+* `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/develop/otx/algorithms>`__
 
 Tutorials
 #########
 
-`Object Detection <https://github.com/openvinotoolkit/training_extensions/blob/master/ote_cli/notebooks/train.ipynb>`__
+* `Base tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/tutorials/base/index.html>`__
+* `Advanced tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/tutorials/advanced/index.html>`__
 
 @endsphinxdirective 
 

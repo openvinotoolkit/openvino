@@ -18,7 +18,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_nms(NodeContext& context) {
+OutputVector translate_nms(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));

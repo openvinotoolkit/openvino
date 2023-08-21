@@ -80,14 +80,12 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
         params.keepDims = primitive->keep_dims;
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
-
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
-        update_kernels_list_to_skip();
     }
 };
 
@@ -106,6 +104,8 @@ attach_reduce_impl::attach_reduce_impl() {
         format::bfyx,
         format::bfzyx,
         format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::b_fs_zyx_fsv16
@@ -120,7 +120,9 @@ attach_reduce_impl::attach_reduce_impl() {
     auto dyn_formats = {
         format::bfyx,
         format::bfzyx,
-        format::bfwzyx
+        format::bfwzyx,
+        format::bfuwzyx,
+        format::bfvuwzyx
     };
 
     implementation_map<reduce>::add(impl_types::ocl,
@@ -135,3 +137,4 @@ attach_reduce_impl::attach_reduce_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reduce_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reduce)

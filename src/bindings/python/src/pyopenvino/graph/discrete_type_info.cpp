@@ -9,6 +9,8 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/core/type.hpp"
+#include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -25,24 +27,23 @@ void regclass_graph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def(py::self != py::self);
 
     discrete_type_info.def_readonly("name", &ov::DiscreteTypeInfo::name);
-    discrete_type_info.def_readonly("version", &ov::DiscreteTypeInfo::version);
     discrete_type_info.def_readonly("version_id", &ov::DiscreteTypeInfo::version_id);
     discrete_type_info.def_readonly("parent", &ov::DiscreteTypeInfo::parent);
 
-    discrete_type_info.def("get_version", &ov::DiscreteTypeInfo::get_version);
     discrete_type_info.def("hash", [](const ov::DiscreteTypeInfo& self) {
         return self.hash();
     });
 
     discrete_type_info.def("__repr__", [](const ov::DiscreteTypeInfo& self) {
         std::string name = std::string(self.name);
-        std::string version = std::to_string(self.version);
+        std::string version = std::string(self.version_id);
+        std::string class_name = Common::get_class_name(self);
         if (self.parent != nullptr) {
-            std::string parent_version = std::to_string(self.parent->version);
+            std::string parent_version = std::string(self.parent->version_id);
             std::string parent_name = self.parent->name;
-            return "<DiscreteTypeInfo: " + name + " v" + version + " Parent(" + parent_name + " v" + parent_version +
+            return "<" + class_name + ": " + name + " v" + version + " Parent(" + parent_name + " v" + parent_version +
                    ")" + ">";
         }
-        return "<DiscreteTypeInfo: " + name + " v" + version + ">";
+        return "<" + class_name + ": " + name + " v" + version + ">";
     });
 }

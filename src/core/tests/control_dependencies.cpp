@@ -8,7 +8,9 @@
 #include <list>
 #include <memory>
 
-#include "engines_util/random.hpp"
+#include "common_test_utils/all_close.hpp"
+#include "common_test_utils/ndarray.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
@@ -20,9 +22,6 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/util.hpp"
-#include "util/all_close.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -37,7 +36,7 @@ public:
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
         if (args.size() == 0 && deps.size() == 0) {
-            throw ngraph_error("Expected some arguments or dependencies");
+            OPENVINO_THROW("Expected some arguments or dependencies");
         }
 
         for (auto& node : deps) {
@@ -52,6 +51,36 @@ public:
         }
     }
 };
+
+::testing::AssertionResult test_ordered_ops(const std::shared_ptr<ov::Model>& m, const ov::NodeVector& required_ops) {
+    std::unordered_set<ov::Node*> seen;
+    for (auto& node_ptr : m->get_ordered_ops()) {
+        ov::Node* node = node_ptr.get();
+        if (seen.count(node) > 0) {
+            return ::testing::AssertionFailure() << "Duplication in ordered ops";
+        }
+        size_t arg_count = node->get_input_size();
+        for (size_t i = 0; i < arg_count; ++i) {
+            ov::Node* dep = node->get_input_node_ptr(i);
+            if (seen.count(dep) == 0) {
+                return ::testing::AssertionFailure() << "Argument " << *dep << " does not occur before op" << *node;
+            }
+        }
+        for (auto& dep_ptr : node->get_control_dependencies()) {
+            if (seen.count(dep_ptr.get()) == 0) {
+                return ::testing::AssertionFailure()
+                       << "Control dependency " << *dep_ptr << " does not occur before op" << *node;
+            }
+        }
+        seen.insert(node);
+    }
+    for (auto& node_ptr : required_ops) {
+        if (seen.count(node_ptr.get()) == 0) {
+            return ::testing::AssertionFailure() << "Required op " << *node_ptr << "does not occur in ordered ops";
+        }
+    }
+    return ::testing::AssertionSuccess();
+}
 
 TEST(control_dependencies, cdep_ops) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{});
@@ -94,7 +123,7 @@ TEST(control_dependencies, clone_function_cdop) {
 
     auto f = make_shared<Function>(cdop, ParameterVector{A});
     test_ordered_ops(f, NodeVector{absn});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
@@ -113,7 +142,7 @@ TEST(control_dependencies, clone_function_cdop_abs) {
     auto absn_cdop = make_shared<op::Abs>(cdop);
 
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-    auto clone = ngraph::clone_function(*f.get());
+    auto clone = f->clone();
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
     auto cdop_clone =
         clone->get_results().at(0)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();

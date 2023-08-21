@@ -57,8 +57,6 @@ private:
     };
     using executorPtr = std::shared_ptr<ShuffleChannelsExecutor>;
     executorPtr execPtr = nullptr;
-
-    bool supportDynamicBatch = false;
 };
 
 }   // namespace node

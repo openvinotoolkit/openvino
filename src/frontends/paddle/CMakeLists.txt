@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
+# ticket 95904
+#if(ENABLE_TESTS AND Python_VERSION_MINOR LESS 11)
+#    add_subdirectory(tests)
+#endif()

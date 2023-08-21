@@ -16,7 +16,7 @@ namespace v1 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceLogicalAnd : public util::LogicalReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceLogicalAnd", "opset1", util::LogicalReductionKeepDims, 1);
+    OPENVINO_OP("ReduceLogicalAnd", "opset1", util::LogicalReductionKeepDims);
     ReduceLogicalAnd() = default;
     /// \brief Constructs a ReduceLogicalAnd node.
     ///

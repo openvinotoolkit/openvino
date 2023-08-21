@@ -1,5 +1,11 @@
 # Atanh {#openvino_docs_ops_arithmetic_Atanh_3}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Atanh-3 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Atanh-3*
 
 **Category**: *Arithmetic unary*
@@ -10,15 +16,21 @@
 
 Float type input:
 
-\f[ a_{i} = atanh(a_{i}) \f]
+.. math::
 
-Signed Intragral type put:
+   a_{i} = atanh(a_{i})
 
-\f[ a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+Signed Integral type put:
 
-Unsigned Intragral type put:
+.. math::
 
-\f[ a_{i} = (i > 0) ? std::numeric_limits<T>::max() : atanh(a_{i}) \f]
+   a_{i} = (i <= -1) ? std::numeric_limits<T>::min() : (i >= 1) ? std::numeric_limits<T>::max() : atanh(a_{i})
+
+Unsigned Integral type put:
+
+.. math::
+
+   a_{i} = (i > 0) ? std::numeric_limits<T>::max() : atanh(a_{i})
 
 
 **Attributes**: Atanh operation has no attributes.
@@ -37,19 +49,23 @@ Unsigned Intragral type put:
 
 **Examples**
 
-```xml
-<layer ... type="Atanh">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+   
+   <layer ... type="Atanh">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

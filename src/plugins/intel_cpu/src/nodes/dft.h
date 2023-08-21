@@ -8,7 +8,7 @@
 #include <node.h>
 #include <string>
 
-#include "kernels/dft_uni_kernel.hpp"
+#include "kernels/x64/dft_uni_kernel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,7 +31,6 @@ public:
 private:
     std::vector<int32_t> getAxes() const;
     void createJITKernels(bool hasDFT, bool hasFFT);
-
     void dftNd(float* output,
                const VectorDims& outputShape,
                const VectorDims& outputStrides,

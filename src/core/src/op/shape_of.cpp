@@ -5,7 +5,6 @@
 #include "ngraph/op/shape_of.hpp"
 
 #include <algorithm>
-#include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 #include <vector>
 
@@ -17,6 +16,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -50,6 +50,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace shape_of {
 namespace {
 template <element::Type_t ET>
@@ -100,11 +101,13 @@ bool constant_fold_shape_of(Node* shape_of_node, Output<Node>& replacement, cons
     auto output_type = shape_of_node->get_output_element_type(0);
     if (partial_shape.is_static()) {
         auto arg_shape = shape_of_input.get_shape();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         auto result_tensor = make_shared<HostTensor>(output_type, shape_of_node->get_output_shape(0));
         if (evaluate_shape_of(result_tensor, make_shared<HostTensor>(output_type, partial_shape))) {
             replacement = make_shared<op::Constant>(result_tensor);
             return true;
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
         return false;
     }
     return false;
@@ -124,20 +127,16 @@ bool evaluate_bound_shape(const Node* shape_of_node, ov::TensorVector& output_va
                                                                       : interval.get_max_val();
     }
     NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
-    const auto output_et = shape_of_node->get_output_element_type(0);
+    const auto output_et = output_values[0].get_element_type();
 
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
         shape_of::evaluate_shape_of(output_values[0], pshape_low.to_shape());
-        shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
-        shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
         auto&& upper = is_upper ? output_values : ov::TensorVector{{output_et, Shape{pshape_up.to_shape().size()}}};
         shape_of::evaluate_shape_of(upper[0], pshape_up.to_shape());
-        shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         auto&& lower = is_upper ? ov::TensorVector{{output_et, Shape{pshape_low.to_shape().size()}}} : output_values;
         shape_of::evaluate_shape_of(lower[0], pshape_low.to_shape());
-        shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
         vector<char> dynamic_mask;  // true if dimension is dynamic
         for (const auto& i : input_partial_shape)
@@ -173,8 +172,10 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v3_ShapeOf_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -251,8 +252,10 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 1));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 

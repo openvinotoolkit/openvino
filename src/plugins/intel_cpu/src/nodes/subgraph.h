@@ -7,7 +7,8 @@
 #include <ie_common.h>
 
 #include <onednn/dnnl.h>
-#include "emitters/jit_snippets_emitters.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#include "emitters/x64/jit_snippets_emitters.hpp"
 
 #include <node.h>
 #include "snippets/op/subgraph.hpp"
@@ -68,16 +69,16 @@ private:
     void schedule_nt();
 
     // Original subgraph node
-    std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
+    std::shared_ptr<snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
-    std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
+    std::shared_ptr<snippets::op::Subgraph> snippet;
 
     // Holds generated snippet with information about how to schedule it
-    ngraph::snippets::Schedule schedule;
+    snippets::Schedule schedule;
 
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-    size_t isa_num_lanes; // number of elements that fit in vector size
+    size_t isa_num_lanes = 0; // number of elements that fit in vector size
 
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size

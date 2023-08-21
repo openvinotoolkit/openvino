@@ -12,6 +12,7 @@
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ngraph {
 namespace onnx_import {
 namespace op {
@@ -22,7 +23,9 @@ OutputVector hardmax(const Node& node) {
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     if (input_shape.rank().is_static()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
@@ -61,7 +64,9 @@ OutputVector hardmax(const Node& node) {
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     axis = ngraph::normalize_axis(node.get_description(), axis, input_shape.rank());
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     const auto input_runtime_shape = std::make_shared<default_opset::ShapeOf>(input);
     Output<ngraph::Node> row_size =
@@ -93,3 +98,4 @@ OutputVector hardmax(const Node& node) {
 }  // namespace onnx_import
 
 }  // namespace ngraph
+OPENVINO_SUPPRESS_DEPRECATED_END

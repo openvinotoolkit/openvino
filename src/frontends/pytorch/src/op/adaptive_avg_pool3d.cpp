@@ -19,7 +19,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_adaptive_avg_pool3d(NodeContext& context) {
+OutputVector translate_adaptive_avg_pool3d(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto const_tile_params = context.mark_node(v0::Constant::create(element::i32, Shape{5}, {1, 1, 1, 1, 1}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));

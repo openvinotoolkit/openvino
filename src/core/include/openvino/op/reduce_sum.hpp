@@ -61,7 +61,7 @@ namespace v1 {
 // clang-format on
 class OPENVINO_API ReduceSum : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims, 1);
+    OPENVINO_OP("ReduceSum", "opset1", util::ArithmeticReductionKeepDims);
     /// \brief Constructs a summation operation.
     ReduceSum() = default;
     /// \brief Constructs a summation operation.

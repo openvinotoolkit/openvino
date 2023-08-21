@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <fstream>
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -18,9 +19,7 @@
 #endif
 
 #include <windows.h>
-#include "Psapi.h"
-#elif !defined(__APPLE__) && !defined(__MACOSX)
-#include <fstream>
+#include "psapi.h"
 #endif
 
 #include "layout.hpp"
@@ -161,17 +160,24 @@ public:
 
     ~profiled_stage() {
         GPU_DEBUG_IF(profiling_enabled) {
+            using us = std::chrono::microseconds;
+
             _finish = std::chrono::high_resolution_clock::now();
-            auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(_finish - _start).count();
+            auto stage_duration = std::chrono::duration_cast<us>(_finish - _start).count();
+            auto custom_stage_duration = std::chrono::duration_cast<us>(custom_duration).count();
+            auto total_duration = custom_stage_duration == 0 ? stage_duration
+                                                             : custom_stage_duration;
             _obj.add_profiling_data(_stage, cache_hit, total_duration);
         }
     }
     void set_cache_hit(bool val = true) { cache_hit = val; }
+    void set_custom_stage_duration(std::chrono::nanoseconds duration) { custom_duration = duration; }
 
 private:
     bool profiling_enabled = false;
     std::chrono::high_resolution_clock::time_point _start = {};
     std::chrono::high_resolution_clock::time_point _finish = {};
+    std::chrono::nanoseconds custom_duration = {};
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
     bool cache_hit = false;
@@ -228,7 +234,7 @@ private:
         GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
         footprint.rss = (int64_t)(pmc.WorkingSetSize/1024);
         footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
-#elif !defined(__APPLE__) && !defined(__MACOSX)
+#elif !defined(__APPLE__)
         std::ifstream status("/proc/self/status");
         if (!status.is_open())
             return footprint;

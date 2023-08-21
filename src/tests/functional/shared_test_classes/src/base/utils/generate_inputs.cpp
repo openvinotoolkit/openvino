@@ -14,21 +14,50 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
+#include "openvino/pass/constant_folding.hpp"
+
 namespace ov {
 namespace test {
 namespace utils {
 
+double ConstRanges::max = std::numeric_limits<double>::min();
+double ConstRanges::min = std::numeric_limits<double>::max();
+bool ConstRanges::is_defined = false;
+
 namespace {
+
+/**
+ * Sets proper range and resolution for real numbers generation
+ *
+ * range = 8 and resolution 32
+ *
+ * The worst case scenario is 7 + 31/32 (7.96875)
+ * IEEE 754 representation is:
+ * ----------------------------------------------
+ *      sign | exponent | mantissa
+ * ----------------------------------------------
+ * FP32    0 | 10000001 | 11111110000000000000000
+ * FP16    0 |    10001 | 1111111000
+ * BF16    0 | 10000001 | 1111111
+ * ----------------------------------------------
+ *
+ * All the generated numbers completely fit into the data type without truncation
+ */
+static inline void set_real_number_generation_data(InputGenerateData& inGenData) {
+    inGenData.range = 8;
+    inGenData.resolution = 32;
+}
+
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    size_t inNodeCnt = node->get_input_size();
     InputGenerateData inGenData;
     if (elemType.is_real()) {
-        inGenData.range = 2560;
-        inGenData.resolution = 256;
+        set_real_number_generation_data(inGenData);
     }
+
+    const size_t inNodeCnt = node->get_input_size();
     auto it = inputRanges.find(node->get_type_info());
     if (it != inputRanges.end()) {
         const auto& ranges = it->second;
@@ -39,18 +68,13 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
         inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
     }
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range,
-                                          inGenData.start_from, inGenData.resolution, inGenData.seed);
+                                                   inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
 namespace Activation {
-// todo: this is a bug fixed! Merge it separately.
-//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
-//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
-//  Thus all the interval more-or-less fall within the uncertainty validation interval
-//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -313,7 +337,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::op::v0::ROIPooling>& node
     if (port == 1) {
         const auto &inputShape = node->get_input_shape(0);
         ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
-#define CASE(X) case X: ::CommonTestUtils::fill_roi_raw_ptr(                   \
+#define CASE(X) case X: ::ov::test::utils::fill_roi_raw_ptr(                   \
     tensor.data<element_type_traits<X>::value_type>(),                         \
     tensor.get_size(),                                                         \
     node->get_input_shape(0).front() - 1,                                      \
@@ -483,8 +507,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v1::ReduceLogical
                              const ov::Shape& targetShape) {
     return LogicalOp::generate(elemType, targetShape);
 }
-
-
 
 ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v3::Bucketize>& node,
                              size_t port,
@@ -812,6 +834,106 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v5::Round>& node,
     return Activation::generate(elemType, targetShape, InputGenerateData(-10, 20, 4));
 }
 
+ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v8::Softmax>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    auto axis = node->get_axis();
+    axis = axis < 0 ? targetShape.size() + axis : axis;
+    unsigned datasetSize = std::accumulate(targetShape.begin() + axis, targetShape.end(), 1,
+        [](std::size_t a, size_t b) { return a * b; });
+    // Generate small negative values for datasets which exceed 2048 size
+    // to avoid NaN values in Softmax results for fp16 precision
+    if (datasetSize >= 2048 && static_cast<ov::element::Type_t>(elemType) == ov::element::Type_t::f16)
+        return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, -5.f, 0.5f, 7235346);
+    return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
+}
+
+ov::runtime::Tensor generate(const
+                             std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& node,
+                             size_t port,
+                             const ov::element::Type& elemType,
+                             const ov::Shape& targetShape) {
+    // when fill indices
+    if (port == 1) {
+        auto srcShape = node->get_input_shape(0);
+        // the data in indices must be unique.
+        // so need to select part data from total collection
+        // Calculate the collection size
+        int k = targetShape[targetShape.size() - 1];
+        int totalSize = 1;
+        for (int i = 0; i < k; i++) {
+            totalSize *= srcShape[i];
+        }
+        size_t indShapeSize = ngraph::shape_size(targetShape);
+        // Calculate the size of part data
+        int selectNums = indShapeSize / k;
+        // create total collection
+        std::vector<int> collection(totalSize);
+        for (int i = 0; i < totalSize; i++) {
+            collection[i] = i;
+        }
+        // select part data from collection
+        // the last selectNums data in collection are what want to be filled into tensor
+        testing::internal::Random random(1);
+        int r = 0;
+        int tmp = 0;
+        for (int i = 0, y = totalSize; i < selectNums; i++, y--) {
+            r = random.Generate(y);
+            // switch y and r
+            tmp = collection[y - 1];
+            collection[y - 1] = collection[r];
+            collection[r] = tmp;
+        }
+        // if the shape of source data is (a ,b ,c)
+        // the strides is (bc, c, 1)
+        std::vector<int> strides;
+        int stride = 1;
+        strides.push_back(stride);
+        for (int i = k - 1; i > 0; i--) {
+            stride *= srcShape[i];
+            strides.push_back(stride);
+        }
+        std::reverse(strides.begin(), strides.end());
+        // create tensor and fill function
+        auto tensor = ov::Tensor{elemType, targetShape};
+        auto fill_data = [&elemType, &tensor](int offset, int value) {
+            switch (elemType) {
+                case ov::element::Type_t::i32: {
+                    auto data =
+                        tensor.data<element_type_traits<ov::element::Type_t::i32>::value_type>();
+                    data[offset] = value;
+                    break;
+                }
+                case ov::element::Type_t::i64: {
+                    auto data =
+                        tensor.data<element_type_traits<ov::element::Type_t::i64>::value_type>();
+                    data[offset] = value;
+                    break;
+                }
+                default:
+                    throw std::runtime_error("indices type should be int32 or int64");
+            }
+        };
+        // start to fill data
+        int index = 0;
+        int tmpNum = 0;
+        for (int i = totalSize - selectNums, y = 0; i < totalSize; i++, y = y + k) {
+            tmpNum = collection[i];
+            for (int z = 0; z < k; z++) {
+                //Calculate index of dims
+                index = tmpNum / strides[z];
+                tmpNum = tmpNum % strides[z];
+                fill_data(y + z, index);
+            }
+        }
+        return tensor;
+    } else {
+        return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType,
+                        targetShape);
+    }
+}
+
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
                                   size_t port,
@@ -835,6 +957,8 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset12_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

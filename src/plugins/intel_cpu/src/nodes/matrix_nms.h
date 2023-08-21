@@ -66,6 +66,8 @@ private:
     float m_postThreshold;
     bool m_normalized;
 
+    bool m_outStaticShape = false;
+
     struct Rectangle {
         Rectangle(float x_left, float y_left, float x_right, float y_right) : x1 {x_left}, y1 {y_left}, x2 {x_right}, y2 {y_right} {}
 

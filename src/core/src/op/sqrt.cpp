@@ -28,6 +28,7 @@ shared_ptr<Node> op::Sqrt::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sqrt>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace sqrtop {
 namespace {
 template <element::Type_t ET>
@@ -59,7 +60,7 @@ bool evaluate_sqrt(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 
 bool op::Sqrt::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sqrt_evaluate);
-    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return sqrtop::evaluate_sqrt(inputs[0], outputs[0], shape_size(inputs[0]->get_shape()));
 }
 
 bool op::Sqrt::has_evaluate() const {

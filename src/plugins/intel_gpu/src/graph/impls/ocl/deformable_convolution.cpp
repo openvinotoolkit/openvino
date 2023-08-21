@@ -100,7 +100,7 @@ public:
         uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
         uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
 
-        params.padding = {pad_x, pad_y, pad_z};
+        params.padding_begin = {pad_x, pad_y, pad_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
         uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
@@ -140,4 +140,6 @@ attach_deformable_interp_impl::attach_deformable_interp_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_conv_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::deformable_conv)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::deformable_interp_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::deformable_interp)

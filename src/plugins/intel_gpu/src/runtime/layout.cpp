@@ -11,90 +11,9 @@
 namespace cldnn {
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
-// pair.first tells whether l1 and l2 are absolutely identical
-// pair.second tells whether l1 and l2 can be reinterpreted to each other without need of reordering
-// note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
-// nor dropped) note: if layouts describe two buffers with different size, consider them not to be identical even if
-// smaller buffer can be considered to hold subsequence of larger buffer,
-//       this behavior is required to force buffer allocation for smaller buffer which, currently, should always be
-//       performed
-std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2) {
-    const auto& l1_pad = l1.data_padding;
-    const auto& l2_pad = l2.data_padding;
 
-    if (l1.is_dynamic() || l2.is_dynamic())
-        return {false, false};
-
-    auto l1_size = l1.get_tensor();
-    auto l2_size = l2.get_tensor();
-    if (l1 == l2)
-        return {true, true};
-    if (check_redundant_1d_along_feature(l1, l2))
-        return {false, true};
-    if (l1.data_type != l2.data_type)
-        return {false, false};
-    // Reorders between bfyx, bfzyx, bfwzyx can pe reinterpeted as reshape when
-    // there is no padding and both hold same number of elements.
-    if ((l1.format == format::bfyx || l1.format == format::bfzyx || l1.format == format::bfwzyx) &&
-        (l2.format == format::bfyx || l2.format == format::bfzyx || l2.format == format::bfwzyx) && !l1_pad &&
-        !l2_pad && l1.get_linear_size() == l2.get_linear_size())
-        return {false, true};
-    if (l1_size != l2_size)
-        return {false, false};
-    if (l1.get_linear_size() != l2.get_linear_size())
-        return {false, false};
-
-    auto check_format = [&l1, &l2](cldnn::format format) {
-        return (l1.format == format && l2.format != format) ||
-               (l2.format == format && l1.format != format);
-    };
-
-    if (check_format(format::b_fs_yx_fsv2) ||
-        check_format(format::b_fs_yx_fsv4) ||
-        check_format(format::fs_b_yx_fsv32) ||
-        check_format(format::b_fs_yx_fsv16) ||
-        check_format(format::b_fs_yx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv2) ||
-        check_format(format::b_fs_zyx_fsv4) ||
-        check_format(format::b_fs_zyx_fsv32) ||
-        check_format(format::b_fs_zyx_fsv16) ||
-        check_format(format::bs_fs_yx_bsv4_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv4) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv4) ||
-        check_format(format::bs_fs_yx_bsv8_fsv2) ||
-        check_format(format::bs_fs_zyx_bsv8_fsv2) ||
-        check_format(format::bs_fs_yx_bsv4_fsv2) ||
-        check_format(format::bs_fs_yx_bsv32_fsv16) ||
-        check_format(format::bs_fs_yx_bsv32_fsv32) ||
-        check_format(format::bs_fs_yx_bsv16_fsv16) ||
-        check_format(format::bs_fs_yx_bsv16_fsv32) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv32) ||
-        check_format(format::bs_fs_zyx_bsv16_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv32))
-        return {false, false};
-
-    auto l1_pitch = l1.get_pitches();
-    auto l2_pitch = l2.get_pitches();
-
-    // ignore pitches which will never be used (for dims with size == 1)
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l1_size.raw[i] == 1)
-            l1_pitch.raw[i] = 0;
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l2_size.raw[i] == 1)
-            l2_pitch.raw[i] = 0;
-
-    auto l1_offset = l1.get_linear_offset();
-    auto l2_offset = l2.get_linear_offset();
-    if (l1_pitch == l2_pitch && l1_offset == l2_offset)
-        return {false, true};
-
-    return {false, false};
-}
-
-std::vector<cldnn::tensor::value_type> convert_dimensions(const std::vector<cldnn::tensor::value_type>& sizes, std::string in_order, std::string out_order) {
-    std::vector<cldnn::tensor::value_type> new_sizes(out_order.size(), {-1});
+std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::string in_order, std::string out_order) {
+    std::vector<int32_t> new_sizes(out_order.size(), {-1});
     for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
         auto channel = out_order[out_idx];
         if (channel == '?')
@@ -223,6 +142,10 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::iyxo;
         case format::byxf:
             return format::oyxi;
+        case format::byfx:
+            return format::oyix;
+        case format::bxfy:
+            return format::oxiy;
         case format::yxfb:
             return format::yxio;
         case format::bfzyx:
@@ -234,7 +157,7 @@ static format to_weights_format(format f, bool is_grouped) {
         }
         case format::b_fs_yx_fsv16:
             return format::o_is_yx_isv16;
-        case format::bs_xs_xsv8_bsv8:
+        case format::bs_fs_fsv8_bsv8:
             return format::os_i_osv8__ai8;
         case format::b_fs_yx_32fp:
             return format::os_is_yx_osv32_isv32p;
@@ -269,6 +192,7 @@ std::string layout::to_string() const {
       << "\tshape=" << size << ";\n"
       << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
       << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
+      << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
       << "}";
     return s.str();
 }
@@ -289,10 +213,16 @@ std::string layout::to_short_string() const {
 
     s << data_type_traits::name(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
-    if (data_padding)
-        s << ":pad";
-    else
-        s << ":nopad";
+
+    if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
+        s << ":dyn_pad_dims";
+    } else {
+        if (data_padding)
+            s << ":pad";
+        else
+            s << ":nopad";
+    }
+
     return s.str();
 }
 
@@ -498,111 +428,146 @@ layout layout::with_padding(padding const& padd) const {
     return ret;
 }
 
+// tells whether l1 and l2 can be reinterpreted to each other without need of reordering
+// note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
+// nor dropped) note: if layouts describe two buffers with different size, consider them not to be identical even if
+// smaller buffer can be considered to hold subsequence of larger buffer,
+//       this behavior is required to force buffer allocation for smaller buffer which, currently, should always be
+//       performed
 bool layout::compatible(const layout& other) const {
-    return are_layouts_identical(*this, other).second;
+    auto& l1 = *this;
+    auto& l2 = other;
+    const auto& l1_pad = l1.data_padding;
+    const auto& l2_pad = l2.data_padding;
+
+    if (l1.is_dynamic() || l2.is_dynamic())
+        return false;
+
+    auto l1_size = l1.get_tensor();
+    auto l2_size = l2.get_tensor();
+    if (l1 == l2)
+        return true;
+    if (check_redundant_1d_along_feature(l1, l2))
+        return true;
+    if (l1.data_type != l2.data_type)
+        return false;
+    // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
+    // there is no padding and both hold same number of elements.
+    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
+        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+        return true;
+    if (l1_size != l2_size)
+        return false;
+    if (l1.get_linear_size() != l2.get_linear_size())
+        return false;
+
+    auto check_format = [&l1, &l2](cldnn::format format) {
+        return (l1.format == format && l2.format != format) ||
+               (l2.format == format && l1.format != format);
+    };
+
+    const auto& blocks1 = format::block_sizes(l1.format);
+    const auto& blocks2 = format::block_sizes(l2.format);
+
+    // TODO: Relax restrictions below
+    if (blocks1 != blocks2 ||
+        (!blocks1.empty() && format::traits(l1.format)._order != format::traits(l2.format)._order))
+        return false;
+
+    if (check_format(format::b_fs_yx_fsv2) ||
+        check_format(format::b_fs_yx_fsv4) ||
+        check_format(format::fs_b_yx_fsv32) ||
+        check_format(format::b_fs_yx_fsv16) ||
+        check_format(format::b_fs_yx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv2) ||
+        check_format(format::b_fs_zyx_fsv4) ||
+        check_format(format::b_fs_zyx_fsv32) ||
+        check_format(format::b_fs_zyx_fsv16) ||
+        check_format(format::bs_fs_yx_bsv4_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv4) ||
+        check_format(format::bs_fs_zyx_bsv8_fsv4) ||
+        check_format(format::bs_fs_yx_bsv8_fsv2) ||
+        check_format(format::bs_fs_zyx_bsv8_fsv2) ||
+        check_format(format::bs_fs_yx_bsv4_fsv2) ||
+        check_format(format::bs_fs_yx_bsv32_fsv16) ||
+        check_format(format::bs_fs_yx_bsv32_fsv32) ||
+        check_format(format::bs_fs_yx_bsv16_fsv16) ||
+        check_format(format::bs_fs_yx_bsv16_fsv32) ||
+        check_format(format::bs_fs_zyx_bsv16_fsv32) ||
+        check_format(format::bs_fs_zyx_bsv16_fsv16) ||
+        check_format(format::bs_fs_zyx_bsv32_fsv16) ||
+        check_format(format::bs_fs_zyx_bsv32_fsv32))
+        return false;
+
+    auto l1_pitch = l1.get_pitches();
+    auto l2_pitch = l2.get_pitches();
+
+    // ignore pitches which will never be used (for dims with size == 1)
+    for (size_t i = 0; i < tensor_dim_max; ++i)
+        if (l1_size.raw[i] == 1)
+            l1_pitch.raw[i] = 0;
+    for (size_t i = 0; i < tensor_dim_max; ++i)
+        if (l2_size.raw[i] == 1)
+            l2_pitch.raw[i] = 0;
+
+    auto l1_offset = l1.get_linear_offset();
+    auto l2_offset = l2.get_linear_offset();
+    if (l1_pitch == l2_pitch && l1_offset == l2_offset)
+        return true;
+
+    return false;
 }
 
 bool layout::identical(const layout& other) const {
-    return are_layouts_identical(*this, other).first;
+    if (is_dynamic() || other.is_dynamic())
+        return false;
+    return *this == other;
 }
 
-ov::PartialShape layout::transform(cldnn::format new_fmt) const {
-    if (format == new_fmt) {
-        return size;
+ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
+    if (old_fmt == new_fmt) {
+        return pshape;
     }
 
-    cldnn::tensor::value_type default_size = -1;
-    auto shape = size.to_shape();
-    std::vector<tensor::value_type> dims;
+    int32_t default_size = -1;
+    auto shape = pshape.to_shape();
+    std::vector<int32_t> dims;
     for (auto dim : shape) {
-        dims.push_back(static_cast<tensor::value_type>(dim));
+        dims.push_back(static_cast<int32_t>(dim));
     }
 
-    const cldnn::format default_fmt = cldnn::format::bfwzyx;
-    auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
+    const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
+    auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
 
     auto val_order = default_fmt.internal_order();
     auto new_order = new_fmt.internal_order();
+    const auto& new_traits = format::traits(new_fmt);
 
-    std::vector<tensor::value_type> new_sizes(old_sizes.size(), {default_size});
-    auto tmp = 1;
-    auto tmp_z = 1;
-    auto tmp_w = 1;
+    std::vector<int32_t> new_sizes(old_sizes.size(), {default_size});
+
+    static const std::map<char, char> flatten_mapping = {
+        { 'v', 'u'},
+        { 'u', 'w'},
+        { 'w', 'z'},
+        { 'z', 'y'}
+    };
 
     for (size_t i = 0; i < default_fmt.order().size(); i++) {
-        auto c = val_order[i]; //bfxywz
-
-        // skip f, y, z, and w for the formats that do not have it
-        if (((new_fmt == format::bs_xs_xsv8_bsv8) ||
-                (new_fmt == format::bs_xs_xsv8_bsv16) ||
-                (new_fmt == format::os_i_osv8__ai8) ||
-                (new_fmt == format::os_i_osv16__ai8) ||
-                (new_fmt == format::bs_x_bsv16)) &&
-            ((c == 'f') ||
-                (c == 'y') ||
-                (c == 'z') ||
-                (c == 'w'))) {
-            if (new_order[i] == '?')
-                new_sizes[i] = default_size;
-
-            tmp *= old_sizes[i]; //0f0ywz
-
-            continue;
-        }
-
-        // skip z for the formats that do not have it
-        if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 &&
-                new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16 && new_fmt != format::bs_fs_zyx_bsv16_fsv32 &&
-                new_fmt != format::bs_fs_zyx_bsv32_fsv16 && new_fmt != format::bs_fs_zyx_bsv32_fsv32 &&
-                new_fmt != format::b_fs_zyx_fsv2 && new_fmt != format::b_fs_zyx_fsv4 &&
-                new_fmt != format::bs_fs_zyx_bsv8_fsv2 && new_fmt != format::bs_fs_zyx_bsv8_fsv4)) && (c == 'z')) {
-            if (new_order[i] == '?')
-                new_sizes[i] = default_size;
-
-            tmp_z *= old_sizes[i]; //00000z
-
-            continue;
-        }
-
-        if (new_fmt != format::bfwzyx && c == 'w') {
-            if (new_order[i] == '?')
-                new_sizes[i] = default_size;
-
-            if (new_fmt == format::bfzyx || new_fmt == format::b_fs_zyx_fsv16 ||
-                new_fmt == format::bs_fs_zyx_bsv16_fsv16 || new_fmt == format::b_fs_zyx_fsv32 ||
-                new_fmt == format::bs_fs_zyx_bsv16_fsv32)
-                tmp_w *= old_sizes[i]; //0000w0
-            else
-                tmp_z *= old_sizes[i]; //0000w0
-
-            continue;
-        }
-
-        auto new_pos = new_order.find(c);
-        if (new_pos == std::string::npos)
-            throw std::invalid_argument("cannot convert to new format");
-        new_sizes[new_pos] = old_sizes[i];
-    }
-
-    // in case of formats with smaller number of dimensions than input, flatten is performed below
-    if (tmp != 1 || tmp_z != 1 || tmp_w != 1) {
-        for (size_t i = 0; i < default_fmt.order().size(); i++) {
-            auto c = val_order[i];
-            if (c == 'x') {
-                auto new_pos = new_order.find(c);
-                new_sizes[new_pos] *= tmp;
+        auto target_dim = val_order[i]; //bfxywzuv
+        while (!new_traits.has_dimension(target_dim)) {
+            if (flatten_mapping.find(target_dim) != flatten_mapping.end()) {
+                target_dim = flatten_mapping.at(target_dim);
+            } else {
+                target_dim = new_fmt.order().back();
             }
+        }
 
-            if (c == 'y') {
-                auto new_pos = new_order.find(c);
-                if (new_pos != std::string::npos)
-                    new_sizes[new_pos] *= tmp_z;
-            }
-
-            if (c == 'z') {
-                auto new_pos = new_order.find(c);
-                if (new_pos != std::string::npos)
-                    new_sizes[new_pos] *= tmp_w;
+        auto new_pos = new_order.find(target_dim);
+        if (new_pos != std::string::npos) {
+            if (new_sizes[new_pos] == -1) {
+                new_sizes[new_pos] = old_sizes[i];
+            } else {
+                new_sizes[new_pos] *= old_sizes[i];
             }
         }
     }

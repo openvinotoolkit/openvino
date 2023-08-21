@@ -1,71 +1,88 @@
 # Install OpenVINO™ Runtime on Linux From YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
+
+
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components yum>` for more information.
+.. meta::
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating 
+                 system, using the YUM repository, which is a recommended 
+                 installation method for C++ developers.
 
-See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
-Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+With the OpenVINO™ 2023.0 release, you can install OpenVINO Runtime on Linux using the YUM repository. 
+OpenVINO™ Development Tools can be installed via PyPI only. See 
+`Installing Additional Components <#step-3-optional-install-additional-components>`__ for more information.
+
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-0.html>`__ 
+for more information on updates in the latest release.
+
+Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, 
+the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the 
+:doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` 
+page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 .. warning:: 
 
-   By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
+   By downloading and using this container and the included software, you agree to the terms and conditions of the 
+   `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`__.
 
-@endsphinxdirective
 
-## Prerequisites
+Prerequisites
+#############
 
-@sphinxdirective
-.. tab:: System Requirements
+.. tab-set::
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+   .. tab-item:: System Requirements
+      :sync: system-requirements
+   
+      | Full requirement listing is available in:
+      | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`__
+   
+      .. note::
+   
+         Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
+   
+   .. tab-item:: Processor Notes
+      :sync: processor-notes
+   
+      Processor graphics are not included in all processors.
+      See `Product Specifications <https://ark.intel.com/>`__ for information about your processor.
+   
+   .. tab-item:: Software
+      :sync: software
+   
+      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+      * GCC 8.2.0
+      * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
 
-   .. note::
 
-      Installing OpenVINO from YUM is only supported on RHEL 8.2 and higher versions. CentOS 7 is not supported for this installation method.
+Install OpenVINO Runtime
+########################
 
-.. tab:: Processor Notes
+Step 1: Set Up the Repository
++++++++++++++++++++++++++++++
 
-   Processor graphics are not included in all processors.
-   See `Product Specifications`_ for information about your processor.
 
-   .. _Product Specifications: https://ark.intel.com/
-
-.. tab:: Software
-
-   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-   * GCC 8.2.0
-   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
-
-@endsphinxdirective
-
-## Install OpenVINO Runtime
-
-### Step 1: Set Up the Repository
-
-@sphinxdirective
-
-1. Create a YUM repository file (`openvino-2022.repo`) in the `/tmp` directory as a normal user:
+1. Create a YUM repository file (``openvino-2023.repo``) in the ``/tmp`` directory as a normal user:
 
    .. code-block:: sh
 
-      tee > /tmp/openvino-2022.repo << EOF
+      tee > /tmp/openvino-2023.repo << EOF
       [OpenVINO]
-      name=Intel(R) Distribution of OpenVINO 2022
-      baseurl=https://yum.repos.intel.com/openvino/2022
+      name=Intel(R) Distribution of OpenVINO 2023
+      baseurl=https://yum.repos.intel.com/openvino/2023
       enabled=1
       gpgcheck=1
       repo_gpgcheck=1
       gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       EOF
 
-2. Move the new `openvino-2022.repo` file to the YUM configuration directory, i.e. `/etc/yum.repos.d`:
+2. Move the new ``openvino-2023.repo`` file to the YUM configuration directory, i.e. ``/etc/yum.repos.d``:
    
    .. code-block:: sh
 
-      sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
+      sudo mv /tmp/openvino-2023.repo /etc/yum.repos.d
 
 3. Verify that the new repository is set up properly.
 
@@ -82,41 +99,45 @@ To list available OpenVINO packages, use the following command:
 
    yum list 'openvino*'
 
-@endsphinxdirective
 
-### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-#### Install OpenVINO Runtime
+Step 2: Install OpenVINO Runtime Using the YUM Package Manager
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-@sphinxdirective
+Install OpenVINO Runtime
+-------------------------
 
-.. tab:: The Latest Version
+.. tab-set::
 
-   Run the following command:
+   .. tab-item:: The Latest Version
+      :sync: latest-version
+   
+      Run the following command:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino
+   
+   .. tab-item:: A Specific Version
+      :sync: specific-version
+   
+      Run the following command:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+      For example:
+   
+      .. code-block:: sh
+   
+         sudo yum install openvino-2023.0.0
 
-   .. code-block:: sh
 
-      sudo yum install openvino
 
-.. tab:: A Specific Version
+Check for Installed Packages and Version
+-----------------------------------------
 
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo yum install openvino-2022.3.0
-
-@endsphinxdirective
-
-#### Check for Installed Packages and Version
-
-@sphinxdirective
 
 Run the following command:
 
@@ -124,81 +145,87 @@ Run the following command:
 
    yum list installed 'openvino*'
 
-.. _intall additional components yum:
 
-@endsphinxdirective
+Step 3 (Optional): Install Additional Components
++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
-### Step 3 (Optional): Install Additional Components
-
-@sphinxdirective
-
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. 
+It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and 
+Open Model Zoo Downloader. If you installed OpenVINO Runtime using YUM, OpenVINO Development 
+Tools must be installed separately.
 
 See **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
-@endsphinxdirective
 
-### Step 4 (Optional): Configure Inference on Non-CPU Devices
+Step 4 (Optional): Configure Inference on Non-CPU Devices
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in 
+:doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 
-### Step 5: Build Samples
+Step 5: Build Samples
+++++++++++++++++++++++
 
-@sphinxdirective
+To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
 
-To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
+.. tab-set::
 
-.. tab:: C++
+   .. tab-item:: C++
+      :sync: cpp
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/cpp/build_samples.sh
+   
+   .. tab-item:: C
+      :sync: c
+   
+      .. code-block:: sh
+   
+         /usr/share/openvino/samples/c/build_samples.sh
 
-   .. code-block:: sh
 
-      /usr/share/openvino/samples/cpp/build_samples.sh
+For more information, refer to :doc:`Build the Sample Applications on Linux <openvino_docs_OV_UG_Samples_Overview>`.
 
-.. tab:: C
 
-   .. code-block:: sh
-
-      /usr/share/openvino/samples/c/build_samples.sh
-
-@endsphinxdirective
-
-For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
-
-### Uninstalling OpenVINO Runtime
-
-@sphinxdirective
+Uninstalling OpenVINO Runtime
+##############################
 
 To uninstall OpenVINO Runtime via YUM, run the following command based on your needs:
 
-.. tab:: The Latest Version
+.. tab-set::
 
-   .. code-block:: sh
+   .. tab-item:: The Latest Version
+      :sync: latest-version
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino
+   
+   
+   .. tab-item:: A Specific Version
+      :sync: specific-version
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+   
+      For example:
+   
+      .. code-block:: sh
+   
+         sudo yum autoremove openvino-2023.0.0
 
-      sudo yum autoremove openvino
 
 
-.. tab::  A Specific Version
+What's Next?
+#############
 
-   .. code-block:: sh
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! 
+Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
-      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino-2022.3.0
-
-@endsphinxdirective
-
-## What's Next?
-
-@sphinxdirective
-
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
-
-* Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+* Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ 
+  for step-by-step instructions on building and running a basic image classification C++ application.
 
   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
      :width: 400
@@ -217,8 +244,9 @@ You can also try the following things:
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 * Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
+
+
+
 @endsphinxdirective
 
-## Additional Resources
 
-- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

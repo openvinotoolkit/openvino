@@ -90,7 +90,7 @@ void ExperimentalDetectronPriorGridGeneratorLayerTest::generate_inputs(const std
     auto i = 0ul;
     for (; i < inputTensors.second.size(); ++i) {
         if (targetInputStaticShapes[i] != inputTensors.second[i].get_shape()) {
-            throw Exception("input shape is different from tensor shape");
+            OPENVINO_THROW("input shape is different from tensor shape");
         }
 
         inputs.insert({funcInputs[i].get_node_shared_ptr(), inputTensors.second[i]});

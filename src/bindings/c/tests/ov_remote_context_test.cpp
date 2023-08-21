@@ -26,7 +26,11 @@ protected:
 
         char* info = nullptr;
         const char* key = ov_property_key_available_devices;
-        if (ov_core_get_property(core, "GPU", key, &info) != ov_status_e::OK) {
+        EXPECT_EQ(ov_core_get_property(core, "GPU", key, &info), ov_status_e::OK);
+        ASSERT_STRNE(info, nullptr);
+
+        if (strlen(info) == 0) {
+            ov_free(info);
             GTEST_SKIP();
         }
         ov_free(info);
@@ -40,11 +44,11 @@ protected:
         std::vector<cl_platform_id> platform_ids(n);
         err = clGetPlatformIDs(n, platform_ids.data(), NULL);
 
-        for (auto& id : platform_ids) {
+        for (auto const& id : platform_ids) {
             cl::Platform platform = cl::Platform(id);
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-            for (auto& d : devices) {
+            for (auto const& d : devices) {
                 if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
                     cl_device = d;
                     cl_context = cl::Context(cl_device);

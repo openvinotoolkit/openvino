@@ -4,16 +4,18 @@
 
 #pragma once
 
-#include <openvino/op/proposal.hpp>
+#include "dimension_util.hpp"
+#include "openvino/op/proposal.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
-namespace v0 {
-template <class OpType, class ShapeType>
-void infer_prop_shape(const OpType* op,
-                      const std::vector<ShapeType>& input_shapes,
-                      std::vector<ShapeType>& output_shapes) {
-    using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
+namespace proposal {
+template <class TOp, class TShape, class TRShape = result_shape_t<TShape>>
+TRShape shape_infer_boxes(const TOp* op, const std::vector<TShape>& input_shapes) {
+    using TDim = typename TRShape::value_type;
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
+
     const auto& class_probs_ps = input_shapes[0];
     const auto& bbox_deltas_ps = input_shapes[1];
     const auto& image_shape_ps = input_shapes[2];
@@ -30,62 +32,56 @@ void infer_prop_shape(const OpType* op,
                           bbox_deltas_ps,
                           ").");
 
-    NODE_VALIDATION_CHECK(op,
-                          image_shape_ps.rank().compatible(1),
-                          "Proposal layer shape image_shape should be rank 1 compatible (",
-                          image_shape_ps,
-                          ").");
-    if (bbox_deltas_ps.rank().is_static() && class_probs_ps.rank().is_static()) {
+    if (image_shape_ps.rank().is_static()) {
+        NODE_VALIDATION_CHECK(
+            op,
+            image_shape_ps.size() == 1 && (image_shape_ps[0].compatible(3) || image_shape_ps[0].compatible(4)),
+            "Image_shape must be 1-D tensor and has got 3 or 4 elements (image_shape_shape[0]",
+            image_shape_ps,
+            ").");
+    }
+
+    const auto is_bbox_rank_dynamic = bbox_deltas_ps.rank().is_dynamic();
+
+    TRShape proposed_boxes_shape;
+    proposed_boxes_shape.reserve(2);
+
+    if (class_probs_ps.rank().is_static()) {
+        proposed_boxes_shape.push_back(class_probs_ps[0]);
+
         // check anchor count and batch number consistency
         NODE_VALIDATION_CHECK(op,
-                              bbox_deltas_ps[1].compatible(class_probs_ps[1] * 2),
+                              is_bbox_rank_dynamic || bbox_deltas_ps[1].compatible(class_probs_ps[1] * 2),
                               "Anchor number inconsistent between class_probs (",
                               class_probs_ps[1] * 2,
                               "), and bbox_deltas (",
                               bbox_deltas_ps[1],
                               ").");
 
-        NODE_VALIDATION_CHECK(op,
-                              class_probs_ps[0].compatible(bbox_deltas_ps[0]),
-                              "Batch size inconsistent between class_probs (",
-                              class_probs_ps[0],
-                              ") and bbox deltas (",
-                              bbox_deltas_ps[0],
-                              ").");
-    }
-
-    if (image_shape_ps.is_static()) {
-        const auto image_shape_elem = image_shape_ps[0].get_length();
-        NODE_VALIDATION_CHECK(op,
-                              image_shape_elem >= 3 && image_shape_elem <= 4,
-                              "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
-                              image_shape_ps[0],
-                              ").");
-    }
-
-    auto out_dim = DimType{};
-
-    if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static()) {
-        OPENVINO_ASSERT(DimType::merge(out_dim, class_probs_ps[0], bbox_deltas_ps[0]));
-    } else if (class_probs_ps.rank().is_static()) {
-        out_dim = class_probs_ps[0];
-    } else if (bbox_deltas_ps.rank().is_static()) {
-        out_dim = bbox_deltas_ps[0];
     } else {
-        out_dim = Dimension::dynamic();
+        proposed_boxes_shape.emplace_back(ov::util::dim::inf_bound);
     }
 
-    auto& proposed_boxes_shape = output_shapes[0];
-    proposed_boxes_shape.resize(2);
-    proposed_boxes_shape[0] = out_dim * op->get_attrs().post_nms_topn;
-    proposed_boxes_shape[1] = 5;
-}
-template <class T>
-void shape_infer(const ov::op::v0::Proposal* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
-    ov::op::v0::infer_prop_shape(op, input_shapes, output_shapes);
-}
+    NODE_VALIDATION_CHECK(
+        op,
+        is_bbox_rank_dynamic || TDim::merge(proposed_boxes_shape[0], proposed_boxes_shape[0], bbox_deltas_ps[0]),
+        "Batch size inconsistent between class_probs (",
+        class_probs_ps[0],
+        ") and bbox deltas (",
+        bbox_deltas_ps[0],
+        ").");
 
+    proposed_boxes_shape[0] *= op->get_attrs().post_nms_topn;
+    proposed_boxes_shape.emplace_back(5);
+    return proposed_boxes_shape;
+}
+}  // namespace proposal
+
+namespace v0 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
+    return {ov::op::proposal::shape_infer_boxes(op, input_shapes)};
+}
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
@@ -93,15 +89,11 @@ void shape_infer(const ov::op::v0::Proposal* op, const std::vector<T>& input_sha
 namespace ov {
 namespace op {
 namespace v4 {
-
-template <class T>
-void shape_infer(const ov::op::v4::Proposal* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 2);
-
-    ov::op::v0::infer_prop_shape(op, input_shapes, output_shapes);
-    const auto& proposals_ps = output_shapes[0];
-    auto& out_ps = output_shapes[1];
-    out_ps = T{proposals_ps[0]};
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const Proposal* op, const std::vector<TShape>& input_shapes) {
+    auto output_shapes = std::vector<TRShape>(2, ov::op::proposal::shape_infer_boxes(op, input_shapes));
+    output_shapes[1].resize(1);
+    return output_shapes;
 }
 
 }  // namespace v4

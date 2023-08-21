@@ -11,7 +11,7 @@ Supported configurations:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022. 
-- Python 3.7 or higher for OpenVINO Runtime Python API
+- Python 3.7 - 3.11 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version. 
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
@@ -62,7 +62,7 @@ Supported configurations:
 
 - Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won'tnbe downloaded and the build may fail if incompatible versions were installed.
 
-- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_comiplation.md#Building-with-custom-OpenCV) section for details.
+- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_compilation.md#Building-with-custom-OpenCV) section for details.
 
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython and opencv) listed in the file:
@@ -75,11 +75,14 @@ Supported configurations:
      -DPYTHON_LIBRARY="C:\Program Files\Python11\libs\python11.lib" ^
      -DPYTHON_INCLUDE_DIR="C:\Program Files\Python11\include"
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4):
+  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+     ```sh
+     pip install -r <openvino source tree>\src\bindings\python\wheel\requirements-dev.txt
+     ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
-     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python_api/python3.11;%PYTHONPATH%
-     set OPENVINO_LIB_PATH=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
+     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;%PYTHONPATH%
+     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;%OPENVINO_LIB_PATH%
      ```
      or install the wheel with pip:
      ```

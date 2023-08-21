@@ -32,28 +32,31 @@ if(THREADING STREQUAL "OMP")
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc"
+                USE_NEW_LOCATION TRUE)
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     debug_message(STATUS "intel_omp=" ${OMP})
 
-    ie_cpack_add_component(omp HIDDEN)
+    ov_cpack_add_component(omp HIDDEN)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list}
             DESTINATION ${OV_CPACK_RUNTIMEDIR}
@@ -96,37 +99,66 @@ function(ov_download_tbb)
 
     if(WIN32 AND X86_64)
         # TODO: add target_path to be platform specific as well, to avoid following if
+        # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2020_617e9a71_win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.2-win.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "01cac3cc48705bd52b83a6e1fa1ed95c708928be76160f5b9c5c37f954d56df4"
+                SHA256 "103b19a8af288c6a7d83ed3f0d2239c4afd0dd189fc12aad1d34b3c9e78df94b"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
-    elseif(LINUX AND X86_64)
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce"
+                USE_NEW_LOCATION TRUE)
+    elseif(LINUX AND X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2020_617e9a71_lin_strip.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-canary.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e7a38f68059fb36de8b59d40b283a849f26275e34a58d2acadfdb84d49e31b9b"
+                SHA256 "3a2c2ec79b3cce7e6a2484754ba6f029fa968db2eefc6659540792b7db8fea0c"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
+                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b"
+                USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
+        # build oneTBB 2021.2.1 with OS version 11.4
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2020_617e9a71_mac.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "67a44b695bef3348416eaf5bf2baca2b1401576c0e09c394304eba1e0eee96cd"
+                SHA256 "c57ce4b97116cd3093c33e6dcc147fb1bbb9678d0ee6c61a506b2bfe773232cb"
+                USE_NEW_LOCATION TRUE)
+    elseif(WIN32 AND AARCH64)
+        # build oneTBB 2021.2.1 with Visual Studio 2022 (MSVC 14.35)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "oneapi-tbb-2021.2.1-win-arm64.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "09fe7f5e7be589aa34ccd20fdfd7cad9e0afa89d1e74ecdb008a75d0af71d6e1"
+                USE_NEW_LOCATION TRUE)
+    elseif(LINUX AND AARCH64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17)
+        # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2021.2.1-lin-arm64-canary.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "042fdac53be65841a970b05d892f4b20b556b06fd3b20d2d0068e49c4fd74f07"
+                USE_NEW_LOCATION TRUE)
+    elseif(APPLE AND AARCH64)
+        # build oneTBB 2021.2.1 with export MACOSX_DEPLOYMENT_TARGET=11.0
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "oneapi-tbb-2021.2.1-mac-arm64-canary.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "60b7ffa73797b173187a7b0ca883c64d7e4e8f24824c0ff233c1ee90e9000317"
                 USE_NEW_LOCATION TRUE)
     else()
         message(WARNING "Prebuilt TBB is not available on current platform")
@@ -184,10 +216,11 @@ function(ov_download_tbbbind_2_5)
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
+                USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
         if(NOT (APPLE AND AARCH64))
@@ -201,95 +234,6 @@ Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
 endfunction()
 
-## OpenCV
-if(ENABLE_OPENCV)
-    reset_deps_cache(OpenCV_DIR)
-
-    set(OPENCV_VERSION "4.5.2")
-    set(OPENCV_BUILD "076")
-    set(OPENCV_BUILD_YOCTO "772")
-
-    if(YOCTO_AARCH64)
-        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-        elseif(DEFINED THIRDPARTY_SERVER_PATH)
-            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-        else()
-            message(WARNING "OpenCV is not found!")
-        endif()
-
-        if(DEFINED IE_PATH_TO_DEPS)
-            set(OPENCV_SUFFIX "yocto_kmb")
-            set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "23c250796ad5fc9db810e1680ccdb32c45dc0e50cace5e0f02b30faf652fe343")
-
-            unset(IE_PATH_TO_DEPS)
-        endif()
-    else()
-        if(WIN32 AND X86_64)
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_WIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "a14f872e6b63b6ac12c7ff47fa49e578d14c14433b57f5d85ab5dd48a079938c")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 "3e162f96e86cba8836618134831d9cf76df0438778b3e27e261dedad9254c514")
-        elseif(LINUX)
-            if(YOCTO_AARCH64)
-                set(OPENCV_SUFFIX "yocto_kmb")
-                set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
-            elseif((OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.17 AND
-                    CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
-                set(OPENCV_SUFFIX "centos7")
-                set(OPENCV_HASH "5fa76985c84fe7c64531682ef0b272510c51ac0d0565622514edf1c88b33404a")
-            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.31 AND X86_64)
-                set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "2fe7bbc40e1186eb8d099822038cae2821abf617ac7a16fadf98f377c723e268")
-            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.27 AND X86_64)
-                set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "db087dfd412eedb8161636ec083ada85ff278109948d1d62a06b0f52e1f04202")
-            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.24 AND ARM)
-                set(OPENCV_SUFFIX "debian9arm")
-                set(OPENCV_HASH "4274f8c40b17215f4049096b524e4a330519f3e76813c5a3639b69c48633d34e")
-            elseif(OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.23 AND X86_64)
-                set(OPENCV_SUFFIX "ubuntu16")
-                set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
-            elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
-                message(FATAL_ERROR "OpenCV is not available on current platform (OS = ${CMAKE_SYSTEM_NAME}, glibc ${OV_GLIBC_VERSION})")
-            endif()
-            RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
-                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
-                    ENVIRONMENT "OpenCV_DIR"
-                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*"
-                    SHA256 ${OPENCV_HASH})
-        endif()
-    endif()
-
-    if(ANDROID)
-        set(ocv_cmake_path "${OPENCV}/sdk/native/jni/")
-    else()
-        set(ocv_cmake_path "${OPENCV}/cmake")
-    endif()
-
-    update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
-    debug_message(STATUS "opencv=" ${OPENCV})
-else()
-    reset_deps_cache(OpenCV_DIR)
-endif()
-
 if(ENABLE_INTEL_GNA)
     reset_deps_cache(
             GNA_EXT_DIR
@@ -299,8 +243,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.05.00.1906")
-        set(GNA_HASH "4a5be86d9c026b0e10afac2a57fc7c99d762b30e3d506abb3a3380fbcfe2726e")
+        set(GNA_VERSION "03.05.00.2116")
+        set(GNA_HASH "960350567702bda17276ac4c060d7524fb7ce7ced785004bd861c81ff2bfe2c5")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)

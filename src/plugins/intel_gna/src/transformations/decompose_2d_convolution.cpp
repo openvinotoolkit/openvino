@@ -20,6 +20,7 @@
 namespace ov {
 namespace intel_gna {
 using namespace target;
+using namespace limitations;
 namespace pass {
 using namespace helper;
 
@@ -55,7 +56,7 @@ static bool VerifyAndGetConvData(std::shared_ptr<ngraph::opset7::Convolution> co
     size_t filter_height = filters.get_shape()[2];
     size_t filter_width = filters.get_shape()[3];
 
-    if (filter_width > limitations::copyMaxGrouping || filter_height > limitations::copyMaxGrouping) {
+    if (filter_width > Limitations::kCopyMaxGrouping || filter_height > Limitations::kCopyMaxGrouping) {
         return false;
     }
 
@@ -76,7 +77,7 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
          (max_pool->get_auto_pad() != ngraph::op::PadType::EXPLICIT ||
           max_pool->get_pads_begin() != ngraph::Shape({0, 0}) || max_pool->get_pads_end() != ngraph::Shape({0, 0}))) ||
         pool_filter.size() != 2 || pool_strides.size() != 2 || pool_filter[0] > 1 || pool_strides[0] > 1 ||
-        pool_filter[0] > limitations::maxPoolMaxWindowSize)
+        pool_filter[0] > Limitations::kMaxPoolMaxWindowSize)
         return false;
 
     graph_data.pool_size_width = pool_filter[1];
@@ -84,40 +85,40 @@ static bool VerifyMaxPool(GraphData& graph_data, std::shared_ptr<ngraph::opset7:
     return true;
 }
 
-static bool GNA30SupportedConv(const DeviceVersion& compile_target,
-                               const InferenceEngine::Precision& gnaPrecision,
+static bool GNA30SupportedConv(const InferenceEngine::Precision& gnaPrecision,
                                const GraphData& graph_data,
                                const ConvData& conv_data) {
-    const auto cnn2dValidatorPtr = limitations::cnn2d::AbstractValidator::Create(compile_target);
+    const auto cnn2dValidatorPtr = Limitations::get_instance()->get_cnn_validator();
+
     if (!cnn2dValidatorPtr) {
         return false;
     }
-    const auto& cnn2dValidator = *cnn2dValidatorPtr;
-    const auto cnnIsValid = cnn2dValidator.ValidateCnn2D(graph_data.conv->get_friendly_name(),
-                                                         conv_data.input_height,
-                                                         conv_data.input_width,
-                                                         conv_data.input_channel_count,
-                                                         conv_data.filter_height,
-                                                         conv_data.filter_width,
-                                                         conv_data.filter_channel_count,
-                                                         conv_data.filter_stride_height,
-                                                         conv_data.filter_stride_width,
-                                                         conv_data.filter_dilation_height,
-                                                         conv_data.filter_dilation_width,
-                                                         OvGnaTypeIntFromBytes(gnaPrecision.size()),
-                                                         false);
+    const auto cnnIsValid = cnn2dValidatorPtr->ValidateCnn2D(graph_data.conv->get_friendly_name(),
+                                                             static_cast<uint32_t>(conv_data.input_height),
+                                                             static_cast<uint32_t>(conv_data.input_width),
+                                                             static_cast<uint32_t>(conv_data.input_channel_count),
+                                                             static_cast<uint32_t>(conv_data.filter_height),
+                                                             static_cast<uint32_t>(conv_data.filter_width),
+                                                             static_cast<uint32_t>(conv_data.filter_channel_count),
+                                                             static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                             static_cast<uint32_t>(conv_data.filter_stride_width),
+                                                             static_cast<uint32_t>(conv_data.filter_dilation_height),
+                                                             static_cast<uint32_t>(conv_data.filter_dilation_width),
+                                                             OvGnaTypeIntFromBytes(gnaPrecision.size()),
+                                                             false);
     if (!cnnIsValid) {
         return false;
     }
     if (!graph_data.max_pool) {
         return true;
     }
-    const auto poolingValid = cnn2dValidator.ValidatePooling2D(graph_data.conv->get_friendly_name(),
-                                                               graph_data.max_pool->get_kernel()[0],
-                                                               graph_data.max_pool->get_kernel()[1],
-                                                               graph_data.max_pool->get_strides()[0],
-                                                               graph_data.max_pool->get_strides()[1],
-                                                               false);
+    const auto poolingValid =
+        cnn2dValidatorPtr->ValidatePooling2D(graph_data.conv->get_friendly_name(),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_kernel()[0]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_kernel()[1]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_strides()[0]),
+                                             static_cast<uint32_t>(graph_data.max_pool->get_strides()[1]),
+                                             false);
     return poolingValid;
 }
 
@@ -126,7 +127,7 @@ static size_t CalculateConvCount(const ConvData& conv_data) {
     size_t conv_count = 1;
     size_t total_factorized_conv_channel_count =
         (conv_data.input_channel_count * conv_data.filter_height * conv_data.filter_width);
-    while (total_factorized_conv_channel_count / conv_count > limitations::convFilterMaxSize ||
+    while (total_factorized_conv_channel_count / conv_count > Limitations::kConvFilterMaxSize ||
            total_factorized_conv_channel_count % conv_count != 0 || conv_data.filter_channel_count % conv_count != 0)
         conv_count++;
 
@@ -139,7 +140,7 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
 
     // Concat (copy) layer limitation allows to split up to a certain limit
     // Currently we are able to split only convolutions without pooling in horizontal dimension
-    if (graph_data.conv_count > limitations::copyMaxGrouping ||
+    if (graph_data.conv_count > Limitations::kCopyMaxGrouping ||
         ((graph_data.pool_size_width > 1 || graph_data.pool_stride_width > 1) && graph_data.conv_count > 1))
         return false;
 
@@ -147,13 +148,13 @@ static bool ShouldDecompose(GraphData& graph_data, const ConvData& conv_data) {
     if (graph_data.conv_count == 1 &&
         (((conv_data.input_height == 1 || conv_data.input_width == 1) && conv_data.filter_dilation_width == 1 &&
           conv_data.filter_dilation_height == 1) ||
-         gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
-                                                     conv_data.input_width,
-                                                     conv_data.input_channel_count,
-                                                     conv_data.filter_height,
-                                                     conv_data.filter_width,
-                                                     conv_data.filter_stride_height,
-                                                     conv_data.filter_stride_width)))
+         gna_convolution_layer::isMappableFrom2DTo1D(static_cast<uint32_t>(conv_data.input_height),
+                                                     static_cast<uint32_t>(conv_data.input_width),
+                                                     static_cast<uint32_t>(conv_data.input_channel_count),
+                                                     static_cast<uint32_t>(conv_data.filter_height),
+                                                     static_cast<uint32_t>(conv_data.filter_width),
+                                                     static_cast<uint32_t>(conv_data.filter_stride_height),
+                                                     static_cast<uint32_t>(conv_data.filter_stride_width))))
         return false;
 
     return true;
@@ -561,8 +562,7 @@ static void Decompose(const GraphData& graph_data, ConvData& conv_data) {
     conv_result->set_friendly_name(conv_result_name);
 }
 
-static bool Convert(const DeviceVersion& compile_target,
-                    const InferenceEngine::Precision& gnaPrecision,
+static bool Convert(const InferenceEngine::Precision& gnaPrecision,
                     std::shared_ptr<ngraph::Node> leading_transpose,
                     std::shared_ptr<ngraph::Node> fq_filters,
                     std::shared_ptr<ngraph::Node> conv,
@@ -598,7 +598,7 @@ static bool Convert(const DeviceVersion& compile_target,
         return false;
 
     // If compile target is GNA 3.0 and the convolution is supported on it, then skip decomposition
-    if (GNA30SupportedConv(compile_target, gnaPrecision, graph_data, conv_data))
+    if (GNA30SupportedConv(gnaPrecision, graph_data, conv_data))
         return false;
 
     // We are looking for Transpose(NHWC->NCHW) => Conv => Transpose(NCHW->NHWC)
@@ -618,7 +618,7 @@ static bool Convert(const DeviceVersion& compile_target,
     return true;
 }
 
-Decompose2DConv::Decompose2DConv(const DeviceVersion& compile_target, const InferenceEngine::Precision& gnaPrecision) {
+Decompose2DConv::Decompose2DConv(const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConv);
 
     auto const_input = ngraph::pattern::wrap_type<ngraph::opset7::Constant>();
@@ -735,8 +735,7 @@ Decompose2DConv::Decompose2DConv(const DeviceVersion& compile_target, const Infe
             }
         }
 
-        return Convert(compile_target,
-                       gnaPrecision,
+        return Convert(gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        fq_filters_node,
                        pattern_map.at(conv).get_node_shared_ptr(),
@@ -755,8 +754,7 @@ Decompose2DConv::Decompose2DConv(const DeviceVersion& compile_target, const Infe
     this->register_matcher(m, callback);
 }
 
-Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const DeviceVersion& compile_target,
-                                                                     const InferenceEngine::Precision& gnaPrecision) {
+Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConvTransposedWithBias);
 
     auto const_input_i64 =
@@ -781,8 +779,7 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const Devic
                                                    pattern_map.at(bias).get_node_shared_ptr())))
             return false;
 
-        return Convert(compile_target,
-                       gnaPrecision,
+        return Convert(gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        nullptr,
                        pattern_map.at(conv).get_node_shared_ptr(),
@@ -802,7 +799,6 @@ Decompose2DConvTransposedWithBias::Decompose2DConvTransposedWithBias(const Devic
 }
 
 Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(
-    const DeviceVersion& compile_target,
     const InferenceEngine::Precision& gnaPrecision) {
     MATCHER_SCOPE(Decompose2DConvTransposedWithBiasAF);
 
@@ -836,8 +832,7 @@ Decompose2DConvTransposedWithBiasAF::Decompose2DConvTransposedWithBiasAF(
                                                    pattern_map.at(bias).get_node_shared_ptr())))
             return false;
 
-        return Convert(compile_target,
-                       gnaPrecision,
+        return Convert(gnaPrecision,
                        pattern_map.at(leading_transpose).get_node_shared_ptr(),
                        nullptr,
                        pattern_map.at(conv).get_node_shared_ptr(),

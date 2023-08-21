@@ -1,5 +1,11 @@
 # Floor  {#openvino_docs_ops_arithmetic_Floor_1}
 
+@sphinxdirective
+
+.. meta::
+  :description: Learn about Floor-1 - an element-wise, arithmetic operation, which 
+                can be performed on a single tensor in OpenVINO.
+
 **Versioned name**: *Floor-1*
 
 **Category**: *Arithmetic unary*
@@ -9,9 +15,9 @@
 **Detailed description**: For each element from the input tensor calculates corresponding
 element in the output tensor with the following formula:
 
-\f[
-a_{i} = \lfloor a_{i} \rfloor
-\f]
+.. math::
+
+   a_{i} = \lfloor a_{i} \rfloor
 
 **Attributes**: *Floor* operation has no attributes.
 
@@ -32,19 +38,23 @@ a_{i} = \lfloor a_{i} \rfloor
 
 *Example 1*
 
-```xml
-<layer ... type="Floor">
-    <input>
-        <port id="0">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </input>
-    <output>
-        <port id="1">
-            <dim>256</dim>
-            <dim>56</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+   <layer ... type="Floor">
+       <input>
+           <port id="0">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </input>
+       <output>
+           <port id="1">
+               <dim>256</dim>
+               <dim>56</dim>
+           </port>
+       </output>
+   </layer>
+
+@endsphinxdirective
+

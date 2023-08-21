@@ -8,14 +8,14 @@ endif()
 
 set (TARGET_NAME "openvino_hetero_plugin")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-ie_add_plugin(NAME ${TARGET_NAME}
+ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
-              VERSION_DEFINES_FOR plugin.cpp
+              VERSION_DEFINES_FOR src/plugin.cpp
               ADD_CLANG_FORMAT)
 
 ie_faster_build(${TARGET_NAME}
@@ -28,3 +28,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(tests/functional)
+endif()

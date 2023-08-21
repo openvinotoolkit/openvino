@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_transformations/op/interaction.hpp"
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "interaction.h"
 #include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
@@ -18,8 +18,8 @@
 #include <ie_ngraph_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
-#include "emitters/jit_dnnl_emitters.hpp"
-#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/x64/jit_dnnl_emitters.hpp"
+#include "emitters/x64/jit_load_store_emitters.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
@@ -30,6 +30,9 @@ namespace intel_cpu {
 namespace node {
 
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+
+#if defined(OPENVINO_ARCH_X86_64)
+
 template <cpu_isa_t isa>
 struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
@@ -159,6 +162,8 @@ private:
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
+#endif // OPENVINO_ARCH_X86_64
+
 Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
@@ -207,7 +212,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         }
     };
     //add descriptor
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any, true);
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
 static inline void cat(uint8_t* out,
@@ -216,7 +221,7 @@ static inline void cat(uint8_t* out,
                        int64_t bs,
                        size_t elemSize) {
     size_t offset = 0;
-    for (int j = 0; j < feature_sizes.size(); j++) {
+    for (size_t j = 0; j < feature_sizes.size(); j++) {
         cpu_memcpy(out + offset * elemSize, in[j] + bs * feature_sizes[j] * elemSize,
             feature_sizes[j] * elemSize);
         offset += feature_sizes[j];
@@ -225,7 +230,7 @@ static inline void cat(uint8_t* out,
 
 static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, size_t elemSize) {
     size_t offset = 0;
-    for (int i = 1; i < size; i++) {
+    for (size_t i = 1; i < size; i++) {
         cpu_memcpy(out + offset * elemSize, in + i * size * elemSize, i * elemSize);
         offset += i;
     }
@@ -233,21 +238,21 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(dnnl::stream strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->GetPtr());
+        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->getData());
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->GetPrimitive()},
-                                            {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
-                                            {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
+                                            {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
+                                            {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
-        cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
+        cat(reinterpret_cast<uint8_t*>(inputMemPtr->getData()), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
-        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
-                      reinterpret_cast<uint8_t*>(flatMemPtr->GetPtr()),
+        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->getData()),
+                      reinterpret_cast<uint8_t*>(flatMemPtr->getData()),
                       inputSizes,
                       dataPrecision.size());
         // in1 dense feature
@@ -261,15 +266,13 @@ void Interaction::execRef(dnnl::stream strm) {
         }
         if (moveInteractKernel) {
             jit_move_scale_call_args interArgs;
-            interArgs.p_in = flatMemPtr->GetPtr();
+            interArgs.p_in = flatMemPtr->getData();
             interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
             interArgs.p_scales = scales;
             (*moveInteractKernel)(&interArgs);
         }
     }
 }
-
-
 
 void Interaction::execute(dnnl::stream strm) {
     execRef(strm);
@@ -303,8 +306,7 @@ void Interaction::prepareParams() {
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,
         MemoryPtr& ptr) {
-        ptr = std::make_shared<Memory>(getEngine());
-        ptr->Create(intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
+        ptr = std::make_shared<Memory>(getEngine(), intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputSizes, featureSize}, inputMemPtr);
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputShapes.size(), inputShapes.size()}, outputMemPtr);
@@ -324,6 +326,7 @@ void Interaction::prepareParams() {
     interJcp.broadcast_scales = fqScales.size() == 1;
     interJcp.input_size = interactFeatureSize;
 
+#if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu_isa_t::avx512_core)) {
         moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
         moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
@@ -333,14 +336,21 @@ void Interaction::prepareParams() {
     } else if (mayiuse(cpu_isa_t::sse41)) {
         moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
         moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
-    } else {
-        THROW_ERROR << "cannot create jit eltwise kernel";
     }
+#endif // OPENVINO_ARCH_X86_64
 
     if (moveFeatureKernel && moveInteractKernel) {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
+    } else {
+        THROW_ERROR << "cannot create jit eltwise kernel";
     }
+#ifdef CPU_DEBUG_CAPS
+    if (prim) {
+        auto pd = prim.get_primitive_desc();
+        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
+    }
+#endif
 }
 
 void Interaction::executeDynamicImpl(dnnl::stream strm) {

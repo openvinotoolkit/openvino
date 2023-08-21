@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
         manager.register_pass<ov::pass::PReluFusion>();
     }
 
-    function_ref = ngraph::clone_function(*function);
+    function_ref = function->clone();
 }
 
 TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
@@ -156,4 +156,29 @@ TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
         const auto prelu = make_shared<PRelu>(data, prelu_const);
         function_ref = make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, PReluFusionNegReluMulAdd) {
+    using namespace std;
+    using namespace ov::opset10;
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{2, 12});
+        const auto relu_pos = make_shared<Relu>(data);
+        const auto neg = make_shared<Negative>(data);
+        const auto relu_neg = make_shared<Relu>(neg);
+        const auto mul_const = Constant::create(element::f32, Shape{1}, {0.235});
+        const auto mul = make_shared<Multiply>(relu_neg, mul_const);
+        const auto add = make_shared<Add>(relu_pos, mul);
+        function = make_shared<Function>(NodeVector{add}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::PReluFusion>();
+    }
+    {
+        const auto data = make_shared<Parameter>(element::f32, Shape{2, 12});
+        const auto prelu_const = Constant::create(element::f32, Shape{1}, {-0.235});
+        const auto prelu = make_shared<PRelu>(data, prelu_const);
+        function_ref = make_shared<Function>(NodeVector{prelu}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

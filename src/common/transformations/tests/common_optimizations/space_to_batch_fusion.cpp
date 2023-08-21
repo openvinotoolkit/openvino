@@ -9,6 +9,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/op/pad.hpp>
 #include <queue>
 #include <string>
 #include <transformations/common_optimizations/space_to_batch_fusion.hpp>
@@ -49,6 +50,59 @@ TEST_F(TransformationTestsF, SpaceToBatchFusionTranspose) {
                                                    op::Constant::create(element::i64, Shape{4}, {2, 2, 3, 3}));
 
         function_ref = std::make_shared<Function>(NodeVector{space_to_batch}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, SpaceToBatchFusionTransposePad12) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before =
+            std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto pad = std::make_shared<op::v12::Pad>(trans_before,
+                                                  op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
+                                                  op::Constant::create(element::i64, Shape{4}, {2, 2, 3, 3}),
+                                                  op::Constant::create(element::f32, Shape{}, {0}),
+                                                  op::PadMode::CONSTANT);
+        auto space_to_depth =
+            std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
+        auto trans_after =
+            std::make_shared<opset6::Transpose>(space_to_depth,
+                                                op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
+    }
+
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto space_to_batch =
+            std::make_shared<opset6::SpaceToBatch>(data,
+                                                   op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
+                                                   op::Constant::create(element::i64, Shape{4}, {1, 1, 1, 1}),
+                                                   op::Constant::create(element::i64, Shape{4}, {2, 2, 3, 3}));
+
+        function_ref = std::make_shared<Function>(NodeVector{space_to_batch}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, SpaceToBatchFusionTransposeNegativePads) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{12, 3, 4, 8});
+        auto trans_before =
+            std::make_shared<opset6::Transpose>(data, op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        auto pad = std::make_shared<op::v12::Pad>(trans_before,
+                                                  op::Constant::create(element::i64, Shape{4}, {1, 1, -1, -1}),
+                                                  op::Constant::create(element::i64, Shape{4}, {2, 2, -3, -3}),
+                                                  op::Constant::create(element::f32, Shape{}, {0}),
+                                                  op::PadMode::CONSTANT);
+        auto space_to_depth =
+            std::make_shared<opset6::SpaceToDepth>(pad, opset6::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 4);
+        auto trans_after =
+            std::make_shared<opset6::Transpose>(space_to_depth,
+                                                op::Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
+        function = std::make_shared<Function>(NodeVector{trans_after}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::SpaceToBatchFusion>();
     }
 }
 

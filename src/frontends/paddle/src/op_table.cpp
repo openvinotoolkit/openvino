@@ -41,6 +41,7 @@ OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
 OP_CONVERTER(expand_v2);
+OP_CONVERTER(flip);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
@@ -50,13 +51,16 @@ OP_CONVERTER(gather);
 OP_CONVERTER(gather_nd);
 OP_CONVERTER(gelu);
 OP_CONVERTER(greater_than);
+OP_CONVERTER(grid_sampler);
 OP_CONVERTER(group_norm);
 OP_CONVERTER(hard_sigmoid);
 OP_CONVERTER(hard_swish);
+OP_CONVERTER(index_select);
 OP_CONVERTER(layer_norm);
 OP_CONVERTER(leaky_relu);
 OP_CONVERTER(less_than);
 OP_CONVERTER(linear_interp_v2);
+OP_CONVERTER(linspace);
 OP_CONVERTER(lod_array_length);
 OP_CONVERTER(log);
 OP_CONVERTER(logical_and);
@@ -69,6 +73,7 @@ OP_CONVERTER(matrix_nms);
 OP_CONVERTER(meshgrid);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
+OP_CONVERTER(one_hot_v2);
 OP_CONVERTER(p_norm);
 OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
@@ -76,6 +81,7 @@ OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
 OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
+OP_CONVERTER(reduce_all);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
 OP_CONVERTER(reduce_min);
@@ -89,11 +95,15 @@ OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(select_input);
+OP_CONVERTER(set_value);
 OP_CONVERTER(shape);
+OP_CONVERTER(share_data);
+OP_CONVERTER(sigmoid);
+OP_CONVERTER(silu);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
-OP_CONVERTER(sigmoid);
+OP_CONVERTER(softshrink);
 OP_CONVERTER(split);
 OP_CONVERTER(sqrt);
 OP_CONVERTER(squeeze);
@@ -155,6 +165,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
+            {"flip", op::flip},
             {"floor", op::floor},
             {"gather", op::gather},
             {"gather_nd", op::gather_nd},
@@ -162,13 +173,16 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"generate_proposals_v2", op::generate_proposals_v2},
             {"greater_equal", op::elementwise_greater_equal},
             {"greater_than", op::greater_than},
+            {"grid_sampler", op::grid_sampler},
             {"group_norm", op::group_norm},
             {"hard_sigmoid", op::hard_sigmoid},
             {"hard_swish", op::hard_swish},
+            {"index_select", op::index_select},
             {"layer_norm", op::layer_norm},
             {"leaky_relu", op::leaky_relu},
             {"less_than", op::less_than},
             {"linear_interp_v2", op::linear_interp_v2},
+            {"linspace", op::linspace},
             {"lod_array_length", op::lod_array_length},
             {"log", op::log},
             {"logical_and", op::logical_and},
@@ -185,6 +199,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"nearest_interp_v2", op::nearest_interp_v2},
             {"nearest_interp", op::nearest_interp_v2},
             {"not_equal", op::elementwise_not_equal},
+            {"one_hot_v2", op::one_hot_v2},
             {"p_norm", op::p_norm},
             {"pad3d", op::pad3d},
             {"pow", op::pow},
@@ -192,6 +207,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"prior_box", op::prior_box},
             {"quantize_linear", op::quantize_linear},
             {"range", op::range},
+            {"reduce_all", op::reduce_all},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},
             {"reduce_min", op::reduce_min},
@@ -205,11 +221,15 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"roi_align", op::roi_align},
             {"scale", op::scale},
             {"select_input", op::select_input},
+            {"set_value", op::set_value},
             {"shape", op::shape},
+            {"share_data", op::share_data},
+            {"sigmoid", op::sigmoid},
+            {"silu", op::silu},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
-            {"sigmoid", op::sigmoid},
+            {"softshrink", op::softshrink},
             {"split", op::split},
             {"sqrt", op::sqrt},
             {"squeeze2", op::squeeze},

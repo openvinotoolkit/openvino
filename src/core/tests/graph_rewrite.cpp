@@ -55,9 +55,9 @@ public:
     Anchor() : GraphRewrite() {}
 };
 
-NGRAPH_RTTI_DEFINITION(TestPass, "TestPass", 0);
-NGRAPH_RTTI_DEFINITION(Anchor, "Anchor", 0);
-NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass", 0);
+NGRAPH_RTTI_DEFINITION(TestPass, "TestPass");
+NGRAPH_RTTI_DEFINITION(Anchor, "Anchor");
+NGRAPH_RTTI_DEFINITION(GatherNodesPass, "GatherNodesPass");
 
 std::shared_ptr<Function> get_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -165,7 +165,7 @@ public:
     using ngraph::opset3::Divide::Divide;
 };
 
-NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", 0, ngraph::opset3::Divide);
+NGRAPH_RTTI_DEFINITION(PrivateDivide, "PrivateDivide", ngraph::opset3::Divide);
 
 std::shared_ptr<Function> get_derived_function() {
     auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -409,7 +409,7 @@ public:
              */
             auto cnt = consumers(node.get());
             if (node.use_count() != cnt + 7) {
-                throw ngraph::ngraph_error("Wrong number of consumers");
+                OPENVINO_THROW("Wrong number of consumers");
             }
 
             NodeVector nodes;
@@ -423,7 +423,7 @@ public:
              */
             for (const auto& input_node : nodes) {
                 if (input_node.use_count() != consumers(input_node.get()) + 1) {
-                    throw ngraph::ngraph_error("Wrong number of consumers");
+                    OPENVINO_THROW("Wrong number of consumers");
                 }
             }
             return false;
@@ -434,7 +434,7 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers", 0);
+NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers");
 
 TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_function();

@@ -24,7 +24,8 @@ private:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
     DispatchData SetDefault(const mvn_params& params) const override;

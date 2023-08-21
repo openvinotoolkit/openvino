@@ -35,8 +35,8 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNonContiguousAxes
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
-        config.insert(ov::inference_precision(ov::element::f32));
+      if (device_name == ov::test::utils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() < compiled_model.get_runtime_model()->get_ops().size()); // decomposition applied
@@ -55,8 +55,8 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNormalizeOverAllA
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
-        config.insert(ov::inference_precision(ov::element::f32));
+      if (device_name == ov::test::utils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() < compiled_model.get_runtime_model()->get_ops().size()); // decomposition applied
@@ -75,8 +75,8 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForNotSorted) {
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
-        config.insert(ov::inference_precision(ov::element::f32));
+      if (device_name == ov::test::utils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied
@@ -95,8 +95,8 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForSingleAxis) {
 
       auto core = ov::Core();
       ov::AnyMap config;
-      if (device_name == CommonTestUtils::DEVICE_GPU)
-        config.insert(ov::inference_precision(ov::element::f32));
+      if (device_name == ov::test::utils::DEVICE_GPU)
+        config.insert(ov::hint::inference_precision(ov::element::f32));
       const auto compiled_model = core.compile_model(model, device_name, config);
 
       ASSERT_TRUE(model->get_ops().size() >= compiled_model.get_runtime_model()->get_ops().size()); // decomposition not applied

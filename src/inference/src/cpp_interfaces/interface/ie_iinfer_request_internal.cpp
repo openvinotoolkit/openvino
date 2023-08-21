@@ -407,18 +407,6 @@ BatchedBlob::Ptr IInferRequestInternal::GetBlobs(const std::string& name) {
     return nullptr;
 }
 
-void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) {
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        foundInput->getPreProcess() = copyPreProcess(info);
-    } else {
-        IE_THROW() << "Pre-process can't be set to output blob";
-    }
-
-    SetBlob(name, data);
-}
-
 const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& name) const {
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
@@ -427,10 +415,6 @@ const PreProcessInfo& IInferRequestInternal::GetPreProcess(const std::string& na
     } else {
         IE_THROW() << "Output blob can't have pre-processing";
     }
-}
-
-void IInferRequestInternal::SetBatch(int batch) {
-    IE_THROW(NotImplemented);
 }
 
 std::vector<std::shared_ptr<IVariableStateInternal>> IInferRequestInternal::QueryState() {
@@ -460,7 +444,7 @@ void IInferRequestInternal::execDataPreprocessing(InferenceEngine::BlobMap& prep
         // using preconfigured resize algorithm.
         auto it = _preProcData.find(input.first);
         if (it != _preProcData.end()) {
-            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, m_curBatch);
+            it->second->execute(input.second, _networkInputs[input.first]->getPreProcess(), serial, -1);
         }
     }
 }

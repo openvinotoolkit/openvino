@@ -13,7 +13,7 @@ namespace v3 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
-    OPENVINO_OP("ScatterNDUpdate", "opset4", util::ScatterNDBase, 3);
+    OPENVINO_OP("ScatterNDUpdate", "opset4", util::ScatterNDBase);
     ScatterNDUpdate() = default;
     /// \param inputs Tensor
     /// \param indices Index tensor: Data type must be `element::i32` or `element::i64`

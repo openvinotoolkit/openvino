@@ -20,6 +20,10 @@ enum class depth_to_space_mode : int32_t {
 struct depth_to_space : public primitive_base<depth_to_space> {
     CLDNN_DECLARE_PRIMITIVE(depth_to_space)
 
+    depth_to_space() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs depth_to_space primitive.
     /// @param id This primitive id.
     /// @param input Input dictionary primitive id.
@@ -35,9 +39,9 @@ struct depth_to_space : public primitive_base<depth_to_space> {
         , mode(mode) {}
 
     /// @brief Block size.
-    size_t block_size;
+    size_t block_size = 0;
     /// @brief depth division mode
-    depth_to_space_mode mode;
+    depth_to_space_mode mode = depth_to_space_mode::blocks_first;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -54,6 +58,18 @@ struct depth_to_space : public primitive_base<depth_to_space> {
 
         return block_size == rhs_casted.block_size &&
                mode == rhs_casted.mode;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        primitive_base<depth_to_space>::save(ob);
+        ob << block_size;
+        ob << make_data(&mode, sizeof(depth_to_space_mode));
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        primitive_base<depth_to_space>::load(ib);
+        ib >> block_size;
+        ib >> make_data(&mode, sizeof(depth_to_space_mode));
     }
 };
 }  // namespace cldnn

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
@@ -43,6 +45,7 @@ struct program {
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
+    friend class post_optimize_weights;      // to be removed when possible
     friend class program_wrapper;            // this class is intended to extend the interface of program for
                                              // the usage within tests_core_internal project only
     friend class prepare_primitive_fusing_through;   // to be removed when possible
@@ -125,6 +128,7 @@ public:
     program(engine& engine_ref,
             topology const& topology,
             const ExecutionConfig& config,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
@@ -132,14 +136,15 @@ public:
     program(engine& engine_ref,
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
-            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
-    explicit program(engine& engine);
+    explicit program(engine& engine,
+                const ExecutionConfig& config = {});
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
-    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() const { return _task_executor; }
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return _task_executor; }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
@@ -147,10 +152,12 @@ public:
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
     bool is_loop_body() const { return is_body_program; }
+    bool is_internal_program() const { return is_internal; }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
@@ -187,6 +194,8 @@ public:
                           program_node& prev,
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
+
+    void add_connection(program_node& prev, program_node& next);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -234,24 +243,30 @@ public:
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
+                             const topology& topology,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                             bool is_internal = false,
+                             bool no_optimizations = false,
+                             bool is_body_program = false);
+    static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
-                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
-    kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
-    kernel::ptr get_kernel(kernel_id id);
     kernels_cache& get_kernels_cache() const;
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
-    void remove_kernel(kernel_id id);
-
     using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
+
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
+
+    static std::shared_ptr<ov::threading::IStreamsExecutor> make_task_executor(const ExecutionConfig& config);
 
 private:
     uint32_t prog_id = 0;
@@ -260,14 +275,16 @@ private:
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
     ExecutionConfig _config;
-    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> _task_executor = nullptr;
+    std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
+    bool is_internal;
     bool is_body_program;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
+    const int _num_async_build_threads = 1;
     std::unique_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
@@ -307,9 +324,6 @@ private:
     void post_optimize_graph(bool is_internal);
     void transfer_memory_to_device();
 
-    InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
-    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
-
     /*
     ** Analysis functions
     */
@@ -334,8 +348,6 @@ private:
     // mark if the node is constant assuming that all dependencies are marked properly
     void reverse_connection(program_node& dep_node, program_node& user_node);
 
-    void add_connection(program_node& prev, program_node& next);
-
     void remove_connection(program_node& prev, program_node& next);
 
     void remove_all_connections(program_node& node);
@@ -343,6 +355,7 @@ private:
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
     void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
+    void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

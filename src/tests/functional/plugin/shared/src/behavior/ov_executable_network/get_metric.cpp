@@ -26,14 +26,14 @@ void OVClassHeteroExecutableNetworkGetMetricTest::SetCpuAffinity(ov::Core& core,
     auto layermap = core.query_model(actualNetwork, heteroDeviceName);
     for (auto &iter : layermap) {
         if (iter.first.find("Concat") != std::string::npos)
-            layermap[iter.first] = CommonTestUtils::DEVICE_CPU;
+            layermap[iter.first] = ov::test::utils::DEVICE_CPU;
     }
     for (auto& node : actualNetwork->get_ops()) {
         auto affinity = layermap[node->get_friendly_name()];
         node->get_rt_info()["affinity"] = affinity;
     }
-    if (target_device.find(CommonTestUtils::DEVICE_CPU) == std::string::npos)
-        expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
+    if (target_device.find(ov::test::utils::DEVICE_CPU) == std::string::npos)
+        expectedTargets = {target_device, ov::test::utils::DEVICE_CPU};
 #endif
 }
 
@@ -172,6 +172,18 @@ TEST_P(OVClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     ASSERT_THROW(compiled_model.set_property({{"unsupported_config", "some_value"}}), ov::Exception);
 }
 
+TEST_P(OVClassExecutableNetworkSetConfigTest, canNotSetConfigToCompiledModelWithIncorrectConfig) {
+    ov::Core ie = createCoreWithTemplate();
+
+    auto compiled_model = ie.compile_model(simpleNetwork, target_device);
+    std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
+    std::map<std::string, ov::Any> config;
+    for (const auto& confItem : incorrectConfig) {
+        config.emplace(confItem.first, confItem.second);
+    }
+    EXPECT_ANY_THROW(compiled_model.set_property(config));
+}
+
 TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     ov::Core ie = createCoreWithTemplate();
     ov::Any p;
@@ -180,6 +192,28 @@ TEST_P(OVClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
     OV_ASSERT_NO_THROW(compiled_model.set_property({{configKey, configValue}}));
     OV_ASSERT_NO_THROW(p = compiled_model.get_property(configKey));
     ASSERT_EQ(p, configValue);
+}
+
+TEST_P(OVClassExecutableNetworkGetMetricTestForSpecificConfig, canSetConfigToCompiledModel) {
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
+    auto execNet = ie.compile_model(function, target_device);
+    std::map<std::string, ov::Any> config;
+    config.emplace(configKey, configValue);
+    EXPECT_NO_THROW(execNet.set_property(config));
+}
+
+TEST_P(OVClassExecutableNetworkGetMetricTestForSpecificConfig, canSetConfigToCompiledModelGetConfigAndCheck) {
+    ov::Core ie = createCoreWithTemplate();
+    std::shared_ptr<ov::Model> function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
+    auto execNet = ie.compile_model(simpleNetwork, target_device);
+    std::map<std::string, ov::Any> config;
+    config.emplace(configKey, configValue);
+    execNet.set_property(config);
+    ov::Any param;
+    EXPECT_NO_THROW(param = execNet.get_property(configKey));
+    EXPECT_FALSE(param.empty());
+    EXPECT_EQ(param, configValue);
 }
 
 TEST_P(OVClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {

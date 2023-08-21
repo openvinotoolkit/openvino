@@ -16,7 +16,7 @@ namespace op {
 OutputVector space_to_depth(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = get_decoder(node);
     std::map<std::string, ov::Any> attrs{
-        {"seed", static_cast<int64_t>(decoder->get_attribute(&tflite::SpaceToDepthOptions::block_size))},
+        {"block_size", static_cast<int64_t>(decoder->get_attribute(&tflite::SpaceToDepthOptions::block_size))},
     };
     return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_space_to_depth_op, "SpaceToDepth");
 }

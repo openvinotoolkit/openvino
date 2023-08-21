@@ -6,6 +6,9 @@ set(IE_TESTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
 
+ie_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
+mark_as_advanced(FORCE ENABLE_CONFORMANCE_PGQL)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
@@ -24,11 +27,10 @@ else()
     ie_add_compiler_flags(-Wno-all)
 endif()
 
+ov_deprecated_no_errors()
+
 add_subdirectory(ngraph_helpers)
-add_subdirectory(unit)
-add_subdirectory(ie_test_utils)
-add_subdirectory(util)
-add_subdirectory(engines_util)
+add_subdirectory(test_utils)
 
 if(ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)

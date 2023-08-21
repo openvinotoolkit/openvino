@@ -59,3 +59,4 @@ attach_experimental_detectron_prior_grid_generator_impl::attach_experimental_det
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_prior_grid_generator_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::experimental_detectron_prior_grid_generator)

@@ -31,6 +31,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace notop {
 namespace {
 template <element::Type_t ET>
@@ -63,7 +64,9 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalNot_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return notop::evaluate_not(inputs[0], outputs[0], inputs[0]->get_element_count());
 }
 

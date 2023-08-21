@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -33,6 +33,8 @@ TEST(type_prop, depth_to_space_input_interval_shape_default_block_size) {
     EXPECT_EQ(depth_to_space->get_output_partial_shape(0), a_shape);
     EXPECT_THAT(get_shape_labels(depth_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
 }
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_dynamic) {
     auto A =

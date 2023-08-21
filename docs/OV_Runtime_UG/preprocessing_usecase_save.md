@@ -2,6 +2,12 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Once a model is read, the preprocessing/ postprocessing steps 
+                 can be added and then the resulting model can be saved to 
+                 OpenVINO Intermediate Representation.
+
+
 Previous sections covered the topic of the :doc:`preprocessing steps <openvino_docs_OV_UG_Preprocessing_Details>` 
 and the overview of :doc:`Layout <openvino_docs_OV_UG_Layout_Overview>` API.
 
@@ -22,7 +28,7 @@ When some preprocessing steps cannot be integrated into the execution graph usin
 Model Optimizer command-line options (for example, ``YUV``->``RGB`` color space conversion, 
 ``Resize``, etc.), it is possible to write a simple code which:
 
-* Reads the original model (OpenVINO IR, TensorFlow, ONNX, PaddlePaddle).
+* Reads the original model (OpenVINO IR, TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle).
 * Adds the preprocessing/postprocessing steps.
 * Saves resulting model as IR (``.xml`` and ``.bin``).
 
@@ -37,18 +43,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_headers
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_headers
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_headers
 
 
@@ -57,18 +63,18 @@ in the model preparation script for such a case.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save
 
 
@@ -82,18 +88,18 @@ time when the cached model is available.
 
 .. tab-set::
 
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
-         :language: cpp
-         :fragment: ov:preprocess:save_load
-
    .. tab-item:: Python
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_preprocessing.py
          :language: Python
+         :fragment: ov:preprocess:save_load
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
+         :language: cpp
          :fragment: ov:preprocess:save_load
 
 
@@ -103,9 +109,9 @@ Additional Resources
 * :doc:`Preprocessing Details <openvino_docs_OV_UG_Preprocessing_Details>`
 * :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`
 * :doc:`Model Optimizer - Optimize Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`
-* :doc:`Model Caching Overview<openvino_docs_OV_UG_Model_caching_overview>`
-* The `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>` C++ class documentation
-* The `ov::pass::Serialize <classov_1_1pass_1_1Serialize.html#doxid-classov-1-1pass-1-1-serialize>` - pass to serialize model to XML/BIN
-* The `ov::set_batch <namespaceov.html#doxid-namespaceov-1a3314e2ff91fcc9ffec05b1a77c37862b>` - update batch dimension for a given model
+* :doc:`Model Caching Overview <openvino_docs_OV_UG_Model_caching_overview>`
+* The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class documentation
+* The `ov::pass::Serialize <https://docs.openvino.ai/2023.0/classov_1_1pass_1_1Serialize.html#doxid-classov-1-1pass-1-1-serialize.html>`__ - pass to serialize model to XML/BIN
+* The `ov::set_batch <https://docs.openvino.ai/2023.0/namespaceov.html#doxid-namespaceov-1a3314e2ff91fcc9ffec05b1a77c37862b.html>`__ - update batch dimension for a given model
 
 @endsphinxdirective

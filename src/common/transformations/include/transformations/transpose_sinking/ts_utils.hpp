@@ -30,12 +30,14 @@ struct TransposeInputsInfo {
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&);
+TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
+                                           bool const_transpose_order,
+                                           const std::vector<size_t>& indices = {});
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
  */
-bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&);
+bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&, const std::vector<size_t>& indices = {});
 
 /**
  * @brief Reverses order of transpose operation. Do it in a such way that if we had couple following one after
@@ -54,17 +56,14 @@ void SwapOutputNames(ov::Output<ov::Node>, ov::Output<ov::Node>);
  */
 void SwapFriendlyNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
 
-/**
- * @brief Swaps @args output tensor names and friendly names
- */
-void SwapNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
-
 namespace sink_forward {
 /**
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info);
+bool UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node,
+                           const TransposeInputsInfo& transpose_input_info,
+                           std::vector<size_t> input_indexes = {});
 
 /**
  * @brief Removes @arg input node
@@ -78,36 +77,84 @@ ov::NodeVector InsertOutputTransposes(const std::shared_ptr<ov::Node>& main_node
                                       const TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
+/**
+ * Inserts Unsqueeze node as a child to @arg node with axes {0, 1, ... N - 1}, where N = @arg n_dims
+ */
+std::shared_ptr<ov::Node> InsertBroadcastUnsqueeze(const ov::Output<ov::Node>& node, size_t n_dims);
+
 namespace sink_backward {
 /**
  * @brief Inserts transposes on inputs of @arg main_node specified by @arg input_indexes
  * with the order specified in @arg transpose_const. If @arg input_indexes is empty, then it inserts
  * transposes for all inputs.
  */
-ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
-                                         const std::shared_ptr<ov::opset10::Constant>& transpose_const,
-                                         std::vector<int> input_indexes = {});
+ov::NodeVector InsertTransposeBeforeNode(
+    const std::shared_ptr<ov::Node>& main_node,
+    const std::shared_ptr<ov::opset10::Constant>& transpose_const,
+    std::vector<size_t> input_indexes = {},
+    std::function<std::shared_ptr<ov::Node>(const ov::Output<ov::Node>& node, size_t n_dims)> InsertUnsqueeze =
+        InsertBroadcastUnsqueeze);
 }  // namespace sink_backward
 
-void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
-
 /**
- *  @brief Checks if @arg has consumers that all are the same transpose operation. If no consumers at all
- *  returns false.
+ *  @brief Checks if @arg has consumers that are all the same Transpose operation
+ *  and that sinking is enabled for all these Transpose ops. Otherwise returns false.
+ *  If no consumers at all returns false.
  */
-bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
+bool CheckTransposeConsumers(const ov::Output<ov::Node>&);
 
 /**
- * Removes all direct node consumers that have one output
+ * @brief Removes all Transpose consumers for given node
  */
-void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
+bool RemoveTransposeConsumers(const std::shared_ptr<ov::Node>& node);
 
 /**
- * Changes the order of values in @arg input according to @arg transpose_axis_order along @arg axis
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const AxisVector& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
+
+/**
+ * @brief Inserts Gather operation which changes the order of values in @arg input
+ * according to @arg transpose_axis_order along @arg axis.
+ */
+Output<Node> ChangeAxes(const Output<Node>& input,
+                        const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
+                        const std::shared_ptr<ov::opset10::Constant>& axis);
+/**
+ * @brief Returns the updated axes order for case when the initial axes order has more elements
+ * than after TransposeSinking, e.g.:
+ *
+ * before: Transpose(the initial axes order) -> ReduceMax
+ * after : ReduceMax -> Transpose (the updated axes order)
+ *
+ * before: Unsqueeze -> Transpose (the initial axes order)
+ * after : Transpose (the updated axes order) -> Unsqueeze
+ */
+std::vector<size_t> GetOrderAfterReduction(const std::vector<size_t>& axes_values,
+                                           const std::vector<size_t>& order_values);
+
+/**
+ * @brief Returns the updated axes order for case when the initial axes order has less elements
+ * than after TransposeSinking, e.g.:
+ *
+ * before : ReduceMax -> Transpose (the updated axes order)
+ * after: Transpose(the initial axes order) -> ReduceMax
+ *
+ * before: Transpose (the updated axes order) -> Unsqueeze
+ * after : Unsqueeze -> Transpose (the initial axes order)
+ */
+std::vector<size_t> GetOrderBeforeReduction(const std::vector<size_t>& axes_values,
+                                            const std::vector<size_t>& order_values);
 
 }  // namespace utils
 }  // namespace transpose_sinking

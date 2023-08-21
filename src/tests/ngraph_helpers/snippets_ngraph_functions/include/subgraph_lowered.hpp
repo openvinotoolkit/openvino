@@ -56,25 +56,8 @@ private:
 class Transpose0213MatMulLoweredFunction : public Transpose0213MatMulFunction {
 public:
     explicit Transpose0213MatMulLoweredFunction(const std::vector<PartialShape>& inputShapes, size_t position = 0) :
-            Transpose0213MatMulFunction(inputShapes, position) {
+            Transpose0213MatMulFunction(inputShapes, std::vector<ov::element::Type>{ov::element::f32, ov::element::f32}, position) {
     }
-protected:
-    std::shared_ptr<ov::Model> initLowered() const override;
-};
-
-class SoftmaxLoweredFunction : public SoftmaxFunction {
-public:
-    explicit SoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : SoftmaxFunction(inputShapes, axis) {}
-
-protected:
-    std::shared_ptr<ov::Model> initLowered() const override;
-};
-
-// With LoopFusion pass
-class AddSoftmaxLoweredFunction : public AddSoftmaxFunction {
-public:
-    explicit AddSoftmaxLoweredFunction(const std::vector<PartialShape>& inputShapes, int axis) : AddSoftmaxFunction(inputShapes, axis) {}
-
 protected:
     std::shared_ptr<ov::Model> initLowered() const override;
 };

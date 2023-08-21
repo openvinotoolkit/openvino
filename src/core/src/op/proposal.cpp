@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/proposal.hpp"
-
-#include <proposal_shape_inference.hpp>
+#include "openvino/op/proposal.hpp"
 
 #include "itt.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "proposal_shape_inference.hpp"
 
-using namespace std;
-using namespace ngraph;
-
+namespace ov {
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
@@ -43,19 +40,20 @@ void op::v0::Proposal::validate_element_types() {
 
 void op::v0::Proposal::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Proposal_validate_and_infer_types);
+
     validate_element_types();
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2)};
-    shape_infer(this, input_shapes, output_shapes);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto intput_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, intput_shapes);
+
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v0::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return std::make_shared<Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
@@ -77,32 +75,40 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+void op::v0::Proposal::set_attrs(Attributes attrs) {
+    m_attrs = std::move(attrs);
+}
+
+// --- v4 ---
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
                            const op::v0::Proposal::Attributes& attrs)
-    : v0::Proposal(class_probs, class_bbox_deltas, image_shape, attrs) {
+    : v0::Proposal() {
+    set_arguments({class_probs, class_bbox_deltas, image_shape});
+    set_attrs(attrs);
     constructor_validate_and_infer_types();
 }
 
 void op::v4::Proposal::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Proposal_validate_and_infer_types);
-    v0::Proposal::validate_element_types();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                  get_input_partial_shape(1),
-                                                  get_input_partial_shape(2)};
-    shape_infer(this, input_shapes, output_shapes);
+    validate_element_types();
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto intput_shapes = get_node_input_partial_shapes(*this);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, intput_shapes);
+    const auto& out_et = get_input_element_type(0);
 
-    const auto& input0_type = get_input_element_type(0);
-    set_output_type(0, input0_type, output_shapes[0]);
-    set_output_type(1, input0_type, output_shapes[1]);
+    for (size_t i = 0; i < output_shapes.size(); ++i) {
+        set_output_type(i, out_et, output_shapes[i]);
+    }
     m_attrs.infer_probs = true;  // Proposal v4 requires default true of infer_probs so output_1 has valid data.
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_Proposal_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<op::v4::Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+    return std::make_shared<Proposal>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
+}  // namespace ov

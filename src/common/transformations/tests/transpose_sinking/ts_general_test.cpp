@@ -12,6 +12,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace testing;
 using namespace ov::opset10;
@@ -393,13 +394,13 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     {
         auto X = std::make_shared<Parameter>(input_type, input_shape);
 
-        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
-        auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+        auto node0 = MakeAllNodesSubgraph(X, 1, 1);
 
-        auto node0 = MakeAllNodesSubgraph(transpose0, 3, 3);
+        auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+        auto transpose0 = std::make_shared<Transpose>(node0, ng_order0);
 
         auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
-        auto reshape = std::make_shared<Reshape>(node0, reshape_const, false);
+        auto reshape = std::make_shared<Reshape>(transpose0, reshape_const, false);
 
         auto node1 = MakeAllNodesSubgraph(reshape, 3, 3);
 
@@ -412,6 +413,94 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     manager.register_pass<TSGeneral>();
 }
 
+TEST_F(TransformationTestsF, TSGeneralCheckShapeOfConstFoldingDisabled) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {96, 40, 55};
+    ov::Shape reshape_shape = {1, 96, 40, 55};
+    ov::element::Type input_type = ov::element::f32;
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+        auto Shape = std::make_shared<Parameter>(input_type, reshape_shape);
+
+        auto order = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+        auto transpose = std::make_shared<Transpose>(X, order);
+
+        auto shape_of = std::make_shared<ShapeOf>(Shape);
+        auto reshape = std::make_shared<Reshape>(transpose, shape_of, false);
+
+        auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+        auto transpose1 = std::make_shared<Transpose>(reshape, ng_order1);
+
+        function = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X, Shape});
+    }
+    manager.register_pass<TSGeneral>();
+}
+
+TEST_F(TransformationTestsF, TSGeneralBackwardSinkingNotAvailableForOneOfMultipleTransposes) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {96, 40, 55};
+    ov::element::Type input_type = ov::element::f32;
+    {
+        auto X = std::make_shared<Parameter>(input_type, input_shape);
+        auto relu = std::make_shared<Relu>(X);
+
+        auto order = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+        auto transpose = std::make_shared<Transpose>(relu, order);
+        mark_as_no_sinking_node(transpose);
+
+        auto order2 = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+        auto transpose2 = std::make_shared<Transpose>(relu, order2);
+
+        auto relu2 = std::make_shared<Relu>(transpose);
+        auto res = std::make_shared<Result>(relu2);
+        auto res2 = std::make_shared<Result>(transpose2);
+
+        function = std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{X});
+    }
+    manager.register_pass<TSGeneralBackward>();
+}
+
+TEST(TransformationTests, TSGeneralBackwardCheckFriendlyAndTensorNamesForMultipleTransposes) {
+    using namespace transpose_sinking::testing::general;
+    ov::Shape input_shape = {96, 40, 55};
+    ov::element::Type input_type = ov::element::f32;
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+    auto relu = std::make_shared<Relu>(X);
+    relu->set_friendly_name("relu");
+    relu->output(0).set_names({"relu:0"});
+
+    auto order = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+    auto transpose = std::make_shared<Transpose>(relu, order);
+    transpose->set_friendly_name("transpose_1");
+    transpose->output(0).set_names({"transpose_1:0"});
+
+    auto order2 = std::make_shared<Constant>(ov::element::u64, ov::Shape{3}, ov::Shape{0, 2, 1});
+    auto transpose2 = std::make_shared<Transpose>(relu, order2);
+    transpose2->set_friendly_name("transpose_2");
+    transpose2->output(0).set_names({"transpose_2:0"});
+
+    auto res = std::make_shared<Result>(transpose);
+    auto res2 = std::make_shared<Result>(transpose2);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{X});
+
+    ov::pass::Manager manager;
+    manager.register_pass<TSGeneralBackward>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type<Transpose>(model), 1);
+    // both options are possible, it depends on consumers order (set<Input<Node>)
+    // the order in the set can be different, it depends on Node*
+    std::vector<std::string> possible_relu_names = {"transpose_1", "transpose_2"};
+    EXPECT_NE(std::find(possible_relu_names.begin(), possible_relu_names.end(), relu->get_friendly_name()),
+              possible_relu_names.end());
+    std::vector<std::string> expected_tensor_names = {"relu:0", "transpose_1:0", "transpose_2:0"};
+    auto actual_names = relu->output(0).get_names();
+    for (const auto& name : expected_tensor_names) {
+        EXPECT_NE(actual_names.find(name), actual_names.end());
+    }
+}
 }  // namespace general
 }  // namespace testing
 }  // namespace transpose_sinking

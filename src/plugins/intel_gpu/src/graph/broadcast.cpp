@@ -61,11 +61,11 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     auto axes_mapping = desc->axes_mapping.to_vector();
     ShapeType axes_mapping_shape = ov::Shape{axes_mapping.size()};
 
-    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    std::unordered_map<size_t, ov::Tensor> const_data;
     if (third_input_needed) {
         input_shapes.emplace_back(axes_mapping_shape);
 
-        auto axes_mapping_tensor = make_host_tensor({axes_mapping_shape, data_types::i64, format::bfyx},
+        auto axes_mapping_tensor = make_tensor({axes_mapping_shape, data_types::i64, format::bfyx},
                                                     static_cast<void*>(axes_mapping.data()));
         const_data.emplace(2, axes_mapping_tensor);
     }
@@ -73,22 +73,21 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
     auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto target_shape_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.prog->get_stream());
-        const_data.emplace(1, make_host_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
-        ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());
+        const_data.emplace(1, make_tensor(target_shape_mem->get_layout(), target_shape_lock.data()));
+        output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() == 1) {
         // predefined pattern shape
-        auto target_shape_tensor = make_host_tensor({pattern_shape, data_types::i64, format::bfyx},
-                                                     static_cast<void*>(target_shape.data()));
+        auto target_shape_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
-        ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
+        output_shapes = ov::op::v3::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
     } else if (impl_param.input_layouts.size() >= 2) {
         auto input1 = impl_param.get_input_layout(1);
-        int output_rank = input1.get<ShapeType>().size();
+        auto output_rank = input1.get<ShapeType>().size();
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, 1));
+        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
@@ -97,88 +96,6 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
 }
 
 template std::vector<layout> broadcast_inst::calc_output_layouts<ov::PartialShape>(broadcast_node const& node, const kernel_impl_params& impl_param);
-
-std::vector<size_t> broadcast_inst::extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
-    ov::PartialShape ps;
-
-    auto orig_input_layout = orig_impl_param.get_input_layout();
-    auto updated_param = orig_impl_param;
-    const auto& primitive = updated_param.typed_desc<broadcast>();
-
-    // Extend input dimensions with ones
-    auto i_layout = updated_param.input_layouts[0];
-    auto o_layout = updated_param.output_layouts[0];
-
-    auto input_shape = i_layout.get_shape();
-    auto output_shape = o_layout.get_shape();
-
-    if (primitive->axes_mapping.empty()) {
-        auto broadcastable = [&](layout a, layout b) {
-            auto dims_a = a.get_dims();
-            auto dims_b = b.get_dims();
-            size_t min_size = (dims_a.size() < dims_b.size()) ? dims_a.size(): dims_b.size();
-
-            for (size_t i = 0; i < min_size; i++) {
-                if (!(dims_a[i] == 1 || dims_b[i] == 1 || dims_a[i] == dims_b[i])) {
-                    return false;
-                }
-            }
-            return true;
-        };
-
-        auto input_rank = input_shape.size();
-        auto output_rank = output_shape.size();
-
-        if (!broadcastable(i_layout, o_layout)) {
-            input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
-        }
-    } else {
-        // If axis_mapping is specified, then ones are inserted according to it.
-        ov::Shape tmp_shape;
-        int prev_axis = -1;
-        int next_axis = -1;
-        size_t currentRank = 0;
-        int axe_idx = 0;
-        for (auto& axis : primitive->axes_mapping) {
-            prev_axis = next_axis;
-            next_axis = static_cast<int>(axis);
-
-            int ones_count = std::max(next_axis - prev_axis - 1, 0);
-            tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
-            tmp_shape.push_back(input_shape[axe_idx]); // Consider the Broadcast kernel 'broadcast' input to output shape
-
-            currentRank += ones_count + 1;
-            axe_idx += 1;
-        }
-
-        // insert 1 to match with output shape
-        if (o_layout.get_rank() > tmp_shape.size()) {
-            tmp_shape.insert(tmp_shape.end(), o_layout.get_rank() - tmp_shape.size(), 1ul);
-        }
-        input_shape = tmp_shape;
-    }
-
-    ps = ov::PartialShape(input_shape);
-
-
-    if (ps.size() < 4) {
-        ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-    }
-
-    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-    return l.transform(format::bfwzyx).to_shape();
-}
-
-std::vector<size_t> broadcast_inst::extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
-    ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
-
-    if (ps.size() < 4) {
-        ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-    }
-
-    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-    return l.transform(format::bfwzyx).to_shape();
-}
 
 std::string broadcast_inst::to_string(broadcast_node const& node) {
     auto desc = node.get_primitive();

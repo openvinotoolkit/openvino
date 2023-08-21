@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+#cython: language_level=3
+
 from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo, CExecutableNetwork, CVariableState
 
@@ -84,7 +86,7 @@ cdef class InputInfoCPtr:
 cdef class PreProcessInfo:
     cdef CPreProcessInfo* _ptr
     cdef const CPreProcessInfo* _cptr
-    cpdef object _user_data
+    cdef object _user_data
 
 cdef class PreProcessChannel:
     cdef CPreProcessChannel.Ptr _ptr

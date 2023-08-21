@@ -7,7 +7,7 @@
 #include "ie_parallel.hpp"
 #include "range.h"
 #include <utils/general_utils.h>
-#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
+#include <shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -72,14 +72,14 @@ void Range::initSupportedPrimitiveDescriptors() {
             getOriginalInputPrecisionAtPort(RANGE_DELTA) == Precision::FP32 &&
             getOriginalOutputPrecisionAtPort(0) == Precision::FP32)) {
         inDataConf.reserve(inputShapes.size());
-        for (int i = 0; i < inputShapes.size(); ++i)
+        for (size_t i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         outDataConf.reserve(1);
         outDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     } else {
         inDataConf.reserve(inputShapes.size());
-        for (int i = 0; i < inputShapes.size(); ++i)
+        for (size_t i = 0; i < inputShapes.size(); ++i)
             inDataConf.emplace_back(LayoutType::ncsp);
         outDataConf.reserve(1);
         outDataConf.emplace_back(LayoutType::ncsp);
@@ -118,9 +118,9 @@ size_t Range::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) 
         stopPtr = &limit;
     if (stepPtr == nullptr)
         stepPtr = &delta;
-    *startPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->GetPtr())[0];
-    *stopPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->GetPtr())[0];
-    *stepPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->GetPtr())[0];
+    *startPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_START)->getMemoryPtr()->getData())[0];
+    *stopPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_LIMIT)->getMemoryPtr()->getData())[0];
+    *stepPtr = reinterpret_cast<const data_t *>(getParentEdgeAt(RANGE_DELTA)->getMemoryPtr()->getData())[0];
     const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
     if (std::is_same<data_t, int>::value) {
@@ -140,7 +140,7 @@ InferenceEngine::StatusCode Range::rangeKernel() {
         VectorDims newOutputShape {work_amount_dst};
         redefineOutputMemory({newOutputShape});
     }
-    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    data_t* dst_data = reinterpret_cast<data_t *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t iwork = 0, end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);

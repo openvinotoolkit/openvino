@@ -8,7 +8,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
@@ -126,162 +126,21 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
 
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
+    auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+    auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
 
-        auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
+    auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
+    auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
+    auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
+    auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
-
-        auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, MarkNormalizationOps_1) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
-
-        // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(mvn_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, MarkNormalizationOps_2) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
-
-        // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(normalizel2_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, MarkNormalizationOps_3) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset2::MVN>(input_1, AxisSet{3}, true, 1.0e-8);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset2::MVN>(input_1, AxisSet{3}, true, 1.0e-8);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
-
-        // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(mvn_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
@@ -409,134 +268,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     //    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto unsqueeze_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto unsqueeze_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
-
-        // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(unsqueeze_1);
-        disable_fp16_compression(mvn_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto unsqueeze_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto unsqueeze_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
-
-        // marking nodes to be kept in fp32 for mixed precision
-        disable_fp16_compression(addition_const);
-        disable_fp16_compression(unsqueeze_1);
-        disable_fp16_compression(normalizel2_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
-    result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(TransformationTests, keep_precission_sensitive_fp32_6) {
-    shared_ptr<Model> model, model_ref;
-    pass::Manager manager;
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
-
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
-        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
-
-        disable_fp16_compression(normalizel2_1);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
-    // need to compare twice to ensure that no extra nodes are marked
-    FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
@@ -722,6 +453,49 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
+TEST(TransformationTests, DivisionByZeroEpsWithConvert) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    const float eps_value = 1.0e-5f;
+    {
+        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = Constant::create(element::f16, Shape{1}, {eps_value});
+        auto convert_eps = std::make_shared<Convert>(eps_const, element::f32);
+
+        auto add = std::make_shared<Add>(input_2, convert_eps);
+        auto divide = std::make_shared<Divide>(input_1, add);
+        model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = Constant::create(element::f16, Shape{1}, {eps_value});
+        auto convert_eps = std::make_shared<Convert>(eps_const, element::f32);
+        auto add = std::make_shared<Add>(input_2, convert_eps);
+        auto divide = std::make_shared<Divide>(input_1, add);
+        disable_fp16_compression(divide);
+        disable_fp16_compression(eps_const);
+        disable_fp16_compression(convert_eps);
+        disable_fp16_compression(add);
+
+        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
 TEST(TransformationTests, PowWithNegativeExponent) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
@@ -773,32 +547,20 @@ TEST(TransformationTests, PowWithPositiveExponent) {
     pass::Manager manager;
     // graph should be left unchanged
     const float eps_value = 1.0e-12f;
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
-        auto pow = std::make_shared<Power>(add, pow_exp_const);
-        auto mul = std::make_shared<Multiply>(input_1, pow);
+    auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = std::make_shared<Add>(input_2, eps_const);
+    auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
+    auto pow = std::make_shared<Power>(add, pow_exp_const);
+    auto mul = std::make_shared<Multiply>(input_1, pow);
 
-        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
 
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
-        auto pow = std::make_shared<Power>(add, pow_exp_const);
-        auto mul = std::make_shared<Multiply>(input_1, pow);
-
-        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
-    }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
@@ -813,28 +575,18 @@ TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
     pass::Manager manager;
     // if eps_value is greater than normalized_fp16_min then leave graph unchanged
     const float eps_value = 0.0001f;
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto divide = std::make_shared<Divide>(input_1, add);
+    auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = std::make_shared<Add>(input_2, eps_const);
+    auto divide = std::make_shared<Divide>(input_1, add);
 
-        model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
 
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto divide = std::make_shared<Divide>(input_1, add);
-
-        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-    }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
@@ -882,6 +634,61 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
         disable_fp16_compression(reduce_sum);
         disable_fp16_compression(max);
         disable_fp16_compression(eps_const);
+        disable_fp16_compression(sqrt);
+        disable_fp16_compression(divide);
+
+        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
+    }
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, DivisionByZeroMaxAndEpsWithConvert) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    const float eps_value = 1.0e-5f;
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ReduceSum>(pow, axes_const);
+        auto eps_const = Constant::create(element::f16, Shape{}, {eps_value});
+        auto convert_eps = std::make_shared<Convert>(eps_const, element::f32);
+        auto max = std::make_shared<Maximum>(reduce_sum, convert_eps);
+        auto sqrt = std::make_shared<Sqrt>(max);
+        auto divide = std::make_shared<Divide>(input, sqrt);
+
+        model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+        auto exp = Constant::create(element::f32, Shape{}, {2.f});
+        auto pow = std::make_shared<Power>(input, exp);
+        auto axes_const = Constant::create(element::i64, Shape{2}, {0, 1});
+        auto reduce_sum = std::make_shared<ReduceSum>(pow, axes_const);
+        auto eps_const = Constant::create(element::f16, Shape{}, {eps_value});
+        auto convert_eps = std::make_shared<Convert>(eps_const, element::f32);
+        auto max = std::make_shared<Maximum>(reduce_sum, convert_eps);
+        auto sqrt = std::make_shared<Sqrt>(max);
+        auto divide = std::make_shared<Divide>(input, sqrt);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(exp);
+        disable_fp16_compression(pow);
+        disable_fp16_compression(reduce_sum);
+        disable_fp16_compression(max);
+        disable_fp16_compression(eps_const);
+        disable_fp16_compression(convert_eps);
         disable_fp16_compression(sqrt);
         disable_fp16_compression(divide);
 
@@ -1052,36 +859,21 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
     // ReduceSum without Exp is not a precision sensitive case
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
+    auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+    auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
 
-        auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
+    auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
+    auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
+    auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
+    auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
-
-    {
-        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
-        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 = make_shared<ReduceSum>(input_1, reduction_axes);
-
-        auto factor_const = Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
-        auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
-        auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
-
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
@@ -1240,31 +1032,21 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
     const float eps_value = 1.e-12f;
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
-        auto pow = std::make_shared<Power>(add, pow_exp_const);
-        auto mul = std::make_shared<Multiply>(input_1, pow);
 
-        model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
+    auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = std::make_shared<Add>(input_2, eps_const);
+    auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
+    auto pow = std::make_shared<Power>(add, pow_exp_const);
+    auto mul = std::make_shared<Multiply>(input_1, pow);
 
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto pow_exp_const = Constant::create(element::f32, Shape{1}, {1.77});
-        auto pow = std::make_shared<Power>(add, pow_exp_const);
-        auto mul = std::make_shared<Multiply>(input_1, pow);
+    model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
@@ -1281,27 +1063,19 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
     const float eps_value = 0.0001f;
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto divide = std::make_shared<Divide>(input_1, add);
 
-        model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.run_passes(model);
-    }
+    auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
+    auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
+    auto add = std::make_shared<Add>(input_2, eps_const);
+    auto divide = std::make_shared<Divide>(input_1, add);
 
-    {
-        auto input_1 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto input_2 = std::make_shared<Parameter>(element::f32, PartialShape::dynamic(3));
-        auto eps_const = Constant::create(element::f32, Shape{1}, {eps_value});
-        auto add = std::make_shared<Add>(input_2, eps_const);
-        auto divide = std::make_shared<Divide>(input_1, add);
+    model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
 
-        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-    }
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
@@ -1406,6 +1180,85 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
 
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quantized_nodes_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    // despite there are sensitive Exp->ReduceSum nodes, but because of the FQ they will
+    // be inferred in int8 therefore no need to mark them: model and model_ref should match
+    auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+    auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+    auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+    auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+    auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+    auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+    auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+    auto reduce_sum_1 = make_shared<opset10::ReduceSum>(fq_1, reduction_axes);
+
+    auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+    auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+    model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = fc(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = fc(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quantized_nodes_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    // despite there are sensitive Exp->ReduceSum nodes, but because of the FQ they will
+    // be inferred in int8 therefore no need to mark them: model and model_ref should match
+    auto input_1 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto input_2 = make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 224, 224});
+    auto exp_1 = make_shared<opset10::Exp>(input_1);
+
+    auto in_low = op::v0::Constant::create(element::f32, Shape{}, {0.f});
+    auto in_high = op::v0::Constant::create(element::f32, Shape{}, {5.f});
+    auto out_low = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+    auto out_high = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+    auto fq_1 = make_shared<opset10::FakeQuantize>(exp_1, in_low, in_high, out_low, out_high, 256);
+
+    auto unsqueeze_axes = opset10::Constant::create(element::i64, Shape{1}, {1});
+    auto unsqueeze_1 = make_shared<opset10::Unsqueeze>(fq_1, unsqueeze_axes);
+
+    auto reduction_axes = opset10::Constant::create(element::i64, Shape{1}, {-1});
+    auto reduce_sum_1 = make_shared<opset10::ReduceSum>(unsqueeze_1, reduction_axes);
+
+    auto fq_2 = make_shared<opset10::FakeQuantize>(reduce_sum_1, in_low, in_high, out_low, out_high, 256);
+    auto matmul_1 = make_shared<opset10::MatMul>(fq_2, input_2);
+
+    model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    model_ref = model->clone();
+
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)

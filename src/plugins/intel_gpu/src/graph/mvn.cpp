@@ -27,7 +27,7 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
     auto epsilon = desc->epsilon;
-    auto across_channels = desc->across_channels ? "true" : "false";
+    auto axes = desc->reduction_axes;
     auto normalize_variance = desc->normalize_variance ? "true" : "false";
     auto eps_inside_sqrt = desc->eps_inside_sqrt ? "true" : "false";
     auto& input = node.input();
@@ -37,7 +37,7 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     json_composite mvn_info;
     mvn_info.add("input id", input.id());
     mvn_info.add("epsilon", epsilon);
-    mvn_info.add("across_channels region", across_channels);
+    mvn_info.add("reduction axes", std::move(axes));
     mvn_info.add("normalize_variance region", normalize_variance);
     mvn_info.add("eps_inside_sqrt region", eps_inside_sqrt);
 

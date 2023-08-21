@@ -61,6 +61,7 @@ public:
     Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
     Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
+    explicit Type(const std::string& type);
     Type& operator=(const Type&) = default;
     std::string c_type_string() const;
     size_t size() const;
@@ -113,6 +114,8 @@ public:
     constexpr operator Type_t() const {
         return m_type;
     }
+    // Return element type in string representation
+    std::string to_string() const;
 
 private:
     Type_t m_type{Type_t::undefined};
@@ -177,7 +180,7 @@ constexpr Type u64(Type_t::u64);
 
 template <typename T>
 Type from() {
-    throw std::invalid_argument("Unknown type");
+    OPENVINO_THROW("Unknown type");
 }
 template <>
 OPENVINO_API Type from<char>();

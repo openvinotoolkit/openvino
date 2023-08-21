@@ -3,11 +3,11 @@
 //
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_control.hpp"
 #include "editor.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
-#include "util/test_control.hpp"
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -42,7 +42,7 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
             if (is_hex_symbol(name[i])) {
                 ++founded_hex;
                 if (cut_begin == -1) {
-                    cut_begin = i;
+                    cut_begin = static_cast<int>(i);
                 }
                 if (founded_hex >= min_address) {
                     cut_length = founded_hex;
@@ -62,13 +62,13 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
 }
 }  // namespace
 
-NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
-    ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(onnx_transformations, expand_function_greater_or_equal) {
+    ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/greater_or_equal.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/reference/"
                                                 "greater_or_equal_expanded.onnx");
@@ -78,13 +78,13 @@ NGRAPH_TEST(onnx_transformations, expand_function_greater_or_equal) {
 }
 
 // Disabled, ticket: #81976
-NGRAPH_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
-    ONNXModelEditor editor{file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+OPENVINO_TEST(onnx_transformations, DISABLED_expand_function_softmax_crossentropy) {
+    ONNXModelEditor editor{file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/softmax_crossentropy_consumed.onnx")};
     editor.decode();  // onnx transformations are applied
 
-    const auto ref_model = file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+    const auto ref_model = file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                 SERIALIZED_ZOO,
                                                 "onnx/transformations/reference/"
                                                 "softmax_crossentropy_consumed_expanded.onnx");

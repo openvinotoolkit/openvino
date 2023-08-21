@@ -19,30 +19,32 @@ public:
     Shape() = default;
 
     explicit Shape(const ov::PartialShape& shape) {
-        minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
-        maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
-        type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
+        if (!shape.rank().is_dynamic()) {
+            const auto shape_rank = shape.rank().get_length();
+            minDims.reserve(shape_rank);
+            maxDims.reserve(shape_rank);
 
+            for (const auto& d : shape) {
+                minDims.push_back(d.get_min_length() == ov::Interval::s_max ? UNDEFINED_DIM : d.get_min_length());
+                maxDims.push_back(d.get_max_length() == ov::Interval::s_max ? UNDEFINED_DIM : d.get_max_length());
+            }
+        }
+
+        type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
         initDims();
 
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     explicit Shape(const VectorDims& shape) {
-        minDims = shape;
-        maxDims = shape;
+        dims = minDims = maxDims = shape;
         type = ShapeType::Static;
-
-        initDims();
-
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
     }
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
         if (minDims.size() != maxDims.size()) {
-            IE_THROW() << "Can't create shape due to min/max vectors dims size mismatch";
+            OPENVINO_THROW("Can't create shape due to min/max vectors dims size mismatch");
         }
         this->minDims = minDims;
         this->maxDims = maxDims;
@@ -112,7 +114,7 @@ public:
      */
     const VectorDims& getStaticDims() const {
         if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get dims for non static shape";
+            OPENVINO_THROW("Cannot get dims for non static shape");
         }
 
         return minDims;
@@ -153,7 +155,7 @@ public:
 
     size_t getElementsCount() const {
         if (type != ShapeType::Static) {
-            IE_THROW() << "Cannot get elements count for non static shape";
+            OPENVINO_THROW("Cannot get elements count for non static shape");
         }
 
         size_t size = 1;
@@ -194,7 +196,7 @@ public:
     }
 
     enum : Dim {
-        UNDEFINED_DIM = 0xffffffffffffffff
+        UNDEFINED_DIM = std::numeric_limits<Dim>::max()
     };
 
 private:

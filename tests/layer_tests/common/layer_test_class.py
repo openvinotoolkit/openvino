@@ -11,8 +11,7 @@ from pathlib import Path
 import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import IEInfer, InferAPI20
-from common.utils.common_utils import generate_ir
-from common.utils.parsers import mapping_parser
+from common.utils.common_utils import generate_ir_python_api
 
 
 class CommonLayerTest:
@@ -40,10 +39,11 @@ class CommonLayerTest:
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
+        compress_to_fp16 = False if precision == 'FP32' else True
         mo_params = {self.input_model_key: model_path,
                      "output_dir": temp_dir,
-                     "data_type": precision, "model_name": 'model'
-                     }
+                     "compress_to_fp16": compress_to_fp16,
+                     "model_name": 'model'}
 
         if 'input_shapes' in kwargs and len(kwargs['input_shapes']):
             input_shapes_str = []
@@ -59,7 +59,7 @@ class CommonLayerTest:
         else:
             mo_params["use_legacy_frontend"] = True
 
-        exit_code, stderr = generate_ir(**mo_params)
+        exit_code, stderr = generate_ir_python_api(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
         del os.environ['MO_DISABLED_TRANSFORMS']
@@ -107,13 +107,6 @@ class CommonLayerTest:
         # Framework infer:
         fw_res = self.get_framework_results(inputs_dict=inputs_dict, model_path=model_path)
 
-        if len(fw_res) == len(infer_res) == 1:
-            # match output layers directly
-            mapping_dict = {next(iter(fw_res)): next(iter(infer_res))}
-        else:
-            # Load mapping file
-            mapping_dict = mapping_parser(path_to_xml.with_suffix('.mapping'))
-
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
@@ -123,7 +116,6 @@ class CommonLayerTest:
                 custom_eps = 5e-2
         # Compare Ie results with Framework results
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
-                                                      mapping_dict=mapping_dict,
                                                       framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
@@ -156,21 +148,14 @@ class CommonLayerTest:
     # It is possible to redefine this function and generate your own input
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-255, 255, inputs_dict[input]).astype(np.float32)
+            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def compare_ie_results_with_framework(self, infer_res, framework_res, mapping_dict,
-                                          framework_eps):
+    def compare_ie_results_with_framework(self, infer_res, framework_res, framework_eps):
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-
-            if framework_out_name not in list(infer_res.keys()):
-                if framework_out_name not in mapping_dict:
-                    raise RuntimeError("Output {} not found in mapping file!".format(framework_out_name))
-                ie_out_name = mapping_dict[framework_out_name]
-            else:
-                ie_out_name = framework_out_name
+            ie_out_name = framework_out_name
 
             if not allclose(infer_res[ie_out_name], framework_res[framework_out_name],
                             atol=framework_eps,

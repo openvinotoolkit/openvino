@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dev/make_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 #include <memory>
 
-#include "dev/make_tensor.hpp"
 #include "ie_blob.h"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#ifdef PROXY_PLUGIN_ENABLED
+#    include "openvino/proxy/plugin.hpp"
+#endif
 
 namespace ov {
 
@@ -25,19 +27,21 @@ public:
         : m_element_type{element_type},
           m_shape{shape},
           m_capacity{shape},
+          m_strides{},
+          m_strides_once{},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
         OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
-        update_strides();
     }
 
     void* data(const element::Type& element_type) const override {
-        if (element_type != element::undefined && element_type != element::dynamic) {
-            OPENVINO_ASSERT(element_type == get_element_type(),
-                            "Tensor data with element type ",
-                            get_element_type(),
-                            ", is not representable as pointer to ",
-                            element_type);
+        if (element_type != element::undefined && element_type != element::dynamic &&
+            (element_type.bitwidth() != get_element_type().bitwidth() ||
+             element_type.is_real() != get_element_type().is_real())) {
+            OPENVINO_THROW("Tensor data with element type ",
+                           get_element_type(),
+                           ", is not representable as pointer to ",
+                           element_type);
         }
         return m_ptr;
     }
@@ -53,6 +57,7 @@ public:
     void set_shape(ov::Shape new_shape) override {
         OPENVINO_ASSERT(shape_size(new_shape) <= ov::shape_size(m_capacity), "Could set new shape: ", new_shape);
         m_shape = std::move(new_shape);
+        m_strides.clear();
         update_strides();
     }
 
@@ -60,27 +65,32 @@ public:
         OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
                         m_element_type);
+        std::call_once(m_strides_once, &ViewTensor::update_strides, this);
         return m_strides;
     }
 
 protected:
-    void update_strides() {
+    void update_strides() const {
         if (m_element_type.bitwidth() < 8)
             return;
+
         auto& shape = get_shape();
-        m_strides.clear();
-        if (!shape.empty()) {
+        if (m_strides.empty() && !shape.empty()) {
             m_strides.resize(shape.size());
             m_strides.back() = m_element_type.size();
-            std::copy(shape.rbegin(), shape.rend() - 1, m_strides.rbegin() + 1);
-            std::partial_sum(m_strides.rbegin(), m_strides.rend(), m_strides.rbegin(), std::multiplies<size_t>());
+            std::transform(shape.crbegin(),
+                           shape.crend() - 1,
+                           m_strides.rbegin(),
+                           m_strides.rbegin() + 1,
+                           std::multiplies<size_t>());
         }
     }
 
     element::Type m_element_type;
     Shape m_shape;
     Shape m_capacity;
-    Strides m_strides;
+    mutable Strides m_strides;
+    mutable std::once_flag m_strides_once;
     void* m_ptr;
 };
 
@@ -96,7 +106,7 @@ public:
             "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
             get_element_type());
         // Save default strides
-        auto shape_strides = m_strides;
+        auto shape_strides = get_strides();
         // Change strides
         m_strides = strides;
         OPENVINO_ASSERT(m_shape.size() == m_strides.size());
@@ -183,6 +193,7 @@ public:
             m_allocator.deallocate(m_ptr, old_byte_size);
             m_ptr = m_allocator.allocate(get_byte_size());
         }
+        m_strides.clear();
         update_strides();
     }
 
@@ -431,19 +442,20 @@ public:
  */
 class TensorRemoteBlob : public ie::RemoteBlob {
 public:
-    TensorRemoteBlob(const std::shared_ptr<ITensor>& tensor)
-        : ie::RemoteBlob{ie::TensorDesc{ie::details::convertPrecision(tensor->get_element_type()),
-                                        tensor->get_shape(),
-                                        ie::TensorDesc::getLayoutByRank(tensor->get_shape().size())}},
-          tensor{std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)} {
+    TensorRemoteBlob(const ov::SoPtr<ITensor>& tensor, ie::TensorDesc desc) : ie::RemoteBlob{desc}, tensor{tensor} {
         OPENVINO_ASSERT(this->tensor);
     }
+    std::shared_ptr<ov::IRemoteTensor> cast_tensor() const {
+        auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
+        OPENVINO_ASSERT(remote);
+        return remote;
+    }
     AnyMap getParams() const override {
-        return tensor->get_properties();
+        return cast_tensor()->get_properties();
     }
     std::string getDeviceName() const noexcept override {
         try {
-            return tensor->get_device_name();
+            return cast_tensor()->get_device_name();
         } catch (...) {
             return {};
         }
@@ -478,7 +490,7 @@ public:
         return nullptr;
     }
 
-    std::shared_ptr<IRemoteTensor> tensor;
+    ov::SoPtr<ITensor> tensor;
 
 private:
     std::shared_ptr<ie::IAllocator> m_allocator;
@@ -493,53 +505,32 @@ template <typename T>
 class TensorMemoryBlob : public ie::TBlob<T> {
 public:
     ~TensorMemoryBlob() override = default;
-    explicit TensorMemoryBlob(const std::shared_ptr<ITensor>& tensor_) try : ie
-        ::TBlob<T>{[&] {
-                       auto element_type = tensor_->get_element_type();
-                       auto shape = tensor_->get_shape();
-                       ie::SizeVector blk_order(shape.size());
-                       std::iota(blk_order.begin(), blk_order.end(), 0);
-                       ie::SizeVector dim_offset(shape.size(), 0);
-                       ie::SizeVector blk_strides;
-                       auto byte_strides = element_type.bitwidth() >= 8 ? tensor_->get_strides() : Strides{};
-                       if (byte_strides.empty()) {
-                           blk_strides = ov::row_major_strides(shape);
-                       } else {
-                           blk_strides.resize(byte_strides.size());
-                           std::transform(byte_strides.begin(),
-                                          byte_strides.end(),
-                                          blk_strides.begin(),
-                                          [&element_type](size_t byte_stride) {
-                                              OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
-                                                              "Limitation: Stride in bytes ",
-                                                              byte_stride,
-                                                              " should be divisible by size of element ",
-                                                              element_type.size());
-                                              return byte_stride / element_type.size();
-                                          });
-                       }
-                       return ie::TensorDesc{ie::details::convertPrecision(element_type),
-                                             shape,
-                                             ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
-                   }(),
-                   static_cast<T*>(tensor_->data()),
-                   tensor_->get_byte_size()},
-            tensor{tensor_} {
-            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor));
+    explicit TensorMemoryBlob(const ov::SoPtr<ITensor>& tensor_, ie::TensorDesc desc) try : ie
+        ::TBlob<T>{desc, static_cast<T*>(tensor_->data()), tensor_->get_byte_size()}, tensor{tensor_} {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr));
         }
     catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     }
 
     void setShape(const ie::SizeVector& dims) override {
         tensor->set_shape(dims);
-        ie::TBlob<T>::setShape(dims);
+        ie::TBlob<T>::getTensorDesc().setDims(dims);
+        allocate();
     }
 
-    std::shared_ptr<ITensor> tensor;
+    void allocate() noexcept override {
+        if (ie::TBlob<T>::buffer() != tensor->data()) {
+            ie::TBlob<T>::_allocator =
+                ie::details::make_pre_allocator(static_cast<T*>(tensor->data()), tensor->get_byte_size());
+            ie::TBlob<T>::allocate();
+        }
+    }
+
+    ov::SoPtr<ITensor> tensor;
 };
 
-std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
+ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
         return tblob->tensor;                                                        \
@@ -549,7 +540,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
         return remote_blob->tensor;
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
-        return std::make_shared<RemoteBlobTensor>(remote_blob);
+        return {std::make_shared<RemoteBlobTensor>(remote_blob), nullptr};
     }
     ELSE_IF(float)
     ELSE_IF(double)
@@ -565,26 +556,92 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     ELSE_IF(uint64_t)
     ELSE_IF(int8_t)
     ELSE_IF(bool) else {
-        return std::make_shared<BlobTensor>(blob);
+        return {std::make_shared<BlobTensor>(blob), nullptr};
     }
 #undef IF
 }
 
-ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
+ie::Blob* get_hardware_blob(ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+const ie::Blob* get_hardware_blob(const ie::Blob* blob) {
+#ifdef PROXY_PLUGIN_ENABLED
+    if (auto remote_blob = dynamic_cast<const TensorRemoteBlob*>(blob)) {
+        const auto& tensor = ov::proxy::get_hardware_tensor(remote_blob->tensor);
+        if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
+            return blob_tensor->blob.get();
+        }
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+#endif
+    return blob;
+}
+
+ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap, InferenceEngine::TensorDesc desc) {
+    auto create_desc = [](const ov::SoPtr<ov::ITensor>& tensor,
+                          const InferenceEngine::TensorDesc& desc) -> InferenceEngine::TensorDesc {
+        if (desc.getLayout() != InferenceEngine::ANY ||
+            desc.getPrecision() != InferenceEngine::Precision::UNSPECIFIED) {
+            return desc;
+        }
+        auto element_type = tensor->get_element_type();
+        auto shape = tensor->get_shape();
+        ie::SizeVector blk_order(shape.size());
+        std::iota(blk_order.begin(), blk_order.end(), 0);
+        ie::SizeVector dim_offset(shape.size(), 0);
+        ie::SizeVector blk_strides;
+        auto byte_strides = element_type.bitwidth() >= 8 ? tensor->get_strides() : Strides{};
+        if (byte_strides.empty()) {
+            blk_strides = ov::row_major_strides(shape);
+        } else {
+            blk_strides.resize(byte_strides.size());
+            std::transform(byte_strides.begin(),
+                           byte_strides.end(),
+                           blk_strides.begin(),
+                           [&element_type](size_t byte_stride) {
+                               OPENVINO_ASSERT(byte_stride % element_type.size() == 0,
+                                               "Limitation: Stride in bytes ",
+                                               byte_stride,
+                                               " should be divisible by size of element ",
+                                               element_type.size());
+                               return byte_stride / element_type.size();
+                           });
+        }
+        return ie::TensorDesc{ie::details::convertPrecision(element_type),
+                              shape,
+                              ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}};
+    };
+#ifdef PROXY_PLUGIN_ENABLED
+    const auto& tensor = unwrap ? ov::proxy::get_hardware_tensor(orig_tensor) : orig_tensor;
+#else
+    const auto& tensor = orig_tensor;
+#endif
     if (tensor == nullptr) {
         return {};
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor)) {
+    } else if (auto blob_tensor = std::dynamic_pointer_cast<BlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor)) {
+    } else if (auto blob_tensor = std::dynamic_pointer_cast<RemoteBlobTensor>(tensor._ptr)) {
         return blob_tensor->blob;
-    } else if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
-        return blob_tensor->blob;
-    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
-        return std::make_shared<TensorRemoteBlob>(tensor);
+    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+        return std::make_shared<TensorRemoteBlob>(tensor, create_desc(tensor, desc));
     } else {
 #define CASE(precision, T)   \
     case element::precision: \
-        return std::make_shared<TensorMemoryBlob<T>>(tensor);
+        return std::make_shared<TensorMemoryBlob<T>>(tensor, create_desc(tensor, desc));
         switch (tensor->get_element_type()) {
             CASE(f32, float);
             CASE(f64, double);
@@ -601,14 +658,39 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
             CASE(u1, int8_t);
             CASE(boolean, bool);
         case element::f16:
-            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, create_desc(tensor, desc));
         case element::bf16:
-            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
+            return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, create_desc(tensor, desc));
         default:
             OPENVINO_THROW("Unsupported element type");
         }
 #undef CASE
     }
     OPENVINO_THROW("Cannot convert tensor to blob!");
+}  // namespace ov
+
+namespace util {
+
+ov::Tensor make_tensor(const std::shared_ptr<ITensor>& tensor, const std::shared_ptr<void>& so) {
+    return ov::Tensor(tensor, so);
 }
+
+void get_tensor_impl(const ov::Tensor& tensor, std::shared_ptr<ITensor>& tensor_impl, std::shared_ptr<void>& so) {
+    tensor_impl = tensor._impl;
+    so = tensor._so;
+}
+
+}  // namespace util
+
+ov::Tensor make_tensor(const ov::SoPtr<ITensor>& tensor) {
+    return util::make_tensor(tensor._ptr, tensor._so);
+}
+
+ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor) {
+    std::shared_ptr<ov::ITensor> tensor_impl;
+    std::shared_ptr<void> so;
+    util::get_tensor_impl(tensor, tensor_impl, so);
+    return ov::SoPtr<ov::ITensor>(tensor_impl, so);
+}
+
 }  // namespace ov

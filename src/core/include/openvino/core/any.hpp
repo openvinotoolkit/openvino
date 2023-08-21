@@ -377,7 +377,7 @@ class RemoteTensor;
  * @brief This class represents an object to work with different types
  */
 class OPENVINO_API Any {
-    std::vector<std::shared_ptr<void>> _so;
+    std::shared_ptr<void> _so;
 
     template <typename T>
     using decay_t = typename std::decay<T>::type;
@@ -496,7 +496,7 @@ class OPENVINO_API Any {
         }
 
     protected:
-        ~Base() = default;
+        virtual ~Base() = default;
     };
 
     template <class T, typename = void>
@@ -663,7 +663,7 @@ class OPENVINO_API Any {
     friend class ::ov::RemoteTensor;
     friend class ::ov::Plugin;
 
-    Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
+    Any(const Any& other, const std::shared_ptr<void>& so);
 
     void impl_check() const;
 
@@ -675,14 +675,14 @@ public:
     /// @brief Default constructor
     Any() = default;
 
-    /// @brief Default copy constructor
+    /// @brief Сopy constructor
     /// @param other other Any object
-    Any(const Any& other) = default;
+    Any(const Any& other);
 
-    /// @brief Default copy assignment operator
+    /// @brief Сopy assignment operator
     /// @param other other Any object
     /// @return reference to the current object
-    Any& operator=(const Any& other) = default;
+    Any& operator=(const Any& other);
 
     /// @brief Default move constructor
     /// @param other other Any object

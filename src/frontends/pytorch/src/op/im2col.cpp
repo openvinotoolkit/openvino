@@ -56,7 +56,7 @@ std::shared_ptr<Node> get_im2col_indices_along_dim(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_im2col(NodeContext& context) {
+OutputVector translate_im2col(const NodeContext& context) {
     num_inputs_check(context, 5, 5);
     auto input = context.get_input(0);
     auto kernel_size = context.const_input<std::vector<int64_t>>(1);

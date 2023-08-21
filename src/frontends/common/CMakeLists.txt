@@ -56,6 +56,9 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
+# FEM is public API => need to mark this library as important for ABI free
+ov_abi_free_target(${TARGET_NAME}_obj)
+
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${FRONTEND_INCLUDE_DIR}"
                     ADDITIONAL_INCLUDE_DIRECTORIES
@@ -71,8 +74,6 @@ target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
-
-openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME})
 
 # Installation rules header files
 

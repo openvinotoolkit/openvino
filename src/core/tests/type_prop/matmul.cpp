@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dimension_tracker.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
+#include "openvino/core/dimension_tracker.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -528,7 +528,7 @@ TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
 }
 
 TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
-    constexpr size_t my_label = 2;
+    constexpr ov::label_t my_label = 2;
     auto marked_dim = Dimension(2, 3);
     ov::DimensionTracker::set_label(marked_dim, my_label);
 

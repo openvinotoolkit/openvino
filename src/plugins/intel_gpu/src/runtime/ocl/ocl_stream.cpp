@@ -6,6 +6,7 @@
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
 #include "ocl_command_queues_builder.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
@@ -186,7 +187,9 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         }
 
         if (status != CL_SUCCESS) {
-            throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
+            throw std::runtime_error("Error set arg " + std::to_string(i)
+                                     + ", kernel: " + kernel.getInfo<CL_KERNEL_FUNCTION_NAME>()
+                                     + ", error code: " + std::to_string(status) + "\n");
         }
     }
 }
@@ -304,6 +307,10 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
+        /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
+        if (err.err() == CL_OUT_OF_RESOURCES) {
+            ov::intel_gpu::ForceExit();
+        }
         throw ocl_error(err);
     }
 
@@ -315,8 +322,13 @@ void ocl_stream::enqueue_barrier() {
 }
 
 event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
-    if (deps.empty())
-        return std::make_shared<ocl_user_event>(_engine.get_cl_context(), true);
+    // Wait for all previously enqueued tasks if deps list is empty
+    if (deps.empty()) {
+        cl::Event ret_ev;
+        _command_queue.enqueueMarkerWithWaitList(nullptr, &ret_ev);
+
+        return std::make_shared<ocl_event>(ret_ev);
+    }
 
     if (sync_method == sync_methods::events) {
         cl::Event ret_ev;
@@ -360,6 +372,14 @@ event::ptr ocl_stream::create_base_event() {
 
 void ocl_stream::flush() const { get_cl_queue().flush(); }
 void ocl_stream::finish() const { get_cl_queue().finish(); }
+
+void ocl_stream::wait() {
+    cl::Event ev;
+
+    // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
+    _command_queue.enqueueBarrierWithWaitList(nullptr, &ev);
+    ev.wait();
+}
 
 void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())

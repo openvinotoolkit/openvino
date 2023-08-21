@@ -167,5 +167,6 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_batch_shape_not_match_shape_in_c
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),
                     NodeValidationFailure,
-                    HasSubstr("Check 'batch_shape[0].get_length() == output_shape.rank().get_length()'"));
+                    HasSubstr("Check 'static_cast<int64_t>(batch_shape[0].get_length()) == "
+                              "static_cast<int64_t>(batch_as_shape->rank().get_length())'"));
 }

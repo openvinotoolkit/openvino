@@ -5,6 +5,7 @@
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
+#include "fully_connected_inst.h"
 #include "gemm_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
@@ -39,6 +40,8 @@ void select_preferred_formats::run(program& p) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
+                if (n->as<convolution>().weights_zero_points_term())
+                    continue;
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);

@@ -204,9 +204,9 @@ KERNEL(fully_connected_gpu_MMAD)(
 #endif  // SPATIAL_MAJOR
 
 #if !SPLIT_SPATIAL
-            uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * FEATURE_PITCH;
+            uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * MMAD_INPUT_FBLOCK_PITCH;
 #else
-            uint input_idx = input_offset + FEATURE_BLOCKS_COUNT * FEATURE_PITCH +
+            uint input_idx = input_offset + FEATURE_BLOCKS_COUNT * MMAD_INPUT_FBLOCK_PITCH +
                              zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
 #endif // !SPLIT_SPATIAL
             uint filter_idx = filter_offset + spatial * MMAD_FILTER_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * MMAD_FILTER_FBLOCK_PITCH;

@@ -33,12 +33,14 @@ protected:
 
         {
             auto& weights = instance.input_memory(1);
-            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0))});
+            auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
+            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0), offset)});
         }
 
         if (instance.inputs_memory_count() == 3) {
             auto& weights = instance.input_memory(2);
-            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1))});
+            auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
+            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(_pd.weights_desc(1), offset)});
         }
 
         return args;
@@ -75,7 +77,7 @@ protected:
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
 
-        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, out_l);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
@@ -102,9 +104,9 @@ protected:
         in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
         out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
 
-        in0_fmt = onednn::convert_gemm_data_format(in0_dims);
-        in1_fmt = onednn::convert_gemm_data_format(in1_dims);
-        out_fmt = onednn::convert_gemm_data_format(out_dims);
+        in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
+        in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
+        out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (prim->transpose_input0) {
             in0_fmt = transpose_format(in0_fmt);
@@ -121,7 +123,7 @@ protected:
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
             bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
-            bias_fmt = onednn::convert_gemm_data_format(bias_dims);
+            bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
 
@@ -178,7 +180,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<gemm>();
         bool gemm_with_bias = prim->dependencies().size() == 3;
 
@@ -233,20 +235,20 @@ public:
         bool gemm_with_bias;
         ib >> gemm_with_bias;
 
-        dnnl::memory::data_type in0_dt;
-        dnnl::memory::data_type in1_dt;
-        dnnl::memory::data_type out_dt;
-        dnnl::memory::data_type bias_dt;
+        dnnl::memory::data_type in0_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type in1_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type out_dt = dnnl::memory::data_type::undef;
+        dnnl::memory::data_type bias_dt = dnnl::memory::data_type::undef;
 
         dnnl::memory::dims in0_dims;
         dnnl::memory::dims in1_dims;
         dnnl::memory::dims out_dims;
         dnnl::memory::dims bias_dims;
 
-        dnnl::memory::format_tag in0_fmt;
-        dnnl::memory::format_tag in1_fmt;
-        dnnl::memory::format_tag out_fmt;
-        dnnl::memory::format_tag bias_fmt;
+        dnnl::memory::format_tag in0_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag in1_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag out_fmt = dnnl::memory::format_tag::undef;
+        dnnl::memory::format_tag bias_fmt = dnnl::memory::format_tag::undef;
 
         ib >> make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ib >> make_data(&in1_dt, sizeof(dnnl::memory::data_type));
@@ -296,21 +298,13 @@ public:
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
+        _scratchpad_md = _pd.scratchpad_desc();
+
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
-        bool full_tensor_or_per_tensor = true;
-        for (auto prim : arg.get_fused_primitives()) {
-            if (prim.input_layout.is_static() && prim.output_layout.is_static()) {
-                full_tensor_or_per_tensor &=
-                    prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
-            }
-        }
-        if (!full_tensor_or_per_tensor) {
-            IE_THROW() << "Unimplemented: per channel binary post-operation is not supported for onednn gemm. Refer PR(#15353) message.";
-        }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
@@ -331,6 +325,9 @@ attach_gemm_onednn::attach_gemm_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::byxf,
+        format::byfx,
+        format::bxfy,
         format::bfzyx,
         format::bfwzyx,
     };

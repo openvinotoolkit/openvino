@@ -16,7 +16,7 @@
 namespace InferenceEngine {
 namespace details {
 
-inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     Precision::ePrecision pType = precision;
     switch (pType) {
     case Precision::UNSPECIFIED:
@@ -61,47 +61,11 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
     }
 }
 
-inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
-    if (precision == "f16" || precision == "FP16") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::f16);
-    } else if (precision == "f32" || precision == "FP32") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::f32);
-    } else if (precision == "bf16" || precision == "BF16") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::bf16);
-    } else if (precision == "f64" || precision == "FP64") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::f64);
-    } else if (precision == "i4" || precision == "I4") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::i4);
-    } else if (precision == "i8" || precision == "I8") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::i8);
-    } else if (precision == "i16" || precision == "I16") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::i16);
-    } else if (precision == "i32" || precision == "I32") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
-    } else if (precision == "i64" || precision == "I64") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
-    } else if (precision == "u1" || precision == "U1" || precision == "BIN" || precision == "bin") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
-    } else if (precision == "u4" || precision == "U4") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u4);
-    } else if (precision == "u8" || precision == "U8") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u8);
-    } else if (precision == "u16" || precision == "U16") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u16);
-    } else if (precision == "u32" || precision == "U32") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u32);
-    } else if (precision == "u64" || precision == "U64") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::u64);
-    } else if (precision == "boolean" || precision == "BOOL") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
-    } else if (precision == "undefined") {
-        return ::ngraph::element::Type(::ngraph::element::Type_t::undefined);
-    } else {
-        IE_THROW() << "Incorrect precision: " << precision;
-    }
+INFERENCE_ENGINE_1_0_DEPRECATED inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
+    return ::ov::element::Type(precision);
 }
 
-inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
+INFERENCE_ENGINE_1_0_DEPRECATED inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     switch (precision) {
     case ::ngraph::element::Type_t::undefined:
         return Precision(Precision::UNSPECIFIED);
@@ -140,7 +104,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     case ::ngraph::element::Type_t::dynamic:
         return Precision(Precision::UNSPECIFIED);
     default:
-        IE_THROW() << "Incorrect precision " << precision.get_type_name() << "!";
+        IE_THROW() << "Incorrect precision " << precision.to_string() << "!";
         return {};
     }
 }
@@ -151,7 +115,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
+INFERENCE_ENGINE_1_0_DEPRECATED INFERENCE_ENGINE_API_CPP(CNNNetwork) cloneNetwork(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine

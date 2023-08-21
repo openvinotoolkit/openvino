@@ -254,7 +254,7 @@ public:
             } else {
                 auto body_output_prim = body.at(body_output->first);
                 auto mem = get_program().get_engine().allocate_memory(body_output_layout);
-                body_output_prim.reset(new mutable_data(body_output->first, mem));
+                body_output_prim.reset(new mutable_data(body_output->first, std::move(mem)));
             }
         }
     }
@@ -308,7 +308,7 @@ public:
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
         auto config = get_program().get_config();
         config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
+        body_program = program::build_program(get_program().get_engine(), body, config, get_program().get_task_executor(), false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }
@@ -351,9 +351,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             std::vector<memory::ptr> _from_mems, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = CONCAT_OUTPUT):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
+            to_primitive(std::move(_to_primitive)),
             from_mems(_from_mems),
-            initial_mem(_initial_mem),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -364,9 +364,9 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _from_mem, memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE_SHARED):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            from_mems{_from_mem},
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            from_mems{std::move(_from_mem)},
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -377,8 +377,8 @@ public:
             std::shared_ptr<primitive_inst> _from_primitive, std::shared_ptr<primitive_inst> _to_primitive,
             memory::ptr _initial_mem, cldnn::stream& _stream, backedge_type _type = SINGLE):
             from_primitive(_from_primitive),
-            to_primitive(_to_primitive),
-            initial_mem(_initial_mem),
+            to_primitive(std::move(_to_primitive)),
+            initial_mem(std::move(_initial_mem)),
             stream(_stream),
             type(_type),
             total_bytes(initial_mem->get_layout().bytes_count()) {
@@ -402,7 +402,7 @@ public:
                     mem1->copy_from(stream, *initial_mem);
                 } else {
                     memory::ptr mem2 = from_primitive->output_memory_ptr();
-                    to_primitive->set_output_memory(mem2);
+                    to_primitive->set_output_memory(std::move(mem2));
                     from_primitive->set_output_memory(mem1);
                 }
             }
@@ -470,9 +470,9 @@ private:
             }
         }
 
-        void setup_concatenated_output_memory(uint64_t iteration) const {
+        void setup_sliced_output_memory(uint64_t iteration) const {
             const auto& sliced_output_mem = sliced_mems.at(iteration);
-            concat_data_prim->set_output_memory(sliced_output_mem);
+            sliced_data_prim->set_output_memory(sliced_output_mem);
         }
 
         memory::ptr get_sliced_mem(int64_t iteration) const {
@@ -513,7 +513,7 @@ private:
     };
 
     static layout calc_output_layout(const loop_node& node, kernel_impl_params const& impl_param);
-    bool preproc_memories_done;
+    bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping> concatenated_input_mem_mappings;
     std::vector<concatenated_memory_mapping> concatenated_output_mem_mappings;
@@ -528,7 +528,7 @@ public:
     void preprocess_output_memory();
     void preprocess_backedge_memory();
     void update_mapped_memory();
-    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
         OPENVINO_ASSERT(node->is_current_iteration_used(), "[GPU] No backedge mapping for current_iteration for primitive ", node->id());
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
@@ -548,7 +548,7 @@ private:
     primitive_id _current_iteration_id;
     primitive_id _condition_id;
     primitive_id _num_iteration_id;
-    int64_t _max_iteration;
+    int64_t _max_iteration = 0;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

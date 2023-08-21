@@ -12,44 +12,45 @@ namespace ov {
 namespace op {
 
 namespace v1 {
-template <class TShape>
-std::vector<TShape> shape_infer(const MaxPool* op, const std::vector<TShape>& input_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const MaxPool* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end) {
     const auto& data_shape = input_shapes[0];
-
     const auto dilations = Strides(op->get_kernel().size(), 1);
 
-    pooling::update_and_validate_attributes(const_cast<MaxPool*>(op), data_shape, dilations);
+    auto num_spatial = dilations.size();
+    pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);
+    pooling::validate::padding(op, pads_begin, pads_end);
+    pooling::validate::attributes(op, data_shape, dilations);
+    pooling::apply_padding(op, data_shape, dilations, pads_begin, pads_end);
 
-    return {pooling::out_shape_infer(op, data_shape, dilations)};
-}
-
-template <class TShape>
-void shape_infer(const MaxPool* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return {pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
 }
 }  // namespace v1
 
 namespace v8 {
-template <class TShape>
-std::vector<TShape> shape_infer(const MaxPool* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const MaxPool* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
 
+    auto num_spatial = op->get_kernel().size();
     auto dilations = op->get_dilations();
     if (dilations.empty()) {
-        dilations.resize(op->get_kernel().size(), 1);
+        dilations.resize(num_spatial, 1);
     }
 
-    pooling::update_and_validate_attributes(const_cast<MaxPool*>(op), data_shape, dilations);
+    pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);
+    pooling::validate::padding(op, pads_begin, pads_end);
+    pooling::validate::attributes(op, data_shape, dilations);
+    pooling::apply_padding(op, data_shape, dilations, pads_begin, pads_end);
 
-    auto output_shape = pooling::out_shape_infer(op, data_shape, dilations);
-    return {2, output_shape};
-}
-
-template <class TShape>
-void shape_infer(const MaxPool* op, const std::vector<TShape>& input_shapes, std::vector<TShape>& output_shapes) {
-    output_shapes = shape_infer(op, input_shapes);
+    return {2, pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
 }
 }  // namespace v8
 }  // namespace op

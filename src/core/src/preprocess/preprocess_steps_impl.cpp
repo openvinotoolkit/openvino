@@ -51,6 +51,23 @@ static std::string vector_to_string(const std::vector<T>& values) {
     s << ")";
     return s.str();
 }
+namespace {
+std::shared_ptr<ov::Node> grey_from_yuv_single_plane(const std::vector<Output<Node>>& nodes) {
+    using namespace ov::opset8;
+    const auto axis = Constant::create(element::i32, {1}, {1});
+    const auto yuv_shape_of = std::make_shared<ShapeOf>(nodes[0]);
+    const auto get_height = std::make_shared<Gather>(yuv_shape_of, axis, Constant::create(element::i32, {}, {0}));
+
+    const auto start = Constant::create(element::i32, {1}, {0});
+    // slice stop is input height * (2/3)
+    auto mul_height =
+        std::make_shared<Multiply>(get_height, Constant::create(get_height->get_element_type(), {1}, {2}));
+    auto stop = std::make_shared<Divide>(mul_height, Constant::create(get_height->get_element_type(), {1}, {3}));
+    const auto step = Constant::create(element::i32, {1}, {1});
+    //
+    return std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+}
+}  // namespace
 
 void PreStepsList::add_scale_impl(const std::vector<float>& values) {
     m_actions.emplace_back(
@@ -138,11 +155,11 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
             // doesn't require shape or type propagation.
             return std::make_tuple(res, false);
         },
-        "convert type (" + type.get_type_name() + ")");
+        "convert type (" + type.to_string() + ")");
 }
 
 void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width) {
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+    using InterpolateMode = op::util::InterpolateBase::InterpolateMode;
     std::string name;
     if (dst_width > 0 && dst_height > 0) {
         name = "resize to (" + std::to_string(dst_height) + ", " + std::to_string(dst_width) + ")";
@@ -157,48 +174,52 @@ void PreStepsList::add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't resize multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
-            auto to_mode = [](ResizeAlgorithm alg) -> InterpolateMode {
+            const auto to_mode = [](const ResizeAlgorithm alg) -> InterpolateMode {
                 switch (alg) {
                 case ResizeAlgorithm::RESIZE_NEAREST:
                     return InterpolateMode::NEAREST;
                 case ResizeAlgorithm::RESIZE_CUBIC:
                     return InterpolateMode::CUBIC;
+                case ResizeAlgorithm::RESIZE_BILINEAR_PILLOW:
+                    return InterpolateMode::BILINEAR_PILLOW;
+                case ResizeAlgorithm::RESIZE_BICUBIC_PILLOW:
+                    return InterpolateMode::BICUBIC_PILLOW;
                 case ResizeAlgorithm::RESIZE_LINEAR:
                 default:
                     return InterpolateMode::LINEAR;
                 }
             };
-            auto node = nodes.front();
-            auto layout = ctxt.layout();
+            const auto& layout = ctxt.layout();
             OPENVINO_ASSERT(ov::layout::has_height(layout) && ov::layout::has_width(layout),
                             "Can't add resize for layout without W/H specified. Use 'set_layout' API to define layout "
                             "of image data, like `NCHW`");
-            auto node_rank = node.get_partial_shape().rank();
-            OPENVINO_ASSERT(node_rank.is_static(), "Resize operation is not supported for fully dynamic shape");
+            const auto& node = nodes.front();
+            OPENVINO_ASSERT(node.get_partial_shape().rank().is_static(),
+                            "Resize operation is not supported for fully dynamic shape");
 
-            auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
-            auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
+            const auto height_idx = static_cast<int64_t>(get_and_check_height_idx(layout, node.get_partial_shape()));
+            const auto width_idx = static_cast<int64_t>(get_and_check_width_idx(layout, node.get_partial_shape()));
             if (dst_height < 0 || dst_width < 0) {
                 OPENVINO_ASSERT(ctxt.model_shape().rank().is_static(),
                                 "Resize is not fully specified while target model shape is dynamic");
             }
-            int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
-            int new_image_height = dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
+            const int new_image_width = dst_width < 0 ? static_cast<int>(ctxt.get_model_width_for_resize()) : dst_width;
+            const int new_image_height =
+                dst_height < 0 ? static_cast<int>(ctxt.get_model_height_for_resize()) : dst_height;
 
-            auto target_spatial_shape =
+            const auto target_spatial_shape =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {new_image_height, new_image_width});
-            auto scales = op::v0::Constant::create<float>(element::f32, Shape{2}, {1, 1});
             // In future consider replacing this to set of new OV operations like `getDimByName(node, "H")`
             // This is to allow specifying layout on 'evaluation' stage
-            auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
+            const auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {height_idx, width_idx});
 
-            op::v4::Interpolate::InterpolateAttrs attrs(to_mode(alg),
-                                                        op::v4::Interpolate::ShapeCalcMode::SIZES,
-                                                        {0, 0},
-                                                        {0, 0});
+            op::util::InterpolateBase::InterpolateAttrs attrs(to_mode(alg),
+                                                              op::util::InterpolateBase::ShapeCalcMode::SIZES,
+                                                              {0, 0},
+                                                              {0, 0});
 
-            auto interp = std::make_shared<op::v4::Interpolate>(node, target_spatial_shape, scales, axes, attrs);
-            return std::make_tuple(std::vector<Output<Node>>{interp}, true);
+            const auto interp = std::make_shared<op::v11::Interpolate>(node, target_spatial_shape, axes, attrs);
+            return std::make_tuple(OutputVector{interp}, true);
         },
         name);
 }
@@ -357,6 +378,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0]);
                     break;
+                case ColorFormat::GRAY:
+                    convert = grey_from_yuv_single_plane(nodes);
+                    break;
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from NV12 to '",
@@ -374,6 +398,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     break;
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::NV12toBGR>(nodes[0], nodes[1]);
+                    break;
+                case ColorFormat::GRAY:
+                    convert = nodes[0].get_node_shared_ptr();
                     break;
                 default:
                     OPENVINO_ASSERT(false,
@@ -394,6 +421,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
                     break;
+                case ColorFormat::GRAY:
+                    convert = grey_from_yuv_single_plane(nodes);
+                    break;
                 default:
                     OPENVINO_ASSERT(false,
                                     "Unsupported conversion from I420 to '",
@@ -412,6 +442,9 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     break;
                 case ColorFormat::BGR:
                     convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                    break;
+                case ColorFormat::GRAY:
+                    convert = nodes[0].get_node_shared_ptr();
                     break;
                 default:
                     OPENVINO_ASSERT(false,
@@ -623,7 +656,7 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
             auto convert = std::make_shared<op::v0::Convert>(node, t);
             return std::make_tuple(Output<Node>(convert), true);
         },
-        "convert type (" + type.get_type_name() + ")");
+        "convert type (" + type.to_string() + ")");
 }
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {

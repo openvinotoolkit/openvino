@@ -10,15 +10,16 @@
 namespace ov {
 namespace op {
 namespace v0 {
-template <class T>
-void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
+template <class T, class TRShape = result_shape_t<T>>
+std::vector<TRShape> shape_infer(const MatMul* op, const std::vector<T>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     auto arg0_shape = input_shapes[0], arg1_shape = input_shapes[1];
     if (arg0_shape.rank().is_dynamic() || arg1_shape.rank().is_dynamic()) {
-        output_shapes[0] = ov::PartialShape::dynamic();
-        return;
+        return {ov::PartialShape::dynamic()};
     }
+
+    auto output_shapes = std::vector<TRShape>();
     // ranks are known
     const bool transpose_a = op->get_transpose_a();
     const bool transpose_b = op->get_transpose_b();
@@ -27,7 +28,7 @@ void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shape
     NODE_VALIDATION_CHECK(op, (arg0_rank != 0 && arg1_rank != 0), "Scalars are not supported as MatMul inputs.");
 
     // Temporary Dimension vectors to calculate output shape
-    T arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
+    TRShape arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
 
     // 1. Applying transpositions specified by optional `transpose_a` and `transpose_b`
     // Only two right-most dimensions are swapped, other dimensions remain the same.
@@ -58,7 +59,7 @@ void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shape
     // COL_INDEX_DIM of the first matrix has to match ROW_INDEX_DIM of the second matrix.
     // Error is not thrown for dynamic dimensions bounds without intersection
     // to ensure MatMul backward compatibility.
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    using DimType = typename T::value_type;
     auto merged_dimension = DimType();
     auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
     auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
@@ -116,7 +117,8 @@ void shape_infer(const ov::op::v0::MatMul* op, const std::vector<T>& input_shape
         // arg1 input temporary axis inserted at COL_INDEX_DIM is removed
         output_shape.erase(output_shape.begin() + output_shape.size() - 1);
     }
-    output_shapes[0] = output_shape;
+    output_shapes.emplace_back(std::move(output_shape));
+    return output_shapes;
 }
 }  // namespace v0
 }  // namespace op

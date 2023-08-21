@@ -33,7 +33,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_coverity
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
+    OV_PYTHON_VERSION: 3.11.2 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
   steps:
   - task: UsePythonVersion@0
@@ -43,7 +43,7 @@ jobs:
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.11
     name: setupPython
   - bash: |
       #!/bin/bash
@@ -70,6 +70,7 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
@@ -106,10 +107,9 @@ jobs:
     inputs:
       # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
-        -GNinja
+        -G "Ninja Multi-Config"
         -DENABLE_CPPLINT=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DBUILD_nvidia_plugin=OFF
@@ -127,10 +127,10 @@ jobs:
     displayName: 'Clean ccache stats'
 
   - script: |
-        set -e
-        wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
-        tar xvf coverity_tool.tgz
-        rm coverity_tool.tgz
+      set -e
+      wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
+      tar xvf coverity_tool.tgz
+      rm coverity_tool.tgz
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
@@ -155,11 +155,11 @@ jobs:
     displayName: 'Pack cov-int folder for submission'
 
   - script: |
-        curl --form token=$(COVERITY_TOKEN) \
-          --form email=$(COVERITY_USER) \
-          --form file=@openvino.tgz \
-          --form version="$(Build.SourceVersion)" \
-          --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
-          https://scan.coverity.com/builds?project=openvino
+      curl --form token=$(COVERITY_TOKEN) \
+        --form email=$(COVERITY_USER) \
+        --form file=@openvino.tgz \
+        --form version="$(Build.SourceVersion)" \
+        --form description="https://github.com/openvinotoolkit/openvino/runs/$(Build.BuildNumber)" \
+        https://scan.coverity.com/builds?project=openvino
     workingDirectory: $(BUILD_DIR)
     displayName: 'Submit for analysis'

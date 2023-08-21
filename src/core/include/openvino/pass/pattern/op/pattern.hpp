@@ -40,6 +40,9 @@ OPENVINO_API
 std::function<bool(Output<Node>)> consumers_count(size_t n);
 
 OPENVINO_API
+std::function<bool(Output<Node>)> consumers_more_than(size_t n);
+
+OPENVINO_API
 std::function<bool(Output<Node>)> has_static_dim(size_t pos);
 
 OPENVINO_API
@@ -82,7 +85,7 @@ public:
     Pattern(const OutputVector& patterns) : Pattern(patterns, nullptr) {}
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
-        throw Exception("Uncopyable");
+        OPENVINO_THROW("Uncopyable");
     }
 
     ValuePredicate get_predicate() const;

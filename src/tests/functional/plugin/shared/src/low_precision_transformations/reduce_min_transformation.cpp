@@ -61,6 +61,7 @@ void ReduceMinTransformation::Run() {
 }
 
 TEST_P(ReduceMinTransformation, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Run();
 };
 

@@ -23,16 +23,6 @@ namespace cldnn {
 
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
 
-inline std::string get_extr_type(const std::string& str) {
-    auto begin = str.find('<');
-    auto end = str.find('>');
-
-    if (begin == std::string::npos || end == std::string::npos)
-        return {};
-
-    return str.substr(begin + 1, (end - begin) - 1);
-}
-
 inline std::string dt_to_str(data_types dt) {
     return data_type_traits::name(dt);
 }

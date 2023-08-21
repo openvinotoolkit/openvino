@@ -15,6 +15,7 @@
  * handling it by itself.
  */
 int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled,
+                const std::string &, const std::string &,
                 std::map<std::string, ov::PartialShape> reshapeShapes,
                 std::map<std::string, std::vector<size_t>> dataShapes) {
     auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled,
@@ -26,6 +27,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         InferenceEngine::InferRequest inferRequest;
         size_t batchSize = 0;
 
+        std::string device_prefix = device.substr(0, device.find(':'));
+
         // first_inference_latency = time_to_inference + first_inference
         {
             SCOPED_TIMER(first_inference_latency);
@@ -33,8 +36,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
                 SCOPED_TIMER(time_to_inference);
                 {
                     SCOPED_TIMER(load_plugin);
-                    TimeTest::setPerformanceConfig(ie, device);
-                    ie.GetVersions(device);
+                    TimeTest::setPerformanceConfig(ie, device_prefix);
+                    ie.GetVersions(device_prefix);
 
                     if (isCacheEnabled)
                         ie.SetConfig({ {CONFIG_KEY(CACHE_DIR), "models_cache"} });

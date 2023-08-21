@@ -42,6 +42,23 @@ public:
     static std::string to_string(binary_convolution_node const& node);
     typed_primitive_inst(network& network, binary_convolution_node const& node);
 
+    bool need_reset_input_memory(size_t idx = 0) const override {
+        if (idx != 0)
+            return false;
+
+        auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
+        return input_layout.data_padding ? true : false;
+    }
+
+    bool need_reset_output_memory() const override {
+        bool res = parent::need_reset_output_memory();
+        auto output_layout = _impl_params->get_output_layout(0);
+        if (output_layout.data_padding) {
+            return true;
+        }
+        return res;
+    }
+
     memory::ptr weights_memory() const { return dep_memory_ptr(1); }
 };
 

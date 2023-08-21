@@ -12,9 +12,9 @@
 namespace kernel_selector {
 static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx);
 static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output);
-static inline int SelectVecSizeFromFormat(const eltwise_params& params, size_t index);
-static inline int GetInnerFeatureBlockSize(const eltwise_params& arg, size_t index);
-static inline int GetInnerBatchBlockSize(const eltwise_params& arg, size_t index);
+static inline int SelectVecSizeFromFormat(const DataTensor&);
+static inline int GetInnerFeatureBlockSize(const DataTensor&);
+static inline int GetInnerBatchBlockSize(const DataTensor&);
 static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params);
 
 
@@ -105,13 +105,13 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
         return false;
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        if ((SelectVecSizeFromFormat(ewParams, i) == 1) &&
+        if ((SelectVecSizeFromFormat(ewParams.inputs[i]) == 1) &&
             !IsBroadcastingPossibleInput(ewParams.inputs[i], ewParams.outputs[0])) {
             return false;
         }
     }
 
-    const auto vec_size = SelectVecSizeFromFormat(ewParams, 0);
+    const auto vec_size = SelectVecSizeFromFormat(ewParams.outputs[0]);
     const auto input0 = ewParams.inputs[0];
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
@@ -148,7 +148,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params, const optional_pa
 }
 
 JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_params& params, bool /*use_vload*/) const {
-    const auto vec_size = SelectVecSizeFromFormat(params, 0);
+    const auto vec_size = SelectVecSizeFromFormat(params.outputs[0]);
     JitConstants jit = {};
     std::string vload_decls;
 
@@ -179,7 +179,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
             bool feature_broadcasting = (params.inputs[input_idx].Feature().v == 1 && params.outputs[0].Feature().v != 1);
             bool spatial_broadcasting = (params.inputs[input_idx].LogicalSize() == params.outputs[0].Feature().v &&
                                         params.inputs[input_idx].LogicalSize() == params.inputs[input_idx].Feature().v &&
-                                        GetInnerBatchBlockSize(params, input_idx) == 1 && !Padded(params.inputs[input_idx]));
+                                        GetInnerBatchBlockSize(params.inputs[input_idx]) == 1 && !Padded(params.inputs[input_idx]));
             bool full_tensor = (params.inputs[input_idx].LogicalSize() == params.outputs[0].LogicalSize() && !Padded(params.inputs[input_idx]));
 
             // Based on dimension, get a string of indexing for formmatted GET_INDEX
@@ -189,7 +189,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
             else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5)
                 default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), z, y, x";
             else
-                IE_ASSERT("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
+                OPENVINO_ASSERT("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
 
             // Generate Jit
             switch (input.mode) {
@@ -278,9 +278,9 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
 
 JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    const auto vec_size = SelectVecSizeFromFormat(params, 0);
-    const auto inner_feature_blk_size = GetInnerFeatureBlockSize(params, 0);
-    const auto inner_batch_blk_size = GetInnerBatchBlockSize(params, 0);
+    const auto vec_size = SelectVecSizeFromFormat(params.outputs[0]);
+    const auto inner_feature_blk_size = GetInnerFeatureBlockSize(params.outputs[0]);
+    const auto inner_batch_blk_size = GetInnerBatchBlockSize(params.outputs[0]);
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", vec_size));
@@ -376,7 +376,7 @@ EltwiseKernelBase::DispatchData EltwiseKernel_blocked_opt::SetDefault(const eltw
     // so that each global id can be an index of each work group.
     // It also makes an index for fomatted GET_INDEX macro if needed(e.g. feature broadcasting, fusing).
     KernelData kd = KernelData::Default<eltwise_params>(params);
-    dispatchData.gws = {std::max(CalculateTotalWorkItemCount(params) / SelectVecSizeFromFormat(params, 0), (size_t)1), 1, 1};
+    dispatchData.gws = {std::max(CalculateTotalWorkItemCount(params) / SelectVecSizeFromFormat(params.outputs[0]), (size_t)1), 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -384,8 +384,8 @@ EltwiseKernelBase::DispatchData EltwiseKernel_blocked_opt::SetDefault(const eltw
 
 // Local
 static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params) {
-    auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params, 0));
-    auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params, 0));
+    auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
+    auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
     size_t spatial = 0;
     if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5)
         spatial = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
@@ -395,10 +395,10 @@ static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params) {
     return (feature * batch * spatial);
 }
 
-static inline int SelectVecSizeFromFormat(const eltwise_params& arg, size_t index) {
+static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
     // No feature inner block : not acceptable for calculation of ordered index
-    auto in_layout = arg.inputs[index].GetLayout();
-    switch (in_layout) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
@@ -419,9 +419,9 @@ static inline int SelectVecSizeFromFormat(const eltwise_params& arg, size_t inde
     }
 }
 
-static inline int GetInnerBatchBlockSize(const eltwise_params& arg, size_t index) {
-    auto in_layout = arg.inputs[index].GetLayout();
-    switch (in_layout) {
+static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
     case DataLayout::b_fs_yx_fsv4:
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:
@@ -439,15 +439,15 @@ static inline int GetInnerBatchBlockSize(const eltwise_params& arg, size_t index
     case DataLayout::bs_fs_zyx_bsv32_fsv16:
         return 32;
     default:
-        IE_ASSERT("GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_ASSERT("GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;
 }
 
-static inline int GetInnerFeatureBlockSize(const eltwise_params& arg, size_t index) {
-    auto in_layout = arg.inputs[index].GetLayout();
-    switch (in_layout) {
+static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
@@ -465,7 +465,7 @@ static inline int GetInnerFeatureBlockSize(const eltwise_params& arg, size_t ind
     case DataLayout::bs_fs_zyx_bsv16_fsv32:
         return 32;
     default:
-        IE_ASSERT("GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_ASSERT("GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;

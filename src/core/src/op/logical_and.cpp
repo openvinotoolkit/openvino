@@ -30,6 +30,7 @@ shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace logand {
 namespace {
 template <element::Type_t ET>
@@ -65,7 +66,9 @@ bool evaluate_logand(const HostTensorPtr& arg0,
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalAnd_evaluate);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return logand::evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 

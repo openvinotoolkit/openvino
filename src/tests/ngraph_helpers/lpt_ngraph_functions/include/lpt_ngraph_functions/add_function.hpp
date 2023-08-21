@@ -70,7 +70,8 @@ public:
         const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
         const int constInput,
         const std::vector<float>& constValues,
-        const std::string& additionalLayer);
+        const std::string& additionalLayer,
+        const std::string& postops_configuration = "");
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
@@ -93,7 +94,8 @@ public:
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
-        const std::string& operationType);
+        const std::string& operationType,
+        const std::string& postops_configuration = "");
 };
 
 }  // namespace subgraph

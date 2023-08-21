@@ -360,7 +360,7 @@ void regclass_Core(py::module m) {
             }
 
             std::stringstream str;
-            str << "Provided python object type " << model_path.get_type().str()
+            str << "Provided python object type " << py::str(model_path.get_type())
                 << " isn't supported as 'model' argument.";
             OPENVINO_THROW(str.str());
         },
@@ -485,11 +485,14 @@ void regclass_Core(py::module m) {
                 new_compiled = core.import_model(user_stream, "CPU")
         )");
 
-    cls.def("register_plugin",
-            &ov::Core::register_plugin,
-            py::arg("plugin_name"),
-            py::arg("device_name"),
-            R"(
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self, const std::string& plugin_name, const std::string& device_name) {
+            self.register_plugin(plugin_name, device_name);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
                 :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
@@ -499,6 +502,32 @@ void regclass_Core(py::module m) {
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
+            )");
+
+    cls.def(
+        "register_plugin",
+        [](ov::Core& self,
+           const std::string& plugin_name,
+           const std::string& device_name,
+           const std::map<std::string, py::object>& config) {
+            auto properties = Common::utils::properties_to_any_map(config);
+            self.register_plugin(plugin_name, device_name, properties);
+        },
+        py::arg("plugin_name"),
+        py::arg("device_name"),
+        py::arg("config"),
+        R"(
+                Register a new device and plugin which enable this device inside OpenVINO Runtime.
+
+                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
+                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
+                                    will be wrapped as `libplugin_name.so`.
+                :type plugin_name: str
+                :param device_name: A device name to register plugin for.
+                :type device_name: str
+                :param config: Plugin default configuration
+                :type config: dict, optional
             )");
 
     cls.def("register_plugins",
@@ -583,6 +612,21 @@ void regclass_Core(py::module m) {
             :type extensions: list[openvino.runtime.Extension]
         )");
 
+    cls.def("get_available_devices",
+            &ov::Core::get_available_devices,
+            py::call_guard<py::gil_scoped_release>(),
+            R"(
+                Returns devices available for inference Core objects goes over all registered plugins.
+
+                GIL is released while running this function.
+
+                :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
+                    If there more than one device of specific type, they are enumerated with .# suffix.
+                    Such enumerated device can later be used as a device name in all Core methods like:
+                    compile_model, query_model, set_property and so on.
+                :rtype: list
+            )");
+
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,
                               py::call_guard<py::gil_scoped_release>(),
@@ -597,4 +641,9 @@ void regclass_Core(py::module m) {
                                         compile_model, query_model, set_property and so on.
                                     :rtype: list
                                 )");
+
+    cls.def("__repr__", [](const ov::Core& self) {
+        auto devices = Common::docs::container_to_string(self.get_available_devices(), ", ");
+        return "<" + Common::get_class_name(self) + ": available plugins[" + devices + "]>";
+    });
 }

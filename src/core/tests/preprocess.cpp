@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
@@ -10,7 +11,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/util/common_util.hpp"
 #include "preprocess/color_utils.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -921,6 +921,34 @@ TEST(pre_post_process, resize_no_model_layout) {
     p.input().tensor().set_layout("NHWC");
     p.input().preprocess().resize(ResizeAlgorithm::RESIZE_CUBIC);
     EXPECT_NO_THROW(p.build());
+}
+
+TEST(pre_post_process, resize_with_bilinear_pillow) {
+    const auto f = create_simple_function(element::f32, PartialShape{1, 3, 224, 224});
+
+    auto p = PrePostProcessor(f);
+    // make the model accept images with spatial dimensions different than the original model's dims
+    p.input().tensor().set_shape({1, 3, 100, 150}).set_layout("NCHW");
+    // resize the incoming images to the original model's dims (deduced by PPP)
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BILINEAR_PILLOW);
+    p.build();
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 3, 100, 150}));
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 3, 224, 224}));
+}
+
+TEST(pre_post_process, resize_with_bicubic_pillow) {
+    const auto f = create_simple_function(element::f32, PartialShape{1, 3, 100, 100});
+
+    auto p = PrePostProcessor(f);
+    // make the model accept images with any spatial dimensions
+    p.input().tensor().set_shape({1, 3, -1, -1}).set_layout("NCHW");
+    // resize the incoming images to the original model's dims (specified manually)
+    p.input().preprocess().resize(ResizeAlgorithm::RESIZE_BICUBIC_PILLOW, 100, 100);
+    p.build();
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 3, -1, -1}));
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 3, 100, 100}));
 }
 
 // Error cases for 'resize'
@@ -1949,7 +1977,7 @@ TEST(pre_post_process, exception_safety) {
                      .tensor()
                      .set_color_format(ColorFormat::NV12_TWO_PLANES);
                  p.input().preprocess().custom([](const Output<Node>& node) -> Output<Node> {
-                     throw ngraph::ngraph_error("test error");
+                     OPENVINO_THROW("test error");
                  });
                  p.build(), ov::AssertFailure);
 
@@ -1961,7 +1989,7 @@ TEST(pre_post_process, exception_safety) {
                  p.output(1)  // This one is not
                      .postprocess()
                      .custom([](const Output<Node>& node) -> Output<Node> {
-                         throw ngraph::ngraph_error("test error");
+                         OPENVINO_THROW("test error");
                      });
                  p.build(), ngraph::ngraph_error);
     EXPECT_EQ(f->get_parameters().size(), 2);

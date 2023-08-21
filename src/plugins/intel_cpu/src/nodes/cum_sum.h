@@ -38,7 +38,7 @@ private:
 
     inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const;
 
-    size_t getAxis(const Memory& _axis, const Memory& _data) const;
+    size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 
     enum { CUM_SUM_DATA, AXIS, numOfInputs };
     bool exclusive;

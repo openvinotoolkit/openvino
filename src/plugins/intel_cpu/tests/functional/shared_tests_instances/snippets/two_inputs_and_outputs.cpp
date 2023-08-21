@@ -35,8 +35,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputs,
                              ::testing::ValuesIn(input_shapes),
                              ::testing::Values(2),
                              ::testing::Values(1),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TwoInputsAndOutputs::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputsWithReversedOutputs,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(input_shapes),
+                             ::testing::Values(2),
+                             ::testing::Values(1),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         TwoInputsAndOutputsWithReversedOutputs::getTestCaseName);
 
 }  // namespace
 } // namespace snippets

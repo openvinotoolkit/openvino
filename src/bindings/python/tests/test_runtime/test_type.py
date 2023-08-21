@@ -5,7 +5,7 @@
 import pytest
 import numpy as np
 
-from openvino.runtime import Type
+from openvino import Type
 
 
 @pytest.mark.parametrize(("dtype_string", "dtype", "ovtype"), [
@@ -64,11 +64,18 @@ def test_basic_ovtypes(ovtype,
     assert ovtype.is_static() is static_flag
     assert ovtype.is_dynamic() is dynamic_flag
     assert ovtype.is_real() is real_flag
+    assert ovtype.real is real_flag
     assert ovtype.is_integral() is integral_flag
+    assert ovtype.integral is integral_flag
     assert ovtype.is_signed() is signed_flag
+    assert ovtype.signed is signed_flag
     assert ovtype.is_quantized() is quantized_flag
+    assert ovtype.quantized is quantized_flag
     assert ovtype.get_type_name() == type_name
+    assert ovtype.type_name == type_name
+    assert ovtype.get_size() == type_size
     assert ovtype.size == type_size
+    assert ovtype.get_bitwidth() == type_bitwidth
     assert ovtype.bitwidth == type_bitwidth
 
 
@@ -77,15 +84,22 @@ def test_undefined_ovtype():
     assert ov_type.is_static() is True
     assert ov_type.is_dynamic() is False
     assert ov_type.is_real() is False
+    assert ov_type.real is False
     assert ov_type.is_integral() is True
+    assert ov_type.integral is True
     assert ov_type.is_signed() is False
+    assert ov_type.signed is False
     assert ov_type.is_quantized() is False
+    assert ov_type.quantized is False
     assert ov_type.get_type_name() == "undefined"
+    assert ov_type.type_name == "undefined"
+    assert ov_type.get_size() == 0
     assert ov_type.size == 0
 
     # Note: might depend on the system
     import sys
     assert ov_type.bitwidth == sys.maxsize * 2 + 1
+    assert ov_type.get_bitwidth() == sys.maxsize * 2 + 1
 
 
 def test_dynamic_ov_type():
@@ -98,7 +112,9 @@ def test_dynamic_ov_type():
     assert ov_type.is_quantized() is False
     assert ov_type.get_type_name() == "dynamic"
     assert ov_type.size == 0
+    assert ov_type.get_size() == 0
     assert ov_type.bitwidth == 0
+    assert ov_type.get_bitwidth() == 0
 
 
 @pytest.mark.parametrize(("ovtype_one", "ovtype_two", "expected"), [

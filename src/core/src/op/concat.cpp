@@ -8,11 +8,11 @@
 
 #include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
-#include "dimension_tracker.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -67,9 +67,7 @@ void op::Concat::validate_and_infer_types() {
         input_shapes.push_back(input_shape);
     }
 
-    std::vector<PartialShape> output_shapes(1, PartialShape{});
-
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, inputs_et, output_shapes.front());
 }
 
@@ -78,6 +76,7 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<Concat>(new_args, m_axis);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {
 bool evaluate_concat(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis) {
     std::vector<const char*> arg_bufs;
@@ -109,13 +108,14 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_ASSERT(outputs.size() == 1);
 
-    auto concat_axis = ov::normalize(get_axis(), inputs.front().get_shape().size());
+    auto concat_axis = ov::util::normalize(get_axis(), inputs.front().get_shape().size());
 
     std::vector<const char*> arg_bufs;
     std::vector<ov::Shape> arg_shapes;
@@ -155,7 +155,9 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
     const auto& inputs = input_values();
     if (std::all_of(inputs.cbegin(), inputs.cend(), [](const Output<Node>& out) {
             const auto& labels = out.get_tensor().get_value_label();
+            OPENVINO_SUPPRESS_DEPRECATED_START
             return has_no_labels(labels);
+            OPENVINO_SUPPRESS_DEPRECATED_END
         })) {
         return false;
     }

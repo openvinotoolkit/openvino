@@ -2,6 +2,11 @@
 
 @sphinxdirective
 
+.. meta::
+   :description: Get to know how Graph Rewrite handles running multiple matcher passes on 
+                 ov::Model in a single graph traversal.
+
+
 ``:ref:`ov::pass::GraphRewrite <doxid-classov_1_1pass_1_1_graph_rewrite>``` serves for running multiple matcher passes on ``:ref:`ov::Model <doxid-classov_1_1_model>``` in a single graph traversal.
 Example:
 
