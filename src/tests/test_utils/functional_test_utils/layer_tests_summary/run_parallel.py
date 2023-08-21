@@ -479,7 +479,7 @@ class TestParallelRunner:
                                 break
                         if has_status:
                             break
-                if not has_status:
+                if not has_status and test_name:
                     interapted_tests.append(test_name)
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
@@ -773,7 +773,7 @@ class TestParallelRunner:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
         if (self._split_unit == "test" and self._total_test_cnt != test_cnt) or (self._split_unit == "suite" and test_cnt < self._total_test_cnt) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
-            diff_set = set(saved_tests).difference(tests_runtime)
+            diff_set = set(saved_tests).difference(tests_runtime.keys())
             [logger.error(f'Missed test: {test}') for test in diff_set]
             is_successfull_run = False
         logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
