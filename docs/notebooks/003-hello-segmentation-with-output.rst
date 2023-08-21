@@ -1,6 +1,8 @@
 Hello Image Segmentation
 ========================
 
+.. _top:
+
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
@@ -10,8 +12,19 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-Imports
--------
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Download model weights <#download-model-weights>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+- `Visualize data <#visualize-data>`__
+
+Imports `⇑ <#top>`__
+#########################################
 
 .. code:: ipython3
 
@@ -24,8 +37,9 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-Download model weights
-----------------------
+Download model weights `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -61,10 +75,11 @@ Download model weights
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-Select inference device
------------------------
+Select inference device `⇑ <#top>`__
+#############################################################################################################################
 
-select device from dropdown list for running inference using OpenVINO
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -89,8 +104,9 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model
---------------
+Load the Model `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -102,11 +118,10 @@ Load the Model
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-Load an Image
--------------
+Load an Image `⇑ <#top>`__
+#############################################################################################################################
 
-A sample image from the `Mapillary
-Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
+A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
 .. code:: ipython3
@@ -134,7 +149,7 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f021436e0a0>
+    <matplotlib.image.AxesImage at 0x7f1f2c248430>
 
 
 
@@ -142,8 +157,9 @@ provided.
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
-Do Inference
-------------
+Do Inference `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -159,7 +175,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f02142bce50>
+    <matplotlib.image.AxesImage at 0x7f1f2c18bfd0>
 
 
 
@@ -167,8 +183,9 @@ Do Inference
 .. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
-Prepare Data for Visualization
-------------------------------
+Prepare Data for Visualization `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -185,8 +202,9 @@ Prepare Data for Visualization
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-Visualize data
---------------
+Visualize data `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
