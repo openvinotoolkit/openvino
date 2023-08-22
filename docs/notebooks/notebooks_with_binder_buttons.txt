@@ -30,6 +30,7 @@
 229-distilbert-sequence-classification
 243-tflite-selfie-segmentation
 247-code-language-id
+250-music-generation
 401-object-detection
 402-pose-estimation
 403-action-recognition-webcam
