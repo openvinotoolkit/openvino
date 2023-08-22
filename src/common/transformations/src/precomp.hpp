@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp"
+#include "openvino/core/core.hpp"
 #include "openvino/op/ops.hpp"
 
 #include <algorithm>
