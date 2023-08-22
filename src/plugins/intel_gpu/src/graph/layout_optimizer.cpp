@@ -1730,11 +1730,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
     } else if (node.is_type<reduce>()) {
         auto& reduce_node = node.as<reduce>();
-        auto input_layout = reduce_node.input().get_output_layout();
-        if (!use_onednn_impls && input_layout.is_dynamic()) {
-            if (input_layout.format.dimension() > 4) {
-                expected = format::get_default_format(input_layout.format.dimension());
-            } else if (input_layout.format.dimension() == 4) {
+        auto output_layout = reduce_node.get_output_layout();
+        if (!use_onednn_impls && output_layout.is_dynamic()) {
+            if (output_layout.format.dimension() > 4) {
+                expected = format::get_default_format(output_layout.format.dimension());
+            } else if (output_layout.format.dimension() == 4) {
                 expected = format::any;
             }
         }
