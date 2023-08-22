@@ -284,6 +284,7 @@ class TestParallelRunner:
 
     def __get_test_list_by_runtime(self, test_unit = "test"):
         self._total_test_cnt = 0
+        self._disabled_tests.clear()
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         if os.path.isfile(test_list_file_name):
             try:
@@ -309,9 +310,6 @@ class TestParallelRunner:
                     continue
                 if not ' ' in test_name:
                     test_suite = test_name.replace(".", "")
-                    # if (test_unit == "suite") :
-                    #     if constants.DISABLED_PREFIX in test_suite:
-                    #         self._disabled_tests.append(test_suite)
                     continue
                 pos = test_name.find(' # ')
                 if pos > 0 or test_suite != "" :
