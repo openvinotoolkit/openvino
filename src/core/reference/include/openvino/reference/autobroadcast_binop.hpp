@@ -97,9 +97,6 @@ void autobroadcast_binop(const T* arg0,
                          const Shape& arg1_shape,
                          const op::AutoBroadcastSpec& broadcast_spec,
                          Functor elementwise_functor) {
-    using ngraph::CoordinateTransform;
-    using ngraph::reduce;
-
     switch (broadcast_spec.m_type) {
     case op::AutoBroadcastType::NONE:
         for (size_t i = 0; i < shape_size(arg0_shape); i++) {
@@ -267,12 +264,12 @@ void autobroadcast_binop(const T* arg0,
             }
 
             NGRAPH_SUPPRESS_DEPRECATED_START
-            CoordinateTransform arg0_transform(arg0_shape);
-            CoordinateTransform arg1_transform(arg1_squeezed_shape);
-            CoordinateTransform output_transform(arg0_shape);
+            ngraph::CoordinateTransform arg0_transform(arg0_shape);
+            ngraph::CoordinateTransform arg1_transform(arg1_squeezed_shape);
+            ngraph::CoordinateTransform output_transform(arg0_shape);
 
             for (const Coordinate& output_coord : output_transform) {
-                Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
+                Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
                 out[output_transform.index(output_coord)] =
                     elementwise_functor(arg0[arg0_transform.index(output_coord)],
                                         arg1[arg1_transform.index(arg1_coord)]);
@@ -313,7 +310,6 @@ void autobroadcast_select(const U* arg0,
                           const op::AutoBroadcastSpec& broadcast_spec,
                           Functor elementwise_functor) {
     using ngraph::CoordinateTransformBasic;
-    using ngraph::reduce;
 
     switch (broadcast_spec.m_type) {
     case op::AutoBroadcastType::NONE:
@@ -385,9 +381,9 @@ void autobroadcast_select(const U* arg0,
 
             for (const Coordinate& output_coord : output_transform) {
                 NGRAPH_SUPPRESS_DEPRECATED_START
-                const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-                const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
-                const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
+                const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
+                const Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
+                const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
                 NGRAPH_SUPPRESS_DEPRECATED_END
 
                 const size_t arg0_idx =
@@ -464,8 +460,8 @@ void autobroadcast_select(const U* arg0,
 
         for (const Coordinate& output_coord : output_transform) {
             NGRAPH_SUPPRESS_DEPRECATED_START
-            const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-            const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
+            const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
+            const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
             NGRAPH_SUPPRESS_DEPRECATED_END
 
             const size_t arg0_idx =
