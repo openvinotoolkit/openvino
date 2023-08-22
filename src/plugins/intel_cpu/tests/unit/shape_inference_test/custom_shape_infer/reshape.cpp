@@ -33,8 +33,8 @@ public:
         bool tmp_specialZero;
         std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape, tmp_specialZero) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "axes" << CommonTestUtils::vec2str(tmp_axes) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "axes" << ov::test::utils::vec2str(tmp_axes) << "_";
         result << "exp_shape(" << tmp_exp_shape << ")_";
         result << "specalZero(" << unit_test::boolToString(tmp_specialZero) << ")";
         return result.str();

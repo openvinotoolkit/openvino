@@ -26,7 +26,6 @@ using ConcatRestrictionsParamsTuple = typename std::tuple<InferenceEngine::SizeV
 
 namespace ConcatTestsDefinitions {
 
-using namespace CommonTestUtils;
 using namespace InferenceEngine;
 using namespace ngraph::builder;
 using namespace ov;

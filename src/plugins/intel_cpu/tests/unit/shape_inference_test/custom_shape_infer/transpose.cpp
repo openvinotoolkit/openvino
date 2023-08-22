@@ -28,8 +28,8 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_transpose_order, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "input_shapes(" << CommonTestUtils::vec2str(tmp_input_shapes) << ")_";
-        result << "order(" << CommonTestUtils::vec2str(tmp_transpose_order) << ")_";
+        result << "input_shapes(" << ov::test::utils::vec2str(tmp_input_shapes) << ")_";
+        result << "order(" << ov::test::utils::vec2str(tmp_transpose_order) << ")_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
     }

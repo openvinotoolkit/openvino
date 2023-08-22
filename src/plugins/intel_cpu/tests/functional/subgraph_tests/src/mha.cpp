@@ -592,7 +592,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0, MHAQuantTest,
                                 ::testing::Values(0),
                                 ::testing::Values(ExpectedNodes{{"Subgraph", 5},  // FQs on inputs x 3 + MHA + Deq Mul
                                                                 {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 
 
@@ -604,7 +604,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1, MHAQuantTest,
                                 ::testing::Values(1),
                                 ::testing::Values(ExpectedNodes{{"Subgraph", 3},  // FQ on input + MHA + Deq Mul
                                                                 {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2, MHAQuantTest,

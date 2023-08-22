@@ -38,12 +38,12 @@ public:
         StaticShape tmp_exp_shape;
         std::tie(tmp_input_shapes, tmp_data, tmp_begin_mask, tmp_end_mask, tmp_exp_shape) = obj.param;
         std::ostringstream result;
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "begin" << CommonTestUtils::vec2str(tmp_data[BEGIN]) << "_";
-        result << "end" << CommonTestUtils::vec2str(tmp_data[END]) << "_";
-        result << "stride" << CommonTestUtils::vec2str(tmp_data[STRIDE]) << "_";
-        result << "begin_mask" << CommonTestUtils::vec2str(tmp_begin_mask) << "_";
-        result << "end_mask" << CommonTestUtils::vec2str(tmp_end_mask) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "begin" << ov::test::utils::vec2str(tmp_data[BEGIN]) << "_";
+        result << "end" << ov::test::utils::vec2str(tmp_data[END]) << "_";
+        result << "stride" << ov::test::utils::vec2str(tmp_data[STRIDE]) << "_";
+        result << "begin_mask" << ov::test::utils::vec2str(tmp_begin_mask) << "_";
+        result << "end_mask" << ov::test::utils::vec2str(tmp_end_mask) << "_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
     }
