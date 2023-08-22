@@ -181,28 +181,25 @@ std::vector<TRShape> shape_infer(const Node* op,
     }
 
     const auto& boxes_shape = input_shapes[0];
-    const auto& scores_shape = input_shapes[1];
-    const auto boxes_rank = boxes_shape.rank();
-    const auto scores_rank = scores_shape.rank();
 
     auto out_shape = TRShape{TDim(dim::inf_bound), 3};
-    if (boxes_rank.is_static()) {
-        auto& selected_boxes = out_shape[0];
-        if (const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-            const auto& num_boxes = boxes_shape[1];
-            const auto min_selected_boxes =
-                std::min(num_boxes.get_max_length(), static_cast<V>(max_out_boxes_per_class->front()));
-            selected_boxes = static_output ? TDim{min_selected_boxes} : TDim{0, min_selected_boxes};
-        }
+    if (boxes_shape.rank().is_static()) {
+        const auto& scores_shape = input_shapes[1];
 
-        if (scores_rank.is_static()) {
+        if (scores_shape.rank().is_static()) {
             nms::validate::num_batches(op, input_shapes);
             nms::validate::num_boxes(op, input_shapes);
 
+            auto& selected_boxes = out_shape[0];
+            if (const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
+                const auto& num_boxes = boxes_shape[1];
+                const auto min_selected_boxes =
+                    std::min(num_boxes.get_max_length(), static_cast<V>(max_out_boxes_per_class->front()));
+                selected_boxes = static_output ? TDim{min_selected_boxes} : TDim{0, min_selected_boxes};
+            }
+
             selected_boxes *= scores_shape[0].get_max_length();
             selected_boxes *= scores_shape[1].get_max_length();
-        } else {
-            selected_boxes = TDim(dim::inf_bound);
         }
         nms::validate::boxes_last_dim(op, input_shapes);
     }
