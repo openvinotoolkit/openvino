@@ -8,20 +8,13 @@
 #include "element_type.hpp"
 #include "infer_request.hpp"
 #include "model_wrap.hpp"
-#include "node_input.hpp"
 #include "node_output.hpp"
 #include "openvino/openvino.hpp"
 #include "pre_post_process_wrap.hpp"
-#include "shape.hpp"
 #include "tensor.hpp"
 #include "resize_algorithm.hpp"
 #include "async_infer.hpp"
 
-Napi::String Method(const Napi::CallbackInfo& info) {
-    ov::Version version = ov::get_openvino_version();
-    std::string str;
-    return Napi::String::New(info.Env(), str.assign(version.buildNumber));
-}
 
 /** @brief Initialize native add-on */
 Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
@@ -30,10 +23,7 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     CompiledModelWrap::Init(env, exports);
     InferRequestWrap::Init(env, exports);
     TensorWrap::Init(env, exports);
-    Shape::Init(env, exports);
     PrePostProcessorWrap::Init(env, exports);
-    Input<const ov::Node>::Init(env, exports);
-    Input<ov::Node>::Init(env, exports);
     Output<const ov::Node>::Init(env, exports);
     Output<ov::Node>::Init(env, exports);
     Napi::PropertyDescriptor element = Napi::PropertyDescriptor::Accessor<enumElementType>("element");
@@ -41,7 +31,6 @@ Napi::Object InitAll(Napi::Env env, Napi::Object exports) {
     Napi::PropertyDescriptor preprocess = Napi::PropertyDescriptor::Accessor<enumResizeAlgorithm>("resizeAlgorithm");
     exports.DefineProperty(preprocess);
 
-    exports.Set(Napi::String::New(env, "getDescriptionString"), Napi::Function::New(env, Method));
     exports.Set(Napi::String::New(env, "asyncInfer"), Napi::Function::New(env, asyncInfer));
 
     return exports;

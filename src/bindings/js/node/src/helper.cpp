@@ -8,16 +8,8 @@
 #include "tensor.hpp"
 
 const std::vector<std::string>& get_supported_types() {
-    static const std::vector<std::string> supported_element_types = {"i8",
-                                                                     "u8",
-                                                                     "i16",
-                                                                     "u16",
-                                                                     "i32",
-                                                                     "u32",
-                                                                     "f32",
-                                                                     "f64",
-                                                                     "i64",
-                                                                     "u64"};
+    static const std::vector<std::string> supported_element_types =
+        {"i8", "u8", "i16", "u16", "i32", "u32", "f32", "f64", "i64", "u64"};
     return supported_element_types;
 }
 
@@ -96,7 +88,7 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
             buf = elem.As<Napi::Uint32Array>();
         else {
             buf = elem.As<Napi::Int32Array>();
-        } 
+        }
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
         std::vector<size_t> vector(data_ptr, data_ptr + buf.ElementLength());
         return vector;
@@ -164,6 +156,14 @@ template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
                                                           const ov::element::Type_t type) {
     return Napi::String::New(info.Env(), ov::element::Type(type).to_string());
+}
+
+template <>
+Napi::Array cpp_to_js<ov::Shape, Napi::Array>(const Napi::CallbackInfo& info, const ov::Shape shape) {
+    auto arr = Napi::Array::New(info.Env(), shape.size());
+    for (size_t i = 0; i < shape.size(); ++i)
+        arr[i] = shape[i];
+    return arr;
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest infer_request, std::string key) {

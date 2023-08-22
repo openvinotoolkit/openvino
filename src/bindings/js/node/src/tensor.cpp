@@ -126,8 +126,7 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
-    auto shape = _tensor.get_shape();
-    return Shape::Wrap(info.Env(), shape);
+    return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }
 
 Napi::Value TensorWrap::get_precision(const Napi::CallbackInfo& info) {
