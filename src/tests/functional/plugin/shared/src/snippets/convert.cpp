@@ -24,7 +24,7 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
         result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShape[i].first}) << "_";
         result << "TS[" << i << "]=";
         for (const auto& shape : inputShape[i].second) {
-        result << ov::test::utils::vec2str(sh.get_shape()) << "_";
+            result << ov::test::utils::vec2str(shape) << "_";
         }
     }
     result << "IT=" << ov::test::utils::vec2str(types.first) << "_";

@@ -98,7 +98,7 @@ std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::sn
     for (const auto& shape : inputShapes2.second) {
         result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
-    result << "IS_Broadcast=" << CommonTestUtils::partialShape2str({broadcastShape}) << "_";
+    result << "IS_Broadcast=" << ov::test::utils::partialShape2str({broadcastShape}) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";

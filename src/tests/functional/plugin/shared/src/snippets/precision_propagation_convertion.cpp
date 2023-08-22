@@ -21,10 +21,10 @@ std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamIn
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
-        result << "IS[" << i << "]=" << CommonTestUtils::partialShape2str({input_shapes[i].first}) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({input_shapes[i].first}) << "_";
         result << "TS[" << i << "}=";
         for (const auto& shape : input_shapes[i].second) {
-            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+            result << "(" << ov::test::utils::vec2str(shape) << ")_";
         }
     }
     for (size_t i = 0; i < fake_quantize_intervals.size(); ++i)

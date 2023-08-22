@@ -35,7 +35,7 @@ std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
 }
 std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const std::vector<float> const_values = CommonTestUtils::generate_float_numbers(shape_size(m_const_shape.get_shape()), -10., 10.);
+    const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(m_const_shape.get_shape()), -10., 10.);
     auto const_data1 = std::make_shared<op::v0::Constant>(precision, m_const_shape.get_shape(), const_values);
     auto shift = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{1});
     auto axes = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<float>{0});

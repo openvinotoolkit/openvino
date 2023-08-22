@@ -50,15 +50,15 @@ std::string CheckBroadcast::getTestCaseName(testing::TestParamInfo<CheckBroadcas
     std::tie(input_type, test_case_params, target_device) = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << CommonTestUtils::partialShape2str({test_case_params.input_shapes.first.first}) << "_";
+    result << "IS[0]=" << ov::test::utils::partialShape2str({test_case_params.input_shapes.first.first}) << "_";
     result << "TS[0]=";
     for (const auto& shape : test_case_params.input_shapes.first.second) {
-        result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+        result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
-    result << "IS[1]=" << CommonTestUtils::partialShape2str({test_case_params.input_shapes.second.first}) << "_";
+    result << "IS[1]=" << ov::test::utils::partialShape2str({test_case_params.input_shapes.second.first}) << "_";
     result << "TS[1]=";
     for (const auto& shape : test_case_params.input_shapes.second.second) {
-        result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+        result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
     result << "IT=" << input_type << "_";
     result << "BCT=" << test_case_params.broadcast.m_type << "_";

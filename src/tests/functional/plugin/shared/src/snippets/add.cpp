@@ -66,7 +66,7 @@ std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets:
     for (const auto& shape : inputShapes.second) {
         result << "(" << ov::test::utils::vec2str(shape) << ")_";
     }
-    result << "IS_ConstShape=" << CommonTestUtils::partialShape2str({constShape}) << "_";
+    result << "IS_ConstShape=" << ov::test::utils::partialShape2str({constShape}) << "_";
     result << "T=" << type << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
