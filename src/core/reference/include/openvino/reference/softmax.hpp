@@ -44,3 +44,13 @@ void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
+
+// Proxy call for dependant components transition to ov::reference namespace
+namespace ov {
+namespace reference {
+template <typename T>
+void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
+    ngraph::runtime::reference::softmax(arg, out, shape, axes);
+}
+}  // namespace reference
+}  // namespace ov
