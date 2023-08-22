@@ -8,12 +8,12 @@ from summarize import create_summary, create_api_summary
 from merge_xmls import merge_xml
 from run_parallel import TestParallelRunner
 from pathlib import Path
-import csv
 
 import defusedxml.ElementTree as ET
 from urllib.parse import urlparse
 
 import os
+import csv
 import urllib.request as ur
 from utils import constants
 from utils.conformance_utils import get_logger
@@ -41,20 +41,20 @@ def get_default_working_dir():
 def parse_arguments():
     parser = ArgumentParser()
 
-    models_path_help = "Only for OP Conformance: Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file with model to download or http link to download something . If --s=0, specify the Conformance IRs directory"
-    dump_graph_help = "Only for OP Conformance: Set '1' if you want to create Conformance IRs from custom/downloaded models using subgraphsDumper tool. In other cases, set 0. The default value is '1'"
-    device_help = " Specify the target device. The default value is CPU"
-    ov_help = "OV bin path. The default way is try to find the absolute path of latest bin in the repo (by using script path)"
-    working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
+    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file with models to download by a link, model file paths. If --s=0, specify the Conformance IRs directory. NOTE: Applicable only for Opset Conformance."
+    dump_graph_help = "Set '1' to create Conformance IRs from models using subgraphsDumper tool. The default value is '0'. NOTE: Applicable only for Opset Conformance."
+    device_help = "Specify a target device. The default value is `CPU`"
+    ov_help = "OV binary path. The default way is to find the absolute path of latest bin in the repo (by using script path)"
+    working_dir_help = "Specify a working directory to save a run artifacts"
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
-    workers_help = "Specify number of workers to run in parallel. The default value is CPU count - 1"
-    gtest_filter_helper = "Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None"
-    ov_config_path_helper = "Specify path to file contains plugin config"
-    special_mode_help = "Specify shape mode for Opset conformance or API scope type. Default value is ``. Possible values: OPSET conformance: `static`, `dynamic`, ``; API Conformance: `mandatory`, ``"
-    parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
-    expected_failures_help = "Excepted failures list file path"
-    cache_path_help = "Path to the cache file with test_name list sorted by execution time. .lst file!"
-    expected_failures_update_help = "Update expected failures list"
+    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count-1`"
+    gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
+    ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
+    special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
+    parallel_help = "Parallel over HW devices. For example run tests over GPU.0 and GPU.1 in case when device are the same"
+    expected_failures_help = "Excepted failures list file path as csv"
+    cache_path_help = "Path to the cache file with test_name list sorted by execution time as `.lst` file!"
+    expected_failures_update_help = "Overwrite expected failures list in case same failures were fixed"
 
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default=constants.OP_CONFORMANCE)
@@ -107,7 +107,7 @@ class Conformance:
                 logger.error(f'Incorrect value to set API scope: {special_mode}. Please check to get possible values')
                 exit(-1)
         else:
-            logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
+            logger.error(f"Incorrect conformance type: {type}. Please use '{constants.OP_CONFORMANCE}' or '{constants.API_CONFORMANCE}'")
             exit(-1)
         self._type = type
         self._workers = workers
@@ -120,6 +120,8 @@ class Conformance:
         self._expected_failures_file = expected_failures_file
         if os.path.isfile(expected_failures_file):
             self._expected_failures = self.__get_failed_test_from_csv(expected_failures_file)
+        else:
+            logger.warning(f"Expected failures testlist `{self._expected_failures_file}` does not exist!")
         self._expected_failures_update = expected_failures_update
 
     def __download_models(self, url_to_download, path_to_save):
@@ -224,7 +226,8 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"',
+        command_line_args = [f"--device={self._device}", 
+                             f'--input_folders="{self._model_path}"' if self._type == constants.OP_CONFORMANCE else '',
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter=\"{self._gtest_filter}\"', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._special_mode}']
@@ -284,7 +287,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures_file}")
         logger.info(f"[ARGUMENTS] --expected_failures_update = {self._expected_failures_update}")
 
-        if self._type == "OP":
+        if self._type == constants.OP_CONFORMANCE:
             if file_utils.is_url(self._model_path):
                 self._model_path = self.__download_models(self._model_path, self._working_dir)
             if self._model_path == NO_MODEL_CONSTANT or os.path.splitext(self._model_path)[1] == ".lst":
