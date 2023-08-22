@@ -8,6 +8,7 @@ import os
 import sys
 import numpy as np
 
+from sys import platform
 from pathlib import Path
 
 import openvino
@@ -113,6 +114,62 @@ def plugins_path(device, lib_path):
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
+
+
+def get_model_with_template_extension():
+    core = Core()
+    ir = bytes(b"""<net name="Activation" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32" names="in_data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="Identity" version="extension">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="out_data">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+    if platform == "win32":
+        core.add_extension(library_path="openvino_template_extension.dll")
+    else:
+        core.add_extension(library_path="libopenvino_template_extension.so")
+    return core, core.read_model(ir)
 
 
 def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.runtime.Model:

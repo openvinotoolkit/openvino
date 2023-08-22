@@ -21,11 +21,7 @@ from openvino import (
 
 from openvino.runtime import Extension
 
-from tests.conftest import (
-    model_onnx_path,
-    get_model_with_template_extension,
-)
-
+from tests.conftest import model_onnx_path
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
@@ -33,6 +29,7 @@ from tests.utils.helpers import (
     plugins_path,
     compare_models,
     create_filename_for_test,
+    get_model_with_template_extension
 )
 
 test_net_onnx = model_onnx_path()
