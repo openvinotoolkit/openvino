@@ -34,8 +34,9 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
     auto output_size = tensor(format::get_default_format(input_layout.get_rank()), output_shape);
     auto op = desc->output_paddings[0];
 
+    auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        input_layout.data_type = impl_param.get_fused_output_layout().data_type;
+        output_dt = impl_param.get_fused_output_layout().data_type;
     }
 
     // Adjust output format for optimizing out of transpose related to acdb format.
@@ -44,7 +45,7 @@ layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_pa
         out_fmt = node.get_preferred_output_fmt();
     }
 
-    return layout(input_layout.data_type, out_fmt, output_size, op);
+    return layout(output_dt, out_fmt, output_size, op);
 }
 
 template<typename ShapeType>

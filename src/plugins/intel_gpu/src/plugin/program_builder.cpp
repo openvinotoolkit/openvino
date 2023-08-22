@@ -523,6 +523,9 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
 
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
+    size_t output_size = std::min(prim->output_data_types.size(), op.get_output_size());
+    for (size_t i = 0; i < output_size; ++i)
+        prim->output_data_types[i] = cldnn::element_type_to_data_type(op.get_output_element_type(i));
 
     bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
                           prim->type != cldnn::data::type_id();
