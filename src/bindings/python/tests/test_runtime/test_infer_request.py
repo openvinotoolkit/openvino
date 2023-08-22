@@ -97,7 +97,10 @@ def abs_model_with_data(device, ov_type, numpy_dtype):
 
 def test_get_profiling_info(device):
     core = Core()
-    model = get_relu_model()
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    model = Model([softmax], [param], "test_model")
+
     core.set_property(device, {"PERF_COUNT": "YES"})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
@@ -161,23 +164,28 @@ def test_tensor_setter(device):
 
 def test_set_tensors(device):
     core = Core()
-    model = get_relu_model()
+
+    param = ops.parameter([1, 3, 32, 32], np.float32, name="data")
+    softmax = ops.softmax(param, 1, name="fc_out")
+    res = ops.result(softmax, name="res")
+    res.output(0).get_tensor().set_names({"res"})
+    model = Model([res], [param], "test_model")
+ 
     compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
     tensor1 = Tensor(data1)
-    data2 = np.ones(shape=(1, 10), dtype=np.float32)
+    data2 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor2 = Tensor(data2)
     data3 = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor3 = Tensor(data3)
-    data4 = np.zeros(shape=(1, 10), dtype=np.float32)
+    data4 = np.zeros(shape=(1, 3, 32, 32), dtype=np.float32)
     tensor4 = Tensor(data4)
 
     request = compiled_model.create_infer_request()
-    print(request.results)
-    request.set_tensors({"data": tensor1, "relu": tensor3})
+    request.set_tensors({"data": tensor1, "res": tensor2})
     t1 = request.get_tensor("data")
-    t2 = request.get_tensor("relu")
+    t2 = request.get_tensor("res")
     assert np.allclose(tensor1.data, t1.data, atol=1e-2, rtol=1e-2)
     assert np.allclose(tensor2.data, t2.data, atol=1e-2, rtol=1e-2)
 

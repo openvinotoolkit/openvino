@@ -121,9 +121,11 @@ def test_read_model_from_ir(request, tmp_path):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
+    arr = np.ones(shape=(10), dtype=np.int8)
+    arr.tofile(bin_path)
     model = open(xml_path).read()
     tensor = tensor_from_file(bin_path)
     model = core.read_model(model=model, weights=tensor)
