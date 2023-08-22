@@ -98,6 +98,7 @@ describe('Input class for ov::Input<const ov::Node>', () => {
 });
 
 describe('InferRequest infer()', () => {
+  const inferRequest = compiledModel.createInferRequest();
   const tensorData = Float32Array.from({ length: 3072 }, () => Math.random());
   const tensor = new ov.Tensor(
     ov.element.f32,
@@ -109,7 +110,6 @@ describe('InferRequest infer()', () => {
     [tensorData]];
 
   tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
     inferRequest.infer({ data: tl });
     const result = inferRequest.getOutputTensors();
     const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
@@ -120,7 +120,6 @@ describe('InferRequest infer()', () => {
   });
 
   tensorLike.forEach(([tl]) => {
-    const inferRequest = compiledModel.createInferRequest();
     inferRequest.infer([tl]);
     const result = inferRequest.getOutputTensors();
     const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
@@ -129,4 +128,28 @@ describe('InferRequest infer()', () => {
       assert.deepStrictEqual(result['fc_out'].data.length, 10);
     });
   });
+
+  tensorLike.forEach(([tl]) => {
+    inferRequest.infer([tl]);
+    const result = inferRequest.getOutputTensor();
+    const label = tl instanceof Float32Array ? 'TypedArray' : 'Tensor';
+    it(`Test getOutputTensor(): ${label} ])`, () => {
+      assert.deepStrictEqual(result.data.length, 10);
+    });
+  });
+
+  it('Test setInputTensor()', () => {
+    inferRequest.setInputTensor(tensor);
+    inferRequest.infer();
+    assert.deepStrictEqual(inferRequest.getOutputTensor().data.length, 10);
+  });
+
+    // Segmentation fault
+//   it('Test failed setInputTensor()', () => {
+//     assert.throws(
+//       () => inferRequest.setInputTensor(tensorData),
+//       /Passed value is not a valid tensor./
+//     );
+//   });
+
 });
