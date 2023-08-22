@@ -5,9 +5,9 @@
 #include "ngraph/op/prelu.hpp"
 
 #include <ngraph/validation_util.hpp>
-#include <openvino/reference/prelu.hpp>
 
 #include "itt.hpp"
+#include "openvino/reference/prelu.hpp"
 
 using namespace std;
 
