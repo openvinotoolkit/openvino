@@ -39,10 +39,8 @@ using namespace MockMultiDevice;
 // const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-// const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
-// const char vpuxFullDeviceName[] = "";
-const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
-const std::vector<std::string>  availableDevsNoID = {"CPU", "GPU", "VPUX"};
+const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "NPU"};
+const std::vector<std::string>  availableDevsNoID = {"CPU", "GPU", "NPU"};
 using ConfigParams = std::tuple<
         std::string,                        // Priority devices
         std::vector<DeviceInformation>,     // expect metaDevices
@@ -201,62 +199,62 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    // ConfigParams {"CPU,GPU,MYRIAD,VPUX",
+    // ConfigParams {"CPU,GPU,MYRIAD,NPU",
     //     {{"CPU", {}, -1, "", "CPU_", 0},
     //         {"GPU.0", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
     //         {"GPU.1", {}, -1, "1", std::string(dgpuFullDeviceName) + "_1", 1},
     //         {"MYRIAD.9.2-ma2480", {}, -1, "9.2-ma2480", "MYRIAD_9.2-ma2480", 2},
     //         {"MYRIAD.9.1-ma2480", {}, -1, "9.1-ma2480", "MYRIAD_9.1-ma2480", 2},
-    //         {"VPUX", {}, -1, "", "VPUX_", 3}}, false},
-    // ConfigParams {"VPUX,MYRIAD,GPU,CPU",
-    //     {{"VPUX", {}, -1, "", "VPUX_", 0},
+    //         {"NPU", {}, -1, "", "NPU_", 3}}, false},
+    // ConfigParams {"NPU,MYRIAD,GPU,CPU",
+    //     {{"NPU", {}, -1, "", "NPU_", 0},
     //         {"MYRIAD.9.2-ma2480", {}, -1, "9.2-ma2480", "MYRIAD_9.2-ma2480", 1},
     //         {"MYRIAD.9.1-ma2480", {}, -1, "9.1-ma2480", "MYRIAD_9.1-ma2480", 1},
     //         {"GPU.0", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 2},
     //         {"GPU.1", {}, -1, "1", std::string(dgpuFullDeviceName) + "_1", 2},
     //         {"CPU", {}, -1, "", "CPU_", 3}}, false},
-    // ConfigParams {"CPU(1),GPU(2),MYRIAD(3),VPUX(4)",
+    // ConfigParams {"CPU(1),GPU(2),MYRIAD(3),NPU(4)",
     //     {{"CPU", {}, 1, "", "CPU_", 0},
     //         {"GPU.0", {}, 2, "0", std::string(igpuFullDeviceName) + "_0", 1},
     //         {"GPU.1", {}, 2, "1", std::string(dgpuFullDeviceName) + "_1", 1},
     //         {"MYRIAD.9.2-ma2480", {}, 3, "9.2-ma2480", "MYRIAD_9.2-ma2480", 2},
     //         {"MYRIAD.9.1-ma2480", {}, 3, "9.1-ma2480", "MYRIAD_9.1-ma2480", 2},
-    //         {"VPUX", {}, 4, "", "VPUX_", 3}}, false},
+    //         {"NPU", {}, 4, "", "NPU_", 3}}, false},
     //
-    ConfigParams {"CPU,GPU,VPUX",
+    ConfigParams {"CPU,GPU,NPU",
          {{"CPU", {}, -1, "", "CPU_", 0},
              {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
              {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU,CPU",
-         {{"VPUX", {}, -1, "", "VPUX_", 0},
+             {"NPU", {}, -1, "", "NPU_", 2}}, false},
+    ConfigParams {"NPU,GPU,CPU",
+         {{"NPU", {}, -1, "", "NPU_", 0},
              {"GPU.0", {}, -1, "", std::string(igpuFullDeviceName) + "_0", 1},
              {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
              {"CPU", {}, -1, "", "CPU_", 2}}, false},
-    ConfigParams {"CPU(1),GPU(2),VPUX(4)",
+    ConfigParams {"CPU(1),GPU(2),NPU(4)",
          {{"CPU", {}, 1, "", "CPU_", 0},
              {"GPU.0", {}, 2, "", std::string(igpuFullDeviceName) + "_0", 1},
              {"GPU.1", {}, 2, "", std::string(dgpuFullDeviceName) + "_1", 1},
-             {"VPUX", {}, 4, "", "VPUX_", 2}}, false},
+             {"NPU", {}, 4, "", "NPU_", 2}}, false},
 
-    ConfigParams {"CPU(-1),GPU,VPUX",  {}, true},
-    ConfigParams {"CPU(NA),GPU,VPUX",  {}, true},
+    ConfigParams {"CPU(-1),GPU,NPU",  {}, true},
+    ConfigParams {"CPU(NA),GPU,NPU",  {}, true},
 
-    ConfigParams {"CPU(3),GPU.1,VPUX",
+    ConfigParams {"CPU(3),GPU.1,NPU",
         {{"CPU", {}, 3, "",  "CPU_", 0},
             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
-            {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
-    ConfigParams {"VPUX,GPU.1,CPU(3)",
-        {{"VPUX", {}, -1, "", "VPUX_", 0},
+            {"NPU", {}, -1, "", "NPU_", 2}}, false},
+    ConfigParams {"NPU,GPU.1,CPU(3)",
+        {{"NPU", {}, -1, "", "NPU_", 0},
             {"GPU.1", {}, -1, "", std::string(dgpuFullDeviceName) + "_1", 1},
             {"CPU", {}, 3, "",  "CPU_", 2}}, false}
 };
 
 const std::vector<ConfigParams> testConfigsNoID = {
-    ConfigParams {"CPU,GPU,VPUX",
+    ConfigParams {"CPU,GPU,NPU",
         {{"CPU", {}, -1, "", "CPU_", 0},
         {"GPU", {}, -1, "0", std::string(igpuFullDeviceName) + "_0", 1},
-        {"VPUX", {}, -1, "", "VPUX_", 2}}, false},
+        {"NPU", {}, -1, "", "NPU_", 2}}, false},
 };
 
 

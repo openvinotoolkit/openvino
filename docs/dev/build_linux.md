@@ -78,7 +78,10 @@ You can use the following additional build options:
      -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
      -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
      ```
-  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4):
+  3. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
+     ```sh
+     pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
+     ```
   4. After the build process finishes, export the newly built Python libraries to the user environment variables: 
      ```
      export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python_api/python3.7

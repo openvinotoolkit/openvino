@@ -353,9 +353,9 @@ bool isFP32(const ov::element::Type& type) {
 static void setDefaultIO(ov::preprocess::PrePostProcessor& preprocessor,
                          const std::vector<ov::Output<ov::Node>>& inputs,
                          const std::vector<ov::Output<ov::Node>>& outputs) {
-    const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
+    const bool isNPU = FLAGS_d.find("NPU") != std::string::npos;
 
-    if (isVPUX) {
+    if (isNPU) {
         for (size_t i = 0; i < inputs.size(); i++) {
             preprocessor.input(i).tensor().set_element_type(ov::element::u8);
         }
@@ -622,9 +622,9 @@ bool isFloat(InferenceEngine::Precision precision) {
 }
 
 static void setDefaultIO(InferenceEngine::CNNNetwork& network) {
-    const bool isVPUX = FLAGS_d.find("VPUX") != std::string::npos;
+    const bool isNPU = FLAGS_d.find("NPU") != std::string::npos;
 
-    if (isVPUX) {
+    if (isNPU) {
         const InferenceEngine::Precision u8 = InferenceEngine::Precision::U8;
         const InferenceEngine::Precision fp32 = InferenceEngine::Precision::FP32;
 

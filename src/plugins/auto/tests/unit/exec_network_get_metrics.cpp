@@ -254,12 +254,12 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
                     InferenceEngine::PluginConfigParams::THROUGHPUT}}, actualCustomerNum, ""});
         // enable autoBatch
         IE_SET_METRIC(OPTIMAL_BATCH_SIZE, gpuOptimalBatchNum, 8);
-        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, keembayOptimalBatchNum, 1);
+        IE_SET_METRIC(OPTIMAL_BATCH_SIZE, npuOptimalBatchNum, 1);
         IE_SET_METRIC(RANGE_FOR_STREAMS, rangeOfStreams, std::make_tuple<unsigned int, unsigned int>(1, 3));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
             .WillByDefault(RETURN_MOCK_VALUE(gpuOptimalBatchNum));
         ON_CALL(*core.get(), GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(OPTIMAL_BATCH_SIZE)), _))
-            .WillByDefault(RETURN_MOCK_VALUE(keembayOptimalBatchNum));
+            .WillByDefault(RETURN_MOCK_VALUE(npuOptimalBatchNum));
         ON_CALL(*core.get(), GetMetric(_, StrEq(METRIC_KEY(RANGE_FOR_STREAMS)), _))
             .WillByDefault(RETURN_MOCK_VALUE(rangeOfStreams));
         ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))

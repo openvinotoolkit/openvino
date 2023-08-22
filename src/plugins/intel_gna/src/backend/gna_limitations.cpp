@@ -44,6 +44,7 @@ const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_typ
 size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
     static const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
         {target::DeviceVersion::GNA1_0, 64},
+        {target::DeviceVersion::GNAEmbedded1_0, 64},
         {target::DeviceVersion::GNA2_0, 64},
         {target::DeviceVersion::GNA3_0, 64},
         {target::DeviceVersion::GNA3_1, 64},
@@ -689,8 +690,9 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
 }
 
 bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
-    return compile_target == DeviceVersion::GNA1_0 || compile_target == DeviceVersion::GNA2_0 ||
-           compile_target == DeviceVersion::GNA3_0 || compile_target == DeviceVersion::GNA3_1;
+    return compile_target == DeviceVersion::GNA1_0 || compile_target == DeviceVersion::GNAEmbedded1_0 ||
+           compile_target == DeviceVersion::GNA2_0 || compile_target == DeviceVersion::GNA3_0 ||
+           compile_target == DeviceVersion::GNA3_1;
 }
 
 }  // namespace cnn2d

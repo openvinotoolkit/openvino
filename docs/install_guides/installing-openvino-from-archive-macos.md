@@ -83,8 +83,20 @@ Step 1: Install OpenVINO Core Components
             tar -xf openvino_2023.0.1.tgz
             sudo mv m_openvino_toolkit_macos_11_0_2023.0.1.11005.fa1c41994f3_arm64 /opt/intel/openvino_2023.0.1
 
+5. (Optional) Install *numpy* Python Library:
 
-5. For simplicity, it is useful to create a symbolic link as below:
+   .. note::
+
+      This step is required only when you decide to use Python API.
+
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2023.0.1/python/python.<x>`` folder:
+
+   .. code-block:: sh
+
+      cd /opt/intel/openvino_2023.0.1
+      python3 -m pip install -r ./python/python3.<x>/requirements.txt
+
+6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
@@ -163,7 +175,21 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 Uninstalling Intel® Distribution of OpenVINO™ Toolkit
 #####################################################
 
-To uninstall the toolkit, follow the steps on the :doc:`Uninstalling page <openvino_docs_install_guides_uninstalling_openvino>`.
+If you have installed OpenVINO Runtime from archive files, you can uninstall it by deleting the archive files and the extracted folders.
+Uninstallation removes all Intel® Distribution of OpenVINO™ Toolkit component files but does not affect user files in the installation directory. 
+
+If you have created the symbolic link, remove the link first:
+    
+.. code-block:: sh
+
+   sudo rm /opt/intel/openvino_2023
+    
+To delete the files:
+    
+.. code-block:: sh
+
+   rm -r <extracted_folder> && rm <path_to_archive>
+
 
 Additional Resources
 ####################
