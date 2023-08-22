@@ -57,7 +57,7 @@ ExpressionPtr LinearIR::ExpressionFactory::create(const std::shared_ptr<ov::op::
                                                   const LinearIR& linear_ir, const std::shared_ptr<ov::Model>& model) {
     // Note: ctor of shared_ptr isn't friend class for Expression -> we cannot use directly make_shared<Expression>(args)
     OPENVINO_ASSERT(model != nullptr, "To create IOExpression from Parameter there must be inited model!");
-    auto expr = std::shared_ptr<IOExpression>(new IOExpression(IOExpression(par, model->get_parameter_index(par))));
+    auto expr = std::shared_ptr<IOExpression>(new IOExpression(par, model->get_parameter_index(par)));
     create_expression_outputs(expr);
     expr->validate();
     return expr;
