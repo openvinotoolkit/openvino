@@ -16,16 +16,16 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::Convolution>& op,
     const auto& out_shape = outputs[0]->get_shape();
     const auto& in_shape = inputs[0]->get_shape();
     const auto& filter_shape = inputs[1]->get_shape();
-    ngraph::reference::convolution<typename ngraph::element_type_traits<ET>::value_type>(in_data_ptr,
-                                                                                         filter_data,
-                                                                                         out_data_ptr,
-                                                                                         in_shape,
-                                                                                         filter_shape,
-                                                                                         out_shape,
-                                                                                         op->get_strides(),
-                                                                                         op->get_dilations(),
-                                                                                         op->get_pads_begin(),
-                                                                                         op->get_pads_end());
+    ov::reference::convolution<typename ngraph::element_type_traits<ET>::value_type>(in_data_ptr,
+                                                                                     filter_data,
+                                                                                     out_data_ptr,
+                                                                                     in_shape,
+                                                                                     filter_shape,
+                                                                                     out_shape,
+                                                                                     op->get_strides(),
+                                                                                     op->get_dilations(),
+                                                                                     op->get_pads_begin(),
+                                                                                     op->get_pads_end());
     return true;
 }
 

@@ -197,11 +197,11 @@ inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTen
 {
     auto in_shape = in->get_shape();
     out->set_shape(sp.reshape_out_shape);
-    reference::strided_slice(in->get_data_ptr<char>(),
-                             out->get_data_ptr<char>(),
-                             in_shape,
-                             sp,
-                             in->get_element_type().size());
+    ov::reference::strided_slice(in->get_data_ptr<char>(),
+                                 out->get_data_ptr<char>(),
+                                 in_shape,
+                                 sp,
+                                 in->get_element_type().size());
     return true;
 }
 

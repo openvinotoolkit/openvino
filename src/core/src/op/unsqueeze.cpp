@@ -54,7 +54,7 @@ struct Evaluate : element::NoAction<bool> {
 
     template <element::Type_t ET>
     static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-        ngraph::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        ov::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 };

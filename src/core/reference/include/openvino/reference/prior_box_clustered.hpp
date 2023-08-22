@@ -18,7 +18,7 @@ void prior_box_clustered(const T* data,
                          const T* img,
                          float* dst_data,
                          const Shape& out_shape,
-                         const op::PriorBoxClusteredAttrs& attrs) {
+                         const ngraph::op::PriorBoxClusteredAttrs& attrs) {
     size_t num_priors_ = attrs.widths.size();
 
     auto variances = attrs.variances;

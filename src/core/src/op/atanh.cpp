@@ -30,7 +30,7 @@ namespace atanhop {
 namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
-    reference::atanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
+    ov::reference::atanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
     return true;
 }
 

@@ -13,21 +13,21 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op,
     using T = typename ngraph::element_type_traits<ET>::value_type;
     auto idxType = op->get_input_element_type(1);
     if (idxType == ngraph::element::i32) {
-        ngraph::reference::scatterNdUpdate<T, int32_t>(inputs[0]->get_data_ptr<const T>(),
-                                                       inputs[1]->get_data_ptr<const int32_t>(),
-                                                       inputs[2]->get_data_ptr<const T>(),
-                                                       outputs[0]->get_data_ptr<T>(),
-                                                       op->get_input_shape(0),
-                                                       op->get_input_shape(1),
-                                                       op->get_input_shape(2));
+        ov::reference::scatterNdUpdate<T, int32_t>(inputs[0]->get_data_ptr<const T>(),
+                                                   inputs[1]->get_data_ptr<const int32_t>(),
+                                                   inputs[2]->get_data_ptr<const T>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_input_shape(2));
     } else if (idxType == ngraph::element::i64) {
-        ngraph::reference::scatterNdUpdate<T, int64_t>(inputs[0]->get_data_ptr<const T>(),
-                                                       inputs[1]->get_data_ptr<const int64_t>(),
-                                                       inputs[2]->get_data_ptr<const T>(),
-                                                       outputs[0]->get_data_ptr<T>(),
-                                                       op->get_input_shape(0),
-                                                       op->get_input_shape(1),
-                                                       op->get_input_shape(2));
+        ov::reference::scatterNdUpdate<T, int64_t>(inputs[0]->get_data_ptr<const T>(),
+                                                   inputs[1]->get_data_ptr<const int64_t>(),
+                                                   inputs[2]->get_data_ptr<const T>(),
+                                                   outputs[0]->get_data_ptr<T>(),
+                                                   op->get_input_shape(0),
+                                                   op->get_input_shape(1),
+                                                   op->get_input_shape(2));
     } else {
         OPENVINO_THROW("ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
     }

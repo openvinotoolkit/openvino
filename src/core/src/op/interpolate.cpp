@@ -234,49 +234,49 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
 
     switch (input_et) {
     case element::Type_t::f32:
-        ngraph::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                              padded_input_shape,
-                                              scales,
-                                              *axes,
-                                              outputs[0].data<float>(),
-                                              out_shape,
-                                              m_attrs);
+        ov::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                          padded_input_shape,
+                                          scales,
+                                          *axes,
+                                          outputs[0].data<float>(),
+                                          out_shape,
+                                          m_attrs);
         break;
     case element::Type_t::f16:
-        ngraph::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                *axes,
-                                                outputs[0].data<float16>(),
-                                                out_shape,
-                                                m_attrs);
+        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            *axes,
+                                            outputs[0].data<float16>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     case element::Type_t::bf16:
-        ngraph::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                                 padded_input_shape,
-                                                 scales,
-                                                 *axes,
-                                                 outputs[0].data<bfloat16>(),
-                                                 out_shape,
-                                                 m_attrs);
+        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                             padded_input_shape,
+                                             scales,
+                                             *axes,
+                                             outputs[0].data<bfloat16>(),
+                                             out_shape,
+                                             m_attrs);
         break;
     case element::Type_t::i8:
-        ngraph::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                               padded_input_shape,
-                                               scales,
-                                               *axes,
-                                               outputs[0].data<int8_t>(),
-                                               out_shape,
-                                               m_attrs);
+        ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                           padded_input_shape,
+                                           scales,
+                                           *axes,
+                                           outputs[0].data<int8_t>(),
+                                           out_shape,
+                                           m_attrs);
         break;
     case element::Type_t::u8:
-        ngraph::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                *axes,
-                                                outputs[0].data<uint8_t>(),
-                                                out_shape,
-                                                m_attrs);
+        ov::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                            padded_input_shape,
+                                            scales,
+                                            *axes,
+                                            outputs[0].data<uint8_t>(),
+                                            out_shape,
+                                            m_attrs);
         break;
     default:;
     }

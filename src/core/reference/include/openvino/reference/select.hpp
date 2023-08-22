@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <iostream>
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {
 namespace reference {

@@ -9,7 +9,7 @@
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph/shape.hpp>
 
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {
 namespace reference {

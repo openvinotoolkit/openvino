@@ -55,13 +55,13 @@ namespace shape_of {
 namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
-    reference::shape_of(shape, output_value->get_data_ptr<ET>());
+    ov::reference::shape_of(shape, output_value->get_data_ptr<ET>());
     return true;
 }
 
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, ov::Tensor& output_value) {
-    reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
+    ov::reference::shape_of(shape, output_value.data<fundamental_type_for<ET>>());
     return true;
 }
 

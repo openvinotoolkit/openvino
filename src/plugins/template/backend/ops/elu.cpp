@@ -11,10 +11,10 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::Elu>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::reference::elu<T>(inputs[0]->get_data_ptr<T>(),
-                              outputs[0]->get_data_ptr<T>(),
-                              ngraph::shape_size(inputs[0]->get_shape()),
-                              op->get_alpha());
+    ov::reference::elu<T>(inputs[0]->get_data_ptr<T>(),
+                          outputs[0]->get_data_ptr<T>(),
+                          ngraph::shape_size(inputs[0]->get_shape()),
+                          op->get_alpha());
     return true;
 }
 

@@ -39,10 +39,10 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
     OPENVINO_SUPPRESS_DEPRECATED_START
     out->set_shape(reduce(data->get_shape(), reduction_axes, keep_dims));
     try {
-        reference::reduce_logical_or(data->get_data_ptr<char>(),
-                                     out->get_data_ptr<char>(),
-                                     data->get_shape(),
-                                     reduction_axes);
+        ov::reference::reduce_logical_or(data->get_data_ptr<char>(),
+                                         out->get_data_ptr<char>(),
+                                         data->get_shape(),
+                                         reduction_axes);
         return true;
     } catch (const ngraph_error& e) {
         OPENVINO_WARN << e.what();

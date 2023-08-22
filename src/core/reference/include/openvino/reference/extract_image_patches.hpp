@@ -9,7 +9,7 @@
 namespace ov {
 namespace reference {
 template <typename T>
-void extract_image_patches(const std::shared_ptr<op::ExtractImagePatches> extImgPatches,
+void extract_image_patches(const std::shared_ptr<op::v3::ExtractImagePatches> extImgPatches,
                            const T* input,
                            T* out,
                            const Shape& inShape,

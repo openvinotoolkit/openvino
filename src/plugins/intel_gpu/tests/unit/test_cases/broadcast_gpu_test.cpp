@@ -29,12 +29,12 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
-                                 reinterpret_cast<char*>(output_data.data()),
-                                 ov::Shape(input_shape.begin(), input_shape.end()),
-                                 ov::Shape(output_shape.begin(), output_shape.end()),
-                                 ov::AxisSet(broadcast_axes),
-                                 sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_shape.begin(), input_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -104,12 +104,12 @@ void start_broadcast_test_dynamic(format input_format,
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
-                                 reinterpret_cast<char*>(output_data.data()),
-                                 ov::Shape(input_data_shape.begin(), input_data_shape.end()),
-                                 ov::Shape(output_shape.begin(), output_shape.end()),
-                                 ov::AxisSet(broadcast_axes),
-                                 sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_data_shape.begin(), input_data_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -198,12 +198,12 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
-    ngraph::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
-                                 reinterpret_cast<char*>(output_data.data()),
-                                 ov::Shape(input_shape.begin(), input_shape.end()),
-                                 ov::Shape(output_shape.begin(), output_shape.end()),
-                                 ov::AxisSet(broadcast_axes),
-                                 sizeof(T));
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_data.data()),
+                             ov::Shape(input_shape.begin(), input_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet(broadcast_axes),
+                             sizeof(T));
 
     ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 

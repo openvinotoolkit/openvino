@@ -32,11 +32,11 @@ std::vector<int64_t> create_pitches(const Shape& dims) {
 }  // namespace
 
 void reference::tile(const char* arg,
-                              char* out,
-                              const Shape& in_shape,
-                              const Shape& out_shape,
-                              const size_t elem_size,
-                              const std::vector<int64_t>& repeats) {
+                     char* out,
+                     const Shape& in_shape,
+                     const Shape& out_shape,
+                     const size_t elem_size,
+                     const std::vector<int64_t>& repeats) {
     Shape in_shape_expanded(in_shape);
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
     size_t block_size = 0;

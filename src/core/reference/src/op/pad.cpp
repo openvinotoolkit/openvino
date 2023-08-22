@@ -11,7 +11,7 @@
 #include "ngraph/coordinate_index.hpp"
 #include "ngraph/coordinate_transform.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace impl {
 namespace {
 template <typename T>
@@ -56,7 +56,7 @@ struct PadBase {
             const auto in_coord = transform_to_input_data_coord(out_coord);
 
             if (in_coord) {
-                const auto in_index = coordinate_index(*in_coord, data_shape);
+                const auto in_index = ngraph::coordinate_index(*in_coord, data_shape);
                 const auto in_data = data + in_index * elem_size;
                 std::copy(in_data, in_data + elem_size, out_data);
             } else {
@@ -208,4 +208,4 @@ void pad(const char* data,
     impl::pad(data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode);
 }
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

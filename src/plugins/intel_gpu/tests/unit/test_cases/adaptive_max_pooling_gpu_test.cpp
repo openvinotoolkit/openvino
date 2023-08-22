@@ -76,11 +76,7 @@ void generateTestData(const AdaptiveMaxPoolingParams& p, const format fmt, const
     const auto inShape = tensorToShape(p.inputTensor, fmt);
     const auto outShape = tensorToShape(p.outputTensor, fmt);
 
-    ngraph::reference::adaptive_max_pool<float, int32_t>(random_inputs.data(),
-                                                         out.data(),
-                                                         ind.data(),
-                                                         inShape,
-                                                         outShape);
+    ov::reference::adaptive_max_pool<float, int32_t>(random_inputs.data(), out.data(), ind.data(), inShape, outShape);
 
     inputs = getValues<T>(random_inputs);
     outputs = getValues<T>(out);

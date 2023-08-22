@@ -66,13 +66,13 @@ bool evaluate_space_to_depth(const HostTensorVector& outputs,
         return false;
     }
 
-    reference::space_to_depth(in->get_data_ptr<char>(),
-                              in->get_shape(),
-                              out->get_data_ptr<char>(),
-                              out->get_shape(),
-                              block_size,
-                              mode,
-                              elem_size);
+    ov::reference::space_to_depth(in->get_data_ptr<char>(),
+                                  in->get_shape(),
+                                  out->get_data_ptr<char>(),
+                                  out->get_shape(),
+                                  block_size,
+                                  mode,
+                                  elem_size);
     return true;
 }
 }  // namespace

@@ -128,15 +128,15 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
     }
 
     std::vector<char> padded_data(shape_size(padded_shape) * elem_size);
-    ngraph::reference::pad(data->get_data_ptr<char>(),
-                           pad_value,
-                           padded_data.data(),
-                           elem_size,
-                           data_shape,
-                           padded_shape,
-                           pads_begin_vec,
-                           pads_end_vec,
-                           ngraph::op::PadMode::CONSTANT);
+    ov::reference::pad(data->get_data_ptr<char>(),
+                       pad_value,
+                       padded_data.data(),
+                       elem_size,
+                       data_shape,
+                       padded_shape,
+                       pads_begin_vec,
+                       pads_end_vec,
+                       ngraph::op::PadMode::CONSTANT);
     data_shape = padded_shape;
 
     ov::Shape dispersed_shape(block_values_size + 1);

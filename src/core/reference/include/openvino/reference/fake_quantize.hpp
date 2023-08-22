@@ -158,11 +158,11 @@ void fake_quantize(const T* const arg,
 
         for (const Coordinate& output_coord : output_transform) {
             OPENVINO_SUPPRESS_DEPRECATED_START
-            const Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes, false);
-            const Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes, false);
-            const Coordinate arg2_coord = reduce(output_coord, arg2_squeezed_axes, false);
-            const Coordinate arg3_coord = reduce(output_coord, arg3_squeezed_axes, false);
-            const Coordinate arg4_coord = reduce(output_coord, arg4_squeezed_axes, false);
+            const Coordinate arg0_coord = ngraph::reduce(output_coord, arg0_squeezed_axes, false);
+            const Coordinate arg1_coord = ngraph::reduce(output_coord, arg1_squeezed_axes, false);
+            const Coordinate arg2_coord = ngraph::reduce(output_coord, arg2_squeezed_axes, false);
+            const Coordinate arg3_coord = ngraph::reduce(output_coord, arg3_squeezed_axes, false);
+            const Coordinate arg4_coord = ngraph::reduce(output_coord, arg4_squeezed_axes, false);
             OPENVINO_SUPPRESS_DEPRECATED_END
 
             const size_t arg0_idx =

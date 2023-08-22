@@ -89,19 +89,19 @@ bool evaluate(const HostTensorPtr& arg0,
     using T = typename element_type_traits<ET>::value_type;
     out->set_shape(arg0->get_shape());
     out->set_element_type(arg0->get_element_type());
-    reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
-                                arg1->get_data_ptr<const T>(),
-                                arg2->get_data_ptr<const T>(),
-                                arg3->get_data_ptr<const T>(),
-                                arg4->get_data_ptr<const T>(),
-                                out->get_data_ptr<T>(),
-                                arg0->get_shape(),
-                                arg1->get_shape(),
-                                arg2->get_shape(),
-                                arg3->get_shape(),
-                                arg4->get_shape(),
-                                parent->get_levels(),
-                                parent->get_auto_broadcast());
+    ov::reference::fake_quantize<T>(arg0->get_data_ptr<const T>(),
+                                    arg1->get_data_ptr<const T>(),
+                                    arg2->get_data_ptr<const T>(),
+                                    arg3->get_data_ptr<const T>(),
+                                    arg4->get_data_ptr<const T>(),
+                                    out->get_data_ptr<T>(),
+                                    arg0->get_shape(),
+                                    arg1->get_shape(),
+                                    arg2->get_shape(),
+                                    arg3->get_shape(),
+                                    arg4->get_shape(),
+                                    parent->get_levels(),
+                                    parent->get_auto_broadcast());
     return true;
 }
 

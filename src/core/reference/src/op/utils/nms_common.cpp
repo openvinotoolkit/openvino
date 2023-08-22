@@ -10,7 +10,7 @@
 
 #include "ngraph/check.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace reference {
 namespace nms_common {
 void nms_common_postprocessing(void* prois,
@@ -70,4 +70,4 @@ void nms_common_postprocessing(void* prois,
 }
 }  // namespace nms_common
 }  // namespace reference
-}  // namespace ngraph
+}  // namespace ov

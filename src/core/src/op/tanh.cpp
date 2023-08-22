@@ -37,7 +37,7 @@ struct Evaluate : ov::element::NoAction<bool> {
 
     template <element::Type_t ET>
     static result_type visit(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
-        ngraph::reference::tanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        ov::reference::tanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 };

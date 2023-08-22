@@ -132,15 +132,15 @@ bool op::util::PadBase::evaluate_pad(TensorVector& outputs, const TensorVector& 
     }
     outputs[0].set_shape(padded_shape);
 
-    ngraph::reference::pad(static_cast<char*>(inputs[0].data()),
-                           pad_value,
-                           static_cast<char*>(outputs[0].data()),
-                           elem_size,
-                           data_shape,
-                           padded_shape,
-                           pads_begin_coord,
-                           pads_end_coord,
-                           get_pad_mode());
+    ov::reference::pad(static_cast<char*>(inputs[0].data()),
+                       pad_value,
+                       static_cast<char*>(outputs[0].data()),
+                       elem_size,
+                       data_shape,
+                       padded_shape,
+                       pads_begin_coord,
+                       pads_end_coord,
+                       get_pad_mode());
 
     return true;
 }

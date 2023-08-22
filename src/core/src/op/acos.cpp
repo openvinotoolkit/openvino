@@ -34,7 +34,7 @@ namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::reference::acos<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    ov::reference::acos<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
     return true;
 }
 

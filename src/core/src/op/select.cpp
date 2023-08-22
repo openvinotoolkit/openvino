@@ -74,14 +74,14 @@ bool evaluate(const HostTensorVector& output_values,
 
     const auto& out = output_values[0];
 
-    reference::select<T>(in_cond->get_data_ptr<char>(),
-                         in_then->get_data_ptr<T>(),
-                         in_else->get_data_ptr<T>(),
-                         out->get_data_ptr<T>(),
-                         in_cond->get_shape(),
-                         in_then->get_shape(),
-                         in_else->get_shape(),
-                         autob);
+    ov::reference::select<T>(in_cond->get_data_ptr<char>(),
+                             in_then->get_data_ptr<T>(),
+                             in_else->get_data_ptr<T>(),
+                             out->get_data_ptr<T>(),
+                             in_cond->get_shape(),
+                             in_then->get_shape(),
+                             in_else->get_shape(),
+                             autob);
     return true;
 }
 

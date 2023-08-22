@@ -16,7 +16,7 @@ namespace eye {
 namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
-    ngraph::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
+    ov::reference::eye(out->get_data_ptr<ET>(), out->get_shape(), diagonal_index);
     return true;
 }
 

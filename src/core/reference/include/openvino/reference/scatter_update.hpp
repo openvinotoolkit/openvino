@@ -9,7 +9,7 @@
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace reference {
@@ -25,7 +25,7 @@ static const ngraph::CoordinateTransformBasic get_target_shape(const Shape& data
     OPENVINO_SUPPRESS_DEPRECATED_START
     for (size_t axis = 0; axis < m_n_axes; axis++) {
         target_shape.push_back(
-            ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
+            util::ceil_div(end_corner[axis_order[axis]] - start_corner[axis_order[axis]], strides[axis_order[axis]]));
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
     return target_shape;

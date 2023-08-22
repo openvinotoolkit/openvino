@@ -110,7 +110,7 @@ inline bool evaluate(const HostTensorPtr& arg0,
                      op::GeluApproximationMode mode,
                      const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
-    reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
+    ov::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
     return true;
 }
 

@@ -9,10 +9,10 @@
 #include <type_traits>
 
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "openvino/reference/autobroadcast_binop.hpp"
 
 namespace ov {
 namespace reference {

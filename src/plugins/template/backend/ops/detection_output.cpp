@@ -11,11 +11,11 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                             op->get_input_shape(0),
-                                                             op->get_input_shape(1),
-                                                             op->get_input_shape(2),
-                                                             op->get_output_shape(0));
+    ov::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
+                                                         op->get_input_shape(0),
+                                                         op->get_input_shape(1),
+                                                         op->get_input_shape(2),
+                                                         op->get_output_shape(0));
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0]->get_data_ptr<const T>(),
                       inputs[1]->get_data_ptr<const T>(),
@@ -41,11 +41,11 @@ bool evaluate(const std::shared_ptr<ngraph::op::v8::DetectionOutput>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                             op->get_input_shape(0),
-                                                             op->get_input_shape(1),
-                                                             op->get_input_shape(2),
-                                                             op->get_output_shape(0));
+    ov::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
+                                                         op->get_input_shape(0),
+                                                         op->get_input_shape(1),
+                                                         op->get_input_shape(2),
+                                                         op->get_output_shape(0));
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0]->get_data_ptr<const T>(),
                       inputs[1]->get_data_ptr<const T>(),

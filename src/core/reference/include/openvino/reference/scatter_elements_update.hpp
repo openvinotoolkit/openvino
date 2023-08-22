@@ -230,7 +230,7 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
 
     const auto reduce = reduction_functor_for<DataType>(reduction_type);
     for (const auto& offsets : idx_to_output_element) {
-        out_buf[offsets.out_offset] = ngraph::reduce(out_buf[offsets.out_offset], updates[offsets.idx_offset]);
+        out_buf[offsets.out_offset] = reduce(out_buf[offsets.out_offset], updates[offsets.idx_offset]);
         if (reduction_type == Reduction::MEAN) {
             mean_reduction_counters[offsets.out_offset] += 1;
         }

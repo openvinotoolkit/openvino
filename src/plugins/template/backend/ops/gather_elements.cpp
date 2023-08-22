@@ -17,21 +17,21 @@ bool evaluate(const std::shared_ptr<ngraph::op::v6::GatherElements>& op,
     outputs[0]->set_shape(indices_shape);
 
     if (inputs[1]->get_element_type() == ngraph::element::i64) {
-        ngraph::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
-                                                       inputs[1]->get_data_ptr<int64_t>(),
-                                                       outputs[0]->get_data_ptr<ET>(),
-                                                       inputs[0]->get_shape(),
-                                                       inputs[1]->get_shape(),
-                                                       outputs[0]->get_shape(),
-                                                       op->get_axis());
+        ov::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
+                                                   inputs[1]->get_data_ptr<int64_t>(),
+                                                   outputs[0]->get_data_ptr<ET>(),
+                                                   inputs[0]->get_shape(),
+                                                   inputs[1]->get_shape(),
+                                                   outputs[0]->get_shape(),
+                                                   op->get_axis());
     } else if (inputs[1]->get_element_type() == ngraph::element::i32) {
-        ngraph::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
-                                                       inputs[1]->get_data_ptr<int32_t>(),
-                                                       outputs[0]->get_data_ptr<ET>(),
-                                                       inputs[0]->get_shape(),
-                                                       inputs[1]->get_shape(),
-                                                       outputs[0]->get_shape(),
-                                                       op->get_axis());
+        ov::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
+                                                   inputs[1]->get_data_ptr<int32_t>(),
+                                                   outputs[0]->get_data_ptr<ET>(),
+                                                   inputs[0]->get_shape(),
+                                                   inputs[1]->get_shape(),
+                                                   outputs[0]->get_shape(),
+                                                   op->get_axis());
     } else {
         OPENVINO_THROW("Unexpected indices type");
     }

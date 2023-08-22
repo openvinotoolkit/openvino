@@ -327,12 +327,12 @@ bool ov::op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     if (arg0_shape.size() == 0) {
         arg0_shape = Shape{1};
     }
-    ngraph::reference::broadcast(arg0->get_data_ptr<const char>(),
-                                 out->get_data_ptr<char>(),
-                                 arg0_shape,
-                                 out->get_shape(),
-                                 broadcast_axes,
-                                 arg0->get_element_type().size());
+    ov::reference::broadcast(arg0->get_data_ptr<const char>(),
+                             out->get_data_ptr<char>(),
+                             arg0_shape,
+                             out->get_shape(),
+                             broadcast_axes,
+                             arg0->get_element_type().size());
     return true;
 }
 
