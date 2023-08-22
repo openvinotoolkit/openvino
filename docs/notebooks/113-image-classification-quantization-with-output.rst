@@ -1,10 +1,12 @@
 Quantization of Image Classification Models
 ===========================================
 
+.. _top:
+
 This tutorial demonstrates how to apply ``INT8`` quantization to Image
 Classification model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__. It uses the
-Mobilenet V2 model, trained on Cifar10 dataset. The code is designed to
+MobileNet V2 model, trained on Cifar10 dataset. The code is designed to
 be extendable to custom models and datasets. The tutorial uses OpenVINO
 backend for performing model quantization in NNCF, if you interested how
 to apply quantization on PyTorch model, please check this
@@ -12,12 +14,29 @@ to apply quantization on PyTorch model, please check this
 
 This tutorial consists of the following steps:
 
-- Prepare the model for quantization.
-- Define a data loading functionality.
-- Perform quantization.
-- Compare accuracy of the original and quantized models.
-- Compare performance of the original and quantized models.
-- Compare results on one picture.
+-  Prepare the model for quantization.
+-  Define a data loading functionality.
+-  Perform quantization.
+-  Compare accuracy of the original and quantized models.
+-  Compare performance of the original and quantized models.
+-  Compare results on one picture.
+
+**Table of contents**:
+
+- `Prepare the Model <#prepare-the-model>`__
+- `Prepare Dataset <#prepare-dataset>`__
+- `Perform Quantization <#perform-quantization>`__
+
+  - `Create Dataset for Validation <#create-dataset-for-validation>`__
+
+- `Run nncf.quantize for Getting an Optimized Model <#run-nncf.quantize-for-getting-an-optimized-model>`__
+- `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
+- `Compare Accuracy of the Original and Quantized Models <#compare-accuracy-of-the-original-and-quantized-models>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+- `Compare results on four pictures <#compare-results-on-four-pictures>`__
 
 .. code:: ipython3
 
@@ -31,14 +50,16 @@ This tutorial consists of the following steps:
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
-Prepare the Model
------------------
+Prepare the Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Model preparation stage has the following steps:
 
-- Download a PyTorch model
-- Convert model to OpenVINO Intermediate Representation format (IR) using Model Optimizer Python API
-- Serialize converted model on disk
+-  Download a PyTorch model
+-  Convert model to OpenVINO Intermediate Representation format (IR)
+   using model conversion Python API
+-  Serialize converted model on disk
 
 .. code:: ipython3
 
@@ -57,7 +78,7 @@ Model preparation stage has the following steps:
     remote: Counting objects: 100% (281/281), done.[K
     remote: Compressing objects: 100% (95/95), done.[K
     remote: Total 282 (delta 136), reused 269 (delta 129), pack-reused 1[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 4.20 MiB/s, done.
+    Receiving objects: 100% (282/282), 9.22 MiB | 4.67 MiB/s, done.
     Resolving deltas: 100% (136/136), done.
 
 
@@ -67,17 +88,17 @@ Model preparation stage has the following steps:
     
     model = cifar10_mobilenetv2_x1_0(pretrained=True)
 
-OpenVINO support PyTorch models via conversion to OpenVINO Intermediate
-Representation format. Model Optimizer Python API should be used for
-conversion. ``mo.convert_model`` accept PyTorch model instance and
-convert it into ``openvino.runtime.Model`` representation of model in
-OpenVINO. Optionally, you may specify ``example_input`` which serves as
-helper for model tracing and ``input_shape`` for conversion model with
-static shape. Conveted model is ready to be loaded on device for
-inference and can be saved on disk for next usage via ``serialize``
-function. More details about Model Optimizer Python API can be found on
-this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Python_API.html>`__.
+OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
+Representation format using model conversion Python API.
+``mo.convert_model`` accept PyTorch model instance and convert it into
+``openvino.runtime.Model`` representation of model in OpenVINO.
+Optionally, you may specify ``example_input`` which serves as a helper
+for model tracing and ``input_shape`` for converting the model with
+static shape. The converted model is ready to be loaded on a device for
+inference and can be saved on a disk for next usage via the
+``serialize`` function. More details about model conversion Python API
+can be found on this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -90,8 +111,9 @@ this
     
     serialize(ov_model, MODEL_DIR / "mobilenet_v2.xml") 
 
-Prepare Dataset
----------------
+Prepare Dataset `⇑ <#top>`__
+###############################################################################################################################
+
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -132,22 +154,24 @@ Preprocessing for model obtained from training
     Extracting ../data/datasets/cifar10/cifar-10-python.tar.gz to ../data/datasets/cifar10
 
 
-Perform Quantization
---------------------
+Perform Quantization `⇑ <#top>`__
+###############################################################################################################################
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
 OpenVINO with minimal accuracy drop. We will use 8-bit quantization in
 post-training mode (without the fine-tuning pipeline) to optimize
-MobilenetV2. The optimization process contains the following steps:
+MobileNetV2. The optimization process contains the following steps:
 
 1. Create a Dataset for quantization.
 2. Run ``nncf.quantize`` for getting an optimized model.
 3. Serialize an OpenVINO IR model, using the
    ``openvino.runtime.serialize`` function.
 
-Create Datset for Validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create Dataset for Validation `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -171,8 +195,9 @@ model during quantization, in our case, to pick input tensor from pair
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Run nncf.quantize for Getting an Optimized Model
-------------------------------------------------
+Run nncf.quantize for Getting an Optimized Model `⇑ <#top>`__
+###############################################################################################################################
+
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -188,12 +213,13 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.03it/s]
-    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 23.98it/s]
+    Statistics collection: 100%|██████████| 300/300 [00:08<00:00, 35.62it/s]
+    Biases correction: 100%|██████████| 36/36 [00:01<00:00, 19.40it/s]
 
 
-Serialize an OpenVINO IR model
-------------------------------
+Serialize an OpenVINO IR model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Similar to ``mo.convert_model``, quantized model is
 ``openvino.runtime.Model`` object which ready to be loaded into device
@@ -203,8 +229,9 @@ and can be serialized on disk using ``openvino.runtime.serialize``.
 
     serialize(quant_ov_model, MODEL_DIR / "quantized_mobilenet_v2.xml")
 
-Compare Accuracy of the Original and Quantized Models
------------------------------------------------------
+Compare Accuracy of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -221,10 +248,11 @@ Compare Accuracy of the Original and Quantized Models
             total += 1
         return correct / total
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -287,8 +315,9 @@ select device from dropdown list for running inference using OpenVINO
     Accuracy of the optimized model: 93.51%
 
 
-Compare Performance of the Original and Quantized Models
---------------------------------------------------------
+Compare Performance of the Original and Quantized Models `⇑ <#top>`__
+###############################################################################################################################
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -328,18 +357,18 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Read model took 7.88 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
+    [ INFO ]     x.1 , 1 , x (node: Parameter_2) : f32 / [...] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     x.1 , x , 1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
+    [ INFO ]     x.1 , 1 , x (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 164.70 ms
+    [ INFO ] Compile model took 186.19 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
@@ -368,17 +397,17 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.15 ms
+    [ INFO ] First inference took 3.04 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            89880 iterations
-    [ INFO ] Duration:         15002.85 ms
+    [ INFO ] Count:            89724 iterations
+    [ INFO ] Duration:         15003.40 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        1.80 ms
     [ INFO ]    Average:       1.82 ms
-    [ INFO ]    Min:           1.13 ms
-    [ INFO ]    Max:           7.45 ms
-    [ INFO ] Throughput:   5990.86 FPS
+    [ INFO ]    Min:           1.29 ms
+    [ INFO ]    Max:           9.73 ms
+    [ INFO ] Throughput:   5980.25 FPS
 
 
 .. code:: ipython3
@@ -404,21 +433,21 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 15.06 ms
+    [ INFO ] Read model took 14.79 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     1 , x.1 , x (node: Parameter_2) : f32 / [...] / [1,3,32,32]
+    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : f32 / [...] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     1 , x.1 , x (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
+    [ INFO ]     x , 1 , x.1 (node: Parameter_2) : u8 / [N,C,H,W] / [1,3,32,32]
     [ INFO ] Model outputs:
     [ INFO ]     223 (node: aten::linear_928) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 314.58 ms
+    [ INFO ] Compile model took 300.34 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
@@ -447,21 +476,22 @@ Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_
     [ INFO ] Fill input '1' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.86 ms
+    [ INFO ] First inference took 1.83 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            181056 iterations
-    [ INFO ] Duration:         15001.51 ms
+    [ INFO ] Count:            181212 iterations
+    [ INFO ] Duration:         15001.37 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.93 ms
-    [ INFO ]    Average:       0.96 ms
-    [ INFO ]    Min:           0.62 ms
-    [ INFO ]    Max:           3.36 ms
-    [ INFO ] Throughput:   12069.19 FPS
+    [ INFO ]    Average:       0.95 ms
+    [ INFO ]    Min:           0.63 ms
+    [ INFO ]    Max:           6.70 ms
+    [ INFO ] Throughput:   12079.70 FPS
 
 
-Compare results on four pictures
---------------------------------
+Compare results on four pictures `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -551,5 +581,5 @@ Compare results on four pictures
 
 
 
-.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_28_2.png
+.. image:: 113-image-classification-quantization-with-output_files/113-image-classification-quantization-with-output_29_2.png
 
