@@ -1,5 +1,7 @@
 # OpenVINO PyTorch 2.0 - torch.compile() backend {#pytorch_2_0_torch_compile}
 
+@sphinxdirective
+
 PyTorch 2.0 simplifies backend (compiler) integration for developers and vendors by reducing 2000+ Ops to a set of ~250 primitive Ops and simplyfing Op semantics. It also likened to Graph Mode, offering the same eager-mode development experience, while adding a compiled mode via ``torch.compile`` - a new feature used for speeding up PyTorch code by JIT-compiling PyTorch code into optimized kernels. 
 
 OpenVINO is enabled in the ``torch.compile`` to optimize generation of the graph model. This allows developers to leverage OpenVINO optimizations in PyTorch native applications on Intel CPUs, Intel integrated and discrete GPUs.
@@ -63,4 +65,4 @@ backend = “openvino_ts”:
 * **OPENVINO_TORCH_MODEL_CACHING**: OpenVINO graphs optimized with ``torch.compile`` can be saved to disk for subsequent application launches. By default, this variable is set to ``False``. To enable caching, it needs to be set to ``True``.
 * **OPENVINO_TORCH_CACHE_DIR**: By default, the OpenVINO IR is saved in a directory ``cache`` that is created in the current directory where the application is launched. The user can set it to a different directory of their choice using this environment variable.
 
-
+@endsphinxdirective
