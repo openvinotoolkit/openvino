@@ -44,7 +44,7 @@ Graph::Graph(InferenceEngine::CNNNetwork& network, const RemoteContextImpl::Ptr&
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, get_engine(), config, false, false, inputs, outputs);
+    m_program = std::make_shared<ProgramBuilder>(network, get_engine(), config, false, false, inputs, outputs);
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();
@@ -56,7 +56,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(get_engine(), config, inputs, outputs);
+    m_program = std::make_shared<ProgramBuilder>(get_engine(), config, inputs, outputs);
     ib >> m_program->m_max_batch;
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
@@ -72,7 +72,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     }
 
     ib >> m_program->inputLayouts;
-    Program::variables_state_info_map variablesStateInfoMap;
+    ProgramBuilder::variables_state_info_map variablesStateInfoMap;
     ib >> variablesStateInfoMap;
     for (const auto& variablesStateInfo : variablesStateInfoMap) {
         m_program->AddVariableStateInfo(variablesStateInfo.first, *variablesStateInfo.second.begin());
@@ -500,7 +500,7 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 }
 
 // Cache blob format:
-//     [ ov::intel_gpu::Program::inputLayouts ]
+//     [ ov::intel_gpu::ProgramBuilder::inputLayouts ]
 //     [ ov::intel_gpu::Graph::primitiveIDs ]
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]

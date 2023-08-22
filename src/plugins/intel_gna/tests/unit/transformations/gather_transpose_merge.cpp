@@ -53,7 +53,7 @@ typedef std::tuple<ov::element::Type,  // Net precision
                    >
     GatherTransposeMergeTestParams;
 
-class GatherTransposeMergeBase : public CommonTestUtils::TestsCommon,
+class GatherTransposeMergeBase : public ov::test::TestsCommon,
                                  public ::testing::WithParamInterface<GatherTransposeMergeTestParams> {
 public:
     static std::string get_test_name(const testing::TestParamInfo<GatherTransposeMergeTestParams>& obj) {
@@ -63,7 +63,7 @@ public:
 
         std::ostringstream result;
         result << "netPRC=" << net_type << "_";
-        result << "Shape=" << CommonTestUtils::vec2str(input_shape);
+        result << "Shape=" << ov::test::utils::vec2str(input_shape);
 
         return result.str();
     }
