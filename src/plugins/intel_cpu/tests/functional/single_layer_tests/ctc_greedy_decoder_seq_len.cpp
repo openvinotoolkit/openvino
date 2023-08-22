@@ -85,6 +85,7 @@ protected:
         inputDynamicShapes = {ov::PartialShape{in_dyn_N, in_dyn_T, in_dyc_C},
                               ov::PartialShape{in_dyn_N},
                               blank_rank == 0 ? ov::PartialShape{} : ov::PartialShape{1}};
+        OPENVINO_ASSERT(inType.size() == inputDynamicShapes.size());
 
         for (auto& shape : shapes.second) {
             size_t N;
