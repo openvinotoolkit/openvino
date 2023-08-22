@@ -1,18 +1,18 @@
 Accelerate Inference of Sparse Transformer Models with OpenVINO™ and 4th Gen Intel® Xeon® Scalable Processors
 =============================================================================================================
 
+.. _top:
+
 This tutorial demonstrates how to improve performance of sparse
 Transformer models with `OpenVINO <https://docs.openvino.ai/>`__ on 4th
 Gen Intel® Xeon® Scalable processors.
 
-The tutorial downloads `a BERT-base
-model <https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80>`__
-which has been quantized, sparsified, and tuned for `SST2
-datasets <https://huggingface.co/datasets/sst2>`__ using
+The tutorial downloads `a BERT-base model <https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80>`__
+which has been quantized, sparsified, and tuned for `SST2 datasets <https://huggingface.co/datasets/sst2>`__ using
 `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__. It
 demonstrates the inference performance advantage on 4th Gen Intel® Xeon®
 Scalable Processors by running it with `Sparse Weight
-Decompression <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_supported_plugins_CPU.html#sparse-weights-decompression>`__,
+Decompression <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#sparse-weights-decompression>`__,
 a runtime option that seizes model sparsity for efficiency. The notebook
 consists of the following steps:
 
@@ -21,16 +21,29 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
-Prerequisites
--------------
+**Table of contents**:
+
+- `Prerequisites <#prerequisites>`__
+- `Imports <#imports>`__
+
+  - `Download, quantize and sparsify the model, using Hugging Face Optimum API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
+
+- `Benchmark quantized dense inference performance <#benchmark-quantized-dense-inference-performance>`__
+- `Benchmark quantized sparse inference performance <#benchmark-quantized-sparse-inference-performance>`__
+- `When this might be helpful <#when-this-might-be-helpful>`__
+
+Prerequisites `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
-    !pip install -q 'openvino-dev>=2023.0.0'
+    !pip install -q "openvino-dev>=2023.0.0"
     !pip install -q "git+https://github.com/huggingface/optimum-intel.git" datasets onnx onnxruntime
 
-Imports
--------
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -44,10 +57,10 @@ Imports
 
 .. parsed-literal::
 
-    2023-07-11 22:51:18.663091: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-07-11 22:51:18.697477: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-08-15 22:55:04.775263: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-08-15 22:55:04.809127: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-07-11 22:51:19.248196: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-08-15 22:55:05.351203: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -60,8 +73,8 @@ Imports
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
 
 
-Download, quantize and sparsify the model, using Hugging Face Optimum API
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download, quantize and sparsify the model, using Hugging Face Optimum API. `⇑ <#top>`__
+###############################################################################################################################
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -128,14 +141,14 @@ the IRs into a single folder.
 
 
 
-Benchmark quantized dense inference performance
------------------------------------------------
+Benchmark quantized dense inference performance `⇑ <#top>`__
+###############################################################################################################################
 
-Benchmark dense inference performance using parallel execution on four
-CPU cores to simulate a small instance in the cloud infrastructure.
-Sequence length is dependent on use cases, 16 is common for
-conversational AI while 160 for question answering task. It is set to 64
-as an example. It is recommended to tune based on your applications.
+Benchmark dense inference performance using parallel execution on four CPU cores
+to simulate a small instance in the cloud infrastructure. Sequence
+length is dependent on use cases, 16 is common for conversational AI
+while 160 for question answering task. It is set to 64 as an example. It
+is recommended to tune based on your applications.
 
 .. code:: ipython3
 
@@ -175,7 +188,7 @@ as an example. It is recommended to tune based on your applications.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 79.41 ms
+    [ INFO ] Read model took 74.55 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -186,7 +199,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 26.38 ms
+    [ INFO ] Reshape model took 26.03 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -195,7 +208,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1252.95 ms
+    [ INFO ] Compile model took 1231.43 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -221,21 +234,22 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 26.89 ms
+    [ INFO ] First inference took 31.02 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8944 iterations
-    [ INFO ] Duration:         60031.11 ms
+    [ INFO ] Count:            8896 iterations
+    [ INFO ] Duration:         60044.19 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.64 ms
-    [ INFO ]    Average:       26.68 ms
-    [ INFO ]    Min:           25.23 ms
-    [ INFO ]    Max:           40.15 ms
-    [ INFO ] Throughput:   148.99 FPS
+    [ INFO ]    Median:        26.82 ms
+    [ INFO ]    Average:       26.87 ms
+    [ INFO ]    Min:           25.13 ms
+    [ INFO ]    Max:           38.04 ms
+    [ INFO ] Throughput:   148.16 FPS
 
 
-Benchmark quantized sparse inference performance
-------------------------------------------------
+Benchmark quantized sparse inference performance `⇑ <#top>`__
+###############################################################################################################################
+
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -282,7 +296,7 @@ for which a layer will be enabled.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 69.37 ms
+    [ INFO ] Read model took 63.96 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -293,7 +307,7 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 25.96 ms
+    [ INFO ] Reshape model took 26.17 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -302,7 +316,7 @@ for which a layer will be enabled.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1250.91 ms
+    [ INFO ] Compile model took 1252.94 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -328,21 +342,22 @@ for which a layer will be enabled.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 32.79 ms
+    [ INFO ] First inference took 30.12 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8972 iterations
-    [ INFO ] Duration:         60029.38 ms
+    [ INFO ] Count:            8840 iterations
+    [ INFO ] Duration:         60036.27 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.59 ms
-    [ INFO ]    Average:       26.63 ms
-    [ INFO ]    Min:           25.42 ms
-    [ INFO ]    Max:           41.12 ms
-    [ INFO ] Throughput:   149.46 FPS
+    [ INFO ]    Median:        26.83 ms
+    [ INFO ]    Average:       26.88 ms
+    [ INFO ]    Min:           26.11 ms
+    [ INFO ]    Max:           40.45 ms
+    [ INFO ] Throughput:   147.24 FPS
 
 
-When this might be helpful
---------------------------
+When this might be helpful `⇑ <#top>`__
+###############################################################################################################################
+
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple
@@ -352,5 +367,5 @@ small sequence length, for example, 32 and lower.
 For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
-- `Deployment Optimization Guide <https://docs.openvino.ai/2023.0/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
-- `Inference Request API <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__
+- `Deployment Optimization Guide <https://docs.openvino.ai/2023.1/openvino_docs_deployment_optimization_guide_common.html#doxid-openvino-docs-deployment-optimization-guide-common-1async-api>`__
+- `Inference Request API <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Infer_request.html#doxid-openvino-docs-o-v-u-g-infer-request-1in-out-tensors>`__
