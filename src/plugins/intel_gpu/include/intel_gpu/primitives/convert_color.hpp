@@ -50,9 +50,9 @@ struct convert_color : public primitive_base<convert_color> {
           mem_type(mem_type),
           output_layout(output_layout) {}
 
-    color_format input_color_format;
-    color_format output_color_format;
-    memory_type mem_type;
+    color_format input_color_format = color_format::RGB;
+    color_format output_color_format = color_format::RGB;
+    memory_type mem_type = memory_type::buffer;
     layout output_layout;
 
     size_t hash() const override {
