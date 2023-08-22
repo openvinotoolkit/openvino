@@ -24,7 +24,7 @@ struct TestData {
 typedef std::tuple<TestData>  // Transpose order
     test_params;
 
-class TransposeCompressTest : public CommonTestUtils::TestsCommon, public ::testing::WithParamInterface<test_params> {
+class TransposeCompressTest : public ov::test::TestsCommon, public ::testing::WithParamInterface<test_params> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<test_params>& obj) {
         TestData test_shapes;
