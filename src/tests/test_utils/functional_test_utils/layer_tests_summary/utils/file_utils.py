@@ -71,8 +71,7 @@ def unzip_archieve(zip_path: os.path, dst_path: os.path):
 def find_latest_dir(in_dir: Path, pattern_list = list()):
     get_latest_dir = lambda path: sorted(Path(path).iterdir(), key=os.path.getmtime)
     entities = get_latest_dir(in_dir)
-    if not constants.IS_MACOS:
-        entities.reverse()
+    entities.reverse()
 
     for entity in entities:
         if entity.is_dir():
