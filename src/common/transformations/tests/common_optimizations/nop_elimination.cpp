@@ -1164,7 +1164,7 @@ struct SplitConcatEliminationParams {
 };
 
 class SplitConcatElimination : public testing::WithParamInterface<SplitConcatEliminationParams>,
-                               public CommonTestUtils::TestsCommon {};
+                               public ov::test::TestsCommon {};
 
 TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     const auto& p = GetParam();
@@ -1337,4 +1337,141 @@ TEST(nop_elimination, gather_to_squeeze) {
     run_and_check(func_axis_1);
     run_and_check(func_axis_2);
     run_and_check(func_axis_3);
+}
+
+TEST(nop_elimination, not_gather_to_squeeze_with_vector_indices) {
+    auto generate_func = [](int64_t gather_axis) {
+        ov::Shape shape{3, 3, 4, 4};
+        shape[gather_axis] = 1;
+        auto arg = std::make_shared<op::Parameter>(element::f32, shape);
+        auto indices = op::Constant::create(element::i64, Shape{1, 1}, vector<int64_t>{0});
+        auto axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{gather_axis});
+        auto gather = std::make_shared<op::v8::Gather>(arg, indices, axis);
+        return std::make_shared<ov::Model>(NodeVector{gather}, ParameterVector{arg});
+    };
+
+    auto func_axis_0 = generate_func(0);
+    auto func_axis_1 = generate_func(1);
+    auto func_axis_2 = generate_func(2);
+    auto func_axis_3 = generate_func(3);
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>();
+    auto run_and_check = [&](std::shared_ptr<ov::Model>& func) {
+        pass_manager.run_passes(func);
+        EXPECT_EQ(count_ops_of_type<op::v8::Gather>(func), 1);
+        EXPECT_EQ(count_ops_of_type<op::v0::Squeeze>(func), 0);
+    };
+    run_and_check(func_axis_0);
+    run_and_check(func_axis_1);
+    run_and_check(func_axis_2);
+    run_and_check(func_axis_3);
+}
+
+TEST_F(TransformationTestsF, Nopv1Broadcast) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto broadcast_shape = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto broadcast = std::make_shared<op::v1::Broadcast>(data, broadcast_shape);
+        auto relu = std::make_shared<op::v0::Relu>(broadcast);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, Nopv3Broadcast) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto broadcast_shape = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto broadcast = std::make_shared<op::v3::Broadcast>(data, broadcast_shape);
+        auto relu = std::make_shared<op::v0::Relu>(broadcast);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NopTile) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto repeats = opset10::Constant::create(element::i32, Shape{4}, {1, 1, 1, 1});
+        auto tile = std::make_shared<op::v0::Tile>(data, repeats);
+        auto relu = std::make_shared<op::v0::Relu>(tile);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+        manager.register_pass<ov::pass::EliminateNopBroadcast>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto relu = std::make_shared<op::v0::Relu>(data);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NopSliceBeforeGatherElements) {
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+
+        auto start = opset10::Constant::create(element::i32, Shape{1}, {0});
+        auto stop = opset10::Constant::create(element::i32, Shape{1}, {2});
+        auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
+        auto axis = opset10::Constant::create(element::i32, Shape{1}, {-1});
+        auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step, axis);
+
+        auto indices = std::make_shared<opset10::Parameter>(element::i64, PartialShape{-1, -1, -1, -1});
+        auto gather_elements = std::make_shared<op::v6::GatherElements>(slice, indices, 2);
+
+        auto relu = std::make_shared<op::v0::Relu>(gather_elements);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
+        manager.register_pass<ov::pass::NopSliceBeforeGatherElements>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+        auto indices = std::make_shared<opset10::Parameter>(element::i64, PartialShape{-1, -1, -1, -1});
+
+        auto gather_elements = std::make_shared<op::v6::GatherElements>(data, indices, 2);
+
+        auto relu = std::make_shared<op::v0::Relu>(gather_elements);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{data, indices});
+    }
+}
+
+TEST_F(TransformationTestsF, SqueezeBinaryReshape) {
+    {
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
+
+        auto axis = op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto squeeze = std::make_shared<op::v0::Squeeze>(data, axis);
+
+        auto binary =
+            std::make_shared<op::v1::Multiply>(squeeze, op::v0::Constant::create(element::f32, Shape{}, {0.2}));
+
+        auto reshape =
+            std::make_shared<op::v1::Reshape>(binary, op::v0::Constant::create(element::i32, Shape{1}, {1}), false);
+
+        auto relu = std::make_shared<op::v0::Relu>(reshape);
+        model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+        manager.register_pass<ov::pass::NopElimination>();
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1});
+        auto binary = std::make_shared<op::v1::Multiply>(data, op::v0::Constant::create(element::f32, Shape{1}, {0.2}));
+        auto relu = std::make_shared<op::v0::Relu>(binary);
+        model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
+    }
 }

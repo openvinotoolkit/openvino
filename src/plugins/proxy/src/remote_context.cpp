@@ -8,14 +8,14 @@
 
 #include "openvino/proxy/plugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "remote_tensor.hpp"
 
-ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx,
-                                        const std::string& dev_name,
-                                        size_t dev_index,
-                                        bool has_index,
-                                        bool is_new_api)
-    : m_context(std::move(ctx)) {
+void ov::proxy::RemoteContext::init_context(const std::string& dev_name,
+                                            size_t dev_index,
+                                            bool has_index,
+                                            bool is_new_api) {
+    OPENVINO_ASSERT(m_context);
     m_tensor_name = dev_name + "." + std::to_string(dev_index);
     // New API always has full name, in legacy API we can have device name without index
     if (is_new_api || has_index)
@@ -23,46 +23,58 @@ ov::proxy::RemoteContext::RemoteContext(ov::RemoteContext&& ctx,
     else
         m_name = dev_name;
 }
+ov::proxy::RemoteContext::RemoteContext(ov::SoPtr<ov::IRemoteContext>&& ctx,
+                                        const std::string& dev_name,
+                                        size_t dev_index,
+                                        bool has_index,
+                                        bool is_new_api)
+    : m_context(std::move(ctx)) {
+    init_context(dev_name, dev_index, has_index, is_new_api);
+}
+
+ov::proxy::RemoteContext::RemoteContext(const ov::SoPtr<ov::IRemoteContext>& ctx,
+                                        const std::string& dev_name,
+                                        size_t dev_index,
+                                        bool has_index,
+                                        bool is_new_api)
+    : m_context(ctx) {
+    init_context(dev_name, dev_index, has_index, is_new_api);
+}
 
 const std::string& ov::proxy::RemoteContext::get_device_name() const {
     return m_name;
 }
 
 const ov::AnyMap& ov::proxy::RemoteContext::get_property() const {
-    return m_context._impl->get_property();
+    return m_context->get_property();
 }
 
-ov::Tensor ov::proxy::RemoteContext::wrap_tensor(const ov::RemoteTensor& tensor) {
-    return ov::Tensor(std::make_shared<ov::proxy::RemoteTensor>(tensor, m_tensor_name), {});
+ov::SoPtr<ov::ITensor> ov::proxy::RemoteContext::wrap_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
+    auto proxy_tensor = std::make_shared<ov::proxy::RemoteTensor>(tensor, m_tensor_name);
+    return ov::SoPtr<ov::ITensor>(std::dynamic_pointer_cast<ov::ITensor>(proxy_tensor), nullptr);
 }
 
-std::shared_ptr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
-                                                                           const ov::Shape& shape,
-                                                                           const ov::AnyMap& params) {
-    return std::make_shared<ov::proxy::RemoteTensor>(m_context.create_tensor(type, shape, params), m_tensor_name);
+ov::SoPtr<ov::IRemoteTensor> ov::proxy::RemoteContext::create_tensor(const ov::element::Type& type,
+                                                                     const ov::Shape& shape,
+                                                                     const ov::AnyMap& params) {
+    auto proxy_tensor =
+        std::make_shared<ov::proxy::RemoteTensor>(m_context->create_tensor(type, shape, params), m_tensor_name);
+    return ov::SoPtr<ov::IRemoteTensor>(std::dynamic_pointer_cast<ov::IRemoteTensor>(proxy_tensor), nullptr);
 }
 
-std::shared_ptr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,
-                                                                          const ov::Shape& shape) {
-    return m_context._impl->create_host_tensor(type, shape);
+ov::SoPtr<ov::ITensor> ov::proxy::RemoteContext::create_host_tensor(const ov::element::Type type,
+                                                                    const ov::Shape& shape) {
+    return m_context->create_host_tensor(type, shape);
 }
 
-const ov::RemoteContext& ov::proxy::RemoteContext::get_hardware_context(const ov::RemoteContext& context) {
-    if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context._impl)) {
+const ov::SoPtr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardware_context(
+    const ov::SoPtr<ov::IRemoteContext>& context) {
+    if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context._ptr)) {
         return proxy_context->m_context;
     }
     return context;
 }
 
-const std::shared_ptr<ov::IRemoteContext>& ov::proxy::RemoteContext::get_hardware_context(
-    const std::shared_ptr<ov::IRemoteContext>& context) {
-    if (auto proxy_context = std::dynamic_pointer_cast<ov::proxy::RemoteContext>(context)) {
-        return proxy_context->m_context._impl;
-    }
-    return context;
-}
-
-const std::shared_ptr<ov::IRemoteContext>& ov::proxy::get_hardware_context(
-    const std::shared_ptr<ov::IRemoteContext>& context) {
+const ov::SoPtr<ov::IRemoteContext>& ov::proxy::get_hardware_context(const ov::SoPtr<ov::IRemoteContext>& context) {
     return ov::proxy::RemoteContext::get_hardware_context(context);
 }

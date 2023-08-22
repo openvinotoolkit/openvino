@@ -45,6 +45,11 @@ struct Config {
         PER_PLATFORM,
     };
 
+    enum class ModelType {
+        CNN,
+        Unknown
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
@@ -83,12 +88,14 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const std::map<std::string, std::string> &config);
+    void readProperties(const std::map<std::string, std::string> &config, ModelType modelType = ModelType::Unknown);
     void updateProperties();
 
     std::map<std::string, std::string> _config;
 
     bool isLegacyApi = false;
+
+    int modelPreferThreads = -1;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

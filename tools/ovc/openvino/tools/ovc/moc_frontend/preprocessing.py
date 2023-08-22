@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import argparse
 import logging as log
 from copy import copy
@@ -15,52 +12,6 @@ from openvino.runtime import Model, Layout, PartialShape, layout_helpers
 from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.utils import refer_to_faq_msg
-
-
-def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
-    """
-    Internal function. Updates mean/scale values from array to dictionary
-    :param: input_nodes Inputs of model
-    :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
-    :param: scale Global scale factor for all inputs from scale command line arguments
-    """
-    if not isinstance(mean_scale_val, dict):
-        if len(mean_scale_val) != len(input_nodes):
-            raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
-        data = copy(mean_scale_val)
-        mean_scale_val = {}
-        for idx, node in enumerate(input_nodes):
-            names_list = list(node.get_tensor().get_names())
-            names_list.sort()
-            if not names_list:
-                continue
-            node_name = names_list[0]
-            mean_scale_val.update(
-                {
-                    node_name: {
-                        'mean': data[idx][0],
-                        'scale': data[idx][1]
-                    }
-                }
-            )
-
-    if scale:
-        for node in input_nodes:
-            names_list = list(node.get_tensor().get_names())
-            names_list.sort()
-            if not names_list:
-                continue
-            node_name = names_list[0]
-            old_val = mean_scale_val[node_name] if node_name in mean_scale_val else None
-            mean_scale_val.update(
-                {
-                    node_name: {
-                        'mean': old_val['mean'] if old_val and 'mean' in old_val else None,
-                        'scale': scale
-                    }
-                }
-            )
-    return mean_scale_val
 
 
 def check_keys_valid(ov_function: Model, dict_to_validate: dict, search_outputs: bool):
@@ -186,147 +137,6 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
     }
     return layout_values
 
-
-def guess_source_layouts_by_mean_scale(ov_function: Model, layout_values, mean_scale_values: dict):
-    """
-    Internal function. Try to guess source layout for input by its shape and/or framework
-    :param: ov_function Original model
-    :param: layout_values Existing source/target layout items specified by user
-    :param: mean_scale_values Dictionary with mean/scale values defined for each argument
-    :return: updated layout items with guessed layouts
-    """
-    for ms_name, mean_scale in mean_scale_values.items():
-        num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
-        num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
-
-        if num_channels_mean > 1 and \
-                num_channels_scale > 1 and \
-                num_channels_mean is not num_channels_scale:
-            raise Error('Mean/Scale values for {} have different sizes: {} {}'
-                        .format(ms_name, num_channels_mean, num_channels_scale))
-
-        need_guess_channels = num_channels_mean > 1 or num_channels_scale > 1
-        if not need_guess_channels:  # Mean/scale is complex and needs 'channels' specified in layout
-            continue
-
-        num_channels = num_channels_mean if num_channels_mean > 1 else num_channels_scale
-
-        for i in range(0, len(ov_function.inputs)):
-            ov_input = ov_function.input(i)
-
-            if not ov_function.get_parameters()[i].layout.empty:
-                continue
-
-            if ms_name not in ov_input.get_tensor().get_names():
-                continue
-
-            layout_item = None
-            for name in ov_input.get_tensor().get_names():
-                if name in layout_values:
-                    layout_item = layout_values[name]
-                    break
-
-            if layout_item is not None:
-                # User specified some layout, skip guessing
-                continue
-
-            # Guess layout is applicable only when number of channels is '3'
-            if num_channels != 3:
-                raise Error('Can\'t determine channels dimension for {}. '
-                            'When number of mean/scale values is {} (not 3), '
-                            'please specify layout for input manually'.format(ms_name, num_channels))
-
-            layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
-                                                    num_channels=num_channels,
-                                                    name=ms_name,
-                                                    layout_values=layout_values)
-    return layout_values
-
-
-def check_suitable_for_reverse(layout: Layout, ov_input):
-    """
-    Internal function. Checks if input with layout is suitable for reversing channels
-    :param: layout Existing source/target layout items specified by user
-    :param: ov_input Model's input
-    :return: True if reverse channels can be applied to input
-    """
-    if not layout_helpers.has_channels(layout):
-        return False
-    if ov_input.get_partial_shape().rank.is_dynamic:
-        return False
-
-    c_idx = layout_helpers.channels_idx(layout)
-    rank = ov_input.get_partial_shape().rank.get_length()
-    if c_idx < 0:
-        c_idx += rank
-    if c_idx >= rank:
-        raise Error('Layout {} for input {} is inconsistent with shape {}'.format(
-            layout, ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()))
-    c_num = ov_input.get_partial_shape()[c_idx]
-    return c_num.is_dynamic or c_num.get_length() == 3
-
-
-def guess_source_layouts_for_reverse_channels(ov_function: Model, layout_values):
-    """
-    Internal function. Try to guess source layout for input by finding dimension with size=3 (RGB/BGR)
-    Additionally checks existing layouts and detects suitable inputs for reversing of input channels
-    :param: ov_function Original model
-    :param: layout_values Existing source/target layout items specified by user
-    :return: array with suitable parameters for reversing of input channels
-    """
-    all_params = []
-    suitable_params = []
-    for i in range(0, len(ov_function.inputs)):
-        ov_input = ov_function.input(i)
-        param_info = [ov_input.get_tensor().get_any_name(), ov_input.get_partial_shape()]
-        all_params.append(param_info)
-
-        if not ov_function.get_parameters()[i].layout.empty:
-            if check_suitable_for_reverse(ov_function.get_parameters()[i].layout, ov_input):
-                suitable_params.append(param_info)
-            continue
-
-        layout_item = None
-        first_name = ov_input.get_tensor().get_any_name()
-        for name in ov_input.get_tensor().get_names():
-            if name in layout_values:
-                layout_item = layout_values[name]
-                break
-
-        if layout_item is not None:
-            # RIC transformation is applied before changing layout so only source_layout
-            # should be checked (even is target_layout is also provided)
-            if layout_item.get('source_layout'):
-                if check_suitable_for_reverse(Layout(layout_item['source_layout']), ov_input):
-                    suitable_params.append(param_info)
-            continue
-
-        try:
-            layout_values = find_channels_dimension(shape=ov_input.get_partial_shape(),
-                                                    num_channels=3,
-                                                    name=first_name,
-                                                    layout_values=layout_values)
-        except Error as e:
-            log.debug('Reverse input channels guess did not succeed {}'.format(e))
-        else:
-            layout = layout_values[first_name].get('source_layout')
-            if layout and check_suitable_for_reverse(Layout(layout), ov_input):
-                suitable_params.append(param_info)
-
-    if not len(suitable_params):
-        raise Error('Network has {} inputs overall, but none of them are suitable for input channels reversing.\n'
-                    'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
-                    'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}'.format(
-            len(all_params), all_params))
-    elif len(suitable_params) < len(all_params):
-        log.error('Network has {} inputs overall, but only {} of them are suitable for input channels reversing.\n'
-                  'Suitable for input channel reversing inputs are 4-dimensional with 3 channels (in case of dynamic '
-                  'dimensions C channel must be provided in a layout for this input)\nAll inputs: {}\n'
-                  'Suitable inputs {}'.format(len(all_params), len(suitable_params), all_params, suitable_params),
-                  extra={'is_warning': True})
-    return suitable_params
-
-
 def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: Model):
     if not isinstance(values_dict, dict):
         return values_dict
@@ -375,38 +185,14 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
     """
     prep = PrePostProcessor(ov_function)
 
-    if 'mean_scale_values' in argv and argv.mean_scale_values:
-        mean_scale_values = argv.mean_scale_values
-    else:
-        mean_scale_values = {}
-
-    # mean_scale_values stores mean/scale values from command line with names which were set by user.
-    # For models with single input scale or mean may be unnamed, so name is set by first tensor name from
-    # names list. This may lead to different naming of preprocessing params for a single node and lead to error.
-    # To make naming for mean/scale values unified, names provided by user are renamed here
-    # by the first tensor name from sorted names list.
-    mean_scale_values = update_tensor_names_to_first_in_sorted_list(mean_scale_values, ov_function)
-    mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
-                                                  mean_scale_val=mean_scale_values,
-                                                  scale=argv.scale)
-    # On return, mean_scale_values is a dictionary with input names as key and mean/scale pair as value
-    # {'inputName': {'mean': [1., 2., 3.], 'scale': [2.]}}
-
     layout_values = {}
     if 'layout_values' in argv and argv.layout_values:
         layout_values = update_layout_to_dict(ov_function.inputs, argv.layout_values,
                                               lambda ov_input: ov_input.get_tensor().get_names())
 
-    check_keys_valid(ov_function=ov_function, dict_to_validate=mean_scale_values, search_outputs=False)
     check_keys_valid(ov_function=ov_function, dict_to_validate=layout_values, search_outputs=True)
 
     layout_values = update_layout_is_input_flag(ov_function, layout_values)
-    layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
-    need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
-    suitable_params_ric = []
-    if need_reverse:
-        suitable_params_ric = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
-                                                                        layout_values=layout_values)
 
     for node_name, layout_value in layout_values.items():
         if layout_value.get('source_layout'):
@@ -419,20 +205,6 @@ def apply_preprocessing(ov_function: Model, argv: argparse.Namespace):
                 prep.input(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
             else:
                 prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
-
-    # Apply reverse_input_channels
-    if need_reverse:
-        for name, _ in suitable_params_ric:
-            prep.input(name).preprocess().reverse_channels()
-            log.debug('reverse_input_channels pre-processing applied to {}'.format(name))
-
-    for node_name, node_mean_scale_values in mean_scale_values.items():
-        # Apply mean first, then scale
-        if node_mean_scale_values['mean'] is not None:
-            prep.input(node_name).preprocess().mean(node_mean_scale_values['mean'])
-        if node_mean_scale_values['scale'] is not None:
-            prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
-        log.debug('Mean/Scale pre-processing applied to {}'.format(node_name))
 
     # Apply pre-processing builder to a function
     ov_function = prep.build()

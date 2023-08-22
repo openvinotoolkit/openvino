@@ -39,17 +39,17 @@ public:
         std::ostringstream result;
         result << inputPrecision << "_IS=";
         for (const auto& shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
         }
         result << "TS=";
         for (const auto& shape : inputShapes) {
             result << "(";
             for (const auto& targetShape : shape.second) {
-                result << CommonTestUtils::vec2str(targetShape) << "_";
+                result << ov::test::utils::vec2str(targetShape) << "_";
             }
             result << ")_";
         }
-        result << "indices_values=" << CommonTestUtils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision;
+        result << "indices_values=" << ov::test::utils::vec2str(indicesValues) << "_idx_precision=" << idxPrecision;
         return result.str();
     }
 
@@ -90,7 +90,7 @@ protected:
     }
 
     void SetUp() override {
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
         ScatterNDUpdateLayerParams scatterParams;
         ElementType inputPrecision;
         ElementType idxPrecision;
@@ -151,6 +151,14 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
         },
         IndicesValues{ 0, 1, 1, 2, 2, 2 }
+    },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
+            {{{3, 10}, {4, 11}, {3, 9}, {8, 15}}, {{ 10, 9, 9, 11 }, { 7, 5, 3, 12 }, { 3, 4, 9, 8 }}},
+            {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
+            {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
+        },
+        IndicesValues{ -1, -1, -1, -2, -2, -2 }
     },
 };
 

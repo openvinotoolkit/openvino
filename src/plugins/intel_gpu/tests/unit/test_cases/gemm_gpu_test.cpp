@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
@@ -166,21 +167,16 @@ class GemmGPUTestRandom : public GemmGPUTest {
     ov::Shape input1_shape;
     ov::Shape output_shape;
 
-    float generate_random_value() {
-        static std::default_random_engine generator(random_seed);
-        std::uniform_int_distribution<int> distribution(-10, 10);
-        float val = distribution(generator);
-        return val;
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
     }
 
     void generated_inputs() {
         for (size_t i = 0; i < shapes.size(); ++i) {
             size_t size = ngraph::shape_size(shapes[i]);
-            auto &v = input_data[i];
-            v.resize(size);
-            for(size_t i = 0; i < size; ++i) {
-                v[i] = generate_random_value() / 20.f;
-            }
+            input_data[i] = rg.generate_random_1d<float>(size, -1, 1, 10);
         }
     }
 
@@ -1202,6 +1198,12 @@ public:
          return { format::bfyx, p.kernel_name };
     }
 
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
     inline size_t getGemmIndex(size_t x, size_t y, size_t f, size_t b, size_t x_size, size_t y_size, size_t f_num, size_t b_num,
                                size_t x_pitch, size_t y_pitch, size_t f_pitch, size_t b_pitch) {
         return (x % x_size) * x_pitch + (y % y_size) * y_pitch + (f % f_num) * f_pitch + (b % b_num) * b_pitch;
@@ -1252,19 +1254,19 @@ public:
 
         auto& engine = get_test_engine();
         auto input0_size = tensor((int)p.b0_num, (int)p.f0_num, (int)x0_size, (int)y0_size);
-        VVVVF<input0_type> input0_data = generate_random_4d<input0_type>(p.b0_num, p.f0_num, x0_size, y0_size, p.range0[0], p.range0[1], p.range0[2]);
+        VVVVF<input0_type> input0_data = rg.generate_random_4d<input0_type>(p.b0_num, p.f0_num, x0_size, y0_size, p.range0[0], p.range0[1], p.range0[2]);
         auto input0_data_bfyx = flatten_4d(format::bfyx, input0_data);
         auto input0_mem = engine.allocate_memory({ p.allocate0_type, format::bfyx, input0_size });
         set_values(input0_mem, input0_data_bfyx);
 
         auto input1_size = tensor((int)p.b1_num, (int)p.f1_num, (int)x1_size, (int)y1_size);
-        VVVVF<input1_type> input1_data = generate_random_4d<input1_type>(p.b1_num, p.f1_num, x1_size, y1_size, p.range1[0], p.range1[1], p.range1[2]);
+        VVVVF<input1_type> input1_data = rg.generate_random_4d<input1_type>(p.b1_num, p.f1_num, x1_size, y1_size, p.range1[0], p.range1[1], p.range1[2]);
         auto input1_data_bfyx = flatten_4d(format::bfyx, input1_data);
         auto input1_mem = engine.allocate_memory({ p.allocate1_type, format::bfyx, input1_size });
         set_values(input1_mem, input1_data_bfyx);
 
         auto input2_size = tensor((int)p.b2_num, (int)p.f2_num, (int)x2_size, (int)y2_size);
-        VVVVF<input2_type> input2_data = generate_random_4d<input2_type>(p.b2_num, p.f2_num, x2_size, y2_size, p.range2[0], p.range2[1], p.range2[2]);
+        VVVVF<input2_type> input2_data = rg.generate_random_4d<input2_type>(p.b2_num, p.f2_num, x2_size, y2_size, p.range2[0], p.range2[1], p.range2[2]);
         auto input2_data_bfyx = flatten_4d(format::bfyx, input2_data);
         auto input2_mem = engine.allocate_memory({ p.allocate2_type, format::bfyx, input2_size });
         set_values(input2_mem, input2_data_bfyx);
@@ -1361,6 +1363,7 @@ struct gemm_onednn_test_params {
 template <typename T>
 class GemmOneDNNTest : public ::testing::TestWithParam<T> {
 public:
+    tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     topology topology_ocl;
     topology topology_onednn;
@@ -1371,6 +1374,7 @@ public:
     float tolerance = 0.0f;
 
     void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
         config_ocl.set_property(ov::intel_gpu::optimize_data(true));
         config_ocl.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         if (engine.get_device_info().supports_immad) {
@@ -1424,6 +1428,23 @@ public:
             return layout{ p.data_type_in1, p.input_format, p.in_shapes.at(1), padding{ pad_ } };
         else
             return layout{ p.data_type_in2, p.input_format, p.in_shapes.at(2), padding{ pad_ } };
+    }
+
+    cldnn::memory::ptr get_generated_random_1d_mem(cldnn::engine& engine, cldnn::layout l) {
+        auto prim = engine.allocate_memory(l);
+        cldnn::tensor s = l.get_tensor();
+        if (l.data_type == cldnn::data_types::i8 || l.data_type == cldnn::data_types::u8) {
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), -200, 200);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == cldnn::data_types::f16) {
+            VF<FLOAT16> rnd_vec = rg.generate_random_1d<FLOAT16>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        } else {
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
+        }
+
+        return prim;
     }
 };
 
@@ -1538,8 +1559,8 @@ TEST(gemm_onednn, impl_replacement_with_cldnn) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 
-    // WA: Call cancel() to wait for all queued kernels compilation finish
-    network.get_program()->get_compilation_context().cancel();
+    // WA: Call wait_all() to wait for all queued kernels compilation finish
+    network.get_program()->get_compilation_context().wait_all();
 
     // Check if OneDNN's impl is used for the next execute() call
     network.execute();

@@ -29,7 +29,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<read_value>());
+        OPENVINO_ASSERT(arg.is_type<read_value>());
         const auto& node = arg.as<read_value>();
         variable_id = node.get_primitive()->variable_id;
     }

@@ -26,7 +26,7 @@ struct LinuxNumactlTestCase {
     std::vector<std::vector<int>> _cpu_mapping_table;
 };
 
-class LinuxCpuMapNumactlTests : public CommonTestUtils::TestsCommon,
+class LinuxCpuMapNumactlTests : public ov::test::TestsCommon,
                                 public testing::WithParamInterface<std::tuple<LinuxNumactlTestCase>> {
 public:
     void SetUp() override {

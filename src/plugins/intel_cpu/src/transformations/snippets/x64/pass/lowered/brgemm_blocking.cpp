@@ -29,7 +29,7 @@ bool BrgemmBlocking::run(snippets::lowered::LinearIR& linear_ir) {
 
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto dim_idx = 1;
+    const size_t dim_idx = 1;
 
     auto blocking_loop_exists = [&](const ov::snippets::lowered::ExpressionPtr& expr,
                                     const std::shared_ptr<ov::intel_cpu::BrgemmCPU>& brgemm) {

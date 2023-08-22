@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
@@ -14,11 +14,11 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
-        Program& p,
-        const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
+        ProgramBuilder& p,
+        const std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 2) {
-        IE_THROW() << "ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs";
+        OPENVINO_THROW("ExperimentalDetectronGenerateProposalsSingleImage requires 2 outputs");
     }
 
     auto inputs = p.GetInputInfo(op);

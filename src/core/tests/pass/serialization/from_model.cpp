@@ -8,6 +8,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/relu.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/test_common.hpp"
 
 using ModelBuilder = std::function<std::shared_ptr<ov::Model>()>;
 using SerializationFromModelParams = std::tuple<ModelBuilder, std::string>;
@@ -35,7 +35,7 @@ public:
 
     void SetUp() override {
         m_builder = std::get<0>(GetParam());
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }
@@ -159,7 +159,7 @@ public:
     }
 
     void SetUp() override {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
     }

@@ -20,7 +20,7 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto_batch/src
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
-            unitTestUtils
+            unit_test_utils
             ngraphFunctions
         DEPENDENCIES
             mock_engine

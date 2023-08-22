@@ -7,17 +7,14 @@
 #include <map>
 #include <functional>
 #include <utility>
-#include <description_buffer.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_allocators.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
-#include <ie_algorithm.hpp>
-#include "ie_ngraph_utils.hpp"
 #include <debug.h>
 
 using namespace InferenceEngine;
@@ -35,13 +32,12 @@ void convertAndCopy(const InferenceEngine::Blob* src, dst_t* dst) {
     }
     auto t_blob = dynamic_cast<const InferenceEngine::TBlob<src_t>*>(src);
     if (!t_blob) {
-        IE_THROW() << "input type is " << src->getTensorDesc().getPrecision() << " but input is not "
-                   << typeid(src_t).name();
+        OPENVINO_THROW("input type is ", src->getTensorDesc().getPrecision(), " but input is not ", typeid(src_t).name());
     }
 
     const src_t* srcPtr = t_blob->readOnly();
     if (!srcPtr) {
-        IE_THROW(NotAllocated) << str_input_not_allocated;
+        OPENVINO_THROW(str_input_not_allocated);
     }
     for (size_t i = 0; i < t_blob->size(); i++)
         dst[i] = srcPtr[i];
@@ -88,7 +84,7 @@ inline void checkAlloc(const Blob::Ptr& blob, const std::string& err_str) {
         not_allocated = !ov::intel_gpu::getBlobImpl(blob->as<gpu::ClBlob>())->is_allocated();
     }
     if (not_allocated) {
-        IE_THROW(NotAllocated) << err_str;
+        OPENVINO_THROW(err_str);
     }
 }
 
@@ -98,7 +94,7 @@ void checkInputBlob(const Blob::Ptr &blob,
     const std::string strNotMatched("The input blob size is not equal to the network input size");
 
     if (!blob) {
-        IE_THROW(NotAllocated) << str_input_not_allocated;
+        OPENVINO_THROW(str_input_not_allocated);
     }
 
     SizeVector dims = foundInput->getTensorDesc().getDims();
@@ -107,7 +103,7 @@ void checkInputBlob(const Blob::Ptr &blob,
         : 1;
 
     if (refSize != blob->size()) {
-        IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
+        OPENVINO_THROW(strNotMatched + ": got ", blob->size(), " expecting ", refSize);
     }
 
     checkAlloc(blob, str_input_not_allocated);
@@ -119,7 +115,7 @@ void checkOutputBlob(const Blob::Ptr &blob,
     const std::string strNotMatched("The output blob size is not equal to the network output size");
 
     if (!blob) {
-        IE_THROW(NotAllocated) << str_output_not_allocated;
+        OPENVINO_THROW(str_output_not_allocated);
     }
     SizeVector dims = foundOutput->getTensorDesc().getDims();
     size_t refSize = foundOutput->getTensorDesc().getLayout() != SCALAR
@@ -127,7 +123,7 @@ void checkOutputBlob(const Blob::Ptr &blob,
         : 1;
 
     if (refSize != blob->size()) {
-        IE_THROW() << strNotMatched + ": got " << blob->size() << " expecting " << refSize;
+        OPENVINO_THROW(strNotMatched + ": got ", blob->size(), " expecting ", refSize);
     }
 
     checkAlloc(blob, str_output_not_allocated);
@@ -175,10 +171,10 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
 
     // perform all common checks first
     if (name.empty()) {
-        IE_THROW(NotFound) << "Failed to set blob with empty name";
+        OPENVINO_THROW("Failed to set blob with empty name");
     }
     if (!data)
-        IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+        OPENVINO_THROW("Failed to set empty blob with name: \'", name, "\'");
 
     if (inputTensorsMap.find(name) != inputTensorsMap.end()) {
         inputTensorsMap.erase(name);
@@ -194,8 +190,7 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
         : foundOutput->getTensorDesc();
 
     if (desc.getPrecision() != blobDesc.getPrecision()) {
-        IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user "
-                                    << (is_input ? "input" : "output") << " precision";
+        OPENVINO_THROW("Failed to set Blob with precision not corresponding to user ", (is_input ? "input" : "output"), " precision");
     }
 
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
@@ -206,14 +201,14 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
 
     size_t dataSize = data->size();
     if (0 == dataSize && !isDynamic) {
-        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
+        OPENVINO_THROW("Input data is empty. Input name: \'", name, "\'");
     }
 
     size_t dataBinSize = dataSize * data->element_size();
     if (!isDynamic && dataBinSize != netReqBinSize) {
-        IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
-                      " blob with name: \'" << name <<  "\' " <<
-                      "Current: " << dataBinSize << " Required: " << netReqBinSize;
+        OPENVINO_THROW("Incorrect binary data size for ", (is_input ? "input" : "output"),
+                       " blob with name: \'", name,  "\' ",
+                       "Current: ", dataBinSize, " Required: ", netReqBinSize);
     }
 
     if (is_input) {
@@ -248,7 +243,7 @@ void InferRequest::set_output(const std::string& name, const Blob::Ptr& data) {
     } else {
         if (!isDynamic) {
             if (data->buffer() == nullptr)
-                IE_THROW(NotAllocated) << str_output_not_allocated << " Output name: \'" << name << "\'";
+                OPENVINO_THROW(str_output_not_allocated, " Output name: \'", name, "\'");
         }
     }
     _outputs[name] = data;
@@ -261,16 +256,16 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
     }
 
     if (name.empty()) {
-        IE_THROW(NotFound) << "Failed to set blobs with empty name";
+        OPENVINO_THROW("Failed to set blobs with empty name");
     }
     if (blobs.empty()) {
-        IE_THROW(NotAllocated) << "Failed to set empty blobs with name: \'" << name << "\'";
+        OPENVINO_THROW("Failed to set empty blobs with name: \'", name, "\'");
     }
     bool empty_data = std::any_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
         return blob->size() == 0;
     });
     if (empty_data) {
-        IE_THROW() << "At least one of the input blobs is empty. Input name: \'" << name << "\'";
+        OPENVINO_THROW("At least one of the input blobs is empty. Input name: \'", name, "\'");
     }
 
     bool is_buffer = std::all_of(blobs.begin(), blobs.end(), [](const Blob::Ptr& blob) {
@@ -287,7 +282,7 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
     is_host &= !is_remote;
 
     if (!is_host && !is_remote) {
-        IE_THROW() << "Incorrect input blobs. All blobs must be of the same type";
+        OPENVINO_THROW("Incorrect input blobs. All blobs must be of the same type");
     }
 
     InputInfo::Ptr foundInput;
@@ -295,7 +290,7 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
 
     if (!is_input) {
-        IE_THROW() << "SetBlobs method doesn't support outputs";
+        OPENVINO_THROW("SetBlobs method doesn't support outputs");
     }
 
     const TensorDesc& desc = foundInput->getTensorDesc();
@@ -305,8 +300,7 @@ void InferRequest::SetBlobs(const std::string& name, const std::vector<Blob::Ptr
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
     if (dataBinSize != netReqBinSize) {
-        IE_THROW() << "Incorrect binary data size for input blobs with name: \'" << name <<  "\' " <<
-                      "Current: " << dataBinSize << " Required: " << netReqBinSize;
+        OPENVINO_THROW("Incorrect binary data size for input blobs with name: \'", name,  "\' ", "Current: ", dataBinSize, " Required: ", netReqBinSize);
     }
 
     if (is_surface) {
@@ -337,7 +331,7 @@ void InferRequest::checkBlobs() {
         if (foundInputPair != std::end(_networkInputs)) {
             foundInput = foundInputPair->second;
         } else {
-            IE_THROW(NotFound) << "Failed to find input with name: \'" << input.first << "\'";
+            OPENVINO_THROW("Failed to find input with name: \'", input.first, "\'");
         }
         auto node = findInputByNodeName(input.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
@@ -353,7 +347,7 @@ void InferRequest::checkBlobs() {
         if (foundOutputPair != std::end(_networkOutputs)) {
             foundOutput = foundOutputPair->second;
         } else {
-            IE_THROW(NotFound) << "Failed to find output with name: \'" << output.first << "\'";
+            OPENVINO_THROW("Failed to find output with name: \'", output.first, "\'");
         }
         auto node = findOutputByNodeName(output.first);
         bool is_dynamic = (node && node->get_output_partial_shape(0).is_dynamic());
@@ -366,9 +360,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::SetGraph");
     m_graph = graph;
 
-    if (m_graph == nullptr) {
-        IE_THROW(NetworkNotLoaded);
-    }
+    OPENVINO_ASSERT(m_graph != nullptr, "[GPU] Model not loaded");
 
     allocate_inputs();
     allocate_outputs();
@@ -378,7 +370,7 @@ void InferRequest::SetGraph(std::shared_ptr<Graph> graph) {
 InferRequest::InferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                            const CompiledModel::Ptr& execNetwork)
         : IInferRequestInternal(networkInputs, networkOutputs) {
-    IE_ASSERT(nullptr != execNetwork);
+    OPENVINO_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
     m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
     OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
@@ -388,7 +380,7 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
                            const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                            const CompiledModel::Ptr& execNetwork)
         : IInferRequestInternal(inputs, outputs) {
-    IE_ASSERT(nullptr != execNetwork);
+    OPENVINO_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
     m_context = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(execNetwork->GetContext());
     OPENVINO_ASSERT(m_context != nullptr, "[GPU] Can't initialize context of InferRequest: wrong context type");
@@ -406,7 +398,6 @@ void InferRequest::enqueue() {
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
-
     for (const auto& inputTensor : inputTensorsMap) {
         const std::string name = inputTensor.first;
         const auto& blobs = inputTensor.second;
@@ -469,7 +460,7 @@ void InferRequest::enqueue() {
     for (auto& item : _outputs) {
         std::string outputName = item.first;
         Blob::Ptr& outputBlob = item.second;
-        prepare_output(outputName, outputBlob);
+        prepare_output(outputName, outputBlob, dependencies);
     }
 
     internal_outputs.clear();
@@ -490,20 +481,24 @@ void InferRequest::wait_notify() {
 
 void InferRequest::wait() {
     if (internal_outputs.empty()) {
-        IE_THROW() << "Inference was not started!\n";
+        OPENVINO_THROW("Inference was not started!\n");
     }
     // wait for completion & collect outputs as requested by the model
+    // for in_order_queue, it is enough to call finish only once
+    bool do_sync_per_output = (m_graph->GetNetwork()->get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    if (!do_sync_per_output)
+        m_graph->GetNetwork()->get_stream().finish();
+    std::vector<cldnn::event::ptr> copy_events;
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
         // because it does not create outputsMap during SetGraph
         std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
-        auto outputMemory = internal_outputs.at(outputID).get_memory();
+        auto outputMemory = internal_outputs.at(outputID).get_memory(do_sync_per_output);
         auto outputLayout = internal_outputs.at(outputID).get_layout();
         if (outputMemory)
             outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
 
         bool need_output_update = false;
-
         if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() ||
             (outputMemory && _outputs.at(no.first)->byteSize() != outputMemory->size())) {
             need_output_update = true;
@@ -519,7 +514,7 @@ void InferRequest::wait() {
             if (static_cast<int32_t>(out_rank) < static_cast<int32_t>(dims.size())) {
                 for (size_t i = out_rank; i < dims.size(); i++) {
                     if (dims[i] != 1)
-                        IE_THROW() << "[GPU] Unexpected out shape";
+                        OPENVINO_THROW("[GPU] Unexpected out shape");
                 }
                 dims.resize(out_rank);
             }
@@ -551,11 +546,19 @@ void InferRequest::wait() {
                 same_mem = same_host_mem(outputMemory, dst_ptr);
             }
             if (!same_mem && outputMemory->size()) {
-                copy_output_data(outputMemory, bptr);
+                copy_output_data(outputMemory, bptr, copy_events);
             }
         }
     }
-
+    // wait for copy event
+    if (copy_events.size() > 0) {
+        if (m_graph->GetNetwork()->get_stream().get_queue_type() == QueueTypes::in_order) {
+            // wait only the last one
+            m_graph->GetNetwork()->get_stream().wait_for_events({copy_events.back()});
+        } else {
+            m_graph->GetNetwork()->get_stream().wait_for_events(copy_events);
+        }
+    }
     // finally collect profiling info
     if (m_useProfiling) {
         m_graph->UpdatePerfStatistics();
@@ -614,7 +617,7 @@ Blob::Ptr InferRequest::create_shared_device_blob(const InferenceEngine::TensorD
     return blob;
 }
 
-void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
+void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst, std::vector<cldnn::event::ptr>& copy_events) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_output_data");
     auto is_convert_needed = [](const Precision& prc) {
         const std::vector<Precision> convert_needed = { Precision::I16, Precision::U16, Precision::FP64,
@@ -644,7 +647,8 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
 
         OPENVINO_ASSERT(intermediate_output_blob, "[GPU] Intermediate blob for outputs precessing is not allocated");
 
-        src->copy_to(stream, intermediate_output_blob->buffer());
+        auto ev = src->copy_to(stream, intermediate_output_blob->buffer(), false);
+        copy_events.push_back(ev);
 
         switch (dst->getTensorDesc().getPrecision()) {
         #define CASE(PRC, SRC_DT, DST_DT) \
@@ -666,56 +670,8 @@ void InferRequest::copy_output_data(cldnn::memory::ptr src, Blob::Ptr dst) {
         }
     } else {
         auto dst_ptr = dst->buffer().as<void*>();
-        src->copy_to(stream, dst_ptr);
-    }
-}
-
-void InferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
-                                        const cldnn::primitive_id &inputName,
-                                        const cldnn::layout& inputLayout,
-                                        const Blob &inputBlob) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::copy_input_data");
-
-    cldnn::primitive_id internalName = "parameter:" + inputName;
-    auto locked = inputBlob.cbuffer();
-    switch (inputBlob.getTensorDesc().getPrecision()) {
-    case Precision::FP32: {
-        float* blob_ptr = const_cast<float*>(locked.as<const float*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I32: {
-        int32_t* blob_ptr = const_cast<int32_t*>(locked.as<const int32_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I64: {
-        int64_t* blob_ptr = const_cast<int64_t*>(locked.as<const int64_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::FP16: {
-        uint16_t* blob_ptr = const_cast<uint16_t*>(locked.as<const uint16_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::I8: {
-        int8_t* blob_ptr = const_cast<int8_t*>(locked.as<const int8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::U8: {
-        uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    case Precision::BOOL: {
-        uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>());
-        network->set_input_data(internalName, network->get_engine().attach_memory(inputLayout, blob_ptr));
-        break;
-    }
-    default:
-        IE_THROW() << "The plugin does not support input " << inputBlob.getTensorDesc().getPrecision() << " precision";
+        auto ev = src->copy_to(stream, dst_ptr, false);
+        copy_events.push_back(ev);
     }
 }
 
@@ -820,7 +776,7 @@ void InferRequest::InferImpl() {
 std::map<std::string, InferenceEngineProfileInfo> InferRequest::GetPerformanceCounts() const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::GetPerformanceCounts");
     if (!m_useProfiling) {
-        IE_THROW() << "Performance counters were not enabled";
+        OPENVINO_THROW("Performance counters were not enabled");
     } else {
         return m_graph->GetPerformanceCounts();
     }
@@ -873,7 +829,7 @@ void InferRequest::allocate_dev_mem_if_needed(InferenceEngine::BlobMap& device_m
 }
 
 void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr& inputBlob,
-                                      std::vector<cldnn::event::ptr>& dependencies) {
+                                 std::vector<cldnn::event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_input");
     auto inputLayoutItr = m_graph->GetInputLayouts().find(inputName);
     OPENVINO_ASSERT(inputLayoutItr != m_graph->GetInputLayouts().end(), "[GPU] Input name mismatch");
@@ -898,6 +854,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
         }
     };
 
+    auto _nw_ptr = m_graph->GetNetwork();
     if (input_layout.is_dynamic()) {
         bool has_device_blob = _deviceInputs.find(inputName) != _deviceInputs.end();
         bool should_allocate_device_blob = !has_device_blob;
@@ -909,8 +866,25 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
             }
         }
 
+        auto& sp = _nw_ptr->get_shape_predictor();
+        const auto& tensor_desc = inputBlob->getTensorDesc();
+        auto dt_size = cldnn::data_type_traits::size_of(DataTypeFromPrecision(tensor_desc.getPrecision()));
+        auto current_shape = ov::Shape(tensor_desc.getDims());
+        auto prealloc_info = sp.predict_preallocation_shape(inputName, current_shape, dt_size, !should_allocate_device_blob);
+
         if (should_allocate_device_blob) {
-            _deviceInputs[inputName] = create_device_blob(inputBlob->getTensorDesc());
+            auto preallocation_shape = prealloc_info.second;
+            auto can_preallocate_buffer = prealloc_info.first &&
+                                          sp.can_preallocate(ov::shape_size(preallocation_shape) * dt_size);
+
+            if (can_preallocate_buffer) {
+                auto new_tensor_desc = tensor_desc;
+                new_tensor_desc.setDims(preallocation_shape);
+                auto device_blob = create_device_blob(new_tensor_desc);
+                _deviceInputs[inputName] = reinterpret_device_blob(device_blob, inputBlob->getTensorDesc());
+            } else {
+                _deviceInputs[inputName] = create_device_blob(tensor_desc);
+            }
         } else {
             _deviceInputs[inputName] = reinterpret_device_blob(_deviceInputs[inputName], inputBlob->getTensorDesc());
         }
@@ -919,7 +893,6 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
     }
     OPENVINO_ASSERT(_deviceInputs.find(inputName) != _deviceInputs.end(), "[GPU] Couldn't find device blob allocated for ", inputName, " input");
     auto reqBlob = _deviceInputs.at(inputName)->as<gpu::ClBlob>();
-    auto _nw_ptr = m_graph->GetNetwork();
     const cldnn::primitive_id internalName = "parameter:" + inputName;
 
     switch (prec) {
@@ -939,7 +912,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                                     remote_ptr :
                                     reqBlob);
             if (!impl->is_allocated()) {
-                IE_THROW() << str_input_not_allocated;
+                OPENVINO_THROW(str_input_not_allocated);
             }
             auto inputMem = impl->get_memory();
 
@@ -980,15 +953,15 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
                     }
                 }
             }
-            _nw_ptr->set_input_data(internalName, inputMem);
+            dependencies.push_back(_nw_ptr->set_input_data(internalName, inputMem));
             break;
         }
         default:
-            IE_THROW() << "Unsupported input precision " << prec;
+            OPENVINO_THROW("Unsupported input precision ", prec);
     }
 }
 
-void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob) {
+void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::Ptr& outputBlob, std::vector<cldnn::event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "InferRequest::prepare_output");
     const auto output_id = outputsMap.at(outputName);
     const auto output_layout = m_graph->GetNetwork()->get_node_output_layout(output_id);
@@ -1015,10 +988,12 @@ void InferRequest::prepare_output(const cldnn::primitive_id& outputName, Blob::P
         : reqBlob->as<gpu::ClBlob>();
     auto impl = getBlobImpl(output_blob_ptr);
     if (!impl->is_allocated()) {
-        IE_THROW(NotAllocated) << str_output_not_allocated;
+        OPENVINO_THROW(str_output_not_allocated);
     }
     auto outputMem = impl->get_memory();
-    _nw_ptr->set_output_memory(internalName, outputMem);
+    for (auto o_ev : _nw_ptr->set_output_memory(internalName, outputMem)) {
+        dependencies.push_back(o_ev);
+    }
 }
 
 InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngine::TensorDesc& desc) {
@@ -1059,11 +1034,11 @@ Blob::Ptr InferRequest::reinterpret_device_blob(Blob::Ptr data, const TensorDesc
     auto dt = DataTypeFromPrecision(new_desc.getPrecision());
     ov::PartialShape shape(new_desc.getDims());
 
-    auto l = cldnn::layout(shape, dt, format);
+    auto l = cldnn::layout(std::move(shape), dt, format);
 
     auto remote_blob = data->as<gpu::ClBlob>();
     if (!remote_blob)
-        IE_THROW() << "Invalid blob used for reinterpretation";
+        OPENVINO_THROW("Invalid blob used for reinterpretation");
 
     remote_blob->setShape(new_desc.getDims());
 

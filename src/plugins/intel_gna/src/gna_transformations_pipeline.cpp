@@ -34,6 +34,7 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fuse_conv_bias_activation.hpp"
 #include "transformations/gather_sinking.hpp"
+#include "transformations/gather_sinking_transpose.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -62,6 +63,7 @@
 #include "transformations/split_eltwise.hpp"
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
+#include "transformations/transpose_compress.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -138,13 +140,15 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
+        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
+        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
         manager.register_pass<ov::pass::ReshapeSequenceFusion>();
         manager.register_pass<ov::pass::TransposeToReshape>();
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
-        manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
-        manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
         manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
@@ -176,6 +180,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
     manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
     manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+    manager.register_pass<ov::intel_gna::pass::InsertIdentityForPrecAgnosticConcatInput>();
     // Breaks fusing of layers before result
     manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
     if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {

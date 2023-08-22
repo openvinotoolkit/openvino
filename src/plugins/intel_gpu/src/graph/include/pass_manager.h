@@ -57,7 +57,7 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr);
+    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -99,6 +99,14 @@ private:
 class mark_nodes : public base_pass {
 public:
     mark_nodes() : base_pass("analyzed_graph") {}
+
+private:
+    void run(program& p) override;
+};
+
+class clamp_fp16_output : public base_pass {
+public:
+    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
 
 private:
     void run(program& p) override;
@@ -254,7 +262,7 @@ private:
     void run(program& p) override;
     std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
                                                               const ExecutionConfig& config,
-                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
+                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);

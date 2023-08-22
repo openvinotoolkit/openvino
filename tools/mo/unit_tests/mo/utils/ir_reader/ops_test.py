@@ -6,12 +6,13 @@ import tempfile
 import numpy as np
 from pathlib import Path
 
+import openvino.runtime.opset12 as opset12
 import openvino.runtime.opset11 as opset11
 import openvino.runtime.opset10 as opset10
 from openvino.runtime import Model, serialize, Core, PartialShape, Dimension
 
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
-from openvino.tools.ovc.logger import init_logger
+from openvino.tools.mo.utils.logger import init_logger
 
 # required to be in global area to run MO IR Reader
 init_logger('ERROR', False)
@@ -207,3 +208,40 @@ class TestOps(unittest.TestCase):
         graph = TestOps.check_graph_can_save(model, 'scatter_dynamic_model')
         scatter_update_node = graph.get_op_nodes(op="ScatterUpdate")[0]
         self.assertListEqual(scatter_update_node.out_port(0).data.get_value().tolist(), [0, None])
+
+    def test_pad_12(self):
+        data_parameter = opset12.parameter([6, 12, 10, 24], name="Data", dtype=np.float32)
+        pad = opset12.pad(data_parameter, np.int64([0, 0, -1, -2]), np.int64([0, 0, -3, -4]), "constant")
+        model = Model(pad, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'pad_model')
+        pad_node = graph.get_op_nodes(op="Pad")[0]
+        self.assertEqual(pad_node["version"], "opset12")
+        self.assertListEqual(pad_node.in_port(1).data.get_value().tolist(), [0, 0, -1, -2])
+        self.assertListEqual(pad_node.in_port(2).data.get_value().tolist(), [0, 0, -3, -4])
+        self.assertListEqual(pad_node.out_port(0).data.get_shape().tolist(), [6, 12, 6, 18])
+
+    def test_scatter_elements_update_12(self):
+        data_parameter = opset12.parameter([10], name="Data", dtype=np.float32)
+        scatter = opset12.scatter_elements_update(data_parameter, np.int32([5, 0, 7, 5]), np.float32([5., 6., 1.5, -5.]), np.int32(0), "sum", False)
+        model = Model(scatter, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'scatter_model')
+        scatter_node = graph.get_op_nodes(op="ScatterElementsUpdate")[0]
+        self.assertListEqual(scatter_node.out_port(0).data.get_shape().tolist(), [10])
+        self.assertEqual(scatter_node["version"], "opset12")
+        self.assertEqual(scatter_node['reduction'], 'sum')
+        self.assertFalse(scatter_node['use_init_val'])
+
+    def test_group_norm_12(self):
+        data_parameter = opset12.parameter([1, 3, 3, 3], name="Data", dtype=np.float32)
+        scale = np.array((1, 1, 1), dtype=np.float32)
+        bias = np.array((1, 1, 1), dtype=np.float32)
+        num_groups = 1
+        epsilon = 1e-6
+        node = opset12.group_normalization(data_parameter, scale, bias, num_groups, epsilon)
+        model = Model(node, [data_parameter])
+        graph = TestOps.check_graph_can_save(model, 'group_norm_model')
+        gn_node = graph.get_op_nodes(op="GroupNormalization")[0]
+        self.assertListEqual(gn_node.out_port(0).data.get_shape().tolist(), [1, 3, 3, 3])
+        self.assertEqual(gn_node["version"], "opset12")
+        self.assertEqual(gn_node['num_groups'], 1)
+        self.assertEqual(gn_node['epsilon'], 1e-06)

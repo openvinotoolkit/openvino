@@ -110,7 +110,7 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
 
 std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
                                                                                const ExecutionConfig& config,
-                                                                               std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor) {
+                                                                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
@@ -166,7 +166,7 @@ void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::
         if (dep.first->is_type<data>()) {
             auto dep_ptr = prog.get_node_ptr(dep.first->get_primitive()->id);
             if (nodes.find(dep_ptr) == nodes.end()) {
-                nodes.insert(prog.get_node_ptr(dep.first->get_primitive()->id));
+                nodes.insert(dep_ptr);
                 const_inputs.push_back(&dep.first->as<data>());
             }
         }

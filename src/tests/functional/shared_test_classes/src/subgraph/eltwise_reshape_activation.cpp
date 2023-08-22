@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-using namespace CommonTestUtils;
+using namespace ov::test::utils;
 using namespace InferenceEngine;
 
 std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
@@ -17,8 +17,8 @@ std::string EltwiseReshapeActivation::getTestCaseName(const testing::TestParamIn
     std::tie(shapes, netPrecision, targetDevice, configuration) = obj.param;
 
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(shapes[0]) << "_";
-    result << "AS=" << CommonTestUtils::vec2str(shapes[1]) << "_";
+    result << "IS=" << ov::test::utils::vec2str(shapes[0]) << "_";
+    result << "AS=" << ov::test::utils::vec2str(shapes[1]) << "_";
     result << "PRC=" << netPrecision.name() << "_";
     result << "dev=" << targetDevice;
     for (auto const& configItem : configuration) {

@@ -185,7 +185,7 @@ std::shared_ptr<ngraph::Function> CreateFunction(const ngraph::Shape& data_shape
 
 // ------------------------------------------------------------------------------------------------
 
-class BroadcastConstTestFixture : public CommonTestUtils::TestsCommon,
+class BroadcastConstTestFixture : public ov::test::TestsCommon,
                                   public ::testing::WithParamInterface<std::tuple<EltwiseFactoryPtr,
                                                                                   bool /* add_input_fake_quantize */,
                                                                                   bool /* add_const_fake_quantize */,
@@ -307,7 +307,7 @@ INSTANTIATE_TEST_SUITE_P(BroadcastConstTestPDPDSuite,
 // ------------------------------------------------------------------------------------------------
 
 class BroadcastConstTestPassedFixture
-    : public CommonTestUtils::TestsCommon,
+    : public ov::test::TestsCommon,
       public ::testing::WithParamInterface<std::tuple<EltwiseFactoryPtr,
                                                       bool /* add_input_fake_quantize */,
                                                       bool /* add_const_fake_quantize */,

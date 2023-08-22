@@ -11,6 +11,21 @@ A custom dataloader and metric will be defined, and accuracy and
 performance will be computed for the original IR model and the quantized
 model.
 
+**Table of contents**:
+
+- `Preparation <#preparation>`__
+
+  - `Imports <#imports>`__
+
+- `Post-training Quantization with NNCF <#post-training-quantization-with-nncf>`__
+
+  - `Select inference device <#post-training-quantization-with-nncf>`__
+
+- `Compare Metrics <#post-training-quantization-with-nncf>`__
+- `Run Inference on Quantized Model <#run-inference-on-quantized-model>`__
+- `Compare Inference Speed <#compare-inference-speed>`__
+
+
 Preparation
 -----------
 
@@ -38,10 +53,10 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-06-21 23:41:52.389627: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-06-21 23:41:52.423388: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2023-07-05 23:54:28.962752: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-07-05 23:54:28.997784: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-06-21 23:41:53.009579: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2023-07-05 23:54:29.609276: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -54,7 +69,7 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-06-21 23:41:54.571012: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    2023-07-05 23:54:31.178171: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
     Skipping registering GPU devices...
 
 
@@ -67,9 +82,9 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-06-21 23:41:54.874985: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:31.493885: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:54.875253: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:31.494167: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -79,13 +94,13 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-06-21 23:41:55.406508: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:31.947372: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:55.406733: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:31.947613: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:55.579356: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:32.077841: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:55.579756: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:32.078164: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -93,14 +108,14 @@ notebook. This will take a while.
 
     (32, 180, 180, 3)
     (32,)
-    0.005936881 0.9981924
+    0.0 1.0
 
 
 .. parsed-literal::
 
-    2023-06-21 23:41:56.411393: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
-    	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:56.411703: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2023-07-05 23:54:32.897047: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-07-05 23:54:32.897375: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -151,55 +166,55 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    2023-06-21 23:41:57.378520: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
-    	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:41:57.379368: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
-    	 [[{{node Placeholder/_4}}]]
-
-
-.. parsed-literal::
-
-    92/92 [==============================] - ETA: 0s - loss: 1.2835 - accuracy: 0.4309
-
-.. parsed-literal::
-
-    2023-06-21 23:42:03.632463: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
-    	 [[{{node Placeholder/_4}}]]
-    2023-06-21 23:42:03.632741: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    2023-07-05 23:54:33.773069: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2023-07-05 23:54:33.773519: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
 .. parsed-literal::
 
-    92/92 [==============================] - 7s 65ms/step - loss: 1.2835 - accuracy: 0.4309 - val_loss: 1.1943 - val_accuracy: 0.5232
+    92/92 [==============================] - ETA: 0s - loss: 1.2943 - accuracy: 0.4486
+
+.. parsed-literal::
+
+    2023-07-05 23:54:40.025734: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
+    	 [[{{node Placeholder/_0}}]]
+    2023-07-05 23:54:40.026032: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
+    	 [[{{node Placeholder/_0}}]]
+
+
+.. parsed-literal::
+
+    92/92 [==============================] - 7s 66ms/step - loss: 1.2943 - accuracy: 0.4486 - val_loss: 1.0944 - val_accuracy: 0.5354
     Epoch 2/15
-    92/92 [==============================] - 6s 63ms/step - loss: 1.0514 - accuracy: 0.5817 - val_loss: 1.0183 - val_accuracy: 0.6076
+    92/92 [==============================] - 6s 63ms/step - loss: 1.0396 - accuracy: 0.5787 - val_loss: 0.9602 - val_accuracy: 0.6322
     Epoch 3/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.9335 - accuracy: 0.6325 - val_loss: 0.9541 - val_accuracy: 0.6253
+    92/92 [==============================] - 6s 64ms/step - loss: 0.9646 - accuracy: 0.6213 - val_loss: 0.9223 - val_accuracy: 0.6417
     Epoch 4/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.8757 - accuracy: 0.6529 - val_loss: 0.8725 - val_accuracy: 0.6580
+    92/92 [==============================] - 6s 64ms/step - loss: 0.8775 - accuracy: 0.6533 - val_loss: 0.8511 - val_accuracy: 0.6594
     Epoch 5/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.8393 - accuracy: 0.6703 - val_loss: 0.8485 - val_accuracy: 0.6649
+    92/92 [==============================] - 6s 64ms/step - loss: 0.8354 - accuracy: 0.6884 - val_loss: 0.8471 - val_accuracy: 0.6689
     Epoch 6/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.7760 - accuracy: 0.7064 - val_loss: 0.8212 - val_accuracy: 0.6771
+    92/92 [==============================] - 6s 64ms/step - loss: 0.7722 - accuracy: 0.7033 - val_loss: 0.8405 - val_accuracy: 0.6935
     Epoch 7/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.7240 - accuracy: 0.7316 - val_loss: 0.7724 - val_accuracy: 0.7139
+    92/92 [==============================] - 6s 64ms/step - loss: 0.7347 - accuracy: 0.7207 - val_loss: 0.8848 - val_accuracy: 0.6730
     Epoch 8/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.7006 - accuracy: 0.7316 - val_loss: 0.7450 - val_accuracy: 0.7057
+    92/92 [==============================] - 6s 63ms/step - loss: 0.6980 - accuracy: 0.7469 - val_loss: 0.7724 - val_accuracy: 0.6948
     Epoch 9/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.6724 - accuracy: 0.7449 - val_loss: 0.8160 - val_accuracy: 0.6771
+    92/92 [==============================] - 6s 64ms/step - loss: 0.6629 - accuracy: 0.7476 - val_loss: 0.7512 - val_accuracy: 0.7071
     Epoch 10/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.6372 - accuracy: 0.7585 - val_loss: 0.7513 - val_accuracy: 0.7153
+    92/92 [==============================] - 6s 63ms/step - loss: 0.6429 - accuracy: 0.7643 - val_loss: 0.7196 - val_accuracy: 0.7125
     Epoch 11/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.6068 - accuracy: 0.7646 - val_loss: 0.7073 - val_accuracy: 0.7275
+    92/92 [==============================] - 6s 64ms/step - loss: 0.5967 - accuracy: 0.7755 - val_loss: 0.7228 - val_accuracy: 0.7084
     Epoch 12/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.5736 - accuracy: 0.7841 - val_loss: 0.8245 - val_accuracy: 0.7016
+    92/92 [==============================] - 6s 63ms/step - loss: 0.5860 - accuracy: 0.7769 - val_loss: 0.7501 - val_accuracy: 0.7153
     Epoch 13/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.5694 - accuracy: 0.7881 - val_loss: 0.7212 - val_accuracy: 0.7289
+    92/92 [==============================] - 6s 64ms/step - loss: 0.5695 - accuracy: 0.7793 - val_loss: 0.7366 - val_accuracy: 0.7153
     Epoch 14/15
-    92/92 [==============================] - 6s 63ms/step - loss: 0.5207 - accuracy: 0.8031 - val_loss: 0.7234 - val_accuracy: 0.7234
+    92/92 [==============================] - 6s 63ms/step - loss: 0.5392 - accuracy: 0.7970 - val_loss: 0.7375 - val_accuracy: 0.7275
     Epoch 15/15
-    92/92 [==============================] - 6s 64ms/step - loss: 0.5245 - accuracy: 0.8001 - val_loss: 0.7017 - val_accuracy: 0.7384
+    92/92 [==============================] - 6s 64ms/step - loss: 0.5098 - accuracy: 0.8048 - val_loss: 0.6984 - val_accuracy: 0.7330
 
 
 
@@ -208,47 +223,47 @@ notebook. This will take a while.
 
 .. parsed-literal::
 
-    1/1 [==============================] - 0s 71ms/step
-    This image most likely belongs to sunflowers with a 98.47 percent confidence.
+    1/1 [==============================] - 0s 76ms/step
+    This image most likely belongs to sunflowers with a 99.23 percent confidence.
 
 
 .. parsed-literal::
 
-    2023-06-21 23:43:26.832864: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.289411: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
     	 [[{{node random_flip_input}}]]
-    2023-06-21 23:43:26.918893: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.376040: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:26.929183: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.385907: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
     	 [[{{node random_flip_input}}]]
-    2023-06-21 23:43:26.940496: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.396762: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:26.947534: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.403700: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:26.954441: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.410703: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:26.965149: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.421394: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.004392: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.461681: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
     	 [[{{node sequential_1_input}}]]
-    2023-06-21 23:43:27.071441: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.529355: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.092043: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.549619: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
     	 [[{{node sequential_1_input}}]]
-    2023-06-21 23:43:27.131116: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    2023-07-05 23:56:03.588567: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.154598: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.611996: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.228586: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.685894: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.371270: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.828047: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.508976: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    2023-07-05 23:56:03.965814: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.543437: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:03.999799: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.572392: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:04.028229: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2023-06-21 23:43:27.619500: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2023-07-05 23:56:04.074705: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
     WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _update_step_xla while saving (showing 4 of 4). These functions will not be directly callable after loading.
 
@@ -273,7 +288,7 @@ notebook. This will take a while.
 
     (1, 180, 180, 3)
     [1,180,180,3]
-    This image most likely belongs to dandelion with a 99.35 percent confidence.
+    This image most likely belongs to dandelion with a 99.81 percent confidence.
 
 
 
@@ -348,9 +363,9 @@ The validation dataset already defined in the training notebook.
 
 .. parsed-literal::
 
-    2023-06-21 23:43:30.662865: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
-    	 [[{{node Placeholder/_0}}]]
-    2023-06-21 23:43:30.663122: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    2023-07-05 23:56:07.075279: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    	 [[{{node Placeholder/_4}}]]
+    2023-07-05 23:56:07.075533: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -397,8 +412,8 @@ control <https://docs.openvino.ai/2023.0/quantization_w_accuracy_control.html#>`
 
 .. parsed-literal::
 
-    Statistics collection:  73%|███████▎  | 734/1000 [00:04<00:01, 166.78it/s]
-    Biases correction: 100%|██████████| 5/5 [00:01<00:00,  4.01it/s]
+    Statistics collection:  73%|███████▎  | 734/1000 [00:04<00:01, 166.65it/s]
+    Biases correction: 100%|██████████| 5/5 [00:01<00:00,  3.99it/s]
 
 
 Save quantized model to benchmark.
@@ -461,8 +476,8 @@ Calculate accuracy for the original model and the quantized model.
 
 .. parsed-literal::
 
-    Accuracy of the original model: 0.738
-    Accuracy of the quantized model: 0.738
+    Accuracy of the original model: 0.733
+    Accuracy of the quantized model: 0.737
 
 
 Compare file size of the models.
@@ -554,7 +569,7 @@ Python API.
     'output/A_Close_Up_Photo_of_a_Dandelion.jpg' already exists.
     input image shape: (1, 180, 180, 3)
     input layer shape: [1,180,180,3]
-    This image most likely belongs to dandelion with a 99.29 percent confidence.
+    This image most likely belongs to dandelion with a 99.82 percent confidence.
 
 
 
@@ -628,7 +643,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.30 ms
+    [ INFO ] Read model took 12.02 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     sequential_1_input (node: sequential_1_input) : f32 / [...] / [1,180,180,3]
@@ -642,7 +657,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Model outputs:
     [ INFO ]     outputs (node: sequential_2/outputs/BiasAdd) : f32 / [...] / [1,5]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 72.08 ms
+    [ INFO ] Compile model took 76.79 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
@@ -664,17 +679,17 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Fill input 'sequential_1_input' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.34 ms
+    [ INFO ] First inference took 7.22 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            58056 iterations
-    [ INFO ] Duration:         15003.52 ms
+    [ INFO ] Count:            57276 iterations
+    [ INFO ] Duration:         15002.57 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        2.90 ms
-    [ INFO ]    Average:       2.91 ms
-    [ INFO ]    Min:           1.93 ms
-    [ INFO ]    Max:           8.74 ms
-    [ INFO ] Throughput:   3869.49 FPS
+    [ INFO ]    Average:       2.95 ms
+    [ INFO ]    Min:           1.67 ms
+    [ INFO ]    Max:           234.29 ms
+    [ INFO ] Throughput:   3817.75 FPS
 
 
 .. code:: ipython3
@@ -700,7 +715,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 20.63 ms
+    [ INFO ] Read model took 12.35 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     sequential_1_input (node: sequential_1_input) : f32 / [...] / [1,180,180,3]
@@ -714,7 +729,7 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Model outputs:
     [ INFO ]     outputs (node: sequential_2/outputs/BiasAdd) : f32 / [...] / [1,5]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 57.20 ms
+    [ INFO ] Compile model took 54.95 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
@@ -736,17 +751,17 @@ measured for CPU+GPU as well. The number of seconds is set to 15.
     [ INFO ] Fill input 'sequential_1_input' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.24 ms
+    [ INFO ] First inference took 2.06 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            178752 iterations
-    [ INFO ] Duration:         15000.91 ms
+    [ INFO ] Duration:         15001.22 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.92 ms
     [ INFO ]    Average:       0.92 ms
-    [ INFO ]    Min:           0.56 ms
-    [ INFO ]    Max:           4.61 ms
-    [ INFO ] Throughput:   11916.08 FPS
+    [ INFO ]    Min:           0.54 ms
+    [ INFO ]    Max:           4.90 ms
+    [ INFO ] Throughput:   11915.83 FPS
 
 
 **Benchmark on MULTI:CPU,GPU**
@@ -816,14 +831,14 @@ cached to the ``model_cache`` directory.
 
 .. parsed-literal::
 
-    [ INFO ] Count:            58476 iterations
-    [ INFO ] Duration:         15002.70 ms
+    [ INFO ] Count:            58332 iterations
+    [ INFO ] Duration:         15005.08 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        2.89 ms
+    [ INFO ]    Median:        2.88 ms
     [ INFO ]    Average:       2.89 ms
-    [ INFO ]    Min:           1.44 ms
-    [ INFO ]    Max:           11.73 ms
-    [ INFO ] Throughput:   3897.70 FPS
+    [ INFO ]    Min:           2.02 ms
+    [ INFO ]    Max:           8.94 ms
+    [ INFO ] Throughput:   3887.48 FPS
 
 
 **Quantized IR model - CPU**
@@ -838,14 +853,14 @@ cached to the ``model_cache`` directory.
 
 .. parsed-literal::
 
-    [ INFO ] Count:            178644 iterations
-    [ INFO ] Duration:         15001.10 ms
+    [ INFO ] Count:            179124 iterations
+    [ INFO ] Duration:         15001.17 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        0.92 ms
     [ INFO ]    Average:       0.92 ms
-    [ INFO ]    Min:           0.54 ms
-    [ INFO ]    Max:           4.63 ms
-    [ INFO ] Throughput:   11908.73 FPS
+    [ INFO ]    Min:           0.56 ms
+    [ INFO ]    Max:           4.33 ms
+    [ INFO ] Throughput:   11940.67 FPS
 
 
 **Original IR model - MULTI:CPU,GPU**

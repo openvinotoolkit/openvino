@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 
 #include <cpp/ie_cnn_network.h>
 
-#include "ngraph/op/tensor_iterator.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/util/sub_graph_base.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 #include "intel_gpu/primitives/loop.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -21,20 +21,20 @@
 #include <vector>
 #include <algorithm>
 
-using TensorIterator = ngraph::op::v0::TensorIterator;
+using TensorIterator = ov::op::v0::TensorIterator;
 
 namespace ov {
 namespace intel_gpu {
 
 template<class DATA_TYPE>
-static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
+static DATA_TYPE CreateScalarData(ProgramBuilder &p, const cldnn::primitive_id& id, int64_t num) {
     auto mem = p.get_engine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
     cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
 
-static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::shared_ptr<ngraph::Node>& op,
+static cldnn::mutable_data CreateAdditionalOutputData(ProgramBuilder &p, const std::shared_ptr<ov::Node>& op,
                                             const cldnn::primitive_id& id, const cldnn::primitive_id& input,
                                             const int32_t output_idx) {
     const auto precision = cldnn::element_type_to_data_type(op->get_output_element_type(output_idx));
@@ -42,16 +42,16 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.get_engine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, std::move(mem)); // cldnn::data cannot set dependency
     return md;
 }
 
-static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
+static void CreateTensorIteratorOp(ProgramBuilder &p, const std::shared_ptr<TensorIterator> &op) {
     auto inputs = p.GetInputInfo(op);
 
     // get body topology from ngraph function
     InferenceEngine::CNNNetwork body_network(op->get_body());
-    Program body_program(body_network, p.get_engine(), p.get_config(), true);
+    ProgramBuilder body_program(body_network, p.get_engine(), p.get_config(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
@@ -93,11 +93,10 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
             cldnn::primitive_id from_id = layer_type_name_ID(from);
 
             // reset output data type because the data types of the outputs of the
-            // body topology are always FP32 regardless of ngraph data type
+            // body topology are always FP32 regardless of element type
             {
                 const auto from_prim = body_topology.at(from_id);
-                const auto& to_ngraph_type = to->get_element_type();
-                const auto to_cldnn_type = cldnn::element_type_to_data_type(to_ngraph_type);
+                const auto to_cldnn_type = cldnn::element_type_to_data_type(to->get_element_type());
                 from_prim->output_data_types = {to_cldnn_type};
             }
             back_edges.emplace_back(from_id, to_id);
@@ -119,7 +118,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
     const cldnn::primitive_id execution_condition_id = layerName + "_initialExecutionCondition";
     {
         cldnn::mutable_data execution_condition = CreateScalarData<cldnn::mutable_data>(p, execution_condition_id, 1);
-        p.add_primitive(*op, execution_condition);
+        p.add_primitive(*op, std::move(execution_condition));
     }
     const cldnn::primitive_id num_iteration_id = layerName + "_numIteration";
     {
@@ -138,7 +137,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
         std::string external_id;
         if (output_idx > 0) {
             cldnn::mutable_data output_data = CreateAdditionalOutputData(p, op, layerNameWithIndex, layerName, output_idx);
-            p.add_primitive(*op, output_data);
+            p.add_primitive(*op, std::move(output_data));
             external_id = layerNameWithIndex;
         } else {
             p.primitive_ids[layerNameWithIndex] = layerName;

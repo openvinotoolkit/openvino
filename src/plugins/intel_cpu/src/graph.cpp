@@ -19,6 +19,7 @@
 #include "graph_optimizer.h"
 #include "dnnl_extension_utils.h"
 #include "extension_mngr.h"
+#include "ie_ngraph_utils.hpp"
 #include "memory_solver.hpp"
 #include "itt.h"
 #include "infer_request.h"
@@ -44,9 +45,9 @@
 #include "utils/verbose.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-#include <ngraph/node.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/core/node.hpp>
+#include <openvino/op/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -114,7 +115,7 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
 template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
@@ -126,9 +127,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
     // nodes which has no consumers (output or just unused). But doesn't marked as graph output.
     // Will be stored as fake output separately.
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -144,13 +145,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             inputNodesMap[node->getName()] = node;
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ov::op::util::get_ie_output_name(prev);
+            const std::string inputID = op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -167,9 +168,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
             for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -198,8 +199,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 void Graph::Replicate(const CNNNetwork &network) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "CNNNetwork");
 
-    InputsDataMap inputsInfo = network.getInputsInfo();
-    OutputsDataMap outputsInfo = network.getOutputsInfo();
+    const InputsDataMap& inputsInfo = network.getInputsInfo();
+    const OutputsDataMap& outputsInfo = network.getOutputsInfo();
 
     this->_name = network.getName();
 
@@ -211,11 +212,11 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     auto orderedOps = func->get_ordered_ops();
 
-    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ngraph::Node
-    std::map<std::shared_ptr<ngraph::Node>, NodePtr> op2node;
-    std::deque<ngraph::Output<ngraph::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
+    // TODO [NM]: unordered_map is preferred from performance perspective. Needs hash for ov::Node
+    std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
+    std::deque<ov::Output<ov::Node>> unusedOutputs;  // nodes which has no consumers (output or just unused)
 
-    auto getParentOutputPort = [](const std::shared_ptr<ngraph::Node> childOp, const std::shared_ptr<ngraph::Node> parentOp,
+    auto getParentOutputPort = [](const std::shared_ptr<ov::Node> childOp, const std::shared_ptr<ov::Node> parentOp,
                                   const size_t childInputPort) -> int {
         for (size_t parentPort = 0; parentPort < parentOp->get_output_size(); parentPort++) {
             if (childOp->input(childInputPort).get_tensor_ptr() == parentOp->output(parentPort).get_tensor_ptr()) {
@@ -234,7 +235,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         graphNodes.push_back(node);
 
-        if (op->get_type_info() == ngraph::op::v0::Parameter::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
@@ -244,9 +245,9 @@ void Graph::Replicate(const CNNNetwork &network) {
             }
         }
 
-        if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
+        if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ov::op::util::get_ie_output_name(input);
+            const auto name = op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -265,9 +266,9 @@ void Graph::Replicate(const CNNNetwork &network) {
         }
 
         if (!one_of(op->get_type_info(),
-                ngraph::op::v0::Result::get_type_info_static(),
-                ngraph::op::v3::Assign::get_type_info_static(),
-                ngraph::op::v6::Assign::get_type_info_static())) {
+                op::v0::Result::get_type_info_static(),
+                op::v3::Assign::get_type_info_static(),
+                op::v6::Assign::get_type_info_static())) {
             for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
@@ -290,8 +291,6 @@ void Graph::Replicate(const CNNNetwork &network) {
         graphNodes.push_back(outNode);
     }
 
-    EnforceInferencePrecision();
-
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
         return std::any_of(childEdges.begin(), childEdges.end(),
@@ -302,16 +301,27 @@ void Graph::Replicate(const CNNNetwork &network) {
                                return edgePtr->getChild()->getType() == Type::Subgraph;
                            });
     };
-
     // change precision for input/output nodes to avoid extra data conversion when set input/output blobs
-    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
         const auto precToSet = normalizeToSupportedPrecision(inputsInfo.at(input.first)->getPrecision());
         input.second->setOriginalOutputPrecisionAtPort(0, precToSet);
-        const auto childEdges = input.second->getChildEdgesAtPort(0);
+    }
+
+    for (auto &output : outputNodesMap) {
+        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
+        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
+    }
+    // enforce must be performed after inputs and outputs info are taken into account
+    EnforceInferencePrecision();
+    // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
+    for (auto &input : inputNodesMap) {
+        const auto& inputNode = input.second;
+        const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
+        const auto childEdges = inputNode->getChildEdgesAtPort(0);
         for (size_t i = 0; i < childEdges.size(); i++) {
             const auto child = childEdges[i]->getChild();
-            if (child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum()) != Precision::BF16 &&
+            const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum());
+            if (!one_of(child_prec, Precision::BF16, Precision::FP16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child))
                 child->setOriginalInputPrecisionAtPort(childEdges[i]->getOutputNum(), precToSet);
@@ -319,9 +329,9 @@ void Graph::Replicate(const CNNNetwork &network) {
     }
 
     for (auto &output : outputNodesMap) {
-        const auto precToSet = normalizeToSupportedPrecision(outputsInfo.at(output.first)->getPrecision());
-        output.second->setOriginalInputPrecisionAtPort(0, precToSet);
-        const auto parentEdges = output.second->getParentEdgesAtPort(0);
+        const auto& outputNode = output.second;
+        const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
+        const auto parentEdges = outputNode->getParentEdgesAtPort(0);
         for (size_t i = 0; i < parentEdges.size(); i++) {
             const auto parent = parentEdges[i]->getParent();
             parent->setOriginalOutputPrecisionAtPort(parentEdges[i]->getInputNum(), precToSet);
@@ -336,7 +346,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         } else {
             outShape = inputNodesMap[input.first]->outputShapes.front();
         }
-        InputInfo::Ptr ii = inputsInfo[input.first];
+        InputInfo::Ptr ii = input.second;
         if (ii && ii->getPreProcess().getNumberOfChannels()) {
             _normalizePreprocMap[input.first].Load(outShape, ii);
         }
@@ -537,6 +547,14 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+    // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
+    // pretend the reorder is not available to use Convert node instead
+    if (result && parse_impl_name(result->impl()->name()) == ref_any) {
+        dnnl_primitive_desc_destroy(result);
+        return false;
+    }
+#endif
     if (result) {
         dnnl_primitive_desc_destroy(result);
     }
@@ -811,8 +829,34 @@ void Graph::AllocateWithReuse() {
     }
 
     if (!undefinedBoxes.empty()) {
+        // Use proxy memory manager for output edges
+        for (auto& box : undefinedBoxes) {
+            for (auto& edge : edge_clusters[box.id]) {
+                const auto child = edge->getChild();
+                if (child->getType() == Type::Output &&
+                    edge->getStatus() == Edge::Status::NeedAllocation) {
+                    auto proxyMemMngr =
+                        std::make_shared<ProxyMemoryMngr>();
+                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
+                    edge->allocate(proxyMemMngr);
+
+                    // Store the output memory managers.
+                    // So that, the infer requests can be able to access them.
+                    int count = 0;
+                    for (auto &output : outputNodesMap) {
+                        if (output.second == child) {
+                            outputNodesMemMngrMap[output.first] = proxyMemMngr;
+                            count++;
+                        }
+                    }
+                    // sometimes there are unused output ports.
+                    IE_ASSERT(count <= 1) << "cannot find output node. count " << count;
+                }
+            }
+        }
+
         if (!syncNodesInds.empty()) {
-            //We have to extend the lifespan of thensors that are crossing a sync point border in order to save
+            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
             std::vector<int> vecIntervals = {0};
             for (const auto& item : syncNodesInds) {
@@ -989,6 +1033,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
     }
 }
 
+// suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(BlobMap &out) {
     if (!IsReady())
         IE_THROW() << "Wrong state. Topology not ready.";
@@ -1004,6 +1049,8 @@ void Graph::PullOutputData(BlobMap &out) {
         if (ext_blob_map == out.end()) {
             IE_THROW(Unexpected) << "The CPU plugin graph doesn't contain output node with name: \"" << name << "\"";
         }
+
+        DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()));
 
         const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
         auto &expectedDesc = ext_blob->getTensorDesc();
@@ -1028,7 +1075,12 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
+            DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()),
+            " dims ", PartialShape(out[name]->getTensorDesc().getDims()), " -> ", PartialShape(outDims),
+            ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             out[name]->setShape(outDims);
+            DEBUG_LOG(name, ", blob ", out[name], ", addr ", static_cast<void*>(out[name]->buffer()),
+            " dims ", PartialShape(out[name]->getTensorDesc().getDims()), ", intr ptr ", intr_blob.getData());
         }
 
         // check for empty output blob
@@ -1045,6 +1097,8 @@ void Graph::PullOutputData(BlobMap &out) {
 
         void *ext_blob_ptr = ext_blob->buffer();
         void *intr_blob_ptr = intr_blob.getData();
+
+        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1126,15 +1180,15 @@ public:
             m_completion.store(true, std::memory_order::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_release);
-        m_completion.store(true, std::memory_order::memory_order_relaxed);
+        m_prepareCounter.store(stop_indx, std::memory_order::memory_order_relaxed);
+        m_completion.store(true, std::memory_order::memory_order_release);
     }
 
     void updateDynParams(size_t node_indx, size_t /*unused*/) {
         size_t local_counter = node_indx;
         while (true) {
-            bool completion = m_completion.load(std::memory_order::memory_order_relaxed);
-            size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_acquire);
+            const bool completion = m_completion.load(std::memory_order::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1312,13 +1366,12 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
     DUMP(node, getConfig().debugCaps, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-
+    DEBUG_LOG(*node);
     if (node->isDynamicNode()) {
         node->executeDynamic(stream);
     } else {
         node->execute(stream);
     }
-    DEBUG_LOG(*node);
 }
 
 void Graph::Infer(InferRequestBase* request) {
@@ -1649,21 +1702,14 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     return true;
 }
 
-// Set all non const data paths precision to BF16
+// Apply inference precision configuration
 void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(static EnforceInferPrcDebug inferPrecDebug);
-    auto inferPrec = InferenceEngine::Precision::FP32;
-    switch (getConfig().inferencePrecision) {
-    case ov::element::bf16:
-        inferPrec = InferenceEngine::Precision::BF16;
-        break;
-    case ov::element::f16:
-        inferPrec = InferenceEngine::Precision::FP16;
-        break;
-    default:
-        return;
-        break;
-    }
+
+    const auto inferPrec = convertPrecision(getConfig().inferencePrecision);
+
+    if (inferPrec == Precision::FP32)
+        return; // nothing to do, only precision reduction is currently allowed
 
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
@@ -1707,49 +1753,65 @@ void Graph::EnforceInferencePrecision() {
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
-        const auto& node = entry.second;
-        if (node->getOriginalInputPrecisionAtPort(0) == inferPrec)
+        const auto& output = entry.second;
+        // do not skip outputs which precisions are explicitly set equal to inferPrec
+        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec)
             continue;
-        searchForNodesToSkip(node, nodesToSkip);
+
+        searchForNodesToSkip(output, nodesToSkip);
     }
 
     for (const auto& node : graphNodes) {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
 
-        if (node->getType() != Type::Input && node->getType() != Type::Output) {
+        if (one_of(node->getType(), Type::Input, Type::Output))
+            continue;
+
 #ifdef CPU_DEBUG_CAPS
-            if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
-                continue;
+        if (!inferPrecDebug.enabled(NameFromType(node->getType()), node->getName()))
+            continue;
 #endif
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), " is enforced to use", inferPrec);
 
-            DEBUG_LOG("#", node->getExecIndex(),
-                      " ", node->getName(),
-                      " is enforced to use", inferPrec);
+        for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+            auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
+                // keep non-float precisions
+                if (node->getOriginalInputPrecisionAtPort(inPort) != Precision::FP32)
+                    return true;
 
-            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                const auto &parent = node->getParentEdgesAtPort(inPort)[0]->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
-                * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
-                * and if activation is BF16 */
-                if (!(parent->getType() == Type::Input && parent->isConstant() &&
+                 * Precision conversion to BF16 is done automatically, if convolution follows up after Constant Inputs
+                 * and activation is BF16 */
+                if (parent->getType() == Type::Input && parent->isConstant() &&
                     // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
-                    node->getType() != Type::Concatenation) &&
-                    // exclude Eltwise after Input since it supports conversion to BF16
-                    !(parent->getType() == Type::Input && (node->getType() == Type::Eltwise || node->getType() == Type::Subgraph)) &&
-                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalInputPrecisionAtPort(i, inferPrec);
-            }
+                    node->getType() != Type::Concatenation)
+                    return true;
+                // Eltwise and Subgraph (snippets) nodes support precision conversion
+                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph))
+                    return true;
 
-            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                    node->setOriginalOutputPrecisionAtPort(i, inferPrec);
-            }
+                return false;
+            };
+
+            if (keepOriginalInputPrecisionAtPort(node, i))
+                continue;
+
+            node->setOriginalInputPrecisionAtPort(i, inferPrec);
+        }
+
+        for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+            // keep non-float precisions
+            if (node->getOriginalOutputPrecisionAtPort(i) != Precision::FP32)
+                continue;
+
+            node->setOriginalOutputPrecisionAtPort(i, inferPrec);
         }
     }
 }
 
-std::shared_ptr<ngraph::Function> Graph::dump() const {
+std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 

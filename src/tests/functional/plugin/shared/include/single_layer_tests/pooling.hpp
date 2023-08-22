@@ -15,7 +15,7 @@ TEST_P(PoolingLayerTest, CompareWithRefs) {
 TEST_P(GlobalPoolingLayerTest, CompareWithRefs) {
     Run();
 
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+    if (targetDevice == std::string{ov::test::utils::DEVICE_GPU}) {
         PluginCache::get().reset();
     }
 }

@@ -421,19 +421,4 @@ struct type_test_ranges<int8_t> {
     static constexpr int k = 1;
 };
 
-template <typename T>
-VF<T> generate_smart_random_1d(size_t a) {
-    return generate_random_1d<T>(a, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
-
-template <typename T>
-VVF<T> generate_smart_random_2d(size_t a, size_t b) {
-    return generate_random_2d<T>(a, b, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
-
-template <typename T>
-VVVVF<T> generate_smart_random_4d(size_t a, size_t b, size_t c, size_t d) {
-    return generate_random_4d<T>(a, b, c, d, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
-}
-
 }  // namespace tests

@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
+#include "common_test_utils/data_utils.hpp"
 
-#include <debug.h>  // to allow putting vector into exception string stream
+#include "debug.h"  // to allow putting vector into exception string stream
 
-#include <ie_blob.h>
-#include <blob_factory.hpp>
+#include "ie_blob.h"
+#include "blob_factory.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "precomp.hpp"
 
 using namespace InferenceEngine::details;
 
-namespace CommonTestUtils {
+namespace ov {
+namespace test {
+namespace utils {
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -63,10 +68,10 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
     IE_ASSERT(values_dims.size() <= n_dims);
     IE_ASSERT(n_dims <= MAX_N_DIMS);
 
-    SizeVector src_dims(MAX_N_DIMS, 1);
+    ov::Shape src_dims(MAX_N_DIMS, 1);
     std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
 
-    SizeVector dst_dims(MAX_N_DIMS, 1);
+    ov::Shape dst_dims(MAX_N_DIMS, 1);
     std::copy(blob_dims.rbegin(), blob_dims.rend(), dst_dims.rbegin());
 
     bool compatible = true;
@@ -77,8 +82,8 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
 
     IE_ASSERT(compatible);
 
-    auto fill_strides_like_plain = [] (SizeVector dims) {
-        SizeVector str(dims.size());
+    auto fill_strides_like_plain = [] (ov::Shape dims) {
+        ov::Shape str(dims.size());
         if (str.empty())
             return str;
         else
@@ -202,58 +207,217 @@ size_t byte_size(const InferenceEngine::TensorDesc &tdesc) {
     auto dims = tdesc.getDims();
     return prc.size() * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
-/**
- * repeated filling tensor with data.
- *
- * @tparam PRC
- * @param data
- * @param size
- * @param values
- */
-template<InferenceEngine::Precision::ePrecision PRC = InferenceEngine::Precision::FP32>
-static void fill_data_const(void *data, size_t size, const std::vector<float> &values) {
-    auto t_data = static_cast<typename InferenceEngine::PrecisionTrait<PRC>::value_type *>(data);
-    auto val_size = values.size();
-    for (size_t i = 0, j = 0; i < size; i++) {
-        t_data[i] = values[j++];
-        if (j == val_size) j = 0;
+
+void fill_data_with_broadcast(ov::Tensor& tensor, ov::Tensor& values) {
+    constexpr size_t MAX_N_DIMS = 7;  // Suppose it's enough
+
+    OPENVINO_ASSERT(tensor.get_element_type() == values.get_element_type());
+
+    auto values_dims = values.get_shape();
+    auto tensor_dims = tensor.get_shape();
+    auto n_dims = tensor_dims.size();
+    OPENVINO_ASSERT(values_dims.size() <= n_dims);
+    OPENVINO_ASSERT(n_dims <= MAX_N_DIMS);
+
+    ov::Shape src_dims(MAX_N_DIMS, 1);
+    std::copy(values_dims.rbegin(), values_dims.rend(), src_dims.rbegin());
+
+    ov::Shape dst_dims(MAX_N_DIMS, 1);
+    std::copy(tensor_dims.rbegin(), tensor_dims.rend(), dst_dims.rbegin());
+
+    bool compatible = true;
+    for (int i = 0; i < MAX_N_DIMS; i++) {
+        if (src_dims[i] != dst_dims[i] && src_dims[i] != 1)
+            compatible = false;
     }
-}
 
-void fill_data_const(InferenceEngine::Blob::Ptr& blob, const std::vector<float> &val) {
-    auto prc = blob->getTensorDesc().getPrecision();
-    auto raw_data_ptr = blob->buffer().as<void*>();
-    auto raw_data_size = blob->size();
+    OPENVINO_ASSERT(compatible);
 
-    using InferenceEngine::Precision;
-    switch (prc) {
-        case Precision::FP32:
-            fill_data_const<Precision::FP32>(raw_data_ptr, raw_data_size, val);
+    auto fill_strides_like_plain = [] (ov::Shape dims) {
+        ov::Shape str(dims.size());
+        if (str.empty())
+            return str;
+        else
+            str.back() = 1;
+
+        // stride[i] = stride[i+1]*d[i+1]
+        std::transform(dims.rbegin(), dims.rend() - 1, str.rbegin(), str.rbegin() + 1,
+                       [] (size_t d, size_t s) { return d * s; });
+
+        // zeroing broadcast dimension equal 1
+        std::transform(str.begin(), str.end(), dims.begin(), str.begin(),
+                       [] (size_t s, size_t d) { return d == 1 ? 0 : s; });
+
+        return str;
+    };
+
+    ov::Shape src_strides = fill_strides_like_plain(src_dims);
+    ov::Shape dst_strides = fill_strides_like_plain(dst_dims);
+
+    auto dst_ptr = tensor.data();
+    auto src_ptr = values.data();
+
+    using namespace ov::element;
+    switch (tensor.get_element_type()) {
+        case u64:
+        case i64:
+            copy_7D<uint64_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Precision::I32:
-            fill_data_const<Precision::I32>(raw_data_ptr, raw_data_size, val);
+        case f32:
+        case i32:
+            copy_7D<uint32_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Precision::U8:
-            fill_data_const<Precision::U8>(raw_data_ptr, raw_data_size, val);
+        case i16:
+        case u16:
+        case f16:
+        case bf16:
+            copy_7D<uint16_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
-        case Precision::I8:
-            fill_data_const<Precision::I8>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Precision::U16:
-            fill_data_const<Precision::U16>(raw_data_ptr, raw_data_size, val);
-            break;
-        case Precision::I16:
-            fill_data_const<Precision::I16>(raw_data_ptr, raw_data_size, val);
+        case u8:
+        case i8:
+            copy_7D<uint8_t>(src_ptr, src_strides, dst_ptr, dst_strides, dst_dims);
             break;
         default:
-            IE_THROW() << "Unsupported precision by fill_data_const() function";
+            OPENVINO_THROW("Unsupported precision by fill_data_with_broadcast function");
     }
 }
 
-void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val) {
-    fill_data_const(blob, std::vector<float> {val});
+template<ov::element::Type_t SRC_E, ov::element::Type_t DST_E, typename std::enable_if<SRC_E != DST_E, int>::type = 0>
+void copy_tensor_with_convert(const ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
+    using SRC_TYPE = typename ov::fundamental_type_for<SRC_E>;
+    using DST_TYPE = typename ov::fundamental_type_for<DST_E>;
+
+    OPENVINO_ASSERT(src_tensor.get_size() == dst_tensor.get_size());
+
+    auto src_ptr = src_tensor.data<SRC_TYPE>();
+    auto src_size = src_tensor.get_size();
+
+    auto dst_ptr = dst_tensor.data<DST_TYPE>();
+
+    auto converter = [] (SRC_TYPE value) {return static_cast<DST_TYPE>(value);};
+
+    std::transform(src_ptr, src_ptr + src_size, dst_ptr, converter);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_END
-}  // namespace CommonTestUtils
+template<ov::element::Type_t SRC_E, ov::element::Type_t DST_E, typename std::enable_if<SRC_E == DST_E, int>::type = 0>
+void copy_tensor_with_convert(const ov::Tensor& src_tensor, ov::Tensor& dst_tensor) {
+    src_tensor.copy_to(dst_tensor);
+}
+
+ov::Tensor make_tensor_with_precision_convert(const ov::Tensor& tensor, ov::element::Type prc) {
+    ov::Tensor new_tensor(prc, tensor.get_shape());
+    auto src_prc = tensor.get_element_type();
+
+#define CASE0(SRC_PRC, DST_PRC) case ov::element::DST_PRC : \
+    copy_tensor_with_convert<ov::element::SRC_PRC, ov::element::DST_PRC> (tensor, new_tensor); break;
+
+#define CASE(SRC_PRC)           \
+    case ov::element::SRC_PRC:  \
+    switch (prc) {    \
+        CASE0(SRC_PRC, bf16)    \
+        CASE0(SRC_PRC, f16)     \
+        CASE0(SRC_PRC, f32)     \
+        CASE0(SRC_PRC, f64)     \
+        CASE0(SRC_PRC, i8)      \
+        CASE0(SRC_PRC, i16)     \
+        CASE0(SRC_PRC, i32)     \
+        CASE0(SRC_PRC, i64)     \
+        CASE0(SRC_PRC, u8)      \
+        CASE0(SRC_PRC, u16)     \
+        CASE0(SRC_PRC, u32)     \
+        CASE0(SRC_PRC, u64)     \
+        default: OPENVINO_THROW("Unsupported precision case: ", prc.c_type_string()); \
+    } break;
+
+    switch (src_prc) {
+        CASE(f64); CASE(f32); CASE(f16); CASE(bf16); CASE(i64); CASE(u64); CASE(i32); CASE(u32); CASE(i16); CASE(u16); CASE(i8); CASE(u8);
+        default: OPENVINO_THROW("Unsupported precision case: ", src_prc.c_type_string());
+    }
+#undef CASE0
+#undef CASE
+
+    return new_tensor;
+}
+
+void fill_data_with_broadcast(ov::Tensor& tensor, size_t axis, std::vector<float> values) {
+    ov::Shape value_dims(tensor.get_shape().size() - axis, 1);
+    value_dims.front() = values.size();
+    auto prc = tensor.get_element_type();
+
+    ov::Tensor values_tensor;
+    values_tensor = ov::Tensor(ov::element::f32, value_dims, values.data());
+
+    if (prc != ov::element::f32) {
+        values_tensor = make_tensor_with_precision_convert(values_tensor, prc);
+    }
+
+    fill_data_with_broadcast(tensor, values_tensor);
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random(ov::Tensor& tensor, const uint32_t range, const int32_t start_from, const int32_t k, const int seed) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    if (DT == ov::element::u4 || DT == ov::element::i4 ||
+        DT == ov::element::u1) {
+        fill_data_random(rawBlobDataPtr, tensor.get_byte_size(), range, start_from, k, seed);
+    } else {
+        fill_data_random(rawBlobDataPtr, tensor.get_size(), range, start_from, k, seed);
+    }
+}
+
+template<ov::element::Type_t DT>
+void fill_tensor_random_float(ov::Tensor& tensor, const double range, const double start_from, const int32_t k, const int seed) {
+    using T = typename ov::element_type_traits<DT>::value_type;
+    std::default_random_engine random(seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_real_distribution<double> distribution(k * start_from, k * (start_from + range));
+
+    auto *rawBlobDataPtr = static_cast<T*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        auto value = static_cast<float>(distribution(random));
+        value /= static_cast<float>(k);
+        if (DT == ov::element::Type_t::f16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::float16(value).to_bits());
+        } else if (DT == ov::element::Type_t::bf16) {
+            rawBlobDataPtr[i] = static_cast<T>(ngraph::bfloat16(value).to_bits());
+        } else {
+            rawBlobDataPtr[i] = static_cast<T>(value);
+        }
+    }
+}
+
+void fill_tensor_random(ov::Tensor& tensor, const double range, const double start_from, const int32_t k, const int seed) {
+    auto element_type = tensor.get_element_type();
+
+#define CASE(X) case X: fill_tensor_random<X>(tensor, static_cast<uint32_t>(range), static_cast<int32_t>(start_from), k, seed); break;
+#define CASE_FLOAT(X) case X: fill_tensor_random_float<X>(tensor, range, start_from, k, seed); break;
+
+    switch (element_type) {
+        CASE_FLOAT(ov::element::f64)
+        CASE_FLOAT(ov::element::f32)
+        CASE_FLOAT(ov::element::f16)
+        CASE_FLOAT(ov::element::bf16)
+        CASE(ov::element::u1)
+        CASE(ov::element::u4)
+        CASE(ov::element::u8)
+        CASE(ov::element::u32)
+        CASE(ov::element::u16)
+        CASE(ov::element::u64)
+        CASE(ov::element::i4)
+        CASE(ov::element::i8)
+        CASE(ov::element::i16)
+        CASE(ov::element::i32)
+        CASE(ov::element::i64)
+        default:
+            OPENVINO_THROW("Wrong precision specified: ", element_type);
+    }
+#undef CASE
+#undef CASE_FLOAT
+}
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

@@ -2,18 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME itt)
+set(TARGET_NAME openvino_itt)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+
 add_library(openvino::itt ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME itt)
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
 
 if(ENABLE_PROFILING_ITT)
-    target_link_libraries(${TARGET_NAME} PUBLIC
-        $<IF:$<TARGET_EXISTS:ittapi::ittnotify>,ittapi::ittnotify,ittapi::ittapi>)
+    if(TARGET ittapi::ittnotify)
+        set(itt_dependency ittapi::ittnotify)
+    else()
+        set(itt_dependency ittapi::ittapi)
+    endif()
+    target_link_libraries(${TARGET_NAME} PUBLIC ${itt_dependency})
+
     if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
         target_compile_definitions(${TARGET_NAME} PUBLIC
             ENABLE_PROFILING_ALL

@@ -28,7 +28,6 @@ WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 LIBS_DIR = "bin" if platform.system() == "Windows" else "lib"
-CONFIG = "Release" if platform.system() in {"Windows", "Darwin"} else ""
 
 machine = platform.machine()
 if machine == "x86_64" or machine == "AMD64":
@@ -47,11 +46,15 @@ BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
+CONFIG = os.getenv("BUILD_TYPE", "Release")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}/{CONFIG}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
 PUGIXML_LIBS_DIR = os.getenv("PUGIXML_LIBS_DIR", f"runtime/3rdparty/pugixml/{LIBS_DIR}")
 PY_PACKAGES_DIR = os.getenv("PY_PACKAGES_DIR", "python")
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
+PYTHON_EXTENSIONS_ONLY = True if os.getenv("PYTHON_EXTENSIONS_ONLY") is not None else False
+SKIP_RPATH = True if os.getenv("SKIP_RPATH") is not None else False
+CPACK_GENERATOR = os.getenv("CPACK_GENERATOR", "TGZ")
 
 LIB_INSTALL_CFG = {
     "ie_libs": {
@@ -154,20 +157,6 @@ LIB_INSTALL_CFG = {
 }
 
 PY_INSTALL_CFG = {
-    "pyie": {
-        "name": f"pyie_{PYTHON_VERSION}",
-        "prefix": f"{BUILD_BASE}/site-packages",
-        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
-        "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
-    },
-    "pyngraph": {
-        "name": f"pyngraph_{PYTHON_VERSION}",
-        "prefix": f"{BUILD_BASE}/site-packages",
-        "source_dir": f"{OPENVINO_SOURCE_DIR}/src/bindings/python",
-        "install_dir": PY_PACKAGES_DIR,
-        "binary_dir": OPENVINO_PYTHON_BINARY_DIR,
-    },
     "pyopenvino": {
         "name": f"pyopenvino_{PYTHON_VERSION}",
         "prefix": f"{BUILD_BASE}/site-packages",
@@ -181,24 +170,24 @@ PY_INSTALL_CFG = {
                 "ovc = openvino.tools.ovc.main:main",
             ],
         },
-        "name": f"pyopenvino_{PYTHON_VERSION}",
+        "name": "ovc",
         "prefix": f"{BUILD_BASE}/site-packages",
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/ovc",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "ovc",
     },
-    # "benchmark_app": {                                                 # noqa: E731
-    #     "entry_point": {                                               # noqa: E731
-    #         "console_scripts": [                                       # noqa: E731
-    #             "benchmark_app = openvino.tools.benchmark.main:main",  # noqa: E731
-    #         ],                                                         # noqa: E731
-    #     },                                                             # noqa: E731
-    #     "name": f"pyopenvino_{PYTHON_VERSION}",                        # noqa: E731
-    #     "prefix": f"{BUILD_BASE}/site-packages",                       # noqa: E731
-    #     "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",   # noqa: E731
-    #     "install_dir": PY_PACKAGES_DIR,                                # noqa: E731
-    #     "binary_dir": "benchmark_app",                                 # noqa: E731
-    # },                                                                 # noqa: E731
+    "benchmark_app": {
+        "entry_point": {
+            "console_scripts": [
+                "benchmark_app = openvino.tools.benchmark.main:main",
+            ],
+        },
+        "name": "benchmark_app",
+        "prefix": f"{BUILD_BASE}/site-packages",
+        "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
+        "install_dir": PY_PACKAGES_DIR,
+        "binary_dir": "benchmark_app",
+    },
 }
 
 
@@ -210,6 +199,7 @@ class PrebuiltExtension(Extension):
             nln = "\n"
             raise DistutilsSetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
         super().__init__(name, sources, *args, **kwargs)
+        self._needs_stub = False
 
 
 class CustomBuild(build):
@@ -218,9 +208,7 @@ class CustomBuild(build):
     user_options = build.user_options + [
         ("jobs=", None, "Specifies the number of jobs to use with make."),
         ("cmake-args=", None, "Additional options to be passed to CMake."),
-        ("python-extensions-only", None, "Install Python extensions without C++ libraries."),
     ]
-    boolean_options = build.boolean_options + ["python-extensions-only"]
 
     def initialize_options(self):
         """Set default values for all the options that this command supports."""
@@ -228,7 +216,6 @@ class CustomBuild(build):
         self.build_base = BUILD_BASE
         self.jobs = None
         self.cmake_args = None
-        self.python_extensions_only = False
 
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
@@ -267,7 +254,8 @@ class CustomBuild(build):
                     self.announce(f"Configuring {comp} cmake project", level=3)
                     self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                          f"-DPYTHON_EXECUTABLE={sys.executable}",
-                                         "-DCMAKE_BUILD_TYPE=Release",
+                                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                          "-DENABLE_WHEEL=OFF",
                                          self.cmake_args,
                                          "-S", source_dir,
@@ -275,26 +263,26 @@ class CustomBuild(build):
 
                     self.announce(f"Building {comp} project", level=3)
                     self.spawn(["cmake", "--build", binary_dir,
-                                         "--config", "Release",
+                                         "--config", CONFIG,
                                          "--parallel", str(self.jobs)])
 
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
-                                     "--config", "Release",
+                                     "--config", CONFIG,
                                      "--strip",
                                      "--component", cpack_comp_name])
 
     def run(self):
         # build and install clib into temporary directories
-        if not self.python_extensions_only:
+        if not PYTHON_EXTENSIONS_ONLY:
             self.cmake_build_and_install(LIB_INSTALL_CFG)
 
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
 
         # install clibs into a temporary directory (site-packages)
-        if not self.python_extensions_only:
+        if not PYTHON_EXTENSIONS_ONLY:
             self.run_command("build_clib")
 
         # Copy extra package_data content filtered by 'find_packages'
@@ -433,17 +421,6 @@ class PrepareLibs(build_clib):
 
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
-
-    user_options = [
-        ("skip-rpath", None, "Skips RPATH for Python extensions."),
-    ]
-    boolean_options = ["skip_rpath"]
-
-    def initialize_options(self):
-        """Set default values for all the options that this command supports."""
-        super().initialize_options()
-        self.skip_rpath = False
-
     def run(self):
         if len(self.extensions) == 1:
             self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
@@ -455,7 +432,7 @@ class CopyExt(build_ext):
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             # setting relative RPATH to found dlls
-            if sys.platform != "win32" and not self.skip_rpath:
+            if sys.platform != "win32" and not SKIP_RPATH:
                 rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
                 rpath = os.path.join(LIBS_RPATH, rpath, WHEEL_LIBS_INSTALL_DIR)
                 set_rpath(rpath, os.path.realpath(src))
@@ -639,6 +616,10 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
+# need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
+# egg_info command works in this folder, because it's being created automatically
+os.makedirs(PACKAGE_DIR, exist_ok=True)
+
 packages = find_namespace_packages(PACKAGE_DIR)
 package_data: typing.Dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))

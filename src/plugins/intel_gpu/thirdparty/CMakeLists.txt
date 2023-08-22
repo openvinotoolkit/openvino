@@ -104,7 +104,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=OCL"
-                "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                "-DDNNL_LIBRARY_NAME=openvino_onednn_gpu"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
@@ -116,6 +116,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_BUILD_EXAMPLES=OFF"
                 "-DDNNL_BLAS_VENDOR=NONE"
                 "-DDNNL_LIBRARY_TYPE=STATIC"
+                "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
                 "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                 "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
@@ -126,7 +127,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>"
-            INTERFACE_LINK_LIBRARIES "onednn_gpu"
+            INTERFACE_LINK_LIBRARIES "openvino_onednn_gpu"
             INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
         )
