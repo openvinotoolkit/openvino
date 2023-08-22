@@ -184,11 +184,11 @@ TYPED_TEST_P(FFTConstantAxesAndConstantSignalSizeTest, constant_axes_and_signal_
 
         std::shared_ptr<TypeParam> dft;
         if (params.signal_size.empty()) {
-            dft = std::make_shared<TypeParam>(data, axes_input);
+            dft = this->make_op(data, axes_input);
         } else {
             auto signal_size_input =
                 op::v0::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
-            dft = std::make_shared<TypeParam>(data, axes_input, signal_size_input);
+            dft = this->make_op(data, axes_input, signal_size_input);
         }
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
@@ -280,7 +280,7 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_no_signal_size) {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
 
-        auto dft = std::make_shared<TypeParam>(data, axes_input);
+        auto dft = this->make_op(data, axes_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
@@ -299,7 +299,7 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_param_signal_size) {
         auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
         auto signal_size_input = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{2});
 
-        auto dft = std::make_shared<TypeParam>(data, axes_input, signal_size_input);
+        auto dft = this->make_op(data, axes_input, signal_size_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
@@ -318,7 +318,7 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_const_signal_size) {
         auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
         auto signal_size_input = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {100, 200});
 
-        auto dft = std::make_shared<TypeParam>(data, axes_input);
+        auto dft = this->make_op(data, axes_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
@@ -376,7 +376,7 @@ TYPED_TEST_P(FFTNonConstantSignalSizeTest, non_constant_signal_size) {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
         auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
         auto signal_size_input = std::make_shared<op::v0::Parameter>(element::i64, params.signal_size_shape);
-        auto dft = std::make_shared<TypeParam>(data, axes_input, signal_size_input);
+        auto dft = this->make_op(data, axes_input, signal_size_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
@@ -397,7 +397,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_input_data) {
 
     try {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater or equal to 2.");
@@ -405,7 +405,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_input_data) {
 
     try {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "The last dimension of input data must be 2.");
@@ -413,7 +413,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_input_data) {
 
     try {
         auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of axes.");
@@ -425,7 +425,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
 
     try {
         auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 3, must be in range (-3, 2)");
@@ -433,7 +433,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
 
     try {
         auto axes = op::v0::Constant::create(element::i64, Shape{1}, {-3});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Axis value: -3, must be in range (-3, 2)");
@@ -441,7 +441,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
 
     try {
         auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -2});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Each axis must be unique");
@@ -449,7 +449,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
 
     try {
         auto axes = op::v0::Constant::create(element::i64, Shape{1}, {2});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 2, must be in range (-3, 2)");
@@ -457,7 +457,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
 
     try {
         auto axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto dft = std::make_shared<TypeParam>(data, axes);
+        auto dft = this->make_op(data, axes);
         FAIL() << "Node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be 1D tensor.");
@@ -470,7 +470,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_signal_size) {
 
     try {
         auto signal_size = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto dft = std::make_shared<TypeParam>(data, axes, signal_size);
+        auto dft = this->make_op(data, axes, signal_size);
         FAIL() << "Node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Signal size input must be 1D tensor.");
@@ -478,7 +478,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_signal_size) {
 
     try {
         auto signal_size = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
-        auto dft = std::make_shared<TypeParam>(data, axes, signal_size);
+        auto dft = this->make_op(data, axes, signal_size);
         FAIL() << "Node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' must be equal.");
@@ -502,7 +502,7 @@ TYPED_TEST_P(FFTDynamicTypes, dynamic_types) {
     auto data = std::make_shared<op::v0::Parameter>(element::dynamic, input_shape);
     auto axes_input = std::make_shared<op::v0::Parameter>(element::dynamic, axes_shape);
     auto signal_size_input = std::make_shared<op::v0::Parameter>(element::dynamic, signal_size_shape);
-    auto dft = std::make_shared<TypeParam>(data, axes_input, signal_size_input);
+    auto dft = this->make_op(data, axes_input, signal_size_input);
 
     EXPECT_EQ(dft->get_element_type(), element::dynamic);
     EXPECT_EQ(dft->get_output_partial_shape(0), ref_output_shape);
