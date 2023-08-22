@@ -243,11 +243,7 @@ class TestParallelRunner:
         self._available_devices = [self._device] if not self._device is None else []
         if has_python_api and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
-        self._excluded_tests_re = set()
-        self._orig_excluded_tests = excluded_tests
-        for test in excluded_tests:
-            self._excluded_tests_re.add(f'"{self.__replace_restricted_symbols(test)}":')
-            
+        self._excluded_tests = excluded_tests
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -481,8 +477,8 @@ class TestParallelRunner:
                     interapted_tests.append(test_name)
                 log_file.close()
         test_list_runtime = set(self.__get_test_list_by_runtime())
-        not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests_re)
-        interapted_tests = set(interapted_tests).difference(self._excluded_tests_re)
+        not_runned_tests = test_list_runtime.difference(test_names).difference(self._excluded_tests)
+        interapted_tests = set(interapted_tests).difference(self._excluded_tests)
         return list(not_runned_tests), list(interapted_tests)
 
     def run(self):
@@ -749,7 +745,7 @@ class TestParallelRunner:
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
         with open(not_run_tests_path, "w") as not_run_tests_path_file:
             test_list_runtime = self.__get_test_list_by_runtime()
-            diff_set = set(saved_tests).intersection(tests_runtime).difference(set(saved_tests)).difference(self._orig_excluded_tests)
+            diff_set = set(saved_tests).intersection(test_list_runtime).difference(set(saved_tests)).difference(self._excluded_tests)
             diff_list = list()
             for item in diff_set:
                 diff_list.append(f"{item}\n")
@@ -770,7 +766,7 @@ class TestParallelRunner:
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
 
-        diff_set = set(saved_tests).difference(set(tests_runtime))
+        diff_set = set(saved_tests).difference(set(test_list_runtime))
         if (diff_set) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
             [logger.error(f'Missed test: {test}') for test in diff_set]
