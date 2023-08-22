@@ -1,24 +1,27 @@
 name: Tests on Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-  push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
-    branches:
-      - master
+  schedule:
+    # run daily at 00:00
+    - cron: '0 0 * * *'
+#  pull_request:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#  push:
+#    paths-ignore:
+#      - '**/docs/**'
+#      - 'docs/**'
+#      - '**/**.md'
+#      - '**.md'
+#      - '**/layer_tests_summary/**'
+#      - '**/conformance/**'
+#    branches:
+#      - master
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}-windows-cc
@@ -46,6 +49,8 @@ env:
 
 jobs:
   Build:
+    # TODO: remove. Temporary measure to prevent the workflow from scheduling on forks.
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     defaults:
       run:
         shell: pwsh
