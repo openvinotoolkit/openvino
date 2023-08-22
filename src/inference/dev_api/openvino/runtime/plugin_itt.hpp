@@ -19,4 +19,3 @@ OV_ITT_DOMAIN(PluginLoadTime)
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
-
