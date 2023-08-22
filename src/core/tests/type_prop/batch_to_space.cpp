@@ -10,6 +10,7 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/space_to_batch.hpp"
 
 using namespace std;
