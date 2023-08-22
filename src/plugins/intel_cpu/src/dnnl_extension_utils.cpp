@@ -90,6 +90,32 @@ InferenceEngine::Precision DnnlExtensionUtils::DataTypeToIEPrecision(memory::dat
     }
 }
 
+bool DnnlExtensionUtils::isSupportedPrecision(const InferenceEngine::Precision& prec) {
+    switch (prec) {
+        case InferenceEngine::Precision::FP32:
+        case InferenceEngine::Precision::I32:
+        case InferenceEngine::Precision::I8:
+        case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::BOOL:
+        case InferenceEngine::Precision::BIN:
+        case InferenceEngine::Precision::BF16:
+            return true;
+        case InferenceEngine::Precision::FP16:
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            return true;
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#    if defined(OV_CPU_ARM_ENABLE_FP16)
+            return true;
+#    else
+            return false;
+#    endif
+#endif
+        default:
+            return false;
+    }
+    return false;
+}
+
 Dim DnnlExtensionUtils::convertToDim(const dnnl::memory::dim &dim) {
     return dim == DNNL_RUNTIME_DIM_VAL ?  Shape::UNDEFINED_DIM : static_cast<size_t>(dim);
 }
