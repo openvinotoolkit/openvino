@@ -184,7 +184,7 @@ jobs:
             -DBUILD_nvidia_plugin=OFF \
             -DENABLE_DEBUG_CAPS=ON \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
+            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -204,19 +204,19 @@ jobs:
         run: cmake --build ${BUILD_DIR}/layer_tests --parallel --config Release
 
       - name: Install wheel packages
-        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/cmake_install.cmake
+        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Install Layer Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/layer_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/layer_tests/cmake_install.cmake
 
       - name: Install python wheels
-        run: python3 -m pip install openvino-dev --find-links=${{ env.INSTALL_DIR }}/tools
+        run: python3 -m pip install openvino-dev --find-links=${INSTALL_DIR}/tools
 
       - name: Install tests
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
+        run: cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Install OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/cmake_install.cmake
+        run: cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: CMake Samples Tests
         run: cmake -GNinja -S ${OPENVINO_REPO}/tests/samples_tests -B ${BUILD_DIR}/samples_tests
@@ -225,23 +225,23 @@ jobs:
         run: cmake --build ${BUILD_DIR}/samples_tests --config Release
 
       - name: Install Samples Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/samples_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/samples_tests/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
-          pushd ${{ env.INSTALL_DIR }}
+          pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz --exclude=tests *
           popd
 
-          pushd ${{ env.INSTALL_DIR }}
+          pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz tests/
           popd
 
       - name: Build cpp samples
-        run: ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/cpp_samples
+        run: ${SAMPLES_INSTALL_DIR}/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
 
       - name: Build c samples
-        run: ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${BUILD_DIR}/c_samples
+        run: ${SAMPLES_INSTALL_DIR}/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
 
       #
       # Tests
@@ -249,31 +249,26 @@ jobs:
 
       - name: Samples tests
         run: |
-          export WORKSPACE=${{ env.INSTALL_DIR }}
-          export IE_APP_PATH=${{ env.INSTALL_DIR }}/samples_bin
-          export IE_APP_PYTHON_PATH=${{ env.INSTALL_DIR }}/samples/python
-          export SHARE=${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
+          export WORKSPACE=${INSTALL_DIR}
+          export IE_APP_PATH=${INSTALL_DIR}/samples_bin
+          export IE_APP_PYTHON_PATH=${INSTALL_DIR}/samples/python
+          export SHARE=${INSTALL_TEST_DIR}/smoke_tests/samples_smoke_tests_data
 
-          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
+          python3 -m pip install --ignore-installed PyYAML -r ${INSTALL_TEST_DIR}/smoke_tests/requirements.txt
           export LD_LIBRARY_PATH=${{ env.IE_APP_PATH }}:$LD_LIBRARY_PATH
 
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests \
-            --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml \
-            --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
-        env:
-          IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
-          IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
-          SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
-          #WORKSPACE: ${{ env.INSTALL_DIR }}
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/smoke_tests \
+            --env_conf ${INSTALL_TEST_DIR}/smoke_tests/env_config.yml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-SamplesSmokeTests.xml
 
       # Present in the "Build" job due to the fact that these tests require build directory
       - name: ONNX frontend tests
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
-                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*:*FrontEndLoadFromTest.testLoadFromTwoStreams*:*FrontEndLoadFromTest.testLoadFromTwoFiles* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
 
       #
       # Upload build artifacts
@@ -679,9 +674,9 @@ jobs:
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
           export PYTHONPATH=${LAYER_TESTS_INSTALL_DIR}:$PYTHONPATH
 
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          source ${INSTALL_DIR}/setupvars.sh
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
