@@ -89,7 +89,7 @@ def get_device_by_args(args: list):
             break
     return device
 
-def get_suite_filter(test_filter: str, suite_filter : str) :
+def get_suite_filter(test_filter: str, suite_filter : str):
     filters = test_filter.split('*')
     for filter in filters :
         if (filter and suite_filter.find(filter) == -1) :
@@ -253,7 +253,7 @@ class TestParallelRunner:
                 is_input_folder = True
                 command += f" --input_folders="
                 argument = argument[argument.find("=")+1:]
-            elif "--gtest_filter" in argument :
+            elif "--gtest_filter" in argument:
                 self._gtest_filter = argument[argument.find("=")+1:]
             if is_input_folder and argument[0] != "-":
                 buf = ""
@@ -308,14 +308,14 @@ class TestParallelRunner:
                     test_suite = test_name.replace(".", "")
                     continue
                 pos = test_name.find(' # ')
-                if pos > 0 or test_suite != "" :
+                if pos > 0 or test_suite != "":
                     real_test_name = test_suite + "." + (test_name[2:pos-1] if pos > 0 else test_name[2:])
                     if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
-                    elif (test_unit == "test") :
+                    elif (test_unit == "test"):
                         tests_dict[real_test_name] = 1
                         self._total_test_cnt += 1
-                    elif (test_unit == "suite") :
+                    elif (test_unit == "suite"):
                         tests_dict[test_suite] = tests_dict.get(test_suite, 0) + 1
                         self._total_test_cnt += 1
             test_list_file.close()
@@ -337,15 +337,15 @@ class TestParallelRunner:
                     test_name = line[pos+1:].replace("\n", "")
                     test_suite = test_name[:test_name.find(".")]
 
-                    if (self._split_unit == "test") :
-                        if not constants.DISABLED_PREFIX in test_name:
-                            if (time != -1) :
+                    if (self._split_unit == "test"):
+                        if constants.DISABLED_PREFIX not in test_name:
+                            if (time != -1):
                                 tests_dict_cache[test_name] = tests_dict_cache.get(test_name, 0) + time
-                    elif (self._split_unit == "suite") :
-                        if not constants.DISABLED_PREFIX in test_suite:
-                            if (time == -1) :
+                    elif (self._split_unit == "suite"):
+                        if constants.DISABLED_PREFIX not in test_suite:
+                            if (time == -1):
                                 tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, -1)
-                            else :
+                            else:
                                 tests_dict_cache[test_suite] = tests_dict_cache.get(test_suite, 0) + time
 
         logger.info(f"Len tests_dict_cache: {len(tests_dict_cache)}")
@@ -360,7 +360,7 @@ class TestParallelRunner:
                 cached_test_dict[test] = test_dict_cache[test] if test_dict_cache[test] != -1 else test_dict_runtime.get(test, -1)
 
         for test in test_dict_runtime:
-            if not test in cached_test_dict:
+            if test not in cached_test_dict:
                 runtime_test_dict[test] = test_dict_runtime[test]
 
         if len(runtime_test_dict) > 0:
@@ -381,30 +381,31 @@ class TestParallelRunner:
 
         tasks_crashed = []
         tasks_full = []
-        tasks = [(0,"")] * real_worker_num
+        tasks = [(0, "")] * real_worker_num
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
-        for test_pattern, test_time in tests_sorted :
+        for test_pattern, test_time in tests_sorted:
             test_pattern = f'{self.__replace_restricted_symbols(test_pattern)}'
 
             # fix the suite filters to execute the right amount of the tests
-            if (self._split_unit == "suite") :
+            if (self._split_unit == "suite"):
                 test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*"
             # add quotes and pattern splitter
             test_pattern = f'"{test_pattern}":'
 
-            if (test_time == -1) :
+            if (test_time == -1):
                 tasks_crashed.append({test_time, test_pattern})
-            else :
-                while (len(tasks) > 0) :
+            else:
+                while (len(tasks) > 0):
                     t_time, t_pattern = tasks[0]
-                    if len(t_pattern) + def_length + len(test_pattern.replace(self._device, longest_device)) < MAX_LENGHT :
+                    length = len(t_pattern) + def_length + len(test_pattern.replace(self._device, longest_device))
+                    if length < MAX_LENGHT:
                         break
-                    else :
+                    else:
                         tasks_full.append(tasks.pop())
 
-                if (len(tasks) < real_worker_num) :
+                if (len(tasks) < real_worker_num):
                     heapq.heappush(tasks, (test_time, test_pattern))
-                else :
+                else:
                     heapq.heapreplace(tasks, (t_time + test_time, t_pattern + test_pattern))
 
         test_filters = tasks_full + tasks + tasks_crashed
@@ -502,7 +503,7 @@ class TestParallelRunner:
             TaskManager.process_timeout = DEFAULT_SUITE_TIMEOUT if self._split_unit == "suite" else DEFAULT_TEST_TIMEOUT
 
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        if (self._repeat_failed > 0) :
+        if (self._repeat_failed > 0):
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
                 not_runned_test_filters = [f'"{self.__replace_restricted_symbols(test)}"' for test in not_runned_tests]
@@ -632,9 +633,9 @@ class TestParallelRunner:
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
 
-                if (split_unit == "suite") :
+                if (split_unit == "suite"):
                     test_cnt_real = len(test_suites)
-                else :
+                else:
                     test_cnt_real = test_cnt_real_saved_now
 
                 if test_cnt_real < test_cnt_expected:
@@ -659,7 +660,7 @@ class TestParallelRunner:
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:
-                cache_file.writelines([f"{time}:" + test_name + "\n" for time, test_name in test_times])
+                cache_file.writelines([f"{time}:{test_name}\n" for time, test_name in test_names])
                 cache_file.close()
                 logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
@@ -767,7 +768,7 @@ class TestParallelRunner:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
 
         diff_set = set(saved_tests).difference(set(test_list_runtime))
-        if (diff_set) :
+        if diff_set:
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
             [logger.error(f'Missed test: {test}') for test in diff_set]
             is_successfull_run = False
