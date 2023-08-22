@@ -11,30 +11,29 @@
 #include "openvino/reference/max.hpp"
 #include "openvino/reference/sum.hpp"
 
-namespace ngraph {
-namespace runtime {
+namespace ov {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto temp_shape = reduce(shape, axes, true);
+    auto temp_shape = ngraph::reduce(shape, axes, true);
     auto temp_elements = shape_size(temp_shape);
     auto temp_ptr = new T[temp_elements];
 
-    max(arg, temp_ptr, shape, axes);
+    ngraph::runtime::reference::max(arg, temp_ptr, shape, axes);
 
-    CoordinateTransform transform(shape);
-    CoordinateTransform temp_transform(temp_shape);
+    ngraph::CoordinateTransform transform(shape);
+    ngraph::CoordinateTransform temp_transform(temp_shape);
     for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = reduce(coord, axes, true);
+        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
         out[transform.index(coord)] =
             std::exp(arg[transform.index(coord)] - temp_ptr[temp_transform.index(temp_coord)]);
     }
 
-    sum(out, temp_ptr, shape, axes);
+    ngraph::runtime::reference::sum(out, temp_ptr, shape, axes);
 
     for (const Coordinate& coord : transform) {
-        Coordinate temp_coord = reduce(coord, axes, true);
+        Coordinate temp_coord = ngraph::reduce(coord, axes, true);
         out[transform.index(coord)] /= temp_ptr[temp_transform.index(temp_coord)];
     }
 
@@ -42,15 +41,16 @@ void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
-}  // namespace runtime
-}  // namespace ngraph
+}  // namespace ov
 
 // Proxy call for dependant components transition to ov::reference namespace
-namespace ov {
+namespace ngraph {
+namespace runtime {
 namespace reference {
 template <typename T>
 void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
-    ngraph::runtime::reference::softmax(arg, out, shape, axes);
+    ov::reference::softmax(arg, out, shape, axes);
 }
 }  // namespace reference
-}  // namespace ov
+}  // namespace runtime
+}  // namespace ngraph
