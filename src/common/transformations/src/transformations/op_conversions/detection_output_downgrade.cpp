@@ -4,12 +4,11 @@
 
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/op/util/detection_output_base.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/detection_output.hpp"
+#include "openvino/op/util/detection_output_base.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace std;
 using namespace ov;

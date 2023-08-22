@@ -5,15 +5,15 @@
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     MATCHER_SCOPE(FakeQuantizeReshapeFusion);

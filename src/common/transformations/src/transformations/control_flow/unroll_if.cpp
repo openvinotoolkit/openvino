@@ -5,15 +5,15 @@
 #include "transformations/control_flow/unroll_if.hpp"
 
 #include <memory>
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 bool ov::pass::UnrollIf::run_on_model(const std::shared_ptr<ov::Model>& f) {

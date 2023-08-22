@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_l2.hpp"
@@ -21,6 +19,8 @@
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 using namespace ov::pass;

@@ -9,15 +9,15 @@
 
 #pragma once
 
-#include <openvino/cc/selective_build.h>
-#include <openvino/itt.hpp>
-#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/cc/selective_build.h"
+#include "openvino/itt.hpp"
+#include "openvino/cc/ngraph/itt.hpp"
 
 namespace ov {
 namespace pass {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(IETransform);
+    OV_ITT_DOMAIN(Transform);
 }   // namespace domains
 }   // namespace itt
 }   // namespace pass

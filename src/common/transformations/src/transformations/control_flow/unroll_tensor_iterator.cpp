@@ -5,18 +5,18 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 
 #include <memory>
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Model>& f) {

@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matrix_nms.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 

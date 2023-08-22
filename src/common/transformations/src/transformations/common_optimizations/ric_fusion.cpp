@@ -5,17 +5,12 @@
 #include "transformations/common_optimizations/ric_fusion.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/binary_elementwise_arithmetic.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/util/log.hpp>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -27,7 +22,11 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 

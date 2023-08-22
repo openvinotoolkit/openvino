@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/smart_reshape/mimic_set_batch_size.hpp>
+#include "transformations/smart_reshape/mimic_set_batch_size.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -15,6 +13,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 
 bool ov::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);

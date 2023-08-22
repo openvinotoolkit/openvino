@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertROIAlign9To3::ConvertROIAlign9To3() {
     MATCHER_SCOPE(ConvertROIAlign9To3);

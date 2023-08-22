@@ -5,17 +5,17 @@
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);

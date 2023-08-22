@@ -7,8 +7,9 @@
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <openvino/core/node.hpp>
 #include <ostream>
+
+#include "openvino/core/node.hpp"
 
 using namespace ov;
 

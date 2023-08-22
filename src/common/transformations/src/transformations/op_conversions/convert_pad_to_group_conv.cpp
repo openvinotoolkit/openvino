@@ -5,15 +5,15 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/pass/pattern/op/pattern.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);

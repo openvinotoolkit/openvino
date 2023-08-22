@@ -4,12 +4,11 @@
 
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
     MATCHER_SCOPE(ConvertMaxPool1ToMaxPool8);

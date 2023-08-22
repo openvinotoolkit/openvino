@@ -5,12 +5,12 @@
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 

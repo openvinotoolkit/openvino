@@ -5,15 +5,15 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::GatherNegativeConstIndicesNormalize::GatherNegativeConstIndicesNormalize() {
     MATCHER_SCOPE(GatherNegativeConstIndicesNormalize);

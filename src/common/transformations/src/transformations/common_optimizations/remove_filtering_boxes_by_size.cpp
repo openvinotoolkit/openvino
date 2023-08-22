@@ -5,11 +5,10 @@
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/manager.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -25,6 +24,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/subtract_fusion.hpp"
 
 ov::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {

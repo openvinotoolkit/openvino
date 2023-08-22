@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/smart_reshape/smart_reshape.hpp"
+
 #include <memory>
-#include <openvino/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
-#include <transformations/smart_reshape/lstm_states_broadcast.hpp>
-#include <transformations/smart_reshape/matmul_sr.hpp>
-#include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
-#include <transformations/smart_reshape/reshape_sinking.hpp>
-#include <transformations/smart_reshape/reshape_to_1D.hpp>
-#include <transformations/smart_reshape/shape_of_const_folding.hpp>
-#include <transformations/smart_reshape/smart_reshape.hpp>
-#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 
 #include "itt.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/smart_reshape/broadcast_const_range_replacement.hpp"
+#include "transformations/smart_reshape/lstm_states_broadcast.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/smart_reshape/proposal_scales_stridedslice.hpp"
+#include "transformations/smart_reshape/reshape_sinking.hpp"
+#include "transformations/smart_reshape/reshape_to_1D.hpp"
+#include "transformations/smart_reshape/shape_of_const_folding.hpp"
+#include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
 bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SmartReshape);

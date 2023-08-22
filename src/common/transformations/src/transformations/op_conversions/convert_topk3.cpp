@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);

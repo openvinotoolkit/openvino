@@ -5,15 +5,15 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/space_to_depth.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
     MATCHER_SCOPE(ConvertSpaceToDepth);

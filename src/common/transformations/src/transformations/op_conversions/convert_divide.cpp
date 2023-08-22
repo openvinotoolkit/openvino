@@ -5,17 +5,16 @@
 #include "transformations/op_conversions/convert_divide.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/util/log.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/nonconvertible_divide.hpp"
 #include "transformations/utils/utils.hpp"

@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
+
 #include <memory>
-#include <ngraph/slice_plan.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "ngraph/slice_plan.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 using namespace ov;

@@ -5,15 +5,15 @@
 #include "transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 

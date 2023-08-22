@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/rt_info/disable_constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
+#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);

@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);

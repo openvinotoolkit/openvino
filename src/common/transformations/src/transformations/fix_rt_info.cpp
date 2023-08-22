@@ -5,11 +5,11 @@
 #include "transformations/fix_rt_info.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 bool ov::pass::FixRtInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {

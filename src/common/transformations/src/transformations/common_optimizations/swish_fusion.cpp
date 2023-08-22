@@ -5,10 +5,9 @@
 #include "transformations/common_optimizations/swish_fusion.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

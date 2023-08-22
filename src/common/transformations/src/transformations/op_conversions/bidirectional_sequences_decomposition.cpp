@@ -5,16 +5,16 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
     MATCHER_SCOPE(BidirectionalLSTMSequenceDecomposition);

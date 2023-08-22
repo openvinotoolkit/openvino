@@ -5,11 +5,11 @@
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);

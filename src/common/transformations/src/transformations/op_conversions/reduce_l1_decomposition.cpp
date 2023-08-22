@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/reduce_l1.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     MATCHER_SCOPE(ReduceL1Decomposition);

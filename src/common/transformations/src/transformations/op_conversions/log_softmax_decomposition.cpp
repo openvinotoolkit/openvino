@@ -5,10 +5,9 @@
 #include "transformations/op_conversions/log_softmax_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/log.hpp"
@@ -16,6 +15,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     MATCHER_SCOPE(LogSoftmaxDecomposition);

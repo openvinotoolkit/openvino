@@ -4,13 +4,12 @@
 
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 

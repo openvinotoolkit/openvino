@@ -5,16 +5,16 @@
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/softplus.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     MATCHER_SCOPE(SoftPlusDecomposition);

@@ -5,15 +5,15 @@
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     MATCHER_SCOPE(SoftPlusToMishFusion);

@@ -6,15 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -23,6 +20,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

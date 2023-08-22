@@ -5,19 +5,19 @@
 #include "transformations/convert_precision.hpp"
 
 #include <memory>
-#include <ngraph/runtime/reference/convert.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset11.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"

@@ -5,10 +5,9 @@
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
     MATCHER_SCOPE(NormalizeL2Decomposition);

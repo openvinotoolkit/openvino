@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/nop_elimination.hpp"
+
 #include <functional>
 #include <memory>
 #include <numeric>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/util/log.hpp>
-#include <openvino/util/util.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -36,8 +31,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/util.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;

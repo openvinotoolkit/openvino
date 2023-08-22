@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <itt.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+#include "transformations/smart_reshape/strided_slice_squeeze.hpp"
 
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {

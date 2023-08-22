@@ -5,10 +5,10 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 
 #include <memory>
-#include <openvino/pass/manager.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 

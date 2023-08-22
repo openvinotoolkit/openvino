@@ -5,9 +5,9 @@
 #include "ov_ops/nms_ie_internal.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset5.hpp"
 
 using namespace std;
 using namespace ov;

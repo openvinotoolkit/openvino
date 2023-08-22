@@ -5,11 +5,11 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"

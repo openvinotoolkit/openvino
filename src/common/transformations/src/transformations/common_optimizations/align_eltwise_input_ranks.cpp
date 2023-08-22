@@ -4,9 +4,7 @@
 
 #include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
@@ -14,6 +12,7 @@
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/util/binary_elementwise_comparison.hpp"
 #include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
     auto eltwise_pattern = pattern::wrap_type<ov::op::v0::SquaredDifference,

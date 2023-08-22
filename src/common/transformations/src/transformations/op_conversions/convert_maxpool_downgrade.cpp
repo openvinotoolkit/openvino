@@ -4,13 +4,12 @@
 
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;

@@ -6,11 +6,11 @@
 
 #include <memory>
 #include <numeric>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"

@@ -5,12 +5,12 @@
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 
 #include <numeric>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMVN1ToMVN6::ConvertMVN1ToMVN6() {

@@ -5,16 +5,16 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 
 #include <memory>
-#include <openvino/core/core.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/core.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);

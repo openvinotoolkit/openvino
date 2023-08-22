@@ -5,16 +5,16 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     MATCHER_SCOPE(ReduceL2Decomposition);

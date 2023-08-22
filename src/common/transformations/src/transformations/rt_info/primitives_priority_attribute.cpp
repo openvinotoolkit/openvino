@@ -9,9 +9,10 @@
 #include <functional>
 #include <iterator>
 #include <memory>
-#include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <ostream>
+
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace ov;
 

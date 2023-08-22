@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/generate_proposals.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/generate_proposals_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 

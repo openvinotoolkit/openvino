@@ -5,12 +5,10 @@
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -20,6 +18,8 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {

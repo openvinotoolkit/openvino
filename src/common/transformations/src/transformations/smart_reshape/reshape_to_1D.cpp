@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/smart_reshape/reshape_to_1D.hpp>
+#include "transformations/smart_reshape/reshape_to_1D.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ReshapeTo1D::ReshapeTo1D() {
     // TODO: enable conditional compile

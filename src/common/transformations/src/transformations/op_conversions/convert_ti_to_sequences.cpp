@@ -5,14 +5,12 @@
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 
 #include <memory>
-#include <openvino/core/graph_util.hpp>
-#include <openvino/core/node.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -30,6 +28,8 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {

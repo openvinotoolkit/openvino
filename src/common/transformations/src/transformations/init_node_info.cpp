@@ -5,11 +5,11 @@
 #include "transformations/init_node_info.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "transformations/fix_rt_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"

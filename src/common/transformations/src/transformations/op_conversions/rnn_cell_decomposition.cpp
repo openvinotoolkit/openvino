@@ -5,15 +5,15 @@
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/rnn_cell.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);

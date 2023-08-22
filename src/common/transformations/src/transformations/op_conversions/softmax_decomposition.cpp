@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/softmax_decomposition.hpp"
+
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/op_conversions/softmax_decomposition.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -17,6 +16,8 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
