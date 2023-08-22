@@ -170,7 +170,7 @@ def test_set_tensors(device):
     res = ops.result(softmax, name="res")
     res.output(0).get_tensor().set_names({"res"})
     model = Model([res], [param], "test_model")
- 
+
     compiled_model = core.compile_model(model, device)
 
     data1 = generate_image()
