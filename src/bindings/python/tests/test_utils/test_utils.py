@@ -7,6 +7,16 @@ from openvino.utils import deprecated
 from tests.utils.helpers import compare_models, get_relu_model
 
 
+def test_compare_functions():
+    try:
+        from openvino.test_utils import compare_functions
+        model = get_relu_model()
+        status, _ = compare_functions(model, model)
+        assert status
+    except RuntimeError:
+        print("openvino.test_utils.compare_functions is not available")  # noqa: T201
+
+
 def test_compare_models_pass():
     model = get_relu_model()
     assert compare_models(model, model)
