@@ -11,13 +11,16 @@
 #include "itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 op::Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
+
+    auto& out_desc = get_output_descriptor(0);
+    auto& in_desc = get_input_descriptor(0);
+    out_desc.get_tensor().clone_from(in_desc.get_tensor());
 }
 
 bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
@@ -28,18 +31,6 @@ bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor) {
 void op::Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
-
-    // Result doesn't change in/out tensors
-    auto& out_desc = get_output_descriptor(0);
-    auto& in_desc = get_input_descriptor(0);
-
-    bool do_clone_tensor = ov::op::util::is_parameter(get_input_node_ptr(0)) ||
-                          ov::op::util::is_constant(get_input_node_ptr(0));
-
-    if (do_clone_tensor)
-        out_desc.get_tensor().clone_from(in_desc.get_tensor());
-    else
-        out_desc.set_tensor_ptr(in_desc.get_tensor_ptr());
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const {

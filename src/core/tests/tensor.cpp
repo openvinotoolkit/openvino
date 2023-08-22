@@ -35,38 +35,18 @@ TEST(tensor, tensor_names) {
     ASSERT_EQ(f0->get_result()->input_value(0).get_tensor().get_names(), relu->get_output_tensor(0).get_names());
 }
 
-TEST(tensor, result_copy_tensor_if_input_is_parameter) {
+TEST(tensor, result_copy_tensor) {
     auto arg0 = make_shared<opset6::Parameter>(element::f32, Shape{1});
     arg0->get_output_tensor(0).set_names({"input"});
     auto res = make_shared<opset6::Result>(arg0);
-    res->get_output_tensor(0).set_names({"output"});
 
     ASSERT_NE(&res->get_output_tensor(0), &res->get_input_tensor(0));
+    ASSERT_EQ(res->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
+    ASSERT_EQ(arg0->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
+
+    res->get_output_tensor(0).set_names({"output"});
     ASSERT_EQ(res->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"output"});
     ASSERT_EQ(arg0->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
-}
-
-TEST(tensor, result_copy_tensor_if_input_is_constant) {
-    auto arg0 = make_shared<opset6::Constant>(element::f32, Shape{1});
-    arg0->get_output_tensor(0).set_names({"input"});
-    auto res = make_shared<opset6::Result>(arg0);
-    res->get_output_tensor(0).set_names({"output"});
-
-    ASSERT_NE(&res->get_output_tensor(0), &res->get_input_tensor(0));
-    ASSERT_EQ(res->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"output"});
-    ASSERT_EQ(arg0->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
-}
-
-TEST(tensor, result_clone_tensor) {
-    auto arg0 = make_shared<opset6::Parameter>(element::f32, Shape{1});
-    auto relu = make_shared<opset6::Relu>(arg0);
-    relu->get_output_tensor(0).set_names({"relu"});
-    auto res = make_shared<opset6::Result>(relu);
-    res->get_output_tensor(0).set_names({"output"});
-
-    ASSERT_EQ(&res->get_output_tensor(0), &res->get_input_tensor(0));
-    ASSERT_EQ(res->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"output"});
-    ASSERT_EQ(relu->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"output"});
 }
 
 TEST(tensor, wrap_tensor_with_unspecified_type) {
