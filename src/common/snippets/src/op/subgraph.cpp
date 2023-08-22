@@ -40,6 +40,7 @@
 #include "snippets/lowered/pass/identify_buffers.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
+#include "snippets/lowered/pass/buffer_manager.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -674,11 +675,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
-    lowered::pass::PassPipeline buffer_pipeline;
-    buffer_pipeline.register_pass<lowered::pass::IdentifyBuffers>();
-    buffer_pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
-    buffer_pipeline.register_pass(buffer_allocation_pass);
+    lowered::pass::BufferManager buffer_pipeline;
     buffer_pipeline.run(linear_ir);
 
     lowered::pass::PassPipeline final_pipeline;
@@ -686,7 +683,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     final_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     final_pipeline.run(linear_ir);
 
-    m_buffer_scratchpad = buffer_allocation_pass->get_scratchpad_size();
+    m_buffer_scratchpad = buffer_pipeline.get_scratchpad_size();
 }
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,
