@@ -594,6 +594,32 @@ void Graph::InitEdges() {
         numberOfEdges--;
     };
 
+    // In case of edge's child is 'Convert' op and the edge's input/output has different precision, if set convert's
+    // input precision same with edge parent precision, it will avoid additional new convert op to be added.
+    for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
+        auto edge = graphEdges[i];
+        if ((edge->getChild()->getType() == Type::Convert) &&
+            edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision()) {
+            auto convert = edge->getChild();
+            const auto& inDesc = edge->getInputDesc();
+            const auto& outDesc = convert->getChildEdgeAt(0)->getInputDesc();
+            std::string convertName = convert->getName();
+            DEBUG_LOG("replace convert node: ",
+                      convertName,
+                      ", precision: ",
+                      edge->getOutputDesc().getPrecision().name(),
+                      " to ",
+                      inDesc.getPrecision().name());
+            auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(),
+                                                               inDesc.getPrecision(),
+                                                               outDesc.getPrecision(),
+                                                               convertName,
+                                                               context);
+            convertNode->setDescs(inDesc, outDesc);
+            ReplaceConvert(edge, convert, convertNode, true);
+        }
+    }
+
     for (ptrdiff_t i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
@@ -1699,6 +1725,65 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     graphEdges.push_back(beforeNode);
     graphEdges.push_back(afterNode);
     graphNodes.push_back(node);
+    return true;
+}
+
+bool Graph::ReplaceConvert(EdgePtr parent, NodePtr oldNode, NodePtr newNode, bool initNode) {
+    auto remove_graph_edge = [&](EdgePtr _edge) {
+        for (auto it = graphEdges.begin(); it != graphEdges.end();) {
+            if (*it == _edge) {
+                it = graphEdges.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+    auto remove_edge = [&](EdgePtr _edge, std::vector<ov::intel_cpu::EdgeWeakPtr>& edges) {
+        for (auto it = edges.begin(); it != edges.end();) {
+            if (static_cast<EdgePtr>(*it) == _edge) {
+                it = edges.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+
+    EdgePtr beforeNode(new Edge(parent->getParent(), newNode, parent->getInputNum(), parent->getOutputNum()));
+    beforeNode->getChild()->parentEdges.push_back(beforeNode);
+    parent->getParent()->childEdges.push_back(beforeNode);
+    remove_edge(parent, parent->getParent()->childEdges);
+
+    // There maybe multiple child edges
+    for (size_t i = 0; i < oldNode->childEdges.size(); i++) {
+        auto edge = oldNode->getChildEdgeAt(i);
+        EdgePtr afterNode(new Edge(newNode, edge->getChild(), edge->getInputNum(), edge->getOutputNum()));
+        afterNode->getParent()->childEdges.push_back(afterNode);
+        edge->getChild()->parentEdges.push_back(afterNode);
+        remove_edge(edge, edge->getChild()->parentEdges);
+        remove_graph_edge(edge);
+        graphEdges.push_back(afterNode);
+    }
+    remove_graph_edge(parent);
+    graphEdges.push_back(beforeNode);
+
+    if (initNode) {
+        newNode->getSupportedDescriptors();
+        newNode->initSupportedPrimitiveDescriptors();
+        newNode->filterSupportedPrimitiveDescriptors();
+        newNode->selectOptimalPrimitiveDescriptor();
+        resolveInPlaceDirection(newNode);
+        newNode->initOptimalPrimitiveDescriptor();
+    }
+    graphNodes.push_back(newNode);
+    oldNode->remove();
+    for (auto it = graphNodes.begin(); it != graphNodes.end();) {
+        if (*it == oldNode) {
+            it = graphNodes.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     return true;
 }
 

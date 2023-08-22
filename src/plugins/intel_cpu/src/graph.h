@@ -182,6 +182,25 @@ public:
      */
     bool InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPort, int childPort, bool initNode = false);
 
+    /**
+     * @brief Replace convert node with a new convert node.
+     * This procedure removes the old convert node and replace it with a new convert, which adopts the same precision
+     * with its parent edge's input precision. The connection between edges and old convert node will be disconnected,
+     * and new links to new convert node are created. This method supports two regimes. First, the node is inserted
+     * without initialization (i.e. supported descriptors initialization, supported primitive descriptors selection,
+     * etc.). The second is just inserting the node without initialization.
+     * @param parent
+     * pointer to the parent edge
+     * @param oldNode
+     * pointer to the convert node that will be replaced
+     * @param newNode
+     * pointer to the convert node that will replace the old one
+     * @param initNode
+     * parameter that determines whether the node needs to be initialized
+     * @return true in case of success, false otherwise.
+     */
+    bool ReplaceConvert(EdgePtr parent, NodePtr oldNode, NodePtr newNode, bool initNode);
+
     std::shared_ptr<ngraph::Function> dump() const;
 
     void ResetInferCount() { infer_count = 0; }
