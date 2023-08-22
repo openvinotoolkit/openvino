@@ -100,8 +100,8 @@ protected:
 
         ov::ParameterVector params;
         for (size_t i = 0; i < inType.size(); i++) {
-            auto paramNode = std::make_shared<ov::op::v0::Parameter>(inType[i], inputDynamicShapes[i]);
-            params.push_back(paramNode);
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(inType[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
         }
         auto ctcGreedyDecoderSeqLen = std::make_shared<ov::op::v6::CTCGreedyDecoderSeqLen>(params[0],
                                                                                            params[1],

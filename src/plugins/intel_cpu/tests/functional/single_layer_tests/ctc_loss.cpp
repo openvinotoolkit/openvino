@@ -98,8 +98,8 @@ protected:
 
         ov::ParameterVector params;
         for (size_t i = 0; i < types.size(); i++) {
-            auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], partialShapes[i]);
-            params.push_back(paramNode);
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], partialShapes[i]);
+            params.push_back(param_node);
         }
         auto bankNode = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ }, {blank});
 

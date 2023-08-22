@@ -54,8 +54,8 @@ static std::shared_ptr<ov::Model> initNgram(std::vector<ov::PartialShape>& input
     ov::element::TypeVector input_precisions{data_et, idces_et};
     ov::ParameterVector params;
     for (size_t i = 0; i < input_precisions.size(); i++) {
-        auto paramNode = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], input_shapes[i]);
-        params.push_back(paramNode);
+        auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], input_shapes[i]);
+        params.push_back(param_node);
     }
     auto shape_of = std::make_shared<ov::opset10::ShapeOf>(params[0], idces_et);
     auto shape_ss_begin = ov::opset1::Constant::create(idces_et, {1}, {0});

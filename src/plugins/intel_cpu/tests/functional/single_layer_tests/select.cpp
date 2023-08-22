@@ -63,8 +63,8 @@ protected:
         ov::element::TypeVector types{ov::element::boolean, precision, precision};
         ov::ParameterVector parameters;
         for (size_t i = 0; i < types.size(); i++) {
-            auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
-            parameters.push_back(paramNode);
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            parameters.push_back(param_node);
         }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(parameters));
         auto select = ngraph::builder::makeSelect(paramOuts, broadcast);

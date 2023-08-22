@@ -55,8 +55,8 @@ protected:
         ov::element::TypeVector input_precisions{input_precision, ov::element::i64};
         ov::ParameterVector params;
         for (size_t i = 0; i < input_precisions.size(); i++) {
-            auto paramNode = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], inputDynamicShapes[i]);
-            params.push_back(paramNode);
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(input_precisions[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
         }
         const auto bcast_data = ov::opset10::Constant::create(input_precision, {}, {1.f});
         const auto bcast = std::make_shared<ov::opset10::Broadcast>(bcast_data, params[1]);

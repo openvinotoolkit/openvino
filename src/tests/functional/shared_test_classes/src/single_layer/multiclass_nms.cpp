@@ -368,9 +368,10 @@ void MulticlassNmsLayerTest::SetUp() {
     ParameterVector params;
     if (inputDynamicShapes.size() > 2) {
         std::vector<ov::element::Type> types {paramsPrec, paramsPrec, roisnumPrec};
+        OPENVINO_ASSERT(types.size() == inputDynamicShapes.size());
         for (size_t i = 0; i < types.size(); i++) {
-            auto paramNode = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
-            params.push_back(paramNode);
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
         }
     } else {
         for (auto&& shape : inputDynamicShapes) {

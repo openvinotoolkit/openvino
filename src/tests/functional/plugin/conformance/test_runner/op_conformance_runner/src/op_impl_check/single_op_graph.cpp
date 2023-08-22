@@ -713,7 +713,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::NormalizeL
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::OneHot> &node) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}})};
     const auto depth = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{3});
     const auto onvalue = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{1});
     const auto offvalue = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{0});
