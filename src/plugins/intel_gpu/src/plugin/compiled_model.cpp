@@ -55,11 +55,11 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                     "Intel GPU plugin executor",
                     0,
                     0,
-                    InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES,
+                    ov::threading::IStreamsExecutor::ThreadBindingType::CORES,
                     1,
                     0,
                     0,
-                    InferenceEngine::IStreamsExecutor::Config::PreferredCoreType::BIG,
+                    ov::threading::IStreamsExecutor::Config::PreferredCoreType::BIG,
                     {{config.get_property(ov::num_streams), 1, 1, 0, 0}}};
                 return std::make_shared<InferenceEngine::CPUStreamsExecutor>(executorConfig);
             }
