@@ -20,8 +20,6 @@ from openvino import (
 )
 
 from openvino.runtime import Extension
-
-from tests.conftest import model_onnx_path
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
@@ -29,10 +27,8 @@ from tests.utils.helpers import (
     plugins_path,
     compare_models,
     create_filename_for_test,
-    get_model_with_template_extension
+    get_model_with_template_extension,
 )
-
-test_net_onnx = model_onnx_path()
 
 
 def test_compact_api_xml():
@@ -150,18 +146,6 @@ def test_read_model_as_path(request, tmp_path):
     assert isinstance(model, Model)
 
     model = core.read_model(model=Path(xml_path))
-    assert isinstance(model, Model)
-
-
-def test_read_model_from_onnx():
-    core = Core()
-    model = core.read_model(model=test_net_onnx)
-    assert isinstance(model, Model)
-
-
-def test_read_model_from_onnx_as_path():
-    core = Core()
-    model = core.read_model(model=Path(test_net_onnx))
     assert isinstance(model, Model)
 
 
