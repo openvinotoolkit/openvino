@@ -249,6 +249,10 @@ public:
 
     ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
 
+#ifdef GPU_DEBUG_CONFIG
+    int64_t get_current_iteration_num() { return iteration; }
+#endif
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
