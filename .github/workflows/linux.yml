@@ -29,7 +29,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-32-cores
+    runs-on: ubuntu-latest-8-cores
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -726,12 +726,10 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-latest-4-cores
+    runs-on: ubuntu-22.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
-      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
 
     steps:
       - name: Create Directories
@@ -763,33 +761,15 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C ${{ env.INSTALL_DIR }} && rm openvino_tests.tar.gz || exit 1
           popd
 
-      - name: Install python dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r ${{ github.workspace }}/install/tests/functional_test_utils/requirements.txt
-
-      - name: Cache Tests Execution Time
-        id: tests-functional-cpu-cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-tests-functional-cpu-cache
-
-      - name: Intel CPU plugin func tests (parallel)
+      - name: Intel CPU plugin func tests
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
-          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests-parallel.xml"
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:"${{ env.INSTALL_TEST_DIR }}/TEST-CPUFuncTests.xml"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
           name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/disabled_tests.log
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
