@@ -70,7 +70,7 @@ public:
         }
 
         std::ostringstream result;
-        result << "Shape=" << CommonTestUtils::vec2str(input_shape) << "_";
+        result << "Shape=" << ov::test::utils::vec2str(input_shape) << "_";
         result << "netPRC=" << net_type << "_";
         result << "trgDev=" << target_device;
         for (auto const& conf_i : conf) {
@@ -186,7 +186,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_merge_transpose_gather,
                          TransposeGatherTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          TransposeGatherTest::get_test_case_name);
@@ -195,7 +195,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_merge_transpose_gather,
                          GatherTransposeTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          GatherTransposeTest::get_test_case_name);

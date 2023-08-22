@@ -61,6 +61,12 @@
         "ONNX",
         "Pytorch"
     ],
+    "109-throughput-tricks": [
+        "Async Inference",
+        "Benchmark Model",
+        "ONNX",
+        "Pytorch"
+    ],
     "110-ct-scan-live-inference": [
         "Async Inference",
         "Benchmark Model"
@@ -105,6 +111,12 @@
     ],
     "119-tflite-to-openvino": [
         "Benchmark Model"
+    ],
+    "121-convert-to-openvino": [
+        "ONNX",
+        "Pytorch",
+        "Torchvision",
+        "Transformers"
     ],
     "203-meter-reader": [
         "Dynamic Shape",
@@ -174,6 +186,12 @@
         "ONNX",
         "Pytorch"
     ],
+    "220-cross-lingual-books-alignment": [
+        "Async Inference",
+        "Optimize Model",
+        "Pytorch",
+        "Transformers"
+    ],
     "221-machine-translation": [
         "Download Model"
     ],
@@ -203,10 +221,17 @@
     ],
     "227-whisper-subtitles-generation": [
         "ONNX",
-        "Pytorch"
+        "Pytorch",
+        "Transformers"
     ],
-    "228-clip-zero-shot-image-classification": [
+    "228-clip-zero-shot-convert": [
         "ONNX",
+        "Pytorch",
+        "Transformers"
+    ],
+    "228-clip-zero-shot-quantize": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -278,8 +303,13 @@
         "Pytorch",
         "Reshape Model"
     ],
-    "239-image-bind": [
+    "239-image-bind-convert": [
         "ONNX",
+        "Pytorch"
+    ],
+    "239-image-bind-quantize": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch"
     ],
     "240-dolly-2-instruction-following": [
@@ -291,6 +321,30 @@
     "242-freevc-voice-conversion": [
         "ONNX",
         "Pytorch"
+    ],
+    "244-named-entity-recognition": [
+        "ONNX",
+        "Pytorch",
+        "Transformers"
+    ],
+    "245-typo-detector": [
+        "ONNX",
+        "Optimize Model",
+        "Pytorch",
+        "Transformers"
+    ],
+    "246-depth-estimation-videpth": [
+        "ONNX",
+        "Pytorch",
+        "Torchvision"
+    ],
+    "247-code-language-id": [
+        "ONNX",
+        "Transformers"
+    ],
+    "249-oneformer-segmentation": [
+        "Pytorch",
+        "Transformers"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",
