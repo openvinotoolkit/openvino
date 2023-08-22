@@ -309,9 +309,9 @@ class TestParallelRunner:
                     continue
                 if not ' ' in test_name:
                     test_suite = test_name.replace(".", "")
-                    if (test_unit == "suite") :
-                        if constants.DISABLED_PREFIX in test_suite:
-                            self._disabled_tests.append(test_suite)
+                    # if (test_unit == "suite") :
+                    #     if constants.DISABLED_PREFIX in test_suite:
+                    #         self._disabled_tests.append(test_suite)
                     continue
                 pos = test_name.find(' # ')
                 if pos > 0 or test_suite != "" :
@@ -771,11 +771,10 @@ class TestParallelRunner:
                 is_successfull_run = False
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
-        if (self._split_unit == "test" and self._total_test_cnt != test_cnt) or (self._split_unit == "suite" and test_cnt < self._total_test_cnt) :
+
+        diff_set = set(saved_tests).difference(set(tests_runtime))
+        if (diff_set) :
             logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
-            saved_tests_set = set(saved_tests)
-            tests_runtime_set = set(tests_runtime)
-            diff_set = tests_runtime_set.difference(saved_tests_set)
             [logger.error(f'Missed test: {test}') for test in diff_set]
             is_successfull_run = False
         logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
