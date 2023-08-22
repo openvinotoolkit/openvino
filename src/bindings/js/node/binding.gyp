@@ -8,7 +8,6 @@
 
       "sources": [
         "src/async_infer.cpp",
-        "src/node_input.cpp",
         "src/node_output.cpp",
         "src/async_reader.cpp",
         "src/pre_post_process_wrap.cpp",
