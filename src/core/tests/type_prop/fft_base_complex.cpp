@@ -30,7 +30,7 @@ struct FFTConstantAxesAndConstantSignalSizeTestParams {
 template <class TOp>
 class FFTConstantAxesAndConstantSignalSizeTest : public TypePropOpTest<TOp> {
 public:
-    std::vector<FFTConstantAxesAndConstantSignalSizeTestParams> test_params{
+    const std::vector<FFTConstantAxesAndConstantSignalSizeTestParams> test_params{
         FFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2}, {2}, Shape{}, {2, 180, 180, 2}, {1, 2}, {}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{2, 180, 180, 2}, {2}, Shape{}, {2, 180, 180, 2}, {2, 0}, {}},
         FFTConstantAxesAndConstantSignalSizeTestParams{{16, 500, 180, 369, 2},
@@ -213,7 +213,7 @@ struct NonConstantAxesTestParams {
 template <class TOp>
 class FFTNonConstantAxesTest : public TypePropOpTest<TOp> {
 public:
-    std::vector<NonConstantAxesTestParams> test_params{
+    const std::vector<NonConstantAxesTestParams> test_params{
         NonConstantAxesTestParams{{2, 180, 180, Dimension(1, 18)},
                                   PartialShape::dynamic(),
                                   {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)}},
@@ -347,7 +347,7 @@ struct NonConstantSignalSizeTestParams {
 template <class TOp>
 class FFTNonConstantSignalSizeTest : public TypePropOpTest<TOp> {
 public:
-    std::vector<NonConstantSignalSizeTestParams> test_params{
+    const std::vector<NonConstantSignalSizeTestParams> test_params{
         NonConstantSignalSizeTestParams{{2, Dimension(0, 200), 180, 2},
                                         {2},
                                         {2},
