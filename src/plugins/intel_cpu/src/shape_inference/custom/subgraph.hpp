@@ -22,18 +22,18 @@ public:
             auto src_rank = src.size();
             const auto new_rank = std::max(dst_rank, src_rank);
             dst.insert(dst.begin(), new_rank - dst_rank, 1);
-            bool success = true;
             for (size_t i = 0; i < new_rank; i++) {
                 auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
                 if (dst[i] != srci && srci != Shape::UNDEFINED_DIM) {
                     if (dst[i] == 1 || dst[i] == Shape::UNDEFINED_DIM) {
                         dst[i] = srci;
                     } else {
-                        success = false;
+                        if (srci != 1) {
+                            IE_THROW() << "Got imcompatible input shapes in snippets shape infer";
+                        }
                     }
                 }
             }
-            return success;
         };
 
         const size_t out_size = m_body->get_output_size();

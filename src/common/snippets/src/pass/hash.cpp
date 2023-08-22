@@ -23,6 +23,7 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 // helper
 namespace {
 template <typename Container>
@@ -151,6 +152,7 @@ public:
 
 void ovfunction_2_hash(uint64_t& hash, const ov::Model& model);
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 class SnippetsHasher : public ov::AttributeVisitor {
     uint64_t& m_hash;
     const std::string& m_node_type_name;
@@ -235,6 +237,7 @@ public:
         ovfunction_2_hash(m_hash, *adapter.get());
     }
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
     std::unordered_map<ov::Node*, int> layer_ids;

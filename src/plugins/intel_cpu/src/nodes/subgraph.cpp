@@ -25,15 +25,17 @@
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
+#include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 #include <common/primitive_hashing_utils.hpp>
-#include "openvino/pass/manager.hpp"
-#include "transformations/hash.hpp"
+#include "snippets/pass/hash.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -90,12 +92,12 @@ bool SnippetKey::operator==(const SnippetKey& rhs) const {
         return false;
 
     for (size_t i = 0; i < attrs.inMemBlockedDims.size(); i++) {
-        if(!(attrs.inMemBlockedDims[i] == rhs.attrs.inMemBlockedDims[i]))
+        if (!(attrs.inMemBlockedDims[i] == rhs.attrs.inMemBlockedDims[i]))
             return false;
     }
     for (size_t i = 0; i < attrs.outMemBlockedDims.size(); i++) {
         if (!(attrs.outMemBlockedDims[i] == rhs.attrs.outMemBlockedDims[i]))
-            return false
+            return false;
     }
     for (size_t i = 0; i < attrs.inMemOrders.size(); i++) {
         if (!(attrs.inMemOrders[i] == rhs.attrs.inMemOrders[i]))
@@ -138,93 +140,6 @@ snippets::op::Subgraph::BlockedShapeVector getBlockedShapes(const std::vector<st
 
     return blockedShapes;
 }
-
-class SnippetShapeInfer : public ShapeInferEmptyPads {
-public:
-    SnippetShapeInfer(std::shared_ptr<ov::Model> body) : m_body(body) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto broadcast_merge = [](VectorDims& dst, const VectorDims& src) {
-            // Ranks are both static.
-            auto dst_rank = dst.size();
-            auto src_rank = src.size();
-            const auto new_rank = std::max(dst_rank, src_rank);
-            dst.insert(dst.begin(), new_rank - dst_rank, 1);
-            bool success = true;
-            for (size_t i = 0; i < new_rank; i++) {
-                auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
-                if (dst[i] != srci && srci != Shape::UNDEFINED_DIM) {
-                    if (dst[i] == 1 || dst[i] == Shape::UNDEFINED_DIM) {
-                        dst[i] = srci;
-                    } else {
-                        success = false;
-                    }
-                }
-            }
-            return success;
-        };
-
-        const size_t out_size = m_body->get_output_size();
-        if (out_size == 1) {
-            VectorDims masterShape;
-            for (size_t i = 0; i < input_shapes.size(); i++) {
-                if (i == 0)
-                    masterShape = input_shapes[i];
-                else
-                    broadcast_merge(masterShape, input_shapes[i]);
-            }
-            size_t output_rank = m_body->get_output_partial_shape(0).rank().get_length();
-            if (output_rank > masterShape.size()) {
-                masterShape.insert(masterShape.begin(), output_rank - masterShape.size(), 1);
-            }
-            return {{masterShape}, ShapeInferStatus::success};
-        } else {
-            std::vector<VectorDims> outputDims;
-            std::vector<ov::Shape> new_shapes;
-            for (const auto& s : input_shapes)
-                new_shapes.emplace_back(s);
-            auto& params = m_body->get_parameters();
-            if (params.size() != input_shapes.size()) {
-                IE_THROW() << "Got invalid number of input shapes to reshape subgraph body";
-            }
-            for (size_t i = 0; i < params.size(); ++i) {
-                params[i]->set_partial_shape(new_shapes[i]);
-            }
-            m_body->validate_nodes_and_infer_types();
-            for (const auto& res : m_body->get_results()) {
-                auto& pshape = res->get_input_partial_shape(0);
-                if (!pshape.is_static()) {
-                    IE_THROW() << "Subgraph inferred dynamic output shape during reshape with static inputs";
-                }
-                outputDims.emplace_back(pshape.get_shape());
-            }
-
-            return {outputDims, ShapeInferStatus::success};
-        }
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    std::shared_ptr<ov::Model> m_body;
-};
-
-class SnippetShapeInferFactory : public ShapeInferFactory {
-public:
-    SnippetShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
-        auto subgraph = ov::as_type_ptr<snippets::op::Subgraph>(op);
-        snippet_body = subgraph->body_ptr()->clone();
-    }
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<SnippetShapeInfer>(snippet_body);
-    }
-
-private:
-    std::shared_ptr<ov::Model> snippet_body = nullptr;
-};
 } // namespace
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
@@ -249,14 +164,17 @@ void Snippet::copy_snippet() const {
     snippetAttrs.snippet = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ov::copy_runtime_info(original_snippet, snippetAttrs.snippet);
     snippetAttrs.snippet->set_friendly_name(original_snippet->get_friendly_name());
+#if defined(OPENVINO_ARCH_X86_64)
     snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+#else
+    IE_THROW(NotImplemented) << "CPU plugin: code-generation is not supported on non-x64 platforms";
+#endif // OPENVINO_ARCH_X86_64
 }
 
 void Snippet::init_body_hash() {
     uint64_t seed = 0;
-    ov::pass::Manager m;
-    m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(std::const_pointer_cast<ov::Model>(original_snippet->body_ptr()));
+    ov::snippets::pass::Hash hash_function(seed);
+    hash_function.run_on_model(original_snippet->body_ptr());
     snippetAttrs.bodyHash = seed;
 }
 
@@ -265,7 +183,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::I8, Precision::U8 };
+    const std::set<Precision> supportedPrecisions = { Precision::FP32, Precision::I32, Precision::BF16, Precision::FP16, Precision::I8, Precision::U8 };
 
     bool dimRanksAreEqual = true;
     for (size_t i = 0; dimRanksAreEqual && i < inputShapes.size(); i++) {
@@ -339,7 +257,7 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
             const auto precision = ((originalInputPrecision == InferenceEngine::Precision::FP32) &&
-                                     context->getConfig().enforceBF16 &&
+                                     context->getConfig().inferencePrecision == ov::element::bf16 &&
                                      snippetAttrs.snippet->has_domain_sensitive_ops()) ?
                 static_cast<InferenceEngine::Precision>(InferenceEngine::Precision::BF16) :
                 originalInputPrecision;
@@ -394,9 +312,13 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
 void Snippet::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), true);
+}
+
+void Snippet::initOptimalPrimitiveDescriptor() {
+    Node::initOptimalPrimitiveDescriptor();
     // memory order and precision is determined now, there is no need to prepare for each dynamic shapes.
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    const size_t inputNum = config.inConfs.size();
+    inputNum = config.inConfs.size();
     snippetAttrs.inMemPrecs.resize(inputNum);
     snippetAttrs.inMemOrders.resize(inputNum);
     for (size_t i = 0; i < inputNum; i++) {
@@ -404,13 +326,18 @@ void Snippet::selectOptimalPrimitiveDescriptor() {
         snippetAttrs.inMemPrecs[i] = memDesc->getPrecision();
         snippetAttrs.inMemOrders[i] = memDesc->as<BlockedMemoryDesc>()->getOrder();
     }
-    const size_t outputNum = config.outConfs.size();
+    outputNum = config.outConfs.size();
     snippetAttrs.outMemPrecs.resize(outputNum);
     snippetAttrs.outMemOrders.resize(outputNum);
     for (size_t i = 0; i < outputNum; i++) {
         snippetAttrs.outMemPrecs[i] = config.outConfs[i].getMemDesc()->getPrecision();
         snippetAttrs.outMemOrders[i] = config.outConfs[i].getMemDesc()->as<BlockedMemoryDesc>()->getOrder();
     }
+    // reserve fixed size.
+    snippetAttrs.inMemBlockedDims.resize(inputNum);
+    snippetAttrs.outMemBlockedDims.resize(outputNum);
+    srcMemPtrs.resize(inputNum);
+    dstMemPtrs.resize(outputNum);
 }
 
 InferenceEngine::Precision Snippet::getRuntimePrecision() const {
@@ -418,7 +345,7 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -426,22 +353,16 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
 }
 
 void Snippet::prepareParams() {
-    auto inputSize = inputShapes.size();
-    snippetAttrs.inMemBlockedDims.resize(inputSize);
-    for (size_t i = 0; i < inputSize; i++) {
-        snippetAttrs.inMemBlockedDims[i] = getParentEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    }
-    auto outputSize = outputShapes.size();
-    snippetAttrs.outMemBlockedDims.resize(outputSize);
-    for (size_t i = 0; i < outputSize; i++) {
-        snippetAttrs.outMemBlockedDims[i] = getChildEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    }
+    for (size_t i = 0; i < inputNum; i++)
+        snippetAttrs.inMemBlockedDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    for (size_t i = 0; i < outputNum; i++)
+        snippetAttrs.outMemBlockedDims[i] = getChildEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     SnippetKey key = {snippetAttrs};
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
         std::shared_ptr<SnippetExecutor> executor = std::make_shared<SnippetJitExecutor>(key.attrs, is_canonicalized,
-            is_dynamic, context->getConfig().enforceBF16);
+            is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
         is_canonicalized = true;
         return executor;
     };
@@ -492,13 +413,9 @@ void Snippet::execute(dnnl::stream strm) {
     if (!execPtr) {
         IE_THROW() << "Can't execute Subgraph node. Primitive didn't created";
     }
-    auto inputSize = inputShapes.size();
-    srcMemPtrs.resize(inputSize);
-    for (size_t i = 0; i < inputSize; i++)
+    for (size_t i = 0; i < inputNum; i++)
         srcMemPtrs[i] = getParentEdgeAt(i)->getMemoryPtr();
-    auto outputSize = outputShapes.size();
-    dstMemPtrs.resize(outputSize);
-    for (size_t i = 0; i < outputSize; i++)
+    for (size_t i = 0; i < outputNum; i++)
         dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
 
     execPtr->exec(srcMemPtrs, dstMemPtrs);
@@ -514,10 +431,10 @@ void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, 
     }
     auto initStartMemoryOffsets = [this, &inMemPtrs, &outMemPtrs]() {
         for (size_t i = 0; i < numInput; i++) {
-            start_offset_in[i] = inMemPtrs[i]->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
+            start_offset_in[i] = inMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
         }
         for (size_t i = 0; i < numOutput; i++) {
-            start_offset_out[i] = outMemPtrs[i]->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInput];
+            start_offset_out[i] = outMemPtrs[i]->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInput];
         }
     };
     // initialize start offsets to src and dst memory
@@ -534,10 +451,10 @@ void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, 
 void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     for (size_t i = 0; i < inMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(inMemPtrs[i]->GetData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(inMemPtrs[i]->getData()) + start_offset_in[i];
 
     for (size_t i = 0; i < outMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(outMemPtrs[i]->GetData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(outMemPtrs[i]->getData()) + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =
@@ -607,15 +524,9 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
         snippet_for_generation->set_generator(std::make_shared<CPUGenerator>(host_isa));
     };
 
-    ov::PartialShape canonicalShape;
-    if (is_canonicalized) {
-        // reshape with new input shapes, and get updated master shape
-        canonicalShape = reshapeCanonicalizedBody();
-    } else {
-        // determine canonicalize, determine master_shape
-        // canonicalShape and compute_master_shape is always on snippetAttrs.snippet, only generation on a copy.
-        canonicalShape = canonicalizeBody();
-    }
+    // is_canonicalized is ture means just reshape canonicalized graph with new input shapes, and get updated master shape,
+    // false means canonicalization, determine master_shape on snippetAttrs.snippet.
+    ov::PartialShape canonicalShape = canonicalizeBody(is_canonicalized);
 
     if (is_dynamic) {
         // we need a local snippets for generation, which will be adjusted based on input shapes possibily.
@@ -699,26 +610,19 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs, bool 
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
 }
 
-ov::PartialShape Snippet::SnippetJitExecutor::canonicalizeBody() {
+ov::PartialShape Snippet::SnippetJitExecutor::canonicalizeBody(bool reshape) {
     ov::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes = getBlockedShapes(
         snippetAttrs.inMemBlockedDims, snippetAttrs.inMemOrders, snippetAttrs.inMemPrecs);
-
-    ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes = getBlockedShapes(
+    if (reshape) {
+        const auto& canonicalShape = snippetAttrs.snippet->canonicalized_body_shape_infer(input_blocked_shapes);
+        return canonicalShape;
+    } else {
+        ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes = getBlockedShapes(
         snippetAttrs.outMemBlockedDims, snippetAttrs.outMemOrders, snippetAttrs.outMemPrecs);
 
-    const auto& canonicalShape = snippetAttrs.snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
-    return canonicalShape;
-}
-
-ov::PartialShape Snippet::SnippetJitExecutor::reshapeCanonicalizedBody() {
-    ov::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes = getBlockedShapes(
-        snippetAttrs.inMemBlockedDims, snippetAttrs.inMemOrders, snippetAttrs.inMemPrecs);
-
-    ov::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes = getBlockedShapes(
-        snippetAttrs.outMemBlockedDims, snippetAttrs.outMemOrders, snippetAttrs.outMemPrecs);
-
-    const auto& canonicalShape = snippetAttrs.snippet->reshape_canonicalized_body(output_blocked_shapes, input_blocked_shapes);
-    return canonicalShape;
+        const auto& canonicalShape = snippetAttrs.snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
+        return canonicalShape;
+    }
 }
 
 bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vector<VectorDims>& outputShapes,
@@ -802,10 +706,14 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     ov::pass::Manager post_dialect;
     CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    CPU_REGISTER_PASS_X64(post_dialect, ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
     ov::pass::Manager post_precision;
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
+
+    ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
+    CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
@@ -814,12 +722,13 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
         pre_dialect,
         post_dialect,
         post_precision,
+        control_flow_markup_pipeline,
         control_flow_pipeline,
         reinterpret_cast<const void*>(jcp));
 }
 
 bool Snippet::SnippetJitExecutor::schedule_created() {
-    return schedule.ptr == nullptr ? false : true;
+    return schedule.ptr != nullptr;
 }
 
 }   // namespace node
