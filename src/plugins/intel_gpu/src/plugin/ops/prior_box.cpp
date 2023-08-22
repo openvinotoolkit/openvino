@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/constant.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "ngraph/op/prior_box.hpp"
-#include "ngraph/op/prior_box_clustered.hpp"
-
 #include "intel_gpu/primitives/prior_box.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
+static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::PriorBoxClustered>& op) {
     OPENVINO_ASSERT(false, "[GPU] PriorBoxClustered op is not supported in GPU plugin yet.");
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
@@ -86,7 +86,7 @@ static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::
     }
 }
 
-static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox>& op) {
+static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::PriorBox>& op) {
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -111,8 +111,8 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
@@ -174,7 +174,7 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     }
 }
 
-static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::PriorBox>& op) {
+static void CreatePriorBoxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::PriorBox>& op) {
     validate_inputs_count(op, {2});
     const auto inputs = p.GetInputInfo(op);
     std::string layer_name = layer_type_name_ID(op);
@@ -183,8 +183,8 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
     auto output_pshape = op->get_output_partial_shape(0);
 
     if (!output_pshape.is_dynamic()) {
-        const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
-        const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+        const auto output_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
+        const auto image_size_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
 
         // output_size should be constant to be static output shape
         OPENVINO_ASSERT(output_size_constant,
