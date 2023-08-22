@@ -76,7 +76,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
-        : typed_primitive_impl<PType>({}, "undef"),
+        : typed_primitive_impl<PType>(nullptr, "undef"),
         _engine(&engine),
         _pd(),
         _prim() {
@@ -88,7 +88,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         }
 
     typed_primitive_onednn_impl()
-        : typed_primitive_impl<PType>({}, "undef"),
+        : typed_primitive_impl<PType>(nullptr, "undef"),
           _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
