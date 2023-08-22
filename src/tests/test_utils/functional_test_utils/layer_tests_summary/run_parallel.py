@@ -90,7 +90,7 @@ def get_device_by_args(args: list):
     return device
 
 def get_suite_filter(test_filter: str, suite_filter : str) :
-    filters = test_filter.split('*')
+    filters = test_filter.strip('\"').split('*')
     for filter in filters :
         if (filter and suite_filter.find(filter) == -1) :
             suite_filter += f'*{filter}'
@@ -787,7 +787,14 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path, args.split_unit, args.repeat_failed, args.parallel_devices)
+    conformance = TestParallelRunner(exec_file_path = args.exec_file,
+                                     test_command_line = exec_file_args,
+                                     worker_num = args.workers,
+                                     working_dir = args.working_dir,
+                                     cache_path = args.cache_path,
+                                     split_unit = args.split_unit,
+                                     repeat_failed = args.repeat_failed,
+                                     is_parallel_devices = args.parallel_devices)
     conformance.run()
     if not conformance.postprocess_logs(args.split_unit):
         logger.error("Run is not successful")

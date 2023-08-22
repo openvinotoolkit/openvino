@@ -141,7 +141,7 @@ class Conformance:
             logger.info(f"The file {download_path} is archieve. Should be unzip to {path_to_save}")
             return file_utils.unzip_archieve(download_path, path_to_save)
         return download_path
-        
+
 
     def __dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
@@ -196,7 +196,7 @@ class Conformance:
         if len(diff) > 0:
             logger.error(f"Unexpected failures: {diff}")
             exit(-1)
-        
+
         intersection = self._expected_failures.intersection(this_run_failures)
         if this_run_failures != self._expected_failures and self._expected_failures_update:
             logger.info(f"Expected failures file {self._expected_failures} will be updated!!!")
@@ -225,19 +225,21 @@ class Conformance:
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
-        
-        command_line_args = [f"--device={self._device}", 
+
+        command_line_args = [f"--device={self._device}",
                              f'--input_folders="{self._model_path}"' if self._type == constants.OP_CONFORMANCE else '',
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter=\"{self._gtest_filter}\"', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._special_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}",
-                                         command_line_args,
-                                         self._workers,
-                                         logs_dir,
-                                         self._cache_path,
-                                         self._is_parallel_over_devices,
-                                         self._expected_failures if not self._expected_failures_update else set())
+        conformance = TestParallelRunner(exec_file_path = f"{conformance_path}",
+                                         test_command_line = command_line_args,
+                                         worker_num = self._workers,
+                                         working_dir = logs_dir,
+                                         cache_path = self._cache_path,
+                                         split_unit="test",
+                                         repeat_failed = 1,
+                                         is_parallel_devices = self._is_parallel_over_devices,
+                                         excluded_tests = self._expected_failures if not self._expected_failures_update else set())
         conformance.run()
         conformance.postprocess_logs()
 
@@ -319,4 +321,4 @@ if __name__ == "__main__":
                               args.parallel_devices, args.expected_failures,
                               args.expected_failures_update)
     conformance.run(args.dump_graph)
-    
+
