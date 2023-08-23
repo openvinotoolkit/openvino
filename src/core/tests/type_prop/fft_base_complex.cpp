@@ -395,94 +395,61 @@ TYPED_TEST_SUITE_P(FFTInvalidInput);
 TYPED_TEST_P(FFTInvalidInput, invalid_input_data) {
     auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
 
-    try {
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid input.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater or equal to 2.");
-    }
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("The input rank must be greater or equal to 2."));
 
-    try {
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid input.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The last dimension of input data must be 2.");
-    }
+    data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("The last dimension of input data must be 2."));
 
-    try {
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid input.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than number of axes.");
-    }
+    data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("The input rank must be greater than number of axes."));
 }
 
 TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3, 2});
 
-    try {
-        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 3, must be in range (-3, 2)");
-    }
+    auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axis value: 3, must be in range (-3, 2)"));
 
-    try {
-        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {-3});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: -3, must be in range (-3, 2)");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{1}, {-3});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axis value: -3, must be in range (-3, 2)"));
 
-    try {
-        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -2});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Each axis must be unique");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -2});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes), ov::Exception, HasSubstr("Each axis must be unique"));
 
-    try {
-        auto axes = op::v0::Constant::create(element::i64, Shape{1}, {2});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 2, must be in range (-3, 2)");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axis value: 2, must be in range (-3, 2)"));
 
-    try {
-        auto axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto dft = this->make_op(data, axes);
-        FAIL() << "Node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be 1D tensor.");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes), ov::Exception, HasSubstr("Axes input must be 1D tensor."));
 }
 
 TYPED_TEST_P(FFTInvalidInput, invalid_signal_size) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3, 2});
     auto axes = op::v0::Constant::create(element::i64, Shape{1}, {0});
 
-    try {
-        auto signal_size = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto dft = this->make_op(data, axes, signal_size);
-        FAIL() << "Node was created with invalid signal size.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Signal size input must be 1D tensor.");
-    }
+    auto signal_size = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes, signal_size),
+                    ov::Exception,
+                    HasSubstr("Signal size input must be 1D tensor."));
 
-    try {
-        auto signal_size = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
-        auto dft = this->make_op(data, axes, signal_size);
-        FAIL() << "Node was created with invalid signal size.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' must be equal.");
-    }
+    signal_size = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    OV_EXPECT_THROW(std::ignore = this->make_op(data, axes, signal_size),
+                    ov::Exception,
+                    HasSubstr("Sizes of inputs 'axes' and 'signal_size' must be equal."));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(FFTInvalidInput, invalid_input_data, invalid_axes, invalid_signal_size);
