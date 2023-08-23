@@ -149,9 +149,9 @@ jobs:
       #     restore-keys: |
       #       ${{ github.job }}-linux
 
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
+      # - name: Setup ccache
+      #   run: |
+      #     mkdir -p $CCACHE_DIR
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
