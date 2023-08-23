@@ -41,6 +41,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -652,6 +653,18 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+        env:
+          TEST_DEVICE: CPU
+
+      - name: TensorFlow Hub Tests - TF FE
+        run: |
+          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+
+          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml  --csv ${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe_report.csv --csv-columns "parameters_as_columns,status,message"
         env:
           TEST_DEVICE: CPU
 

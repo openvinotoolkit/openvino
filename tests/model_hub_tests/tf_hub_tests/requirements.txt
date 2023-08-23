@@ -1,0 +1,6 @@
+-c ../constraints.txt
+numpy
+pytest
+pytest-csv
+tensorflow
+tensorflow-hub
