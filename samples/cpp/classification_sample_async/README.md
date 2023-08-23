@@ -104,14 +104,16 @@ To run the sample, you need to specify a model and image:
 - You can use images from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`.
 
 .. note::
-  
+
    - By default, OpenVINO™ Toolkit Samples and Demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using ``mo`` with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`.
-  
+
    - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using the :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-  
+
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
    - Stating flags that take only single option like `-m` multiple times, for example `./classification_sample_async -m model.xml -m model2.xml`, results in only the first value being used.
+
+   - The sample supports NCHW model layout only.
 
 Example
 +++++++

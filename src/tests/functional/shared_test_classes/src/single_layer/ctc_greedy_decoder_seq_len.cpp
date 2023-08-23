@@ -55,7 +55,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
 
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngDataPrc, { inputShape });
+    ov::ParameterVector paramsIn {std::make_shared<ov::op::v0::Parameter>(ngDataPrc, ov::Shape(inputShape))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(
         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 

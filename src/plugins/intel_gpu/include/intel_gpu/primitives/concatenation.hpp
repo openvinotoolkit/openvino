@@ -62,7 +62,7 @@ struct concatenation : public primitive_base<concatenation> {
         : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_dt}}), axis(axis) {}
 
     /// @brief Dimension along which concatenation should take place
-    int64_t axis;
+    int64_t axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

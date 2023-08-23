@@ -257,9 +257,9 @@ NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInput
     NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
-        auto new_transpose_const = std::make_shared<ov::op::v0::Constant>(transpose_element_type,
-                                                                          Shape{transpose_axis_order.size()},
-                                                                          transpose_axis_order);
+        auto aligned_order = AlignTransposeOrder(main_node->output(i), transpose_input_info);
+        auto new_transpose_const =
+            std::make_shared<ov::op::v0::Constant>(transpose_element_type, Shape{aligned_order.size()}, aligned_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
         auto new_transpose = std::make_shared<ov::op::v1::Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
