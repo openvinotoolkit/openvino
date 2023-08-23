@@ -19,10 +19,12 @@ It performs element-wise activation function on a given input tensor, based on t
 
 .. math::
    
-   Elu(x) = \left\begin{array}{r}
-       x \qquad \mbox{if } x >  0 \\
-       \alpha(e^{x} - 1) \quad \mbox{if } x \leq 0
-   \end{array}\right.
+   Elu(x) = \left\
+   \begin{array}{r}
+       x \quad \text{if } x > 0 \\
+       \alpha(e^{x} - 1) \quad \text{if } x \leq 0
+   \end{array}
+   \right.
 
 
 where α corresponds to *alpha* attribute.
@@ -52,7 +54,8 @@ where α corresponds to *alpha* attribute.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Elu">
        <data alpha="1.0"/>
@@ -70,4 +73,6 @@ where α corresponds to *alpha* attribute.
        </output>
    </layer>
 
+
 @endsphinxdirective
+

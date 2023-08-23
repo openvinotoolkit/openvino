@@ -53,7 +53,8 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Add">
        <data auto_broadcast="none"/>
@@ -77,7 +78,8 @@ After broadcasting *Add* performs addition operation for the input tensors *a* a
 
 *Example 2: broadcast*
 
-.. code-block:: console
+.. code-block:: xml
+   :force:
    
    <layer ... type="Add">
        <data auto_broadcast="numpy"/>

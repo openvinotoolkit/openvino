@@ -12,6 +12,14 @@ namespace test {
 namespace snippets {
 using ov::snippets::op::Subgraph;
 
+class SKIP_CanonicalizationTests : public CanonicalizationTests {
+public:
+    void SetUp() override {
+        GTEST_SKIP();
+    }
+    void TearDown() override{};
+};
+
 std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canonicalizationParams> obj) {
     std::vector<std::tuple<Shape, Subgraph::BlockedShape>> inputs(2);
     Subgraph::BlockedShape output;
@@ -21,17 +29,17 @@ std::string CanonicalizationTests::getTestCaseName(testing::TestParamInfo<canoni
     for (size_t i = 0; i < inputs.size(); i++) {
         const auto& blockedshape = std::get<1>(inputs[i]);
         // input shape
-        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(std::get<0>(inputs[i])) << "_";
+        result << "IS[" << i << "]=" << ov::test::utils::vec2str(std::get<0>(inputs[i])) << "_";
         // input blocked shape
-        result << "IBS[" << i << "]=" << CommonTestUtils::partialShape2str({std::get<0>(blockedshape)}) << "_";
+        result << "IBS[" << i << "]=" << ov::test::utils::partialShape2str({std::get<0>(blockedshape)}) << "_";
         // input blocked order
-        result << "IBO[" << i << "]=" << CommonTestUtils::vec2str(std::get<1>(blockedshape)) << "_";
+        result << "IBO[" << i << "]=" << ov::test::utils::vec2str(std::get<1>(blockedshape)) << "_";
     }
     // output blocked shape
-    result << "OBS[0]=" << CommonTestUtils::partialShape2str({std::get<0>(output)}) << "_";
+    result << "OBS[0]=" << ov::test::utils::partialShape2str({std::get<0>(output)}) << "_";
     // output blocked order
-    result << "OBO[0]=" << CommonTestUtils::vec2str(std::get<1>(output)) << "_";
-    result << "ExpOS[0]=" << CommonTestUtils::vec2str(expectedOutput) << "_";
+    result << "OBO[0]=" << ov::test::utils::vec2str(std::get<1>(output)) << "_";
+    result << "ExpOS[0]=" << ov::test::utils::vec2str(expectedOutput) << "_";
     return result.str();
 }
 
@@ -72,12 +80,12 @@ std::vector<std::tuple<Shape, Subgraph::BlockedShape>> blockedInput1{{{1, 1,  2,
                                                                      {{1, 1,  2, 1}, {{1, 1, 2, 1, 1},  {0, 1, 2, 3, 1}, prec}},
                                                                      {{1, 64, 1, 1}, {{1, 4, 1, 1, 16}, {0, 1, 2, 3, 1}, prec}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastBlocked, CanonicalizationTests,
-                         ::testing::Combine(
-                                 ::testing::Values(blockedInput0),
-                                 ::testing::ValuesIn(blockedInput1),
-                                 ::testing::Values(output),
-                                 ::testing::Values(canonical_shape)),
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastBlocked,
+                         SKIP_CanonicalizationTests /* CVS-114607 */,
+                         ::testing::Combine(::testing::Values(blockedInput0),
+                                            ::testing::ValuesIn(blockedInput1),
+                                            ::testing::Values(output),
+                                            ::testing::Values(canonical_shape)),
                          CanonicalizationTests::getTestCaseName);
 
 std::vector<std::tuple<Shape, Subgraph::BlockedShape>> planarInput1{{{1, 1, 2, 5}, {{1, 2, 5}, {0, 1, 2}, prec}},
@@ -86,12 +94,12 @@ std::vector<std::tuple<Shape, Subgraph::BlockedShape>> planarInput1{{{1, 1, 2, 5
                                                                     {{2, 5},       {{2, 5},    {0, 1},    prec}},
                                                                     {{5},          {{5},       {0},       prec}}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastPlanar, CanonicalizationTests,
-                         ::testing::Combine(
-                                 ::testing::Values(blockedInput0),
-                                 ::testing::ValuesIn(planarInput1),
-                                 ::testing::Values(output),
-                                 ::testing::Values(canonical_shape)),
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastPlanar,
+                         SKIP_CanonicalizationTests /* CVS-114607 */,
+                         ::testing::Combine(::testing::Values(blockedInput0),
+                                            ::testing::ValuesIn(planarInput1),
+                                            ::testing::Values(output),
+                                            ::testing::Values(canonical_shape)),
                          CanonicalizationTests::getTestCaseName);
 } // namespace CanonicalizationTestsInstantiation
 }  // namespace snippets

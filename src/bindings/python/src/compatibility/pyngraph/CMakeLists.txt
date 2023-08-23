@@ -74,17 +74,17 @@ if(OpenVINO_SOURCE_DIR OR OpenVINODeveloperPackage_FOUND)
     ie_python_minimal_api(_${PROJECT_NAME})
     add_clang_format_target(_${PROJECT_NAME}_clang FOR_TARGETS _${PROJECT_NAME})
 
-    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion} HIDDEN)
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion} HIDDEN)
 
     install(TARGETS _${PROJECT_NAME}
             DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL})
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
 
     install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../ngraph
             DESTINATION ${OV_CPACK_PYTHONDIR}
-            COMPONENT ${OV_CPACK_COMP_PYTHON_NGRAPH}_${pyversion}
-            ${OV_CPACK_COMP_PYTHON_NGRAPH_EXCLUDE_ALL}
+            COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}
+            ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL}
             USE_SOURCE_PERMISSIONS)
 
     install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/tests_compatibility

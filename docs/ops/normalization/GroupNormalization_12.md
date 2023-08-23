@@ -56,7 +56,8 @@ The operation is applied per batch, per group of channels. This means that the e
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
 <layer ... type="GroupNormalization">
     <data epsilon="1e-5" num_groups="4"/>

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_metric_helpers.hpp"
+#include "intel_gpu/plugin/legacy_api_helper.hpp"
+
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -14,10 +18,7 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/plugin/async_infer_request_legacy.hpp"
-#include "intel_gpu/plugin/legacy_api_helper.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 
-#include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "threading/ie_cpu_streams_executor.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -45,7 +46,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::InputsDataMap* inputs,
                              InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
@@ -74,7 +75,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              InferenceEngine::InputsDataMap* inputs,
                              InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
-        if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
+        if (config.get_property(ov::internal::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
@@ -143,16 +144,16 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::CreateInferRequest");
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     if (m_graphs.empty()) {
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
     }
 
     for (auto& graph : m_graphs) {
         if (graph == nullptr) {
-            IE_THROW(NetworkNotLoaded);
+            OPENVINO_THROW("[GPU] Model not loaded");
         }
 
         if (!graph->IsLoaded()) {
-            IE_THROW(NetworkNotLoaded) << ": no networks created";
+            OPENVINO_THROW("[GPU] Model not loaded: no networks created");
         }
     }
 
@@ -186,7 +187,7 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
 void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
 
     cldnn::BinaryOutputBuffer ob(networkModel);
 
@@ -286,7 +287,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
 
 std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
     if (m_graphs.empty())
-        IE_THROW(NetworkNotLoaded);
+        OPENVINO_THROW("[GPU] Model not loaded");
 
     return m_graphs.front()->GetExecGraphInfo();
 }
@@ -320,6 +321,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
@@ -331,7 +333,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
     } else if (name == ov::model_name) {
-        IE_ASSERT(!m_graphs.empty());
+        OPENVINO_ASSERT(!m_graphs.empty());
         return decltype(ov::model_name)::value_type {m_graphs[0]->getName()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
@@ -367,7 +369,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->getDeviceName()};
     } else {
-        IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
+        OPENVINO_THROW("[GPU] Unsupported CompiledModel property: ", name);
     }
 }
 

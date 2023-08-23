@@ -1,13 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import numpy as np
-from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import PartialShape, Dimension # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.cli_parser import get_placeholder_shapes, split_shapes
 
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
@@ -66,40 +62,3 @@ def get_dynamic_dims(shape: [PartialShape, list, tuple]):
                 dynamic_dims.append(idx)
 
     return dynamic_dims
-
-
-def parse_input_shapes(argv):
-    input_shapes = None
-    if 'input_shape' in argv and argv['input_shape'] is not None:
-        shapes = argv['input_shape']
-        if isinstance(shapes, str):
-            shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
-        if isinstance(shapes, list) or isinstance(shapes, tuple):
-            input_shapes = []
-            is_single_shape = False
-            for shape in shapes:
-                if isinstance(shape, str):
-                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
-                    input_shapes.append(shape_tuple)
-                    if is_single_shape:
-                        raise Error("Incorrect format of shape.")
-                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
-                    is_single_shape = True
-                    input_shapes.append(shape)
-                else:
-                    input_shapes.append(shape)
-            if is_single_shape:
-                return [input_shapes]
-            else:
-                return input_shapes
-        elif isinstance(shapes, PartialShape):
-            return [shapes]
-        else:
-            try:
-                import torch
-                if isinstance(shapes, torch.Size):
-                    return [shapes]
-            except ImportError:
-                raise Error("Unknown type of input shape {}.".format(type(shapes)))
-
-    return input_shapes

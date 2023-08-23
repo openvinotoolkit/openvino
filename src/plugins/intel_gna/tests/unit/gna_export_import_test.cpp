@@ -106,11 +106,11 @@ protected:
     std::shared_ptr<ngraph::Function> getFunction() {
         auto ngPrc = ngraph::element::f32;
         size_t shape = 10;
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, shape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, shape})};
         auto mul_const =
             ngraph::builder::makeConstant<float>(ngPrc,
                                                  {shape, shape},
-                                                 CommonTestUtils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
+                                                 ov::test::utils::generate_float_numbers(shape * shape, -0.5f, 0.5f),
                                                  false);
 
         auto matmul = std::make_shared<ngraph::op::MatMul>(params[0], mul_const, false, true);

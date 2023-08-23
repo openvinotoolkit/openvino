@@ -18,7 +18,7 @@ std::string ConversionLayerTest::getTestCaseName(const testing::TestParamInfo<Co
         obj.param;
     std::ostringstream result;
     result << "conversionOpType=" << conversionNames[conversionOpType] << "_";
-    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "IS=" << ov::test::utils::vec2str(inputShape) << "_";
     result << "inputPRC=" << inputPrecision.name() << "_";
     result << "targetPRC=" << targetPrecision.name() << "_";
     result << "inL=" << inLayout << "_";
@@ -39,7 +39,10 @@ void ConversionLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
     auto targetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(targetPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, inputShape);
+    ov::ParameterVector params;
+    for (auto&& shape : inputShape) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
     auto conversion = ngraph::builder::makeConversion(params.front(), targetPrc, conversionOpType);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(conversion)};

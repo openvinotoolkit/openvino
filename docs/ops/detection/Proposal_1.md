@@ -17,18 +17,18 @@
 *Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [``image_height``, ``image_width``, ``scale_height_and_width``] or [``image_height``, ``image_width``, ``scale_height``, ``scale_width``] format. The produced tensor has two dimensions ``[batch_size * post_nms_topn, 5]``, and for each output box contains batch index and box coordinates.
 *Proposal* layer does the following with the input tensor:
 
-1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
-2.  For each point in the first input tensor:
+1. Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
+2. For each point in the first input tensor:
 
-  * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
-  * finds out score in the first input tensor
+   * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
+   * finds out score in the first input tensor
 
-3.  Filters out boxes with size less than *min_size*
-4.  Sorts all proposals (*box*, *score*) by score from highest to lowest
-5.  Takes top *pre_nms_topn* proposals
-6.  Calculates intersections for boxes and filter out all boxes with :math:`intersection/union > nms\_thresh`
-7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+3. Filters out boxes with size less than *min_size*
+4. Sorts all proposals (*box*, *score*) by score from highest to lowest
+5. Takes top *pre_nms_topn* proposals
+6. Calculates intersections for boxes and filter out all boxes with :math:`intersection/union > nms\_thresh`
+7. Takes top *post_nms_topn* proposals
+8. Returns top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
 
 **Attributes**:
 
@@ -157,13 +157,14 @@
 
 **Example**
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
-  <layer ... type="Proposal" ... >
-      <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
-      ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
-      <input> ... </input>
-      <output> ... </output>
-  </layer>
+   <layer ... type="Proposal" ... >
+       <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
+       ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
+       <input> ... </input>
+       <output> ... </output>
+   </layer>
 
 @endsphinxdirective

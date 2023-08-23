@@ -56,7 +56,8 @@ if you were following the `guide <https://github.com/mlcommons/inference/tree/ma
    If you already have a full clone of MLCommons inference repository, you need 
    to specify the ``mlcommons_inference_path`` variable.
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import toml
    import torch

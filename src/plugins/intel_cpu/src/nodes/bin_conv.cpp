@@ -1297,27 +1297,27 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
 }
 
 void BinaryConvolution::execute(dnnl::stream strm) {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t*>(srcMemory->GetPtr());
-    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t*>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t*>(srcMemory->getData());
+    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->getData());
+    auto dst = reinterpret_cast<uint8_t*>(dstMemory->getData());
 
-    auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());
     for (size_t i = 0; i < srcStride.size(); i++) {
         srcStride[srcDesc->getOrder()[i]] = srcDesc->getStrides()[i];
     }
 
-    auto weiDesc = getParentEdgeAt(1)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto weiDesc = getParentEdgeAt(1)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> weightsStride(weiDesc->getShape().getRank());
     for (size_t i = 0; i < weightsStride.size(); i++) {
         weightsStride[weiDesc->getOrder()[i]] = weiDesc->getStrides()[i];
     }
 
-    auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> dstStride(dstDesc->getStrides().size());
     for (size_t i = 0; i < dstStride.size(); i++) {
         dstStride[dstDesc->getOrder()[i]] = dstDesc->getStrides()[i];

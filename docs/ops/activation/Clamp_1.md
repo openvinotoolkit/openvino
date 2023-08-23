@@ -57,7 +57,8 @@ Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematic
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer id="1" name="clamp_node" type="Clamp">
        <data min="10" max="50" />

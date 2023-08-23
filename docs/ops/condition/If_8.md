@@ -92,7 +92,8 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 *Example 1: a typical If structure*
 
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer id="6" name="if/cond" type="If" version="opset8">
        <input>

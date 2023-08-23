@@ -39,7 +39,8 @@ with the shape and type from the 1 input.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="ReadValue" ...>
         <data variable_id="lstm_state_1"/>

@@ -80,7 +80,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Vector-matrix multiplication*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <input>
@@ -102,7 +103,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Matrix-vector multiplication*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <input>
@@ -124,7 +126,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Matrix-matrix multiplication (like FullyConnected with batch size 1)*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <input>
@@ -148,7 +151,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Vector-matrix multiplication with embedded transposition of the second matrix*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <data transpose_b="true"/>
@@ -171,7 +175,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Matrix-matrix multiplication (like FullyConnected with batch size 10)*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <input>
@@ -195,7 +200,8 @@ Two attributes, ``transpose_a`` and ``transpose_b`` specify embedded transpositi
 
 *Multiplication of batch of 5 matrices by a one matrix with broadcasting*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="MatMul">
        <input>

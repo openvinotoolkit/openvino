@@ -33,7 +33,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer id="89" name="reorg" type="ReorgYolo">
         <data stride="2"/>

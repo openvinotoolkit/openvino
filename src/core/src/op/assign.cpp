@@ -40,9 +40,8 @@ void op::v3::Assign::validate_and_infer_types() {
         }
         NODE_VALIDATION_CHECK(this, m_variable != nullptr, "Can't find variable with id = ", m_variable_id);
     }
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
-    shape_infer(this, input_shapes, output_shapes);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, arg_t, output_shapes[0]);
 }
 
@@ -67,10 +66,8 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 void op::v6::Assign::validate_and_infer_types() {
     OV_OP_SCOPE(v6_Assign_validate_and_infer_types);
     m_variable->update({get_input_partial_shape(0), get_input_element_type(0), m_variable->get_info().variable_id});
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -85,6 +82,7 @@ bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs,
                               const EvaluationContext& evaluation_context) const {
@@ -96,7 +94,6 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 
     const auto& variable_values = variable_context.get_variable_values();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     // automatically allocate memory if not provided by user
     if (variable_values.find(m_variable) == variable_values.end()) {
         auto host_tensor =
@@ -107,7 +104,6 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
     const auto var_value = variable_values.find(m_variable)->second;
     var_value->set_reset(false);
     const auto& buffer = var_value->get_value();
-    OPENVINO_SUPPRESS_DEPRECATED_END
     buffer->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
@@ -117,6 +113,7 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v6::Assign::has_evaluate() const {
     OV_OP_SCOPE(v1_Assign_has_evaluate);

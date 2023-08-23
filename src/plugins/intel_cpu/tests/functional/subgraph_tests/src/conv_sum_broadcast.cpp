@@ -23,8 +23,8 @@ typedef std::tuple<
 > convSumBroadcastParamSet;
 
 
-class ConcatConvSumInPlaceTest : public testing::WithParamInterface<convSumBroadcastParamSet>,
-                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
+class ConvSumInPlaceTest : public testing::WithParamInterface<convSumBroadcastParamSet>,
+                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convSumBroadcastParamSet>& obj) {
         InputShape convShape;
@@ -36,13 +36,13 @@ public:
 
         std::ostringstream result;
         result << "IS=";
-        result  << CommonTestUtils::partialShape2str({convShape.first, secondShape.first}) << "_";
+        result  << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
         result << "TS=";
         for (const auto& shape : {convShape, secondShape}) {
             result << "(";
             if (!shape.second.empty()) {
                 for (const auto& itr : shape.second) {
-                    result << CommonTestUtils::vec2str(itr);
+                    result << ov::test::utils::vec2str(itr);
                 }
             }
             result << ")_";
@@ -122,7 +122,7 @@ public:
 
         function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
-        targetDevice = CommonTestUtils::DEVICE_CPU;
+        targetDevice = ov::test::utils::DEVICE_CPU;
     }
 
 protected:
@@ -137,21 +137,47 @@ protected:
 
 protected:
     ov::element::Type runtimeType;
-    const InferenceEngine::SizeVector _kernel = {3, 3};
-    const InferenceEngine::SizeVector _stride = {1, 1};
-    const InferenceEngine::SizeVector _dilation = {1, 1};
-    const std::vector<ptrdiff_t> _padBegin = {0, 0};
-    const std::vector<ptrdiff_t> _padEnd = {0, 0};
-    const size_t _convOutChannels = 64;
+    InferenceEngine::SizeVector _kernel = {3, 3};
+    InferenceEngine::SizeVector _stride = {1, 1};
+    InferenceEngine::SizeVector _dilation = {1, 1};
+    std::vector<ptrdiff_t> _padBegin = {0, 0};
+    std::vector<ptrdiff_t> _padEnd = {0, 0};
+    size_t _convOutChannels = 64;
 };
 
-TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
+TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     run();
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-class ConcatConvSumInPlaceTestInt8 : public ConcatConvSumInPlaceTest {
+class ConvSumInPlaceStrided : public ConvSumInPlaceTest {
+public:
+    ConvSumInPlaceStrided() {
+        _kernel = {1, 1};
+        _stride = {2, 2};
+        _convOutChannels = 128;
+        rel_threshold = 1e-4;
+    }
+
+protected:
+    bool primTypeCheck(std::string primType) const override {
+        auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
+        if (isaType == "")
+            return primType == "ref";
+        else
+            return primType == makeSelectedTypeStr(std::string("jit_") + isaType + std::string("_1x1"), runtimeType)
+                || primType == makeSelectedTypeStr(std::string("brgconv_") + isaType+ std::string("_1x1"), runtimeType);
+    }
+};
+
+TEST_P(ConvSumInPlaceStrided, CompareWithRefs) {
+    run();
+
+    CheckPluginRelatedResults(compiledModel, "Convolution");
+}
+
+class ConvSumInPlaceTestInt8 : public ConvSumInPlaceTest {
 public:
     ngraph::ParameterVector makeParams() override {
         ngraph::ParameterVector outs(2);
@@ -201,7 +227,7 @@ public:
     void SetUp() override {
         abs_threshold = 1.001f;
         using ngraph::pass::ConvertPrecision;
-        ConcatConvSumInPlaceTest::SetUp();
+        ConvSumInPlaceTest::SetUp();
         functionRefs = function->clone();
         ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
         ngraph::pass::ConvertPrecision<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
@@ -209,13 +235,13 @@ public:
     }
 };
 
-TEST_P(ConcatConvSumInPlaceTestInt8, CompareWithRefs) {
+TEST_P(ConvSumInPlaceTestInt8, CompareWithRefs) {
     run();
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-class ConcatConvSumInPlaceTestSeveralConsumers : public ConcatConvSumInPlaceTest {
+class ConvSumInPlaceTestSeveralConsumers : public ConvSumInPlaceTest {
 public:
     std::shared_ptr<ngraph::Node> addSum(std::shared_ptr<ngraph::Node> lastNode, const ngraph::ParameterVector& inputParams) override {
         auto sum = std::make_shared<ngraph::opset3::Add>(lastNode, inputParams[1]);
@@ -226,7 +252,7 @@ public:
     }
 };
 
-TEST_P(ConcatConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
+TEST_P(ConvSumInPlaceTestSeveralConsumers, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -356,41 +382,68 @@ const std::vector<InputShape> secondInp = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConcatConvSumInPlaceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP32, ConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),
-                         ConcatConvSumInPlaceTest::getTestCaseName);
+                         ConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConcatConvSumInPlaceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16, ConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSetBF16),
                                  ::testing::Values(cpuBF16PluginConfig)),
-                         ConcatConvSumInPlaceTest::getTestCaseName);
+                         ConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConcatConvSumInPlaceTestInt8,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true, false),
                                  ::testing::ValuesIn(fusingParamsSet),
                                  ::testing::Values(cpuEmptyPluginConfig)),
-                         ConcatConvSumInPlaceTest::getTestCaseName);
+                         ConvSumInPlaceTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Several_Consumers, ConcatConvSumInPlaceTestSeveralConsumers,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Several_Consumers, ConvSumInPlaceTestSeveralConsumers,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),
                                  ::testing::Values(true),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
-                         ConcatConvSumInPlaceTest::getTestCaseName);
+                         ConvSumInPlaceTest::getTestCaseName);
+
+InputShape convInpShapeStrided = {
+        //dynamic shapes
+        {-1, 64, -1, -1},
+        { //target static shapes
+            {1, 64, 147, 147},
+            {1, 64, 147, 147},
+        }
+};
+
+InputShape secondInpStrided = {
+        //dynamic shapes
+        {-1, 128, -1, -1},
+        { //target static shapes
+            {1, 128, 74, 74},
+            {1, 128, 74, 1}
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_Strided, ConvSumInPlaceStrided,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShapeStrided),
+                                 ::testing::Values(secondInpStrided),
+                                 ::testing::Values(true),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvSumInPlaceTest::getTestCaseName);
 
 } // namespace
 } // namespace SubgraphTestsDefinitions

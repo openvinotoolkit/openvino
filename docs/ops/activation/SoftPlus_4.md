@@ -53,7 +53,8 @@ For example, if *T* is ``fp32``, ``threshold`` should be ``20`` or if *T* is ``f
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="SoftPlus">
         <input>

@@ -15,8 +15,10 @@ from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-modul
 
 try:
     import openvino_telemetry as tm
+    from openvino_telemetry.backend import backend_ga4
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
+
 
 def base_args_config():
     args = argparse.Namespace()
@@ -112,7 +114,7 @@ class TestMoFallback(unittest.TestCase):
             os.remove(name)
 
 
-    @patch('openvino.tools.ovc.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model.onnx"
@@ -132,7 +134,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.tools.ovc.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_model_with_dyn_shapes(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_2.onnx"
@@ -156,7 +158,7 @@ class TestMoFallback(unittest.TestCase):
                                                       "add_out": {"shape": "None", "data_type": "None", "value": "None"}}')
 
 
-    @patch('openvino.tools.ovc.moc_frontend.analysis.json_model_analysis_print')
+    @patch('openvino.tools.mo.moc_frontend.analysis.json_model_analysis_print')
     def test_multi_outputs_model(self, json_print):
         args = base_args_config()
         args.input_model = "test_model_3.onnx"

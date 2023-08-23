@@ -33,6 +33,7 @@
 #include "transformations/snippets/x64/pass/set_brgemm_cpu_blocking_params.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/defs.hpp"
+#include "shape_inference/custom/subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -43,38 +44,6 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-/* This class implementation is a temporal WA
-   TODO: revise the implementation to remove the node reference*/
-class SnippetShapeInfer : public ShapeInferEmptyPads {
-public:
-    SnippetShapeInfer(Snippet* node) : m_node(node) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_node->shapeInfer(), ShapeInferStatus::success};
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-
-private:
-    Snippet* m_node;
-};
-
-class SnippetShapeInferFactory : public ShapeInferFactory {
-public:
-    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<SnippetShapeInfer>(m_node);
-    }
-
-private:
-    Snippet* m_node;
-};
-} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
@@ -244,7 +213,7 @@ InferenceEngine::Precision Snippet::getRuntimePrecision() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated && !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+            inputPrecisions.emplace_back(DnnlExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->getDataType())));
         }
     }
 
@@ -320,7 +289,7 @@ bool Snippet::optimizeExecDomain(std::vector<VectorDims>& inputShapes, std::vect
 }
 ov::PartialShape Snippet::canonicalizeBody() {
     auto edgeToBlockedShape = [](const EdgePtr& edge) {
-        const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        const auto blockedDesc = edge->getMemory().getDescWithType<BlockedMemoryDesc>();
         std::vector<Dimension> dims;
         // if blockDim == Shape::UNDEFINED_DIM, then it's a dynamic dimension, and we need to recreate a proper dynamic Dim
         for (const auto& d : blockedDesc->getBlockDims())
@@ -412,7 +381,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         return success;
     };
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().GetShape().getDims()};
+        VectorDims inDims {getParentEdgesAtPort(i)[0]->getMemory().getShape().getDims()};
         if (masterShapeIsBlocked && !inputShapeIsBlocked[i])
             inDims.insert(inDims.end(), 1);
         // todo: this is a simple master_shape inference for shape-agnostic operations,
@@ -428,7 +397,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         errorMessage << "Can't compute static master shape for Snippet node with name: " << getName();
         errorMessage << ". Input shapes = ( ";
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
+            errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().getShape().toString() << ", ";
         }
         errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
         IE_THROW() << errorMessage.str();
@@ -476,7 +445,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numInputs; i++) {
             const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
             srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
+            start_offset_in[i] =  memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i];
         }
         const size_t numOutputs = outputShapes.size();
         start_offset_out.resize(numOutputs);
@@ -484,7 +453,7 @@ void Snippet::prepareParams() {
         for (size_t i = 0; i < numOutputs; i++) {
             const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
             dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
+            start_offset_out[i] = memPtr->getDescWithType<BlockedMemoryDesc>()->getOffsetPadding() * dataSize[i + numInputs];
         }
     };
     // initialize start offsets to src and dst memory
@@ -584,10 +553,10 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
 
 void Snippet::update_ptrs(jit_snippets_call_args& call_args) {
     for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->getData()) + start_offset_in[i];
 
     for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->getData()) + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =

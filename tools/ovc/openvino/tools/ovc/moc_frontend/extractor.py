@@ -1,14 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
-# mypy: ignore-errors
-
 import re
 from enum import Enum
 
 import numpy as np
-from openvino._pyopenvino import Place, PartialShape
+from openvino._pyopenvino import Place, PartialShape # pylint: disable=no-name-in-module,import-error
 
 from openvino.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
@@ -339,16 +336,15 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
             node = decode_name_with_port(input_model, output, framework, IOType.Output)
             if node is None:
                 raise Error("Cannot find location {} in the graph".format(output))
-            _outputs.append({"node": node})
+            _outputs.append({"node": node, "output_name": output})
     return _outputs
 
 
-def find_first_unused_input(model_inputs: list, freeze_placeholder: dict, param_dict: dict, param_name: str):
+def find_first_unused_input(model_inputs: list, param_dict: dict, param_name: str):
     """
     Finds first input in model_inputs, which is not present in freeze_placeholder dictionary or param_dict.
 
     :param model_inputs: list of model inputs
-    :param freeze_placeholder: dictionary where key is input name, value is input value for freezing.
     :param param_dict: dictionary where key is input name, value is parameter value (shape or type).
     :param param_name: name of parameter used in exception message.
 
@@ -358,7 +354,7 @@ def find_first_unused_input(model_inputs: list, freeze_placeholder: dict, param_
         input_names = inp.get_names()
         name_found = False
         for input_name in input_names:
-            if input_name in freeze_placeholder or input_name in param_dict:
+            if input_name in param_dict:
                 name_found = True
                 break
         if name_found:
@@ -369,24 +365,20 @@ def find_first_unused_input(model_inputs: list, freeze_placeholder: dict, param_
 
 def convert_params_lists_to_dicts(input_model,
                                   input_user_shapes: [list, dict],
-                                  input_user_data_types: [list, dict],
-                                  freeze_placeholder: dict,
-                                  unnamed_freeze_placeholders: list):
+                                  input_user_data_types: [list, dict]):
     """
     Convert lists of unnamed params to dicts using input names from input_model.
 
     :param input_model: openvino.runtime.InputModel
     :param input_user_shapes: list of input shapes or dictionary where key is input name, value is input shape from user.
     :param input_user_data_types: list of input types or dictionary where key is input name, value is input type from user.
-    :param freeze_placeholder: dictionary where key is input name, value is input value from user.
-    :param unnamed_freeze_placeholders: list of unnamed input values from user.
 
     :return: (input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder), where
     input_user_shapes_dict - dictionary where key is input name, value is shape from user;
     input_user_data_types_dict - dictionary where key is input name, value is type from user;
     freeze_placeholder - dictionary where key is input name, value is input value from user;
     """
-    from openvino.runtime import PartialShape
+    from openvino.runtime import PartialShape # pylint: disable=no-name-in-module,import-error
     model_inputs = input_model.get_inputs()
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
@@ -398,14 +390,14 @@ def convert_params_lists_to_dicts(input_model,
         for idx, shape in enumerate(input_user_shapes):
             assert isinstance(shape, PartialShape), "Got incorrect format of input shapes {}.".format(type(shape))
 
-            inp_name = find_first_unused_input(model_inputs, freeze_placeholder, input_user_shapes_dict, "shape")
+            inp_name = find_first_unused_input(model_inputs, input_user_shapes_dict, "shape")
             input_user_shapes_dict[inp_name] = shape
     else:
         input_user_shapes_dict = input_user_shapes
 
     # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
-        from openvino.runtime import Type
+        from openvino.runtime import Type # pylint: disable=no-name-in-module,import-error
 
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}
@@ -416,7 +408,7 @@ def convert_params_lists_to_dicts(input_model,
                                                         "Expected numpy type or openvino.runtime.Type, " \
                                                         "got {}.".format(type(node_type))
 
-            inp_name = find_first_unused_input(model_inputs, freeze_placeholder, input_user_data_types_dict, "type")
+            inp_name = find_first_unused_input(model_inputs, input_user_data_types_dict, "type")
             input_user_data_types_dict[inp_name] = node_type
             # FE postprocessing expects input_user_shapes_dict to always have shapes for corresponding types.
             # If shape is not set it is expected to have None shape in input_user_shapes_dict dictionary.
@@ -425,15 +417,8 @@ def convert_params_lists_to_dicts(input_model,
     else:
         input_user_data_types_dict = input_user_data_types
 
-    # unnamed_freeze_placeholders is always list, it is not empty only if unnamed inputs were used.
-    for value in unnamed_freeze_placeholders:
-        assert isinstance(value, list), "Got incorrect format of input values. " \
-                                        "Expected list, " \
-                                        "got {}.".format(type(value))
-        inp_name = find_first_unused_input(model_inputs, freeze_placeholder, {}, "input value")
-        freeze_placeholder[inp_name] = value
 
-    return input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder
+    return input_user_shapes_dict, input_user_data_types_dict
 
 
 def fe_user_data_repack(

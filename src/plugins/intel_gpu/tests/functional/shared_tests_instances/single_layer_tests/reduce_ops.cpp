@@ -53,9 +53,9 @@ const std::vector<std::vector<int>> axes = {
         {1, -1}
 };
 
-std::vector<CommonTestUtils::OpType> opTypes = {
-        CommonTestUtils::OpType::SCALAR,
-        CommonTestUtils::OpType::VECTOR,
+std::vector<ov::test::utils::OpType> opTypes = {
+        ov::test::utils::OpType::SCALAR,
+        ov::test::utils::OpType::VECTOR,
 };
 
 const std::vector<ngraph::helpers::ReductionType> reductionTypes = {
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceOneAxis,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapesOneAxis),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogicalOneAxis,
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogicalOneAxis,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Precisions,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 2, 2, 2}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
@@ -130,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Ranks,
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 3, 4, 5, 4, 3, 2, 3},
                                                           std::vector<size_t>{2, 3, 4, 5, 4, 3, 2}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_InputShapes,
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_InputShapes,
                                                           std::vector<size_t>{2, 4, 6, 8},
                                                           std::vector<size_t>{2, 2, 2, 2, 2},
                                                           std::vector<size_t>{2, 2, 2, 2, 2, 2}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Axes,
@@ -163,7 +163,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_Axes,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::ValuesIn(inputShapes),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce_ReductionTypes,
@@ -177,7 +177,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce_ReductionTypes,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogical_ReductionTypes,
@@ -191,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ReduceLogical_ReductionTypes,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 9, 2, 9}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Reduce,
@@ -206,7 +206,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Reduce,
                                           testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                           testing::Values(InferenceEngine::Layout::ANY),
                                           testing::Values(std::vector<size_t>{2, 10}),
-                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReduceOpsLayerWithSpecificInputTest::getTestCaseName);
 
 }  // namespace

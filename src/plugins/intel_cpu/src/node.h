@@ -32,7 +32,7 @@
 #include "nodes/node_config.h"
 #include "cache/multi_cache.h"
 
-#include <utils/shape_inference/shape_inference_cpu.hpp>
+#include <shape_inference/shape_inference_cpu.hpp>
 #include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 
@@ -188,6 +188,9 @@ public:
     const std::vector<EdgePtr> getParentEdgesAtPort(size_t idx) const;
     const std::vector<EdgePtr> getChildEdgesAtPort(size_t idx) const;
 
+    int inPlaceInputPort(int portIdx) const;
+    int inPlaceOutPort(int portIdx) const;
+
     bool isDropped() {
         return (isEdgesEmpty(childEdges) && isEdgesEmpty(parentEdges));
     }
@@ -196,7 +199,7 @@ public:
         return engine;
     }
 
-    bool isInPlace();
+    bool isInPlace() const;
 
     // must be called only after Graph::InitEdges()
     virtual bool isExecutable() const {
@@ -354,7 +357,7 @@ public:
 
     PerfCount &PerfCounter() { return perfCounter; }
 
-    void resolveInPlaceEdges();
+    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
 
     virtual void execute(dnnl::stream strm) = 0;
     void updateShapes();
@@ -598,7 +601,7 @@ protected:
         Const,
         NoConst
     };
-    InPlaceType inplace = InPlaceType::Unknown;
+    mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MemoryPtr> internalBlobMemory;
@@ -649,7 +652,7 @@ protected:
     void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
 
     bool isDynamic = false;
 

@@ -4,26 +4,29 @@
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
-#include <openvino/opsets/opset8.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
-                                                   std::shared_ptr<opset8::Constant> mul_const) {
+                                                   std::shared_ptr<ov::op::v0::Constant> mul_const) {
     auto const_shape = mul_const->get_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
     // Fuse if const is a scalar
-    if (ngraph::is_scalar(const_shape)) {
-        return std::make_shared<opset8::Multiply>(weights, mul_const);
+    if (ov::is_scalar(const_shape)) {
+        return std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
     }
 
     // Disallow consts that have rank greater than weights' rank when MatMul has dynamic rank.
@@ -45,11 +48,11 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
     // If weights is not a constant node - disallow Multiply constant
     // that extends weights rank. This is LPT requirement in case where
     // weights are meant to be quantized.
-    if (const_rank > weights_rank && !ov::is_type<opset8::Constant>(weights.get_node())) {
+    if (const_rank > weights_rank && !ov::is_type<ov::op::v0::Constant>(weights.get_node())) {
         return nullptr;
     }
 
-    auto matmul_casted = std::dynamic_pointer_cast<opset8::MatMul>(matmul);
+    auto matmul_casted = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul);
     if (!matmul_casted) {
         return nullptr;
     }
@@ -119,17 +122,17 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         // Scalars were fused before, it suffices to check for 1D shape here
         if (const_rank == 1) {
             const_shape.insert(const_shape.begin(), 1);
-            new_const = std::make_shared<opset8::Reshape>(
+            new_const = std::make_shared<ov::op::v1::Reshape>(
                 mul_const,
-                opset8::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
+                ov::op::v0::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
                 false);
         }
         std::vector<int64_t> perm(const_shape.size());
         std::iota(perm.begin(), perm.end(), 0);
         std::swap(*(perm.end() - 1), *(perm.end() - 2));
-        auto transpose =
-            std::make_shared<opset8::Transpose>(new_const,
-                                                opset8::Constant::create(element::i64, Shape{perm.size()}, perm));
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(
+            new_const,
+            ov::op::v0::Constant::create(element::i64, Shape{perm.size()}, perm));
         OPENVINO_SUPPRESS_DEPRECATED_START
         return get_constant_from_source(transpose);
         OPENVINO_SUPPRESS_DEPRECATED_END
@@ -140,25 +143,25 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         auto transpose = transpose_const(mul_const);
         if (!transpose)
             return nullptr;
-        return std::make_shared<opset8::Multiply>(weights, transpose);
+        return std::make_shared<ov::op::v1::Multiply>(weights, transpose);
     }
-    return std::make_shared<opset8::Multiply>(weights, mul_const);
+    return std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
 }
 
 pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     MATCHER_SCOPE(MatMulMultiplyFusion);
     auto input_pattern = pattern::any_input();
     auto weights_pattern = pattern::any_input(pattern::has_static_rank());
-    auto mul_const_pattern = pattern::wrap_type<opset8::Constant>();
-    auto matmul_pattern = pattern::wrap_type<opset8::MatMul>({input_pattern, weights_pattern});
-    auto mul_pattern = pattern::wrap_type<opset8::Multiply>({matmul_pattern, mul_const_pattern});
+    auto mul_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto matmul_pattern = pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern});
+    auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();
         auto mul_const =
-            std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul_const_pattern).get_node_shared_ptr());
         if (!mul_const)
             return false;
         auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
@@ -169,7 +172,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
 
         // Constantfold new weights, only if old weights is a constant node.
         // To make sure that subgraphs with e.g. FakeQuantize don't get constant folded here.
-        if (ov::is_type<opset8::Constant>(weights.get_node())) {
+        if (ov::is_type<ov::op::v0::Constant>(weights.get_node())) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (auto constant = get_constant_from_source(new_weights)) {
                 OPENVINO_SUPPRESS_DEPRECATED_END

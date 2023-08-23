@@ -9,7 +9,8 @@ Parameters
 
 Default Quantization algorithm has mandatory and optional parameters. For more details on how to use these parameters, refer to :doc:`Best Practices <pot_docs_BestPractices>` document. Below is an example of the definition of Default Quantization method and its parameters:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    {
        "name": "DefaultQuantization", # the name of optimization algorithm

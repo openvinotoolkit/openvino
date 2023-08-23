@@ -58,11 +58,10 @@ std::vector<layout> depth_to_space_inst::calc_output_layouts(depth_to_space_node
     ov::op::v0::DepthToSpace op;
     op.set_block_size(desc->block_size);
 
-    std::vector<ShapeType> output_shapes = { ShapeType() };
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>()
     };
-    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     return { layout{output_shapes[0], output_type, output_format} };
 }

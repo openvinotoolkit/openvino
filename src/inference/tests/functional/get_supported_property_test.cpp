@@ -8,83 +8,11 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-
-namespace {
-std::string get_mock_engine_path() {
-    std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              mockEngineName + IE_BUILD_POSTFIX);
-}
-template <class T>
-std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
-    std::function<T> ptr(reinterpret_cast<T*>(ov::util::get_symbol(so, functionName.c_str())));
-    return ptr;
-}
-
-}  // namespace
-
-class MockPlugin : public ov::IPlugin {
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::RemoteContext& context) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    void set_property(const ov::AnyMap& properties) override {
-        for (auto&& it : properties) {
-            if (it.first == ov::num_streams.name())
-                num_streams = it.second.as<ov::streams::Num>();
-        }
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-        if (name == ov::supported_properties) {
-            std::vector<ov::PropertyName> supportedProperties = {
-                ov::PropertyName(ov::supported_properties.name(), ov::PropertyMutability::RO),
-                ov::PropertyName(ov::num_streams.name(), ov::PropertyMutability::RW)};
-            return decltype(ov::supported_properties)::value_type(supportedProperties);
-        } else if (name == ov::num_streams.name()) {
-            return decltype(ov::num_streams)::value_type(num_streams);
-        }
-        return "";
-    }
-
-    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
-                                                     const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& properties) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-private:
-    int32_t num_streams{0};
-};
 
 using TestParam = std::tuple<ov::AnyMap, ov::AnyMap>;
 class GetPropertyTest : public ::testing::TestWithParam<TestParam> {
@@ -97,14 +25,14 @@ public:
     }
 
     void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
-        std::string libraryPath = get_mock_engine_path();
+        std::string libraryPath = ov::test::utils::get_mock_engine_path();
         if (!m_so)
             m_so = ov::util::load_shared_object(libraryPath.c_str());
         std::function<void(ov::IPlugin*)> injectProxyEngine =
-            make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
+            ov::test::utils::make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 
         injectProxyEngine(plugin.get());
-        core.register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+        core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + IE_BUILD_POSTFIX),
                              m_plugin_name);
         m_mock_plugin = plugin;
@@ -140,7 +68,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<TestParam>& obj)
 }
 
 TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
-    auto plugin = std::make_shared<MockPlugin>();
+    auto plugin = std::make_shared<ov::test::utils::MockPlugin>();
     std::shared_ptr<ov::IPlugin> base_plugin = plugin;
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);
@@ -173,3 +101,32 @@ INSTANTIATE_TEST_SUITE_P(GetSupportedPropertyTest,
                          GetPropertyTest,
                          ::testing::ValuesIn(test_variants),
                          getTestCaseName);
+
+TEST(PropertyTest, SetCacheDirPropertyCoreNoThrow) {
+    ov::Core core;
+
+    // Cache_dir property test
+    ov::Any value;
+    ASSERT_NO_THROW(core.set_property(ov::cache_dir("./tmp_cache_dir")));
+    ASSERT_NO_THROW(value = core.get_property(ov::cache_dir.name()));
+    EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
+}
+
+TEST(PropertyTest, SetTBBForceTerminatePropertyCoreNoThrow) {
+    ov::Core core;
+
+    bool value = true;
+    ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(false)));
+    ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    EXPECT_FALSE(value);
+    ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(true)));
+    ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    EXPECT_TRUE(value);
+}
+
+TEST(PropertyTest, GetUnsupportedPropertyCoreThrow) {
+    ov::Core core;
+
+    // Unsupported property test
+    ASSERT_THROW(core.get_property("unsupported_property"), ov::Exception);
+}

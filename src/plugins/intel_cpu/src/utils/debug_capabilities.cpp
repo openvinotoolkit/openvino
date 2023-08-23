@@ -199,7 +199,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << ptr->GetData();
+                                << "_" << ptr->getData();
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -254,7 +254,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     } else {
         // no SPD yet, use orginal shapes
         comma = "";
-        for (int i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
+        for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
             prec_name = node.getOriginalOutputPrecisionAtPort(i).name();
@@ -282,6 +282,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto n = edge->getParent();
             os << comma;
             os << node_id(*edge->getParent());
+            auto ptr = edge->getMemoryPtr();
+            if (ptr) {
+                os << "_" << ptr->getData();
+            }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
             comma = ",";
@@ -292,7 +296,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
         if (auto input_node = reinterpret_cast<intel_cpu::node::Input *>(&node)) {
             auto pmem = input_node->getMemoryPtr();
-            void * data = pmem->GetData();
+            void * data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
 
             if (shape_size(shape) <= 8) {

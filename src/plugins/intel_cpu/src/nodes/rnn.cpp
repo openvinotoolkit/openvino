@@ -13,7 +13,8 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <memory>
-#include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include <shape_inference/shape_inference_ngraph.hpp>
+#include "transformations/utils/utils.hpp"
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -216,9 +217,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         if (one_of(op->get_type_info(), ov::op::v0::RNNCell::get_type_info_static(), ov::op::v3::GRUCell::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(2)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(3)) ||
-                    (op->get_input_size() > 4 && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(2)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                (op->get_input_size() > 4 && !ov::op::util::is_on_constant_path(op->input_value(4)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -228,9 +229,9 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 ov::op::v5::GRUSequence::get_type_info_static(),
                 ov::op::v5::RNNSequence::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(3)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)) ||
-                    (op->get_input_size() > 5 && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(5)))) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(3)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                (op->get_input_size() > 5 && !ov::op::util::is_on_constant_path(op->input_value(5)))) {
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
@@ -246,33 +247,81 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 return false;
             }
             // Plug-in does not support dynamism on weights.
-            if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(4)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(5)) ||
-                    !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(6))) {
-                errorMessage = "Node expects constants as W, R, B inputs.";
+            if (!ov::op::util::is_on_constant_path(op->input_value(4)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(5)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(6))) {
+                errorMessage = "Node expects static shaped W, R, B inputs.";
                 return false;
             }
         }
 
         auto rnnCellBase = ov::as_type_ptr<const ov::op::util::RNNCellBase>(op);
-        if (rnnCellBase && rnnCellBase->get_clip() != 0.f) {
-            errorMessage = "Clipping is not supported for RNN primitive.";
-            return false;
+        if (rnnCellBase) {
+            if (rnnCellBase->get_clip() != 0.f) {
+                errorMessage = "Clipping is not supported for RNN primitive.";
+                return false;
+            }
+            if (one_of(rnnCellBase->get_type_info(),
+                    ov::op::v0::LSTMCell::get_type_info_static(),
+                    ov::op::v4::LSTMCell::get_type_info_static(),
+                    ov::op::v5::LSTMSequence::get_type_info_static())) {
+                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                    errorMessage = "Not supported activation functions";
+                    return false;
+                }
+            } else if (!ov::is_type<ov::op::v5::RNNSequence>(op) && rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
         }
 
         ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
-        if (ov::is_type<ov::op::v5::GRUSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v0::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)->get_direction();
-        } else if (ov::is_type<ov::op::v5::RNNSequence>(op)) {
-            direction = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)->get_direction();
+        int64_t seqLenIdx = -1;
+        if (auto gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)) {
+            direction = gru_seq->get_direction();
+            seqLenIdx = 2;
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)) {
+            if (lstm_seq->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
+                errorMessage = "Not supported activation functions";
+                return false;
+            }
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)) {
+            direction = lstm_seq->get_direction();
+            seqLenIdx = 3;
+        } else if (auto augru_seq = ov::as_type_ptr<const ov::op::internal::AUGRUSequence>(op)) {
+            direction = augru_seq->get_direction();
+            seqLenIdx = 2;
+        } else if (auto rnn_seq = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)) {
+            direction = rnn_seq->get_direction();
+            seqLenIdx = 2;
         }
+
         if (!one_of(direction, ov::op::RecurrentSequenceDirection::FORWARD, ov::op::RecurrentSequenceDirection::REVERSE)) {
             errorMessage = "Unsupported sequence direction.";
             return false;
+        }
+
+        if (seqLenIdx > 0) {
+            const auto& data_pshape = op->get_input_partial_shape(0);
+
+            // WA: dynamic shapes make impossible to check seq_len due to shapeOf subgraphs
+            // but the sequence is still supported in CPU and doesn't need to be decomposed
+            if (data_pshape.is_dynamic())
+                return true;
+
+            const int64_t maxSeqLenDimIdx = 1;
+
+            if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > maxSeqLenDimIdx && !data_pshape[maxSeqLenDimIdx].is_static()) {
+                errorMessage = "Max sequence length dimension is dynamic";
+                return false;
+            }
+            auto maxSeqLen = data_pshape[maxSeqLenDimIdx].get_length();
+            if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(seqLenIdx), maxSeqLen)) {
+                errorMessage = "Unsupported sequence length.";
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -302,9 +351,9 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ngraph::Node>& op) {
 
 namespace {
 /**
- * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with 
+ * Extends Rnn ngraph shape inference implementation. The main purpose of this class is to do the trick with
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
- *  
+ *
  */
 class RnnShapeInfer : public NgraphShapeInfer {
 public:
@@ -715,8 +764,8 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
 
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
+    cpu_convert(wConstBlob->getData(), ie_w_ptr, weightPrec, targetWeightPrec, ie_w_vec_size);
+    cpu_convert(rConstBlob->getData(), ie_r_ptr, weightPrec, targetWeightPrec, ie_r_vec_size);
 
     const int step = SC * G;
 
@@ -760,12 +809,12 @@ void RNN::fillBiases(const int *gate_map) {
 
     auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetSize() / constBlob->getDesc().getPrecision().size();
+    auto const elementsCount = constBlob->getSize() / constBlob->getDesc().getPrecision().size();
 
     std::vector<dataType> ie_b_vec(elementsCount);
-    cpu_convert(constBlob->GetPtr(),
+    cpu_convert(constBlob->getData(),
                 &ie_b_vec[0],
-                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
+                DnnlExtensionUtils::DataTypeToIEPrecision(constBlob->getDataType()),
                 Prec,
                 elementsCount);
 
@@ -1037,8 +1086,8 @@ void RNN::prepareParams() {
             THROW_ERROR << "has incorrect input size value in the first input.";
 
     auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
-    const size_t B = dataMemPtr->GetShape().getStaticDims()[0];
-    const size_t SL = is_cell ? 1lu : dataMemPtr->GetShape().getStaticDims()[1];
+    const size_t B = dataMemPtr->getShape().getStaticDims()[0];
+    const size_t SL = is_cell ? 1lu : dataMemPtr->getShape().getStaticDims()[1];
     const Shape shapeS_4D{L, D, B, SC};
 
     inDataDescs[0] = std::make_shared<DnnlBlockedMemoryDesc>(Shape{SL, B, DC}, inDataTypes[xIdx], memory::format_tag::tnc);
@@ -1104,23 +1153,23 @@ void RNN::prepareParams() {
     if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
-        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
     }
 
     if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
-        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->GetPrimitive();
+        primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
     }
 
     if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
         !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
-        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->GetPrimitive();
+        primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();
     }
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
-    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 }
 
 std::shared_ptr<MemoryDesc> RNN::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
@@ -1142,28 +1191,28 @@ void RNN::execute(dnnl::stream strm) {
 
     auto args = primArgs;
 
-    args[DNNL_ARG_SRC_LAYER] = src_data_mem->GetPrimitive();
-    args[DNNL_ARG_DST_LAYER] = dst_data_mem->GetPrimitive();
+    args[DNNL_ARG_SRC_LAYER] = src_data_mem->getPrimitive();
+    args[DNNL_ARG_DST_LAYER] = dst_data_mem->getPrimitive();
 
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
-        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
+        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->getPrimitive();
     }
     if (is_augru) {
         const auto atten_port = is_cell ? 5 : 6;
-        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->GetPrimitive();
+        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->getPrimitive();
     }
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
+            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->getPrimitive();
         }
     } else {
         size_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
-                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
+                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->getPrimitive();
             }
         }
     }

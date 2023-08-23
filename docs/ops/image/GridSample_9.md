@@ -68,7 +68,8 @@
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="GridSample" ...>
        <data align_corners="true" mode="nearest" padding_mode="border"/>

@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>
@@ -1631,6 +1632,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     constexpr int x = 2;
     constexpr int y = 2;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& eng = get_test_engine();
 
     auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
@@ -1639,8 +1641,8 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     auto in_mem = eng.allocate_memory(in_lay);
     auto params_mem = eng.allocate_memory(params_lay);
 
-    auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
-    auto params_data = generate_random_1d<float>(f, -1, 1);
+    auto in_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = rg.generate_random_1d<float>(f, -1, 1);
 
     set_values(params_mem, params_data);
 
@@ -1674,6 +1676,78 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     }
 }
 
+TEST(activation_f32_fw_gpu, bfyx_prelu_dyn) {
+    constexpr int b = 1;
+    constexpr int f = 17;
+    constexpr int x = 2;
+    constexpr int y = 2;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& eng = get_test_engine();
+
+    ov::PartialShape in_shape = { b, f, y, x };
+    auto in_lay = cldnn::layout(ov::PartialShape::dynamic(in_shape.size()), cldnn::data_types::f32, cldnn::format::bfyx);
+    auto params_lay = cldnn::layout(ov::PartialShape{ 1, f, 1, 1 }, cldnn::data_types::f32, cldnn::format::bfyx);
+
+    auto in_mem = eng.allocate_memory({ in_shape, cldnn::data_types::f32, cldnn::format::bfyx });
+    auto params_mem = eng.allocate_memory(params_lay);
+
+    auto in_data = rg.generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = rg.generate_random_1d<float>(f, -1, 1);
+
+    set_values(params_mem, params_data);
+
+    auto topo = cldnn::topology(
+        cldnn::input_layout("in", in_lay),
+        cldnn::data("actv_params", params_mem),
+        cldnn::activation("actv", input_info("in"), "actv_params", cldnn::activation_func::relu_negative_slope)
+    );
+
+    ExecutionConfig config = get_test_default_config(eng);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network net(eng, topo, config);
+
+    set_values(in_mem, flatten_4d(format::bfyx, in_data));
+    net.set_input_data("in", in_mem);
+
+    auto inst = net.get_primitive("actv");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = net.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "actv");
+
+    auto out_mem = outputs.at("actv").get_memory();
+    auto out_layout = out_mem->get_layout();
+
+    int b_size = out_layout.batch();
+    int f_size = out_layout.feature();
+    int y_size = out_layout.spatial(1);
+    int x_size = out_layout.spatial(0);
+
+    ASSERT_EQ(out_layout.format, format::bfyx);
+    ASSERT_EQ(b_size, b);
+    ASSERT_EQ(f_size, f);
+    ASSERT_EQ(y_size, y);
+    ASSERT_EQ(x_size, x);
+
+    std::vector<float> expected = flatten_4d(format::bfyx, in_data);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] < 0.f) {
+            expected[i] = expected[i] * params_data[i / (x * y) % f];
+        }
+    }
+
+    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(expected.size(), out_ptr.size());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
+    }
+}
+
 using activation_random_test_params = std::tuple<data_types,
                                                  format::type,                  // input_format
                                                  tensor,                        // input_size
@@ -1685,7 +1759,12 @@ using activation_random_test_params = std::tuple<data_types,
 
 struct activation_random_test : testing::TestWithParam<activation_random_test_params>
 {
+    tests::random_generator rg;
     bool enable_profiling = false;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
 
     size_t get_x_pitch(layout& layout) {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
@@ -1703,7 +1782,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         size_t x = l.spatial(0);
         size_t y = l.spatial(1);
 
-        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
         mem_lock<T> ptr{mem, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
@@ -2003,13 +2082,14 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(true)));
 
 TEST(activation_gpu, has_proper_synchronization) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto in_layout = layout({1, 2, 2, 4}, data_types::f32, format::bfyx);
     auto input_mem = engine.allocate_memory(in_layout);
     auto const_mem = engine.allocate_memory({{1, 2, 2, 4}, data_types::f32, format::bfyx});
 
-    auto in_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
-    auto const_data = generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto in_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
+    auto const_data = rg.generate_random_4d<float>(1, 2, 2, 4, -1, 1);
 
     set_values(input_mem, flatten_4d(format::bfyx, in_data));
     set_values(const_mem, flatten_4d(format::bfyx, const_data));

@@ -1,16 +1,41 @@
 Interactive question answering with OpenVINO™
 =============================================
 
+.. _top:
+
 This demo shows interactive question answering with OpenVINO, using
 `small BERT-large-like
 model <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-small-uncased-whole-word-masking-squad-int8-0002>`__
 distilled and quantized to ``INT8`` on SQuAD v1.1 training set from
 larger BERT-large model. The model comes from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
-of this notebook provides live inference results from your inputs.
+of this notebook provides live inference results from your inputs. 
 
-Imports
--------
+**Table of contents**:
+
+- `Imports <#imports>`__
+
+- `The model <#the-model>`__
+
+  - `Download the model <#download-the-model>`__
+  - `Load the model <#load-the-model>`__
+
+    - `Select inference device <#select-inference-device>`__
+
+- `Processing <#processing>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Postprocessing <#postprocessing>`__
+  - `Main Processing Function <#main-processing-function>`__
+
+- `Run <#run>`__
+
+  - `Run on local paragraphs <#run-on-local-paragraphs>`__
+  - `Run on websites <#run-on-websites>`__
+
+Imports `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -24,11 +49,13 @@ Imports
     import html_reader as reader
     import tokens_bert as tokens
 
-The model
----------
+The model `⇑ <#top>`__
+###############################################################################################################################
 
-Download the model
-~~~~~~~~~~~~~~~~~~
+
+Download the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Use ``omz_downloader``, which is a command-line tool from the
 ``openvino-dev`` package. The ``omz_downloader`` tool automatically
@@ -82,8 +109,9 @@ there is no need to use ``omz_converter``.
     
 
 
-Load the model
-~~~~~~~~~~~~~~
+Load the model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Downloaded models are located in a fixed structure, which indicates a
 vendor, a model name and a precision. Only a few lines of code are
@@ -98,8 +126,40 @@ You can choose ``CPU`` or ``GPU`` for this model.
     core = Core()
     # Read the network and corresponding weights from a file.
     model = core.read_model(model_path)
-    # Load the model on CPU (you can use GPU as well).
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+
+Select inference device `⇑ <#top>`__
+-------------------------------------------------------------------------------------------------------------------------------
+
+
+Select device from dropdown list for running inference using OpenVINO:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    core = Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get input and output names of nodes.
     input_keys = list(compiled_model.inputs)
@@ -126,8 +186,9 @@ for BERT-large-like model.
 
 
 
-Processing
-----------
+Processing `⇑ <#top>`__
+###############################################################################################################################
+
 
 NLP models usually take a list of tokens as a standard input. A token is
 a single word converted to some integer. To provide the proper input,
@@ -164,8 +225,9 @@ content from provided URLs.
         # Produce one big context string.
         return "\n".join(paragraphs)
 
-Preprocessing
-~~~~~~~~~~~~~
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The input size in this case is 384 tokens long. The main input
 (``input_ids``) to used BERT model consists of two parts: question
@@ -247,8 +309,9 @@ documentation <https://github.com/openvinotoolkit/open_model_zoo/tree/master/mod
     
         return (input_ids, attention_mask, token_type_ids), diff_input_size
 
-Postprocessing
-~~~~~~~~~~~~~~
+Postprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 The results from the network are raw (logits). Use the softmax function
 to get the probability distribution. Then, find the best answer in the
@@ -340,8 +403,9 @@ answer should come with the highest score.
         # Return the part of the context, which is already an answer.
         return context[answer[1]:answer[2]], answer[0]
 
-Main Processing Function
-~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Run question answering on a specific knowledge base (websites) and
 iterate through the questions.
@@ -382,11 +446,13 @@ iterate through the questions.
                 print(f"Score: {score:.2f}")
                 print(f"Time: {end_time - start_time:.2f}s")
 
-Run
----
+Run `⇑ <#top>`__
+###############################################################################################################################
 
-Run on local paragraphs
-~~~~~~~~~~~~~~~~~~~~~~~
+
+Run on local paragraphs `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Change sources to your own to answer your questions. You can use as many
 sources as you want. Usually, you need to wait a few seconds for the
@@ -399,12 +465,15 @@ context. Therefore, in such cases, you can see random results.
 Sample source: a paragraph from `Computational complexity
 theory <https://rajpurkar.github.io/SQuAD-explorer/explore/v2.0/dev/Computational_complexity_theory.html>`__
 
-Sample questions: - What is the term for a task that generally lends
-itself to being solved by a computer? - By what main attribute are
-computational problems classified utilizing computational complexity
-theory? - What branch of theoretical computer science deals with broadly
-classifying computational problems by difficulty and class of
-relationship?
+Sample questions:
+
+-  What is the term for a task that generally lends itself to being
+   solved by a computer?
+-  By what main attribute are computational problems classified
+   utilizing computational complexity theory?
+-  What branch of theoretical computer science deals with broadly
+   classifying computational problems by difficulty and class of
+   relationship?
 
 If you want to stop the processing just put an empty string.
 
@@ -434,18 +503,22 @@ questions in the box.**
     Time: 0.03s
 
 
-Run on websites
-~~~~~~~~~~~~~~~
+Run on websites `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-You can also provide urls. Note that the context (a knowledge base) is
+
+You can also provide URLs. Note that the context (a knowledge base) is
 built from paragraphs on websites. If some information is outside the
-paragraphs, the algorithm wil not be able to find it.
+paragraphs, the algorithm will not be able to find it.
 
 Sample source: `OpenVINO
 wiki <https://en.wikipedia.org/wiki/OpenVINO>`__
 
-Sample questions: - What does OpenVINO mean? - What is the license for
-OpenVINO? - Where can you deploy OpenVINO code?
+Sample questions:
+
+-  What does OpenVINO mean?
+-  What is the license for OpenVINO?
+-  Where can you deploy OpenVINO code?
 
 If you want to stop the processing just put an empty string.
 

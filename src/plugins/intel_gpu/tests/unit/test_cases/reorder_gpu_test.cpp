@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
@@ -2445,6 +2446,7 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
 }
 
 TEST(reorder_gpu, any_format) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory(layout(data_types::f32, format::yxfb, tensor(5, 7, 13, 9)));
@@ -2455,7 +2457,7 @@ TEST(reorder_gpu, any_format) {
 
     network net(engine, topo, get_test_default_config(engine));
 
-    auto data = generate_random_1d<float>(input->count(), -1, 1);
+    auto data = rg.generate_random_1d<float>(input->count(), -1, 1);
     set_values(input, data);
     net.set_input_data("in", input);
 
@@ -2705,6 +2707,7 @@ struct reorder_test_param {
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
 public:
+    tests::random_generator rg;
     cldnn::engine& engine = get_test_engine();
     cldnn::topology topology_test;
     ExecutionConfig config = get_test_default_config(engine);
@@ -2747,6 +2750,7 @@ public:
     }
 
     void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
         config.set_property(ov::intel_gpu::optimize_data(true));
     }
 
@@ -2758,16 +2762,16 @@ public:
         auto prim = engine.allocate_memory(l);
         tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
+            VF<int32_t> rnd_vec = rg.generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min_random, max_random);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
+            VF<uint16_t> rnd_vec = rg.generate_random_1d<uint16_t>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         } else {
-            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+            VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
         }
 

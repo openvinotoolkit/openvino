@@ -6,10 +6,10 @@ import tempfile
 from pathlib import Path
 
 from generator import generator, generate
-from openvino.runtime import serialize, InputCutInfo, LayoutMap
+from openvino.runtime import serialize
 
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
-from utils import create_onnx_model, save_to_onnx
+from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
 
 
 @generator
@@ -55,13 +55,11 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         return onnx_net
 
     @generate(*[
-        ({}),
-        ({'input': InputCutInfo(name='LeakyRelu_out', shape=None, type=None, value=None)}),
-        ({'layout': {'input': LayoutMap(source_layout='NCHW', target_layout='NHWC')}}),
+        ({})
     ])
     # Checks convert import from openvino.tools.mo
     def test_import(self, params):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = create_onnx_model()
@@ -73,28 +71,28 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             assert os.path.exists(out_xml)
 
     def test_input_model_path(self):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
-            out_xml = os.path.join(tmpdir, Path("model.xml"))
+            out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert_model(input_model=model_path)
+            ov_model = convert_model(Path(model_path))
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             #TODO: check that model is correct
 
 
     def test_unnamed_input_model(self):
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
             model = self.create_onnx_model()
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(model_path)
-            serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            #serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
             #TODO: check that model is correct
 

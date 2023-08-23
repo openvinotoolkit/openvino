@@ -31,7 +31,7 @@ const std::shared_ptr<InferenceEngine::RemoteContext> RemoteContext::GetHardware
     if (auto wrapper = dynamic_cast<ov::RemoteContextWrapper*>(this)) {
         auto ov_context = wrapper->get_context();
         auto hw_context = ov::proxy::get_hardware_context(ov_context);
-        return ov::legacy_convert::convert_remote_context(hw_context);
+        return ov::legacy_convert::convert_remote_context(hw_context._ptr);
     }
 #endif
     return shared_from_this();
@@ -42,7 +42,7 @@ const std::shared_ptr<const InferenceEngine::RemoteContext> RemoteContext::GetHa
     if (auto wrapper = dynamic_cast<const ov::RemoteContextWrapper*>(this)) {
         auto ov_context = wrapper->get_context();
         auto hw_context = ov::proxy::get_hardware_context(ov_context);
-        return ov::legacy_convert::convert_remote_context(hw_context);
+        return ov::legacy_convert::convert_remote_context(hw_context._ptr);
     }
 #endif
     return shared_from_this();

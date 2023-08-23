@@ -92,6 +92,7 @@ fusing of the sub-graph defining the :doc:`Mish <openvino_docs_ops_activation_Mi
 operation:
 
 .. code-block:: py
+   :force:
 
    from openvino.tools.mo.front.Softplus_fusion import SoftplusFusion
    from openvino.tools.mo.ops.activation_ops import Mish
@@ -164,6 +165,7 @@ Consider an example transformation from the ``extensions/front/Pack.py`` file, w
 the TensorFlow:
 
 .. code-block:: py
+   :force:
    
    from openvino.tools.mo.front.common.partial_infer.utils import int64_array
    from openvino.tools.mo.front.common.replacement import FrontReplacementOp
@@ -213,6 +215,7 @@ operation supports both semantics. Before IR generation, however, the operation 
 specification.
 
 .. code-block:: py
+   :force:
 
    import logging as log
    
@@ -483,6 +486,7 @@ The example of the configuration file for this type of transformation is ``exten
 and the corresponding transformation file is ``./extensions/front/YOLO.py``:
 
 .. code-block:: py
+   :force:
    
    from openvino.tools.mo.front.no_op_eraser import NoOpEraser
    from openvino.tools.mo.front.standalone_const_eraser import StandaloneConstEraser

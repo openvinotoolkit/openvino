@@ -5,18 +5,23 @@
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BroadcastTransition::BroadcastTransition() {
     MATCHER_SCOPE(BroadcastTransition);
-    auto bcast_m = pass::pattern::wrap_type<opset1::Broadcast, opset10::Broadcast>(pass::pattern::consumers_count(1));
+    auto bcast_m =
+        pass::pattern::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(pass::pattern::consumers_count(1));
     auto eltwise_input_m = pass::pattern::any_input(pass::pattern::has_static_rank());
     auto eltwise_1 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input_m, bcast_m});
     auto eltwise_2 = pass::pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({bcast_m, eltwise_input_m});
@@ -29,7 +34,7 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
             return false;
         }
 
-        const auto bcast = ov::as_type_ptr<ov::opset10::Broadcast>(pattern_map.at(bcast_m).get_node_shared_ptr());
+        const auto bcast = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(bcast_m).get_node_shared_ptr());
         const auto& bcast_type = bcast->get_broadcast_spec().m_type;
         if (bcast_type != ov::op::BroadcastType::NUMPY && bcast_type != ov::op::BroadcastType::BIDIRECTIONAL) {
             return false;
@@ -49,11 +54,11 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
 
         std::shared_ptr<ov::Node> data_shape_path;
         if (target_shape_et == ov::element::i32 || target_shape_et == ov::element::i64) {
-            data_shape_path = ov::op::util::make_try_fold<opset10::ShapeOf>(new_eltwise, target_shape_et);
+            data_shape_path = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(new_eltwise, target_shape_et);
             ov::copy_runtime_info(eltwise, data_shape_path);
         } else {
-            auto shapeof = ov::op::util::make_try_fold<opset10::ShapeOf>(new_eltwise);
-            data_shape_path = ov::op::util::make_try_fold<ov::opset10::Convert>(shapeof, target_shape_et);
+            auto shapeof = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(new_eltwise);
+            data_shape_path = ov::op::util::make_try_fold<ov::op::v0::Convert>(shapeof, target_shape_et);
             ov::copy_runtime_info(eltwise, {shapeof, data_shape_path});
         }
 
@@ -61,8 +66,8 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
         const size_t input_rank = new_eltwise->get_output_partial_shape(0).size();
         if (input_rank != target_shape_rank) {
             auto align_rank = [&](const ov::Output<ov::Node>& out, const size_t count) {
-                const auto constant = ov::opset10::Constant::create(target_shape_et, {count}, {1});
-                const auto res = ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{constant, out}, 0);
+                const auto constant = ov::op::v0::Constant::create(target_shape_et, {count}, {1});
+                const auto res = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::OutputVector{constant, out}, 0);
                 ov::copy_runtime_info(out.get_node_shared_ptr(), {constant, res});
                 return res;
             };
@@ -72,10 +77,10 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
                 target_shape = align_rank(target_shape, input_rank - target_shape_rank);
             }
         }
-        const auto new_target_shape = ov::op::util::make_try_fold<opset10::Maximum>(data_shape_path, target_shape);
+        const auto new_target_shape = ov::op::util::make_try_fold<ov::op::v1::Maximum>(data_shape_path, target_shape);
         ov::copy_runtime_info(eltwise, new_target_shape);
 
-        const auto new_bcast = std::make_shared<ov::opset10::Broadcast>(new_eltwise, new_target_shape);
+        const auto new_bcast = std::make_shared<ov::op::v3::Broadcast>(new_eltwise, new_target_shape);
         new_bcast->set_friendly_name(eltwise->get_friendly_name());
         ov::copy_runtime_info(eltwise, {new_eltwise, new_bcast});
         ov::replace_node(eltwise, new_bcast);

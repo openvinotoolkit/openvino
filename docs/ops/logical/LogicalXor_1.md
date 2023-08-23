@@ -53,7 +53,8 @@ After broadcasting *LogicalXor* does the following with the input tensors *a* an
 
 *Example 1: no broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LogicalXor">
        <input>
@@ -77,7 +78,8 @@ After broadcasting *LogicalXor* does the following with the input tensors *a* an
 
 *Example 2: numpy broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="LogicalXor">
        <input>

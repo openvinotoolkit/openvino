@@ -16,6 +16,8 @@
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -77,13 +79,11 @@ namespace auto_plugin {
 std::mutex Plugin::m_mtx;
 std::map<unsigned int, std::list<std::string>> Plugin::m_priority_map;
 
-std::shared_ptr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    if (m_hw_compiledmodel)
-        return m_hw_compiledmodel->get_context();
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -93,7 +93,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::RemoteContext& context,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -128,12 +128,22 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-
     auto set_default_hint = [&](const std::string& target_device,
                               ov::AnyMap& device_config,
                               const ov::AnyMap& properties) {
         auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = properties.find(target_device) != properties.end();
+        auto is_set_device_properties = false;
+        auto item = properties.find(ov::device::properties.name());
+        if (item != properties.end()) {
+            ov::AnyMap devicesProperties;
+            std::stringstream strConfigs(item->second.as<std::string>());
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+            auto it = devicesProperties.find(target_device);
+            if (it != devicesProperties.end()) {
+                is_set_device_properties = true;
+            }
+        }
         if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
@@ -161,6 +171,12 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     auto get_device_config = [&] (const DeviceName & device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
+        // only in case of cumulative, update to tput for hardware device
+        auto && iter = device_config.find(ov::hint::performance_mode.name());
+        if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
+            iter->second = ov::hint::PerformanceMode::THROUGHPUT;
+        // validate the device validity
+        get_core()->get_property(device_with_id, ov::supported_properties, device_config);
         return device_config;
     };
 
@@ -248,7 +264,11 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                     full_device_name = get_core()->get_property(device_name_with_id, ov::device::full_name);
                 } catch (ov::Exception&) {
                     LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                } catch (InferenceEngine::Exception&) {
+                    LOG_DEBUG_TAG("get full device name failed for ", device_name_with_id.c_str());
                 }
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
 
             if (full_device_name.empty()) {
@@ -260,8 +280,26 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
                     device_name_with_id.c_str(), default_device_id.c_str(), unique_name.c_str());
             // create meta device
-            meta_devices.push_back({device_name_with_id, get_device_config(device_name_with_id),
-                                    num_requests, default_device_id, unique_name, device_priority});
+            try {
+                meta_devices.push_back({device_name_with_id,
+                                        get_device_config(device_name_with_id),
+                                        num_requests,
+                                        default_device_id,
+                                        unique_name,
+                                        device_priority});
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            } catch (const InferenceEngine::Exception&) {
+                LOG_DEBUG_TAG("Failed to create meta device for deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
+                              device_name_with_id.c_str(),
+                              default_device_id.c_str(),
+                              unique_name.c_str());
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
         if (enable_device_priority) {
             device_priority++;
@@ -281,6 +319,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (ov::supported_properties == name) {
         auto ret = m_plugin_config.supported_properties(get_device_name());
         return ret;
+    } else if (name == ov::internal::supported_properties.name()) {
+        return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
@@ -338,7 +378,7 @@ Plugin::Plugin() {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                               const ov::AnyMap& properties,
-                                                              const ov::RemoteContext& context) const {
+                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -375,7 +415,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     load_config.set_user_property(pre_process_config(properties));
     load_config.apply_user_properties();
     if (!work_mode_auto) {
-        if (iter_config != properties.end() && iter_config->second != ov::hint::PerformanceMode::THROUGHPUT) {
+        if (iter_config != properties.end() && iter_config->second != "THROUGHPUT") {
             LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", iter_config->second.as<std::string>().c_str());
         }
         load_config.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
@@ -409,7 +449,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_model_priority = map_priority_value(load_config.get_property(ov::hint::model_priority));
     auto_s_context->m_batching_disabled = load_config.is_batching_disabled();
     // set performanceHint for AutoCompiledModel
-    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode.name());
+    auto_s_context->m_performance_hint = load_config.get_property(ov::hint::performance_mode);
     // filter the device that supports filter configure
     meta_devices = parse_meta_devices(str_devices, full_property);
     auto support_devices_by_property = filter_device(meta_devices, filter_property);
@@ -516,12 +556,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     std::shared_ptr<ov::ICompiledModel> impl;
-    if (is_cumulative) {
-        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<CumuSchedule>());
-    } else {
-        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), auto_s_context, std::make_shared<AutoSchedule>());
+    std::shared_ptr<Schedule> scheduler = is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>()) :
+                                std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
+    scheduler->launch(auto_s_context);
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    try {
+        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
+        device_context = auto_s_context->m_hw_compiled_model->get_context();
+        if (!device_context._so)
+            device_context._so = auto_s_context->m_hw_compiled_model._so;
+    } catch (ov::NotImplemented&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    } catch (InferenceEngine::Exception&) {
+        LOG_INFO_TAG("underlying hardware does not support hardware context");
     }
-    m_hw_compiledmodel = auto_s_context->m_hw_compiled_model;
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    if (is_cumulative) {
+        impl = std::make_shared<AutoCumuCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
+    } else {
+        impl = std::make_shared<AutoCompiledModel>(ppp_model, shared_from_this(), device_context, auto_s_context, scheduler);
+    }
     return impl;
 }
 
@@ -563,91 +618,78 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to select in ", get_device_name());
     }
-
+    bool is_default_list = true;
+    std::list<DeviceInformation> valid_devices;
     std::list<DeviceInformation> CPU;
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
-    std::list<DeviceInformation> MYRIAD;
-    std::list<DeviceInformation> VPUX;
+    std::list<DeviceInformation> Others;
+    auto is_supported_model = [this, model_precision](const std::string& device_name) {
+        // Check if candidate device supported the specified model precision.
+        std::vector<std::string> capability;
+        try {
+            capability = get_core()->get_property(device_name, ov::device::capabilities);
+        } catch (std::exception&) {
+            LOG_DEBUG_TAG("cannot get device capabity from device: %s", device_name.c_str());
+        }
+        auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
+        bool is_support_fp16 =
+            model_precision == "FP32" && std::find(capability.begin(), capability.end(), ("FP16")) != capability.end();
+        return support_model != capability.end() || is_support_fp16;
+    };
 
-    for (auto& item : meta_devices) {
-        if (item.device_name.find("CPU") == 0) {
-            CPU.push_back(item);
+    for (auto&& device_info : meta_devices) {
+        if (device_info.device_priority > 0)
+            is_default_list = false;
+        // check if device support this model precision
+        if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
-        }
-        if (item.device_name.find("MYRIAD") == 0) {
-            MYRIAD.push_back(item);
-            continue;
-        }
-        if (item.device_name.find("VPUX") == 0) {
-            VPUX.push_back(item);
-            continue;
-        }
-        if (item.device_name.find("GPU") == 0) {
+        if (device_info.device_name.find("CPU") == 0) {
+            CPU.push_back(device_info);
+        } else if (device_info.device_name.find("GPU") == 0) {
             std::string device_type;
             try {
                 // can optimize to typed function when gpu swith to 2.0 api
-                device_type = get_core()->get_property(item.device_name, ov::device::type.name(), {}).as<std::string>();
+                device_type =
+                    get_core()->get_property(device_info.device_name, ov::device::type.name(), {}).as<std::string>();
             } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", item.device_name.c_str());
+                LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
             }
             if (device_type == "integrated") {
-                iGPU.push_back(item);
+                iGPU.push_back(device_info);
             } else if (device_type == "discrete") {
-                dGPU.push_back(item);
+                dGPU.push_back(device_info);
             } else {
-                LOG_DEBUG_TAG("Unknown device type for %s", item.device_name.c_str());
+                LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());
             }
-            continue;
+        } else {
+            Others.push_back(device_info);
         }
-    }
-
-    // Priority of selecting device: dGPU > VPUX > iGPU > MYRIAD > CPU
-    std::list<DeviceInformation> devices;
-    if (model_precision == "INT8") {
-        devices.splice(devices.end(), VPUX);
-        devices.splice(devices.end(), dGPU);
-    } else {
-        devices.splice(devices.end(), dGPU);
-        devices.splice(devices.end(), VPUX);
-    }
-    devices.splice(devices.end(), iGPU);
-    devices.splice(devices.end(), MYRIAD);
-    devices.splice(devices.end(), CPU);
-
-    std::list<DeviceInformation> valid_devices;
-
-    if (meta_devices.size() > 1) {
-        auto select_support_dev = [this, &devices, &valid_devices](const std::string& model_precision) {
-            for (auto iter = devices.begin(); iter != devices.end();) {
-                auto capability = get_core()->get_property(iter->device_name, ov::device::capabilities);
-                auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
-                if (support_model != capability.end()) {
-                    valid_devices.push_back(std::move(*iter));
-                    devices.erase(iter++);
-                    continue;
-                }
-                iter++;
-            }
-        };
-        select_support_dev(model_precision);
-        // If model is FP32, continue to collect the device support FP16 but not support FP32.
-        if (model_precision == "FP32") {
-            const std::string f16 = "FP16";
-            select_support_dev(f16);
-        }
-    } else {
-        valid_devices.push_back(meta_devices[0]);
+        valid_devices.push_back(device_info);
     }
 
     if (valid_devices.empty()) {
         OPENVINO_THROW("Cannot select any device");
     }
+
+    if (valid_devices.size() == 1) {
+        return valid_devices;
+    }
+
+    if (is_default_list) {
+        // Generate the default device priority for selecting logic of AUTO.
+        // Default priority of selecting device: dGPU > iGPU > 3rd part devices > CPU
+        valid_devices.clear();
+        valid_devices.splice(valid_devices.end(), dGPU);
+        valid_devices.splice(valid_devices.end(), iGPU);
+        valid_devices.splice(valid_devices.end(), Others);
+        valid_devices.splice(valid_devices.end(), CPU);
+        return valid_devices;
+    }
     // sort validDevices
     valid_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
         return a.device_priority < b.device_priority;
     });
-
     return valid_devices;
 }
 

@@ -26,6 +26,40 @@ inline VectorDims reshape_sizes(VectorDims dims) {
     return result_dims;
 }
 
+bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
+    if (one_of(algorithm, Algorithm::EltwiseSqrt,
+                          Algorithm::EltwiseDivide,
+                          Algorithm::EltwiseRelu,
+#ifdef OPENVINO_ARCH_ARM64
+                          Algorithm::EltwiseGeluErf,
+#endif
+                          Algorithm::EltwiseElu,
+                          Algorithm::EltwiseTanh,
+                          Algorithm::EltwiseSigmoid,
+                          Algorithm::EltwiseSoftRelu,
+                          Algorithm::EltwiseClamp,
+                          Algorithm::EltwiseSwish,
+                          Algorithm::EltwisePrelu,
+                          Algorithm::EltwiseHswish,
+                          Algorithm::EltwiseAbs,
+                          Algorithm::EltwiseExp,
+                          Algorithm::EltwiseLog,
+                          Algorithm::EltwiseMaximum,
+                          Algorithm::EltwiseMinimum,
+                          Algorithm::EltwiseSquaredDifference,
+                          Algorithm::EltwiseAdd,
+                          Algorithm::EltwiseSubtract,
+                          Algorithm::EltwiseMultiply,
+                          Algorithm::EltwiseEqual,
+                          Algorithm::EltwiseNotEqual,
+                          Algorithm::EltwiseGreater,
+                          Algorithm::EltwiseGreaterEqual,
+                          Algorithm::EltwiseLess,
+                          Algorithm::EltwiseLessEqual)) {
+        return true;
+    }
+    return false;
+}
 
 bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
@@ -50,7 +84,7 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseSigmoid:
         case Algorithm::EltwiseSoftRelu:
         case Algorithm::EltwiseClamp:
-        case Algorithm::EltwiseSwish: // TODO: CVS-109354: efficientdet-d0 accuracy drops if ACL Swish is used
+        case Algorithm::EltwiseSwish:
         case Algorithm::EltwisePrelu:
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
@@ -465,10 +499,10 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
 void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src, const std::vector<MemoryPtr> &dst,
                               const void *post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
-        srcTensors[i].allocator()->import_memory(src[i]->GetPtr());
+        srcTensors[i].allocator()->import_memory(src[i]->getData());
     }
     for (size_t i = 0; i < dst.size(); i++) {
-        dstTensors[i].allocator()->import_memory(dst[i]->GetPtr());
+        dstTensors[i].allocator()->import_memory(dst[i]->getData());
     }
 
     exec_func();

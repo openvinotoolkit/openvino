@@ -40,7 +40,8 @@
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Sqrt">
         <input>
@@ -57,7 +58,8 @@
 
 *Example 2*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Sqrt">
         <input>
@@ -75,7 +77,8 @@
 
 *Example 3*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
     <layer ... type="Sqrt">
         <input>

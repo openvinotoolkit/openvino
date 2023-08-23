@@ -1,6 +1,8 @@
 Hello Image Segmentation
 ========================
 
+.. _top:
+
 A very basic introduction to using segmentation models with OpenVINO™.
 
 In this tutorial, a pre-trained
@@ -10,8 +12,19 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used.
 ADAS stands for Advanced Driver Assistance Services. The model
 recognizes four classes: background, road, curb and mark.
 
-Imports
--------
+**Table of contents**:
+
+- `Imports <#imports>`__
+- `Download model weights <#download-model-weights>`__
+- `Select inference device <#select-inference-device>`__
+- `Load the Model <#load-the-model>`__
+- `Load an Image <#load-an-image>`__
+- `Do Inference <#do-inference>`__
+- `Prepare Data for Visualization <#prepare-data-for-visualization>`__
+- `Visualize data <#visualize-data>`__
+
+Imports `⇑ <#top>`__
+#########################################
 
 .. code:: ipython3
 
@@ -24,8 +37,9 @@ Imports
     sys.path.append("../utils")
     from notebook_utils import segmentation_map_to_image, download_file
 
-Download model weights
-----------------------
+Download model weights `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -61,24 +75,53 @@ Download model weights
     model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
-Load the Model
---------------
+Select inference device `⇑ <#top>`__
+#############################################################################################################################
+
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
-    ie = Core()
+    import ipywidgets as widgets
     
-    model = ie.read_model(model=model_xml_path)
-    compiled_model = ie.compile_model(model=model, device_name="CPU")
+    ie = Core()
+    device = widgets.Dropdown(
+        options=ie.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+Load the Model `⇑ <#top>`__
+#############################################################################################################################
+
+
+.. code:: ipython3
+
+    core = Core()
+    
+    model = core.read_model(model=model_xml_path)
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     input_layer_ir = compiled_model.input(0)
     output_layer_ir = compiled_model.output(0)
 
-Load an Image
--------------
+Load an Image `⇑ <#top>`__
+#############################################################################################################################
 
-A sample image from the `Mapillary
-Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
+A sample image from the `Mapillary Vistas <https://www.mapillary.com/dataset/vistas>`__ dataset is
 provided.
 
 .. code:: ipython3
@@ -106,16 +149,17 @@ provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f40900e8ac0>
+    <matplotlib.image.AxesImage at 0x7f1f2c248430>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_8_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
 
 
-Do Inference
-------------
+Do Inference `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -131,16 +175,17 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f4090039a30>
+    <matplotlib.image.AxesImage at 0x7f1f2c18bfd0>
 
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_10_1.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_12_1.png
 
 
-Prepare Data for Visualization
-------------------------------
+Prepare Data for Visualization `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -157,8 +202,9 @@ Prepare Data for Visualization
     # Create an image with mask.
     image_with_mask = cv2.addWeighted(resized_mask, alpha, rgb_image, 1 - alpha, 0)
 
-Visualize data
---------------
+Visualize data `⇑ <#top>`__
+#############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -179,5 +225,5 @@ Visualize data
 
 
 
-.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_14_0.png
+.. image:: 003-hello-segmentation-with-output_files/003-hello-segmentation-with-output_16_0.png
 

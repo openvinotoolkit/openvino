@@ -57,6 +57,7 @@ The sample code uses operation ``ProposalOp`` which corresponds to ``Proposal`` 
 page. For a detailed explanation of the extractor, refer to the source code below.
 
 .. code-block:: py
+   :force:
 
    from openvino.tools.mo.ops.proposal import ProposalOp
    from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp

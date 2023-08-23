@@ -11,7 +11,7 @@
 **Category**: *Infrastructure*
 
 **Short description**: *Loop* operation performs recurrent execution of the network, which is described in the ``body``, iterating through the data.
-The operation has similar semantic to the ONNX* Loop `operation <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__.
+The operation has similar semantic to the ONNX Loop `operation <https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13>`__.
 
 **Detailed description**
 
@@ -166,7 +166,8 @@ Loop operation description in the IR also has several special sections: ``body``
 
 *Example 1: a typical Loop structure*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer type="Loop" ... >
        <input> ... </input>

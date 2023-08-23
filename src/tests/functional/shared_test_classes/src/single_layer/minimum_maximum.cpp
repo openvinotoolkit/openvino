@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
         std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetName) = obj.param;
         std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
         results << "OpType=" << opType << "_";
         results << "SecondaryInputType=" << inputType << "_";
         results << "netPRC=" << netPrecision.name() << "_";
@@ -38,7 +38,7 @@ namespace LayerTestsDefinitions {
             IE_THROW() << "Unsupported inputs number for Minimum/Maximum operaton";
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShapes[0]))};
         auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, inputType, {inputShapes[1]});
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
             input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));

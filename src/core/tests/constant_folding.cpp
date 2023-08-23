@@ -6,7 +6,9 @@
 
 #include <transformations/utils/utils.hpp>
 
+#include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "gmock/gmock.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset1.hpp"
@@ -14,8 +16,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "util/all_close_f.hpp"
-#include "util/test_tools.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -31,11 +31,11 @@ static std::vector<T> get_result_constant_data(std::shared_ptr<Function> f, size
 }
 
 void range_test_check(const vector<double>& values_out, const vector<double>& values_expected) {
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 void range_test_check(const vector<float>& values_out, const vector<float>& values_expected) {
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 template <typename T>
@@ -130,7 +130,7 @@ TEST(constant_folding, acosh) {
     check_names(new_const, {"constant", "test"});
 
     auto values_out = new_const->get_vector<float>();
-    EXPECT_TRUE(test::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(ov::test::utils::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, asinh) {
@@ -158,7 +158,7 @@ TEST(constant_folding, asinh) {
     check_names(new_const, {"constant", "test"});
 
     auto values_out = new_const->get_vector<float>();
-    EXPECT_TRUE(test::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(ov::test::utils::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, atanh) {
@@ -186,7 +186,7 @@ TEST(constant_folding, atanh) {
     check_names(new_const, {"constant", "test"});
 
     auto values_out = new_const->get_vector<float>();
-    EXPECT_TRUE(test::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(ov::test::utils::all_close_f(expected, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, constant_squeeze) {
@@ -215,7 +215,7 @@ TEST(constant_folding, constant_squeeze) {
     ASSERT_EQ(new_const->get_shape(), shape_out);
 
     auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, constant_unsqueeze) {
@@ -244,7 +244,7 @@ TEST(constant_folding, constant_unsqueeze) {
     ASSERT_EQ(new_const->get_shape(), shape_out);
 
     auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, constant_broadcast_v1) {
@@ -1671,7 +1671,7 @@ TEST(constant_folding, const_ceiling) {
 
     vector<float> values_expected{0.0f, 1.0f, 0.0f, -2.0f, 3.0f, 3.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_floor) {
@@ -1694,7 +1694,7 @@ TEST(constant_folding, const_floor) {
 
     vector<float> values_expected{0.0f, 0.0f, -1.0f, -3.0f, 2.0f, 3.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v1) {
@@ -1723,7 +1723,7 @@ TEST(constant_folding, const_gather_v1) {
 
     vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v1_scalar) {
@@ -1752,7 +1752,7 @@ TEST(constant_folding, const_gather_v1_scalar) {
 
     vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v1_subgraph) {
@@ -1785,7 +1785,7 @@ TEST(constant_folding, const_gather_v1_subgraph) {
     check_names(new_const, {"axis_const", "concat", "indices_const", "test"});
 
     const auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_neg_axis) {
@@ -1818,7 +1818,7 @@ TEST(constant_folding, const_gather_v1_subgraph_neg_axis) {
     check_names(new_const, {"axis_const", "concat", "indices_const", "test"});
 
     const auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_no_constant_input) {
@@ -1969,7 +1969,7 @@ TEST(constant_folding, const_gather_v7) {
 
     vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v7_scalar) {
@@ -1998,7 +1998,7 @@ TEST(constant_folding, const_gather_v7_scalar) {
 
     vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
 
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v7_subgraph) {
@@ -2031,7 +2031,7 @@ TEST(constant_folding, const_gather_v7_subgraph) {
     check_names(new_const, {"axis_const", "concat", "indices_const", "test"});
 
     const auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_neg_axis) {
@@ -2064,7 +2064,7 @@ TEST(constant_folding, const_gather_v7_subgraph_neg_axis) {
     check_names(new_const, {"axis_const", "concat", "indices_const", "test"});
 
     const auto values_out = new_const->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_out, {b_value}, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_no_constant_input) {
@@ -2528,7 +2528,7 @@ TEST(constant_folding, constant_dyn_reshape) {
     check_names(new_const, {"constant_in", "constant_shape", "test"});
     auto values_out = new_const->get_vector<float>();
 
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant) {
@@ -2565,7 +2565,7 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant) {
     check_names(new_const, {"constant_in", "constant_shape_a", "constant_shape_b", "add", "test"});
     auto values_out = new_const->get_vector<float>();
 
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 TEST(constant_folding, const_reshape_no_data_copy) {
@@ -2654,7 +2654,7 @@ TEST(constant_folding, constant_transpose) {
     auto values_out = new_const->get_vector<double>();
 
     vector<double> values_permute{0, 4, 1, 5, 2, 6, 3, 7};
-    ASSERT_TRUE(test::all_close_f(values_permute, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_permute, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
 template <typename T>
@@ -2751,11 +2751,11 @@ TEST(constant_folding, constant_v1_split) {
     ASSERT_TRUE(res3);
 
     auto res1_values = res1->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin(), data.begin() + 2), res1_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin(), data.begin() + 2), res1_values));
     auto res2_values = res2->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin() + 2, data.begin() + 4), res2_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin() + 2, data.begin() + 4), res2_values));
     auto res3_values = res3->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin() + 4, data.end()), res3_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin() + 4, data.end()), res3_values));
 }
 
 TEST(constant_folding, constant_v1_split_specialized) {
@@ -2780,11 +2780,11 @@ TEST(constant_folding, constant_v1_split_specialized) {
     ASSERT_TRUE(res3);
 
     auto res1_values = res1->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin(), data.begin() + 2), res1_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin(), data.begin() + 2), res1_values));
     auto res2_values = res2->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin() + 2, data.begin() + 4), res2_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin() + 2, data.begin() + 4), res2_values));
     auto res3_values = res3->get_vector<float>();
-    ASSERT_TRUE(test::all_close_f(vector<float>(data.begin() + 4, data.end()), res3_values));
+    ASSERT_TRUE(ov::test::utils::all_close_f(vector<float>(data.begin() + 4, data.end()), res3_values));
 }
 
 TEST(constant_folding, constant_v1_split_axis_1_4_splits) {
@@ -3575,7 +3575,7 @@ void test_constant_folding_reshape_v1(Shape& shape_in,
     check_names(new_const, {"constant_in", "constant_shape", "test"});
     auto values_out = new_const->get_vector<float>();
 
-    ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
+    ASSERT_TRUE(ov::test::utils::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 TEST(constant_folding, constant_dyn_reshape_v1_2d) {
     Shape shape_in{2, 5};
@@ -3910,4 +3910,11 @@ TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
     // check that we are not copying unnecessary values
     check_names(strided_slice, {"strided_slice"}, "strided_slice");
     check_names(res, {"result"}, "result");
+}
+
+TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(element::undefined, ov::PartialShape{});
+    auto res = std::make_shared<ov::op::v0::Result>(param);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    EXPECT_NO_THROW(run_constant_folding(model));
 }

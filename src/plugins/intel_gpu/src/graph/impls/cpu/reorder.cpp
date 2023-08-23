@@ -44,6 +44,7 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         }
 
         auto ev = stream.create_user_event(false);
+        auto params = instance.get_impl_params();
 
         if (instance.get_impl_params()->input_layouts[0].format != instance.get_impl_params()->input_layouts[0].format)
             OPENVINO_THROW("[GPU] Unsupported reorder case: input and output type are different");
@@ -57,8 +58,8 @@ struct reorder_impl : public typed_primitive_impl<reorder> {
         cldnn::mem_lock<uint8_t, mem_lock_type::read> input_lock(input_mem_ptr, stream);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
 
-        input_host_tensors.push_back(make_tensor(input_mem_ptr->get_layout(), input_lock.data()));
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_lock.data()));
+        input_host_tensors.push_back(make_tensor(params->input_layouts[0], input_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         if (!op) {
             op = std::make_shared<ov::op::v0::Convert>();

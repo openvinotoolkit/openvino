@@ -89,7 +89,7 @@
 
 * *cube_coeff*
 
-  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when ``mode == cubic``.
+  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g. `article <https://ieeexplore.ieee.org/document/1163711/>`__ ).  *cube_coeff* is used only when ``mode == cubic``.
   * **Range of values**: floating-point number
   * **Type**: any of supported floating-point type
   * **Default value**: ``-0.75``
@@ -120,7 +120,8 @@
 **Detailed description**
 Calculations are performed according to the following rules.
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import math
    import numpy as np
@@ -601,7 +602,8 @@ Calculations are performed according to the following rules.
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Interpolate" ...>
        <data shape_calculation_mode="scales" pads_begin="0" pads_end="0" mode="linear"/>

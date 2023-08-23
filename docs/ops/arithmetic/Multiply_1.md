@@ -54,7 +54,8 @@ After broadcasting *Multiply* performs multiplication operation for the input te
 
 *Example 1*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Multiply">
        <data auto_broadcast="none"/>
@@ -79,7 +80,8 @@ After broadcasting *Multiply* performs multiplication operation for the input te
 
 *Example 2: broadcast*
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
 
    <layer ... type="Multiply">
        <data auto_broadcast="numpy"/>

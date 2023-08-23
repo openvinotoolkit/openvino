@@ -5,39 +5,45 @@
 #include "transformations/common_optimizations/mish_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::MishFusion::MishFusion() {
     MATCHER_SCOPE(MishFusion);
     auto input = pass::pattern::any_input();
-    auto exp = std::make_shared<opset4::Exp>(input);
-    auto add = std::make_shared<opset4::Add>(exp, ngraph::pattern::wrap_type<opset4::Constant>());
-    auto log = std::make_shared<opset4::Log>(add);
-    auto tanh = std::make_shared<opset4::Tanh>(log);
-    auto mul = std::make_shared<opset4::Multiply>(input, tanh);
+    auto exp = std::make_shared<ov::op::v0::Exp>(input);
+    auto add = std::make_shared<ov::op::v1::Add>(exp, ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
+    auto log = std::make_shared<ov::op::v0::Log>(add);
+    auto tanh = std::make_shared<ov::op::v0::Tanh>(log);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(input, tanh);
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto mish = std::make_shared<opset4::Mish>(exp_input);
+        auto mish = std::make_shared<ov::op::v4::Mish>(exp_input);
 
         mish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(tanh).get_node_shared_ptr(),
-                                   pattern_to_output.at(log).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr()},
-                                  mish);
-        ngraph::replace_node(m.get_match_root(), mish);
+        ov::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
+                               pattern_to_output.at(tanh).get_node_shared_ptr(),
+                               pattern_to_output.at(log).get_node_shared_ptr(),
+                               pattern_to_output.at(add).get_node_shared_ptr(),
+                               pattern_to_output.at(exp).get_node_shared_ptr()},
+                              mish);
+        ov::replace_node(m.get_match_root(), mish);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

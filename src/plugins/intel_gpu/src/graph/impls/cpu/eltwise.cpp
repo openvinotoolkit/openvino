@@ -39,7 +39,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     using parent = typed_primitive_impl<eltwise>;
     using parent::parent;
 
-    eltwise_mode mode;
+    eltwise_mode mode = eltwise_mode::sum;
     std::vector<float> coefficients;
 
     std::shared_ptr<ov::op::Op> op;
@@ -82,6 +82,8 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         }
 
         auto ev = stream.create_user_event(false);
+
+        auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -176,9 +178,9 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         cldnn::mem_lock<uint8_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
-            input_host_tensors.push_back(make_tensor(input_mem_ptrs[i]->get_layout(), input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+            input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
-        output_host_tensors.push_back(make_tensor(output_mem_ptr->get_layout(), output_lock.data()));
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute eltwise primitive with id ", instance.id());

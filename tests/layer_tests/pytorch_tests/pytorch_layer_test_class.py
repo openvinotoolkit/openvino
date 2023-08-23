@@ -8,7 +8,7 @@ import os
 
 import numpy as np
 from common.constants import test_device, test_precision
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
@@ -44,7 +44,6 @@ class PytorchLayerTest:
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
         """
-        import torch
         if 'kwargs_to_prepare_input' in kwargs and kwargs['kwargs_to_prepare_input']:
             inputs = self._prepare_input(**kwargs['kwargs_to_prepare_input'])
         else:
@@ -65,13 +64,17 @@ class PytorchLayerTest:
         else:
             custom_eps = 1e-4
 
-        def use_ts_backend():
-            return(os.environ.get('USE_TS_BACKEND', False))
+        def use_torch_compile_backend():
+            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+            if torch_compile_env is not None:
+                if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
+                    return True
+            return False
 
         ov_inputs = flattenize_inputs(inputs)
 
-        if use_ts_backend():
-            self.ts_backend_test(model, torch_inputs, custom_eps)
+        if use_torch_compile_backend():
+            self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
             with torch.no_grad():
                 model.eval()
@@ -125,21 +128,34 @@ class PytorchLayerTest:
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
             is_ok = True
+            quantized_ops = False
+            if 'quantized_ops' in kwargs and kwargs['quantized_ops'] is not None:
+                quantized_ops = kwargs['quantized_ops']
+                if quantized_ops:
+                    assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
+                    quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
                 ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
+                if np.array(cur_fw_res).size == 0:
+                    continue
                 cur_ov_res = infer_res[compiled.output(i)]
-                print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
-                if not np.allclose(cur_ov_res, cur_fw_res,
-                                atol=fw_eps,
-                                rtol=fw_eps, equal_nan=True):
+                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
+                n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
+                                                              atol=fw_eps,
+                                                              rtol=fw_eps, equal_nan=True).sum()
+                max_diff = np.array(abs(np.array(cur_ov_res, dtype=np.float32) - np.array(cur_fw_res, dtype=np.float32))).max()
+                if not quantized_ops and n_is_not_close > 0:
                     is_ok = False
-                    print("Max diff is {}".format(
-                        np.array(
-                            abs(cur_ov_res - cur_fw_res)).max()))
+                    print("Max diff is {}".format(max_diff))
+                elif quantized_ops and (n_is_not_close > int(np.log10(cur_fw_res.size)) or max_diff > np.array(quant_size + fw_eps).max()):
+                    is_ok = False
+                    print("Errors outside threshold range: {} with max diff {}, expected at most {} with max diff {}".format(
+                        n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
                 else:
                     print("Accuracy validation successful!\n")
-                    print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
+                    print("absolute eps: {}, relative eps: {}, errors: {}".format(
+                        fw_eps, fw_eps, n_is_not_close))
             assert is_ok, "Accuracy validation failed"
 
     # Each model should specify inputs
@@ -148,7 +164,7 @@ class PytorchLayerTest:
 
     def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs):
         import torch
-        from openvino.runtime import convert_model
+        from openvino.tools.ovc import convert_model
         kwargs = {"example_input": example_input if len(
             example_input) > 1 else example_input[0], "compress_to_fp16": False}
         with torch.no_grad():
@@ -205,7 +221,7 @@ class PytorchLayerTest:
         om.validate_nodes_and_infer_types()
         return om
 
-    def ts_backend_test(self, model, inputs, custom_eps):
+    def torch_compile_backend_test(self, model, inputs, custom_eps):
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
@@ -269,8 +285,6 @@ def get_params(ie_device=None, precision=None):
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):
-        if element[0] == 'CPU' and element[1] == 'FP16':
-            continue
         test_args.append(element)
     return test_args
 

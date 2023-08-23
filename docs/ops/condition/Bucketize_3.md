@@ -56,7 +56,8 @@ For example, if the first input tensor is ``[[3, 50], [10, -1]]`` and the second
 
 **Example**
 
-.. code-block:: cpp
+.. code-block:: xml
+   :force:
    
    <layer ... type="Bucketize">
        <input>

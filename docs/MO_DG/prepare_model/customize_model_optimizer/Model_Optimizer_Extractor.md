@@ -24,6 +24,7 @@ There are several types of Model Optimizer extractor extensions:
 Generic extension provides a generic mechanism for the operation extractor applicable for all frameworks. Model Optimizer provides the ``mo.front.extractor.FrontExtractorOp`` class as a base class to implement the extractor. It has the ``extract`` class method, which gets the only parameter ``Node``, which corresponds to the graph node to extract data from. The operation description in the original framework format is stored in the attribute ``pb`` of the node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to the ``extensions/front/tf/const_ext.py`` file):
 
 .. code-block:: py
+   :force:
 
    from openvino.tools.mo.front.extractor import FrontExtractorOp
    from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
@@ -60,6 +61,7 @@ Generic extension provides a generic mechanism for the operation extractor appli
 Consider another example with an extractor of the ``Constant`` ONNX operation (refer to the ``extensions/front/onnx/const_ext.py`` file):
 
 .. code-block:: py
+   :force:
 
    from onnx import numpy_helper
    from onnx.numpy_helper import to_array

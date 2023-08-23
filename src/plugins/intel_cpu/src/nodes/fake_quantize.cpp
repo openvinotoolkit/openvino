@@ -23,7 +23,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
-#include <utils/shape_inference/shape_inference_pass_through.hpp>
+#include <shape_inference/shape_inference_pass_through.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include "utils/ngraph_utils.hpp"
@@ -1391,7 +1391,7 @@ bool FakeQuantize::needPrepareParams() const {
 
 void FakeQuantize::prepareParams() {
     if (isBinarization()) {
-        const size_t axisSize = getParentEdgeAt(0)->getMemory().GetShape().getStaticDims()[getAxis()];
+        const size_t axisSize = getParentEdgeAt(0)->getMemory().getShape().getStaticDims()[getAxis()];
         const size_t newPaddedSize = rnd_up(axisSize, 16);
         IE_ASSERT(newPaddedSize != 0);
 
@@ -1415,8 +1415,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.empty() || needUpdThr) {
-                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine());
-                binarizationThresholdsDataMem->Create(weightsDataDesc, getBinarizationTresholdsPtr());
+                auto binarizationThresholdsDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationTresholdsPtr());
                 if (internalBlobMemory.empty()) {
                     internalBlobMemory.push_back(binarizationThresholdsDataMem);
                 } else {
@@ -1425,8 +1424,7 @@ void FakeQuantize::prepareParams() {
             }
 
             if (internalBlobMemory.size() == (numBinFqIntBlob - 1) || needUpdMask) {
-                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine());
-                binarizationMaskDataMem->Create(weightsDataDesc, getBinarizationOutputMaskPtr());
+                auto binarizationMaskDataMem = std::make_shared<Memory>(getEngine(), weightsDataDesc, getBinarizationOutputMaskPtr());
                 if (internalBlobMemory.size() == (numBinFqIntBlob - 1)) {
                     internalBlobMemory.push_back(binarizationMaskDataMem);
                 } else {
@@ -1486,16 +1484,16 @@ void FakeQuantize::createPrimitive() {
 }
 
 void FakeQuantize::executeReference() {
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const float *>(srcMemory->GetPtr());
+    auto src = reinterpret_cast<const float *>(srcMemory->getData());
 
     auto srcDims = srcMemory->getStaticDims();
     auto dstDims = dstMemory->getStaticDims();
 
-    auto s_str = srcMemory->GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto d_str = dstMemory->GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto s_str = srcMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto d_str = dstMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     const int N = srcDims[0];
     const int C = srcDims.size() > 1 ? srcDims[1] : 1;
@@ -1516,13 +1514,13 @@ void FakeQuantize::executeReference() {
         }
         d_str[1] = tmp;
 
-        auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
 
-        auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-        auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->GetData());
+        auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
+        auto output_mask = reinterpret_cast<const uint32_t*>(internalBlobMemory[1]->getData());
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
@@ -1552,7 +1550,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto dst = reinterpret_cast<float *>(dstMemory->GetPtr());
+        auto dst = reinterpret_cast<float *>(dstMemory->getData());
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = srcDims.size() == 5 ?
@@ -1596,18 +1594,18 @@ void FakeQuantize::executeReference() {
 }
 void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    const auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
-    auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->GetData());
-    auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->GetData());
+    auto thresholds = reinterpret_cast<const float*>(internalBlobMemory[0]->getData());
+    auto output_mask = reinterpret_cast<const float*>(internalBlobMemory[1]->getData());
 
     auto src_dims = srcMemory->getStaticDims();
 
-    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> s_str = srcMemDesc->getStrides();
     size_t tmp = s_str[s_str.size() - 1];
     for (int i = s_str.size() - 1; i > 1; i--) {
@@ -1638,11 +1636,11 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
 
 void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    auto &srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto &dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
+    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
 
-    auto src = reinterpret_cast<const uint8_t *>(srcMemory->GetPtr());
-    auto dst = reinterpret_cast<uint8_t *>(dstMemory->GetPtr());
+    auto src = reinterpret_cast<const uint8_t *>(srcMemory->getData());
+    auto dst = reinterpret_cast<uint8_t *>(dstMemory->getData());
 
     auto& srcDesc = srcMemory->getDesc();
     auto srcDims = srcDesc.getShape().getStaticDims();
@@ -1655,7 +1653,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto src_type_size = jqp.src_prc.size();
     auto dst_type_size = jqp.dst_prc.size();
 
-    auto srcMemDesc = srcMemory->GetDescWithType<BlockedMemoryDesc>();
+    auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
     auto s_str = srcMemDesc->getStrides();
 
     if (is_blk_format) {
@@ -1838,9 +1836,8 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims &dims, const size
 
 void FakeQuantize::appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        memPtr.reset(new Memory(getEngine()));
         DnnlBlockedMemoryDesc memoryDesc(Precision::FP32, {dataSize});
-        memPtr->Create(memoryDesc, data);
+        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data);
 
         postOpsMem.push_back(memPtr);
     }

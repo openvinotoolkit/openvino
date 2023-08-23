@@ -13,14 +13,12 @@ namespace ov {
 namespace proxy {
 class CompiledModel : public ov::ICompiledModel {
 public:
-    CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::ICompiledModel(nullptr, plugin),
-          m_compiled_model(model) {}
     CompiledModel(const ov::SoPtr<ov::ICompiledModel>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const ov::RemoteContext& context)
+                  const ov::SoPtr<ov::IRemoteContext>& context)
         : ov::ICompiledModel(nullptr, plugin, context),
           m_compiled_model(model) {}
+
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
         return std::make_shared<ov::proxy::InferRequest>(
             ov::SoPtr<ov::IAsyncInferRequest>{m_compiled_model->create_infer_request(), m_compiled_model._so},

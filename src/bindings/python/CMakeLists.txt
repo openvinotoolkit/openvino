@@ -192,6 +192,10 @@ endif()
 # Build the code
 #
 
+# TODO: find a real root cause and remove this workaround
+# or localize it to the specific place of the code
+add_definitions(-DPYBIND11_NO_ASSERT_GIL_HELD_INCREF_DECREF)
+
 find_package(pybind11 ${pybind11_min_version} QUIET)
 
 if(NOT pybind11_FOUND)
@@ -232,6 +236,12 @@ macro(ov_define_setup_py_packaging_vars)
     endif()
     set(PUGIXML_LIBS_DIR runtime/3rdparty/pugixml/lib)
 
+    if(USE_BUILD_TYPE_SUBFOLDER)
+        set(build_type ${CMAKE_BUILD_TYPE})
+    else()
+        set(build_type $<CONFIG>)
+    endif()
+
     # define setup.py running environment
     set(setup_py_env ${CMAKE_COMMAND} -E env
         # for cross-compilation
@@ -242,8 +252,12 @@ macro(ov_define_setup_py_packaging_vars)
         # build locations
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
+        # to create proper directories for BA, OVC tools
+        CPACK_GENERATOR=${CPACK_GENERATOR}
+        # propogate build type
+        BUILD_TYPE=${build_type}
         # variables to reflect cpack locations
-        OV_RUNTIME_LIBS_DIR=${OV_WHEEL_RUNTIMEDIR}
+        OV_RUNTIME_LIBS_DIR=${OV_CPACK_RUNTIMEDIR}
         TBB_LIBS_DIR=${TBB_LIBS_DIR}
         PUGIXML_LIBS_DIR=${PUGIXML_LIBS_DIR}
         PY_PACKAGES_DIR=${PY_PACKAGES_DIR})
@@ -316,21 +330,22 @@ if(ENABLE_PYTHON_PACKAGING)
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${python_package_prefix}"
         COMMAND ${setup_py_env}
+                # variables to reflect options (extensions only or full wheel package)
+                PYTHON_EXTENSIONS_ONLY=ON
+                SKIP_RPATH=ON
             "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
                 --no-user-cfg
                 --quiet
                 build
-                    --python-extensions-only
                     --executable "/usr/bin/python3"
                 build_ext
-                    --skip-rpath
                 install
                     --no-compile
                     --prefix "${python_package_prefix}"
                     --install-lib "${install_lib}"
                     --install-scripts "${python_package_prefix}/bin"
-                    # --single-version-externally-managed
-                    # --record=installed.txt
+                    --single-version-externally-managed
+                    --record=installed.txt
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${meta_info_subdir} folder")
@@ -338,7 +353,7 @@ if(ENABLE_PYTHON_PACKAGING)
     add_custom_target(_python_api_package ALL DEPENDS ${meta_info_file})
 
     # install python package, which will be later packed into DEB | RPM
-    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_NGRAPH}_package_${pyversion} HIDDEN)
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
     install(DIRECTORY ${python_package_prefix}/
             DESTINATION ${CMAKE_INSTALL_PREFIX}
@@ -357,5 +372,8 @@ if(ENABLE_TESTS)
 endif()
 
 if(OpenVINODeveloperPackage_FOUND)
+    # provides a callback function to describe each component in repo
+    include("${OpenVINO_SOURCE_DIR}/cmake/packaging/packaging.cmake")
+
     ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()

@@ -54,7 +54,8 @@ If you have another implementation of CRNN model, it can be converted to OpenVIN
 
 2. Edit the ``tools/demo_shadownet.py`` script. After ``saver.restore(sess=sess, save_path=weights_path)`` line, add the following code:
 
-   .. code-block:: python
+   .. code-block:: py
+      :force:
 
       from tensorflow.python.framework import graph_io
       frozen = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, ['shadow/LSTMLayers/transpose_time_major'])

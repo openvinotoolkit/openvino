@@ -25,7 +25,8 @@ Downloading and Converting the Model to ONNX
 To download the pretrained model or train the model yourself, refer to the
 `instructions <https://github.com/weijun88/F3Net/blob/master/README.md>`__ in the F3Net model repository. First, convert the model to ONNX format. Create and run the following Python script in the ``src`` directory of the model repository:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torch
    from dataset import Config

@@ -87,10 +87,10 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         auto unsqueeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
 
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+
         auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
         auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
-
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
 
         auto body =
             std::make_shared<Function>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
@@ -194,11 +194,11 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
 
         auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
 
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+
         auto unsqueeze_pattern = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
         auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
         auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
-
-        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
 
         auto body =
             std::make_shared<Function>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
@@ -230,6 +230,118 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_Y, res_ti_H, res_ti_C},
                                                    ngraph::ParameterVector{X, Y, Z});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+        auto H = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {1});
+        auto C = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {2});
+        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+
+        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, {1});
+        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, {2});
+        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, {3});
+        auto B_abs = std::make_shared<opset5::Abs>(B);
+
+        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X_fq,
+                                                                   H,
+                                                                   C,
+                                                                   seq_lengths,
+                                                                   W_fq,
+                                                                   R_fq,
+                                                                   B_abs,
+                                                                   128,
+                                                                   op::RecurrentSequenceDirection::FORWARD);
+        auto Y = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        Y->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+        Co->set_friendly_name("Co");
+
+        f = std::make_shared<Function>(NodeVector{Y, Ho, Co}, ParameterVector{X});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+
+        auto H = opset5::Constant::create(element::f32, Shape{1, 128}, {1});
+        auto C = opset5::Constant::create(element::f32, Shape{1, 128}, {2});
+        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+
+        auto first_axis = opset5::Constant::create(element::i64, Shape{1}, {0});
+
+        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, {1});
+        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto W_squeezed = std::make_shared<opset5::Squeeze>(W_fq, first_axis);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, {2});
+        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto R_squeezed = std::make_shared<opset5::Squeeze>(R_fq, first_axis);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, {3});
+        auto B_abs = std::make_shared<opset5::Abs>(B);
+        auto B_squeezed = std::make_shared<opset5::Squeeze>(B_abs, first_axis);
+
+        // Body
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
+        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+
+        auto second_axis = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, second_axis);
+
+        auto Hi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Ci = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+
+        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Hi, Ci, W_squeezed, R_squeezed, B_squeezed, 128);
+
+        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), second_axis);
+        auto Y = std::make_shared<opset5::Result>(unsqueeze_y);
+
+        auto body = std::make_shared<Function>(OutputVector{Y, Ho, Co}, ParameterVector{Xi, Hi, Ci, seq_body_param});
+
+        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X_fq, 0, 1, 1, -1, 1);
+        tensor_iterator->get_concatenated_slices(Y, 0, 1, 1, -1, 1);
+        tensor_iterator->set_merged_input(Hi, H, Ho);
+        tensor_iterator->set_merged_input(Ci, C, Co);
+        tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
+
+        tensor_iterator->get_iter_value(Ho);
+        tensor_iterator->get_iter_value(Co);
+
+        auto res_ti_Y = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), second_axis));
+        auto res_ti_H = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), second_axis));
+        auto res_ti_C = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), second_axis));
+        res_ti_Y->set_friendly_name("Y_out");
+        res_ti_H->set_friendly_name("Ho");
+        res_ti_C->set_friendly_name("Co");
+        f_ref = std::make_shared<Function>(NodeVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -589,6 +701,106 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
 
         f_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_Y, res_ti_H}, ngraph::ParameterVector{X, Y});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+
+        auto H = opset5::Constant::create(element::f32, Shape{1, 1, 128}, {1});
+        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+
+        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, {2});
+        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, {3});
+        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, {4});
+        auto B_abs = std::make_shared<opset5::Abs>(B);
+
+        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X_fq,
+                                                                  H,
+                                                                  seq_lengths,
+                                                                  W_fq,
+                                                                  R_fq,
+                                                                  B_abs,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
+        auto Y = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        Y->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+
+        f = std::make_shared<Function>(NodeVector{Y, Ho}, ParameterVector{X});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
+        auto input_low = opset5::Constant::create(element::f32, Shape{}, {0});
+        auto input_high = opset5::Constant::create(element::f32, Shape{}, {20});
+        auto X_fq = std::make_shared<opset5::FakeQuantize>(X, input_low, input_high, input_low, input_high, 255);
+
+        auto H = opset5::Constant::create(element::f32, Shape{1, 128}, {1});
+        auto seq_lengths = opset5::Constant::create(element::i32, Shape{1}, {2});
+
+        auto first_axis = opset5::Constant::create(element::i64, Shape{1}, {0});
+
+        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, {2});
+        auto W_fq = std::make_shared<opset5::FakeQuantize>(W, input_low, input_high, input_low, input_high, 256);
+        auto W_squeezed = std::make_shared<opset5::Squeeze>(W_fq, first_axis);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, {3});
+        auto R_fq = std::make_shared<opset5::FakeQuantize>(R, input_low, input_high, input_low, input_high, 256);
+        auto R_squeezed = std::make_shared<opset5::Squeeze>(R_fq, first_axis);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, {4});
+        auto B_abs = std::make_shared<opset5::Abs>(B);
+        auto B_squeezed = std::make_shared<opset5::Squeeze>(B_abs, first_axis);
+
+        // Body
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Hi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i32, PartialShape{1});
+
+        auto second_axis = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, second_axis);
+
+        auto rnn_cell = std::make_shared<opset5::GRUCell>(squeeze_x, Hi, W_squeezed, R_squeezed, B_squeezed, 128);
+        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
+        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, second_axis);
+        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto body = std::make_shared<Function>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Hi, seq_body_param});
+
+        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X_fq, 0, 1, 1, -1, 1);
+        tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
+
+        tensor_iterator->set_merged_input(Hi, H, Ho);
+        tensor_iterator->set_invariant_input(seq_body_param, seq_lengths);
+
+        tensor_iterator->get_iter_value(Ho);
+
+        auto res_ti_Y = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), second_axis));
+        auto res_ti_H = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), second_axis));
+        res_ti_Y->set_friendly_name("Y_out");
+        res_ti_H->set_friendly_name("Ho");
+
+        f_ref = std::make_shared<Function>(NodeVector{res_ti_Y, res_ti_H}, ParameterVector{X});
     }
 
     auto res = compare_functions(f, f_ref);

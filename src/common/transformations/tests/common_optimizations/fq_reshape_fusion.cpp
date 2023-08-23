@@ -30,7 +30,7 @@ struct FQReshapeFusionTestCase {
     bool is_negative;
 };
 
-class nGraphFQReshapeFusionTests : public CommonTestUtils::TestsCommon,
+class nGraphFQReshapeFusionTests : public ov::test::TestsCommon,
                                    public testing::WithParamInterface<std::tuple<FQReshapeFusionTestCase>> {
 public:
     std::shared_ptr<ngraph::Function> f, ref_f;

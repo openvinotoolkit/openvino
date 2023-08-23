@@ -65,8 +65,10 @@ protected:
     void init_test_model() {
         std::vector<std::vector<size_t>> input_shapes = {{10, 1}};
 
-        auto params = ngraph::builder::makeParams(m_net_type, input_shapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : input_shapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(shape)));
+        }
         std::vector<size_t> shape_1 = {10, 128};
         std::vector<size_t> shape_2 = {10, 192};
         std::vector<size_t> shape_3 = {10, 256};
@@ -120,6 +122,7 @@ TEST_P(TransposesConcatTest, CompareWithRefs) {
 std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
 
 std::vector<std::map<std::string, std::string>> target_configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+                                                                  {{"GNA_EXEC_TARGET", "GNA_TARGET_1_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
                                                                   {{"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}}};
@@ -129,7 +132,7 @@ const ov::element::TypeVector input_precisions = {ov::element::f32};
 INSTANTIATE_TEST_SUITE_P(smoke_transposes_concat,
                          TransposesConcatTest,
                          ::testing::Combine(::testing::ValuesIn(input_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
                                             ::testing::ValuesIn(target_configs)),
                          TransposesConcatTest::get_test_case_name);

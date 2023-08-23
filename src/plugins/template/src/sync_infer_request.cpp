@@ -14,9 +14,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
+#include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
 #include "variable_state.hpp"
 
@@ -24,11 +26,13 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace {
 
-void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_type, const ov::Shape& shape) {
-    if (!tensor || tensor.get_element_type() != element_type) {
-        tensor = ov::Tensor(element_type, shape);
+void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
+                          const ov::element::Type& element_type,
+                          const ov::Shape& shape) {
+    if (!tensor || tensor->get_element_type() != element_type) {
+        tensor = ov::make_tensor(element_type, shape);
     } else {
-        tensor.set_shape(shape);
+        tensor->set_shape(shape);
     }
 }
 
@@ -61,7 +65,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 
     // Allocate input/output tensors
     for (const auto& input : get_inputs()) {
-        allocate_tensor(input, [input](ov::Tensor& tensor) {
+        allocate_tensor(input, [input](ov::SoPtr<ov::ITensor>& tensor) {
             // Can add a check to avoid double work in case of shared tensors
             allocate_tensor_impl(tensor,
                                  input.get_element_type(),
@@ -69,7 +73,7 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
         });
     }
     for (const auto& output : get_outputs()) {
-        allocate_tensor(output, [output](ov::Tensor& tensor) {
+        allocate_tensor(output, [output](ov::SoPtr<ov::ITensor>& tensor) {
             // Can add a check to avoid double work in case of shared tensors
             allocate_tensor_impl(tensor,
                                  output.get_element_type(),
@@ -86,8 +90,9 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
             ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
             variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
         }
-        auto state = std::make_shared<VariableState>(variable->get_info().variable_id,
-                                                     variable_context.get_variable_value(variable)->get_state());
+        auto state = std::make_shared<VariableState>(
+            variable->get_info().variable_id,
+            get_tensor_impl(variable_context.get_variable_value(variable)->get_state()));
         m_variable_states.emplace_back(state);
     }
     m_eval_context.emplace("VariableContext", variable_context);
@@ -100,7 +105,7 @@ ov::template_plugin::InferRequest::~InferRequest() = default;
 
 // ! [infer_request:set_tensors_impl]
 void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
+                                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     for (const auto& input : get_inputs()) {
         if (input == port) {
             m_batched_tensors[input.get_tensor_ptr()] = tensors;
@@ -112,7 +117,7 @@ void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const 
 // ! [infer_request:set_tensors_impl]
 
 // ! [infer_request:query_state]
-std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
 // ! [infer_request:query_state]
@@ -146,37 +151,36 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (tensor.is<ov::RemoteTensor>()) {
-            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
-                            "Template plugin supports only VectorTensor with remote context.");
-            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
-            auto element_type = vector_tensor.get_element_type();
-            void* data = vector_tensor.get_data();
+        if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+            auto vector_tensor = std::dynamic_pointer_cast<ov::template_plugin::VectorImpl>(tensor._ptr);
+            OPENVINO_ASSERT(vector_tensor, "Template plugin supports only VectorTensor with remote context.");
+            auto element_type = vector_tensor->get_element_type();
+            void* data = vector_tensor->get_data();
             OPENVINO_ASSERT(data != nullptr);
             // Create backend tenor
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
-                                                                                      vector_tensor.get_shape(),
+                                                                                      vector_tensor->get_shape(),
                                                                                       data);
-        } else if (tensor.is_continuous()) {
+        } else if (tensor->is_continuous()) {
             // No ROI extraction is needed
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                      tensor.get_shape(),
-                                                                                      tensor.data());
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
+                                                                                      tensor->get_shape(),
+                                                                                      tensor->data());
         } else {
-            OPENVINO_ASSERT(tensor.get_element_type().bitwidth() % 8 == 0,
+            OPENVINO_ASSERT(tensor->get_element_type().bitwidth() % 8 == 0,
                             "Template plugin: Unsupported ROI tensor with element type having ",
-                            std::to_string(tensor.get_element_type().bitwidth()),
+                            std::to_string(tensor->get_element_type().bitwidth()),
                             " bits size");
-            ov::Shape shape = tensor.get_shape();
+            ov::Shape shape = tensor->get_shape();
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
             m_backend_input_tensors[i] =
-                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                      tensor.get_shape());
-            tensor.copy_to(m_backend_input_tensors[i]);
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
+                                                                                      tensor->get_shape());
+            tensor->copy_to(ov::get_tensor_impl(m_backend_input_tensors[i])._ptr);
         }
     }
     // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
@@ -187,7 +191,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             m_backend_output_tensors[i] = get_template_model()->get_template_plugin()->m_backend->create_tensor();
             continue;
         }
-        auto tensor = get_tensor(get_outputs()[i]);
+        auto tensor = make_tensor(get_tensor(get_outputs()[i]));
         if (tensor.is_continuous() && !tensor.is<ov::RemoteTensor>())
             m_backend_output_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
@@ -235,19 +239,18 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
         auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
-            allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
+            allocate_tensor(output, [host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
-                host_tensor.copy_to(tensor);
+                host_tensor.copy_to(ov::make_tensor(tensor));
             });
-        } else if (!tensor.is_continuous()) {
-            host_tensor.copy_to(tensor);
-        } else if (tensor.is<ov::RemoteTensor>()) {
-            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
-                            "Template plugin supports only VectorTensor with remote context.");
-            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
-            void* data = vector_tensor.get_data();
+        } else if (!tensor->is_continuous()) {
+            host_tensor.copy_to(ov::make_tensor(tensor));
+        } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
+            auto vector_tensor = std::dynamic_pointer_cast<ov::template_plugin::VectorImpl>(tensor._ptr);
+            OPENVINO_ASSERT(vector_tensor, "Template plugin supports only VectorTensor with remote context.");
+            void* data = vector_tensor->get_data();
             // Copy to vector
-            std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
+            std::memcpy(data, host_tensor.data(), tensor->get_byte_size());
         }
     }
     m_durations[Postprocess] = Time::now() - start;

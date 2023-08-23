@@ -4,9 +4,9 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#include <memory>
 #include <unordered_map>
 
-#include "cpp_interfaces/plugin_itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/parallel.hpp"
@@ -14,10 +14,13 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace {
-void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::vector<ov::Tensor>& tensors) {
+void check_batched_tensors(const ov::Output<const ov::Node>& input,
+                           const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     OPENVINO_ASSERT(!tensors.empty(), "set_input_tensors/set_tensors can't be called with empty tensors");
     OPENVINO_ASSERT(
         tensors.size() != 1,
@@ -31,16 +34,17 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
     auto batch_idx = ov::layout::batch_idx(layout);
     if (batch_idx < 0) {
         // TODO: Do we need this logic?
-        batch_idx += static_cast<int64_t>(tensors[0].get_shape().size());
+        batch_idx += static_cast<int64_t>(tensors[0]->get_shape().size());
     }
     OPENVINO_ASSERT(batch_idx == 0,
                     "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
                     batch_idx,
                     " != 0");
-    std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::Tensor& item) {
-        OPENVINO_ASSERT(item.get_shape()[batch_idx] == 1,
+    std::for_each(tensors.begin(), tensors.end(), [&batch_idx](const ov::SoPtr<ov::ITensor>& item) {
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
+        OPENVINO_ASSERT(item->get_shape()[batch_idx] == 1,
                         "set_input_tensors/set_tensors. Tensors shall represent one item in a batch, ",
-                        item.get_shape()[batch_idx],
+                        item->get_shape()[batch_idx],
                         " provided");
     });
     auto tensors_size = static_cast<int>(tensors.size());
@@ -62,22 +66,23 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
     }
 
     // In future consider checking if blobs point to contiguous range of memory and use single 'SetBlob' instead
-    auto batched_shape = tensors[0].get_shape();
-    auto element_type = tensors[0].get_element_type();
+    auto batched_shape = tensors[0]->get_shape();
+    auto element_type = tensors[0]->get_element_type();
     batched_shape[batch_idx] = tensors_size;
     for (const auto& item : tensors) {
-        auto item_shape = item.get_shape();
+        OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
+        auto item_shape = item->get_shape();
         item_shape[batch_idx] = batched_shape[batch_idx];
-        OPENVINO_ASSERT(item_shape == batched_shape && item.get_element_type() == element_type &&
+        OPENVINO_ASSERT(item_shape == batched_shape && item->get_element_type() == element_type &&
                             "set_input_tensors/set_tensors error. Tensor with element type ",
-                        item.get_element_type(),
+                        item->get_element_type(),
                         " and shape ",
                         item_shape,
                         " is not compatible with batched tensor with element type ",
                         element_type,
                         " and shape ",
                         batched_shape);
-        OPENVINO_ASSERT(item.is_continuous(), "Strides for batched tensors should be default.");
+        OPENVINO_ASSERT(item->is_continuous(), "Strides for batched tensors should be default.");
     }
 }
 
@@ -91,11 +96,11 @@ ov::ISyncInferRequest::ISyncInferRequest(const std::shared_ptr<const ov::ICompil
     // Create map of empty tensors
     for (const auto& input : get_inputs()) {
         if (m_tensors.find(input.get_tensor_ptr()) == m_tensors.end())
-            m_tensors[input.get_tensor_ptr()] = ov::Tensor();
+            m_tensors[input.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
     }
     for (const auto& output : get_outputs()) {
         if (m_tensors.find(output.get_tensor_ptr()) == m_tensors.end())
-            m_tensors[output.get_tensor_ptr()] = ov::Tensor();
+            m_tensors[output.get_tensor_ptr()] = ov::SoPtr<ov::ITensor>();
     }
 }
 
@@ -110,6 +115,7 @@ const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_comp
 }
 
 ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
+    // This function is hotspot, need optimization.
     auto check_nodes = [](const ov::Node* node1, const ov::Node* node2) {
         return node1 == node2 ||
                (node1->get_friendly_name() == node2->get_friendly_name() &&
@@ -132,13 +138,14 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
 }
 
 void ov::ISyncInferRequest::convert_batched_tensors() {
-    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> prepared_tensors;
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> prepared_tensors;
     for (const auto& item : m_batched_tensors) {
-        auto tmp_shape = item.second.at(0).get_shape();
-        auto tmp_et = item.second.at(0).get_element_type();
+        OPENVINO_ASSERT(item.second.at(0), "Unintialized tensor is provided!");
+        auto tmp_shape = item.second.at(0)->get_shape();
+        auto tmp_et = item.second.at(0)->get_element_type();
         tmp_shape[0] = item.second.size();
-        std::shared_ptr<ov::IRemoteContext> remote_context;
-        ov::Tensor input_tensor;
+        ov::SoPtr<ov::IRemoteContext> remote_context;
+        ov::SoPtr<ov::ITensor> input_tensor;
         try {
             auto net = get_compiled_model();
             if (net) {
@@ -147,16 +154,16 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         } catch (const ov::NotImplemented&) {
         }
         if (remote_context) {
-            input_tensor = ov::Tensor(remote_context->create_host_tensor(tmp_et, tmp_shape), {});
+            input_tensor = remote_context->create_host_tensor(tmp_et, tmp_shape);
         } else {
-            input_tensor = ov::Tensor(tmp_et, tmp_shape);
+            input_tensor = {ov::make_tensor(tmp_et, tmp_shape), nullptr};
         }
-        auto ptr = static_cast<uint8_t*>(input_tensor.data());
+        auto ptr = static_cast<uint8_t*>(input_tensor->data());
 
         // Perform memory copy
         ov::parallel_for(item.second.size(), [&](size_t i) {
             const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor.get_byte_size(), static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size());
+            memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
         });
         prepared_tensors[item.first] = input_tensor;
     }
@@ -167,7 +174,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
     }
 }
 
-ov::Tensor& ov::ISyncInferRequest::get_ref_tensor(const ov::Output<const ov::Node>& port) const {
+ov::SoPtr<ov::ITensor>& ov::ISyncInferRequest::get_tensor_ptr(const ov::Output<const ov::Node>& port) const {
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
     auto ports = found_port.is_input() ? get_inputs() : get_outputs();
@@ -177,13 +184,13 @@ ov::Tensor& ov::ISyncInferRequest::get_ref_tensor(const ov::Output<const ov::Nod
     return it->second;
 }
 
-ov::Tensor ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
-    return get_ref_tensor(port);
+ov::SoPtr<ov::ITensor> ov::ISyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensor");
+    return get_tensor_ptr(port);
 }
 
-void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
+void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensor");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
     try {
@@ -199,8 +206,8 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     }
 }
 
-std::vector<ov::Tensor> ov::ISyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
+std::vector<ov::SoPtr<ov::ITensor>> ov::ISyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find input tensors for port ", port);
     if (found_port.is_input() && m_batched_tensors.count(get_inputs().at(found_port.idx).get_tensor_ptr()))
@@ -209,8 +216,8 @@ std::vector<ov::Tensor> ov::ISyncInferRequest::get_tensors(const ov::Output<cons
 }
 
 void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
-                                        const std::vector<ov::Tensor>& tensors) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensors");
+                                        const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "set_tensors");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
     if (tensors.size() == 1) {
@@ -223,7 +230,7 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 }
 
 void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                             const std::vector<ov::Tensor>& tensors) {
+                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                            "",
                            false,
@@ -231,42 +238,47 @@ void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> po
                            "set_input_tensors/set_tensors are not supported by this plugin");
 }
 
-void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const {
+void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
+                                         const ov::SoPtr<ov::ITensor>& tensor) const {
+    OPENVINO_ASSERT(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     std::string tensor_type = is_input ? "input" : "output";
 
-    OPENVINO_ASSERT(port.get_element_type() == tensor.get_element_type(),
+    OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
                     "The tensor element type is not corresponding with output element type (",
-                    tensor.get_element_type(),
+                    tensor->get_element_type(),
                     " != ",
                     port.get_element_type());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor.get_shape(),
+    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor.get_shape(),
+                    tensor->get_shape(),
                     " expecting ",
                     port.get_shape(),
                     ".");
-    OPENVINO_ASSERT(tensor.is<ov::RemoteTensor>() || tensor.data() != nullptr, "Tensor data equal nullptr!");
+    OPENVINO_ASSERT(
+        std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
+        "Tensor data equal nullptr!");
 }
 
-void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,
-                                            const std::function<void(ov::Tensor& tensor)>& allocate_callback) {
-    auto& tensor = get_ref_tensor(port);
+void ov::ISyncInferRequest::allocate_tensor(
+    const ov::Output<const ov::Node>& port,
+    const std::function<void(ov::SoPtr<ov::ITensor>& tensor)>& allocate_callback) {
+    auto& tensor = get_tensor_ptr(port);
     allocate_callback(tensor);
 }
 
 void ov::ISyncInferRequest::check_tensors() const {
     const auto& inputs = m_compiled_model->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], get_ref_tensor(inputs[i]));
+        check_tensor(inputs[i], get_tensor_ptr(inputs[i]));
     }
     const auto& outputs = m_compiled_model->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], get_ref_tensor(outputs[i]));
+        check_tensor(outputs[i], get_tensor_ptr(outputs[i]));
     }
 }

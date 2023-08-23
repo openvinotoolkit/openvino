@@ -24,21 +24,21 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 
 *Proposal* layer does the following with the input tensor:
 
-1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
-2.  For each point in the first input tensor:
+1. Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
+2. For each point in the first input tensor:
 
-  * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
-  * finds out score in the first input tensor
+   * pins anchor boxes to the image according to the second input tensor that contains four deltas for each box: for *x* and *y* of center, for *width* and for *height*
+   * finds out score in the first input tensor
   
-3.  Filters out boxes with size less than *min_size*
-4.  Sorts all proposals (*box*, *score*) by score from highest to lowest
-5.  Takes top *pre_nms_topn* proposals
-6.  Calculates intersections for boxes and filter out all boxes with :math:`intersection/union > nms\_thresh`
-7.  Takes top *post_nms_topn* proposals
-8.  Returns the results:
+3. Filters out boxes with size less than *min_size*
+4. Sorts all proposals (*box*, *score*) by score from highest to lowest
+5. Takes top *pre_nms_topn* proposals
+6. Calculates intersections for boxes and filter out all boxes with :math:`intersection/union > nms\_thresh`
+7. Takes top *post_nms_topn* proposals
+8. Returns the results:
 
-  * Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
-  * Optionally returns probabilities for each proposal, which are not terminated by any special value.
+   * Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+   * Optionally returns probabilities for each proposal, which are not terminated by any special value.
 
 **Attributes**:
 
@@ -170,37 +170,38 @@ the second optional tensor of shape ``[batch_size * post_nms_topn]`` with probab
 **Example**
 
 
-.. code-block::  cpp 
+.. code-block:: xml
+   :force:
 
-  <layer ... type="Proposal" ... >
-      <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
-      <input>
-          <port id="0">
-              <dim>7</dim>
-              <dim>4</dim>
-              <dim>28</dim>
-              <dim>28</dim>
-          </port>
-          <port id="1">
-              <dim>7</dim>
-              <dim>8</dim>
-              <dim>28</dim>
-              <dim>28</dim>
-          </port>
-          <port id="2">
-              <dim>3</dim>
-          </port>
-      </input>
-      <output>
-          <port id="3" precision="FP32">
-              <dim>7000</dim>
-              <dim>5</dim>
-          </port>
-          <port id="4" precision="FP32">
-              <dim>7000</dim>
-          </port>
-      </output>
-  </layer>
+   <layer ... type="Proposal" ... >
+       <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
+       <input>
+           <port id="0">
+               <dim>7</dim>
+               <dim>4</dim>
+               <dim>28</dim>
+               <dim>28</dim>
+           </port>
+           <port id="1">
+               <dim>7</dim>
+               <dim>8</dim>
+               <dim>28</dim>
+               <dim>28</dim>
+           </port>
+           <port id="2">
+               <dim>3</dim>
+           </port>
+       </input>
+       <output>
+           <port id="3" precision="FP32">
+               <dim>7000</dim>
+               <dim>5</dim>
+           </port>
+           <port id="4" precision="FP32">
+               <dim>7000</dim>
+           </port>
+       </output>
+   </layer>
 
 @endsphinxdirective
 

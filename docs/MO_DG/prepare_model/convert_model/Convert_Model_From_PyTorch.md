@@ -15,7 +15,8 @@ Model Optimizer Python API allows the conversion of PyTorch models using the ``c
 
 Example of PyTorch model conversion:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torchvision
    import torch
@@ -37,7 +38,8 @@ Converting certain PyTorch models may require model tracing, which needs ``input
 
 Example of using ``example_input``:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torchvision
    import torch
@@ -70,6 +72,7 @@ For more information, refer to the `Exporting PyTorch models to ONNX format <htt
 To export a PyTorch model, you need to obtain the model as an instance of ``torch.nn.Module`` class and call the ``export`` function.
 
 .. code-block:: py
+   :force:
 
    import torch
 

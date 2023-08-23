@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-
-#include "ngraph/op/result.hpp"
-
 #include "intel_gpu/primitives/reorder.hpp"
 
 using namespace InferenceEngine;
@@ -14,7 +17,7 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_gpu {
 
-static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
+static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
     validate_inputs_count(op, {1});
 
@@ -29,9 +32,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         }
     }
     auto it = networkOutputs.find(inputID);
-    if (it == networkOutputs.end()) {
-        IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
-    }
+    OPENVINO_ASSERT(it != networkOutputs.end(), "[GPU] Can't find output ", inputID, " in OutputsDataMap");
     std::string originalOutName = it->first;
     DataPtr outputData = it->second;
 
@@ -39,10 +40,10 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
     const auto outputDesc = outputData->getTensorDesc();
     auto outputlayout = outputDesc.getLayout();
 
-    if (ngraph::is_type<ngraph::op::v8::NV12toRGB>(prev) ||
-        ngraph::is_type<ngraph::op::v8::NV12toBGR>(prev) ||
-        ngraph::is_type<ngraph::op::v8::I420toRGB>(prev) ||
-        ngraph::is_type<ngraph::op::v8::I420toBGR>(prev)) {
+    if (ov::is_type<ov::op::v8::NV12toRGB>(prev) ||
+        ov::is_type<ov::op::v8::NV12toBGR>(prev) ||
+        ov::is_type<ov::op::v8::I420toRGB>(prev) ||
+        ov::is_type<ov::op::v8::I420toBGR>(prev)) {
         outputlayout = NHWC;
     }
 
@@ -56,7 +57,7 @@ static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Res
         outputlayout != NC &&
         outputlayout != C &&
         outputlayout != SCALAR) {
-        IE_THROW() << "Unsupported layout (" << outputlayout << ") in output: " << originalOutName;
+        OPENVINO_THROW("[GPU] Unsupported layout (", outputlayout, ") in output: ", originalOutName);
     }
     auto out_rank = op->get_output_partial_shape(0).size();
     auto out_format = cldnn::format::get_default_format(out_rank);

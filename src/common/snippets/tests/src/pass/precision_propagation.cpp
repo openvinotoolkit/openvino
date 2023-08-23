@@ -48,7 +48,7 @@ std::string PrecisionPropagationTest::getTestCaseName(testing::TestParamInfo<Pre
         std::ostringstream result;
         result << "{";
         for (const auto& precisions : precisions_pack) {
-            result << CommonTestUtils::vec2str(precisions) << "_";
+            result << ov::test::utils::vec2str(precisions) << "_";
         }
         result << "}";
         return result.str();

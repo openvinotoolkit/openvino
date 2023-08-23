@@ -50,7 +50,10 @@ protected:
         configuration.insert(common_conf.begin(), common_conf.end());
         configuration.insert(conf.begin(), conf.end());
 
-        auto params = ngraph::builder::makeParams(net_type, shapes);
+        ov::ParameterVector params;
+        for (auto&& shape : shapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(net_type, ov::Shape(shape)));
+        }
         auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
         ov::ResultVector results;
 
@@ -99,7 +102,7 @@ std::vector<size_t> layer_limits_3X{64, 8192, 8200};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
                          GNALayersLimit20Test,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
                                             ::testing::ValuesIn(configs_20),
                                             ::testing::ValuesIn(layer_limits_20)),
@@ -107,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
 
 INSTANTIATE_TEST_SUITE_P(smoke_GNALimits,
                          GNALayersLimit3XTest,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GNA),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(common_config),
                                             ::testing::ValuesIn(configs_3X),
                                             ::testing::ValuesIn(layer_limits_3X)),

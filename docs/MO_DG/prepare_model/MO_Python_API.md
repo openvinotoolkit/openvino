@@ -15,7 +15,8 @@ Model conversion API is represented by ``convert_model()`` method in openvino.to
 
 Example of converting a PyTorch model directly from memory:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    import torchvision
    
@@ -31,7 +32,8 @@ The following types are supported as an input model for ``convert_model()``:
 
 Example of using native Python classes to set ``input_shape``, ``mean_values`` and ``layout``:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.runtime import PartialShape, Layout
    
@@ -39,7 +41,8 @@ Example of using native Python classes to set ``input_shape``, ``mean_values`` a
 
 Example of using strings for setting ``input_shape``, ``mean_values`` and ``layout``:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 
@@ -49,7 +52,8 @@ The shape can be a ``list`` or ``tuple`` of dimensions (``int`` or ``openvino.ru
 
 Example of using a tuple in the ``input`` parameter to cut a model:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input=("input_name", [3], np.float32))
 
@@ -66,7 +70,8 @@ Supported types for ``InputCutInfo``:
 
 Example of using ``InputCutInfo`` to freeze an input with value:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.mo import convert_model, InputCutInfo
    
@@ -85,7 +90,8 @@ Parameters supporting ``list``:
 
 Example of using lists to set shapes, types and layout for multiple inputs:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
 
@@ -93,7 +99,8 @@ Example of using lists to set shapes, types and layout for multiple inputs:
 
 Example of using the ``Layout`` class to set the layout of a model input:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.runtime import Layout
    from openvino.tools.mo import convert_model
@@ -106,7 +113,8 @@ To set both source and destination layouts in the ``layout`` parameter, use the 
 
 Example of using the ``LayoutMap`` class to change the layout of a model input:
 
-.. code-block:: python
+.. code-block:: py
+   :force:
 
    from openvino.tools.mo import convert_model, LayoutMap
    

@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/graph_rewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <openvino/cc/pass/itt.hpp>
 #include <regex>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "ngraph/env_util.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/op/util/sub_graph_base.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
@@ -120,7 +118,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
         if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = std::dynamic_pointer_cast<pattern::op::WrapType>(p)) {
+            if (auto any_type = std::dynamic_pointer_cast<ov::pass::pattern::op::WrapType>(p)) {
                 for (const auto& root_type_info : any_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
@@ -180,7 +178,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             continue;
 
         // Recursive apply Matchers for sub-graph based nodes
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
             if (sub_graph_node->get_transformations_allowed()) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {

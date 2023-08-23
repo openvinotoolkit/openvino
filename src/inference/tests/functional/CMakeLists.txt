@@ -43,8 +43,7 @@ ov_add_test_target(
             ${DEPENDENCIES}
         LINK_LIBRARIES
             gmock
-            funcTestUtils
-            common_test_utils
+            func_test_utils
         INCLUDES
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
             ${CMAKE_CURRENT_SOURCE_DIR}
@@ -54,4 +53,3 @@ ov_add_test_target(
 )
 
 add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
-

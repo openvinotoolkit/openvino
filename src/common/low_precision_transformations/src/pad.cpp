@@ -9,6 +9,8 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
+#include <openvino/op/util/pad_base.hpp>
+#include "openvino/opsets/opset12.hpp"
 #include "itt.hpp"
 
 namespace ngraph {
@@ -21,7 +23,7 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
     auto padsBegin = pattern::wrap_type<ov::opset1::Constant>();
     auto padsEnd = pattern::wrap_type<ov::opset1::Constant>();
     auto padsValue = pattern::wrap_type<ov::opset1::Constant>();
-    auto matcher = pattern::wrap_type<ov::opset1::Pad>({ mul, padsBegin, padsEnd, padsValue });
+    auto matcher = pattern::wrap_type<ov::op::util::PadBase>({ mul, padsBegin, padsEnd, padsValue });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -40,7 +42,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
         return false;
     }
 
-    const auto pad = ov::as_type_ptr<ov::opset1::Pad>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
+    const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
     const auto padConstantValue = padConstant->cast_vector<float>()[0];
 
@@ -85,7 +87,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
 
     auto foldConstantIfNecessary = [&padMode, &padsBegin, &padsEnd](
         const std::shared_ptr<ov::opset1::Constant>& constant,
-        const std::shared_ptr<ov::opset1::Pad>& pad,
+        const std::shared_ptr<ov::op::util::PadBase>& pad,
         float padVal) {
         const auto constantShape = constant->get_shape();
         if (shape_size(constantShape) == 1ul) {
@@ -113,7 +115,7 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
             const auto beginConst = ov::opset1::Constant::create(element::u32, { padsForConstantBegin.size() }, padsForConstantBegin);
             const auto endConst = ov::opset1::Constant::create(element::u32, { padsForConstantEnd.size() }, padsForConstantEnd);
             const auto padValueConstant = ov::opset1::Constant::create(constant->get_element_type(), Shape{}, { padVal });
-            const auto foldedConstant = fold<ov::opset1::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
+            const auto foldedConstant = fold<ov::opset12::Pad>(constant, beginConst, endConst, padValueConstant, padMode);
             return ov::as_type_ptr<ov::opset1::Constant>(foldedConstant);
         } else {
             return constant;
@@ -152,13 +154,32 @@ bool PadTransformation::transform(TransformationContext& context, ngraph::patter
     return true;
 }
 
+namespace {
+    bool hasNegativeIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
+        const auto padsBegin = pad->get_pads_begin();
+        const auto padsEnd = pad->get_pads_end();
+        auto pred = [](int64_t a) {
+            return a < 0;
+        };
+        if (std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
+            std::any_of(padsEnd.begin(), padsEnd.end(), pred)) {
+            return true;
+        }
+        return false;
+    }
+} // namespace
+
 bool PadTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
         return false;
     }
 
-    const auto pad = ov::as_type_ptr<ov::opset1::Pad>(op);
+    const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(op);
     if (!pad) {
+        return false;
+    }
+
+    if (hasNegativeIndexes(pad)) {
         return false;
     }
 
