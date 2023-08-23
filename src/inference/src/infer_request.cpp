@@ -6,10 +6,10 @@
 
 #include <map>
 #include <memory>
-#include <openvino/core/except.hpp>
 #include <string>
 
 #include "ie_common.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exception.hpp"
