@@ -71,7 +71,7 @@ void FqConvFqAffineTest::SetUp() {
     std::tie(kernelShape, strides, inputChannels, outputChannels) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     const int seed = 0;
     std::mt19937 gen(seed);

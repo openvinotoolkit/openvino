@@ -28,7 +28,7 @@ void BroadcastPowerTest::SetUp() {
     std::tie(inputs_shapes, netPrecision, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputs_shapes[0]});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputs_shapes[0]))};
     auto reshape_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{inputs_shapes[1].size()},
             inputs_shapes[1]);
     auto reshape = std::make_shared<ngraph::opset1::Reshape>(params[0], reshape_pattern, false);

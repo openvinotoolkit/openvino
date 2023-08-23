@@ -33,7 +33,10 @@ void EinsumLayerTest::SetUp() {
     std::tie(equation, inputShapes) = equationWithInput;
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
-    const auto params = ngraph::builder::makeParams(ngPrc, inputShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
     const auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const std::shared_ptr<ngraph::Node> einsum = ngraph::builder::makeEinsum(paramOuts, equation);

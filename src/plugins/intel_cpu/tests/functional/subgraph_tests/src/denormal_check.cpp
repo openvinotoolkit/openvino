@@ -62,7 +62,7 @@ void SetUp() override {
 
     const auto elemsCount = shape_size(inpShape);
     const auto rtPrc = ov::element::f32;
-    auto params = ngraph::builder::makeParams(rtPrc, {inpShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(rtPrc, ov::Shape(inpShape))};
     pConstStorage.reset(new AlignedBufferWrapper<float>(elemsCount, alignment));
 
     auto constTensor = std::make_shared<ov::HostTensor>(rtPrc, inpShape, pConstStorage->get_ptr());

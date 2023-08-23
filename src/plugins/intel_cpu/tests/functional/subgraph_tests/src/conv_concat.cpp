@@ -64,7 +64,8 @@ void ConvConcatSubgraphTest::SetUp() {
 
     selectedType += "_FP32";
 
-    auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes, inputShapes});
+    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes)),
+                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape(inputShapes))};
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
     std::vector<std::shared_ptr<ngraph::Node>> convolutionNodes(2);

@@ -27,8 +27,8 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
                                                   InferenceEngine::SizeVector({1, hidden_size}),
                                                   InferenceEngine::Layout::NC);
     // Reshape
-    auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, third_dim} });
-    function->replace_parameter(0, params[0]);
+    auto params = std::make_shared<ov::op::v0::Parameter>(function->get_parameters().at(0)->get_element_type(), ov::Shape{1, third_dim});
+    function->replace_parameter(0, params);
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()
     std::vector<uint64_t> outFormShapes1 = { 1, 1, third_dim };

@@ -28,7 +28,7 @@ struct FullyConnectedBatchSizeMoreThan8 {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> inputShape = {9, 1};
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fullyConnected)};
@@ -46,7 +46,7 @@ struct FullyConnectedBatchSizeLessThanOrEqual8 {
     static std::shared_ptr<ngraph::Function> createTopology(const InferenceEngine::Precision& netPrecision) {
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> inputShape = {7, 1};
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto weights = ov::test::utils::generate_float_numbers(inputShape[1] * inputShape[1], -0.0001f, 0.0001f);
         auto fullyConnected = ngraph::builder::makeFullyConnected(params[0], ngPrc, inputShape[1], false, {}, weights);
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fullyConnected)};

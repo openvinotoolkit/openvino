@@ -67,7 +67,8 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape)),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         params[0]->set_friendly_name("input1");
         params[1]->set_friendly_name("input2");
 

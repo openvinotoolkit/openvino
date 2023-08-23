@@ -21,7 +21,7 @@ std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type &type, ngraph::
             break;
         }
         case ngraph::helpers::InputLayerType::PARAMETER:
-            input = ngraph::builder::makeParams(type, {shape})[0];
+            input = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape(shape));
             break;
         default:
            throw std::runtime_error("Unsupported inputType");

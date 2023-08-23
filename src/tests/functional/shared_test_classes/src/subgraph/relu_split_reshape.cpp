@@ -34,7 +34,7 @@ void ReluSplitReshape::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto relu = std::make_shared<ngraph::opset1::Relu>(params[0]);
     auto split = ngraph::builder::makeSplit(relu, ngPrc, splitNum, splitAxis);
 

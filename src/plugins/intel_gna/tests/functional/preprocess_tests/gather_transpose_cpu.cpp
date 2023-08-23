@@ -120,7 +120,7 @@ protected:
     }
 
     void init_test_model() {
-        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(m_net_type, ov::Shape(m_input_shape))};
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         std::shared_ptr<ov::Node> pre_node = params[0];

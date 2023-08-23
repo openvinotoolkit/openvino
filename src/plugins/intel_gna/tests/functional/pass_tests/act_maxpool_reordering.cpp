@@ -72,7 +72,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, addBiases, actType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto inputVector = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector inputVector{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
         size_t num_out_channels = 12;
         size_t kernal_size = 8;
