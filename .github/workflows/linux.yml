@@ -664,7 +664,7 @@ jobs:
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml  --csv ${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe_report.csv --csv-columns "parameters_as_columns,status,message"
+          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
         env:
           TEST_DEVICE: CPU
 
