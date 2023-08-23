@@ -58,7 +58,7 @@ OpenVINO has two backends available with ``torch.compile``:
          ...
          model = torch.compile(model, backend='openvino_ts')
 
-         .. image:: _static/images/torch_compile_backend_openvino_ts.svg
+      .. image:: _static/images/torch_compile_backend_openvino_ts.svg
 
 Architecture
 ++++++++++++++++++++++
