@@ -152,6 +152,7 @@ jobs:
       - name: Setup ccache
         run: |
           mkdir -p $CCACHE_DIR
+          echo "this is from pipeline" >> $CCACHE_DIR/testfile
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
