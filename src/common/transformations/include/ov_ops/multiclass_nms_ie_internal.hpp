@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <transformations_visibility.hpp>
-
 #include "openvino/op/util/multiclass_nms_base.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace op {
