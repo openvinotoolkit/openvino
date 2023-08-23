@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #! [import]
-from openvino.runtime import Core
+import openvino as ov
 from io import BytesIO
 #! [import]
 
 model_path = "model.xml"
 blob_path = "compiled_model.blob"
 
-core = Core()
+core = ov.Core()
 model = core.read_model(model=model_path)
-compiled_model = core.compile_model(model, device_name="GNA")
+compiled_model = ov.compile_model(model, device_name="GNA")
 
 #! [ov_gna_export]
 user_stream = compiled_model.export_model()

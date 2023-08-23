@@ -5,19 +5,18 @@ import logging as log
 import numpy as np
 import sys
 
-from openvino.runtime import opset10 as ops
-from openvino.runtime import Core, Model, PartialShape, Tensor, Type
+import openvino as ov
 from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
 
 
 def state_network_example():
     #! [ov:state_network]
-    input = ops.parameter([1, 1], dtype=np.float32)
-    read = ops.read_value(input, "variable0")
-    add = ops.add(read, input)
-    save = ops.assign(add, "variable0")
-    result = ops.result(add)
-    model = Model(results=[result], sinks=[save], parameters=[input])
+    input = ov.opset10.parameter([1, 1], dtype=np.float32)
+    read = ov.opset10.read_value(input, "variable0")
+    add = ov.opset10.add(read, input)
+    save = ov.opset10.assign(add, "variable0")
+    result = ov.opset10.result(add)
+    model = ov.Model(results=[result], sinks=[save], parameters=[input])
     #! [ov:state_network]
 
 
@@ -33,14 +32,14 @@ def low_latency_2_example():
     state_name = tensor_iterator_name + "//" + body_parameter_name + "//" + "variable_" + idx # todo
 
     #! [ov:get_ov_model]
-    core = Core()
+    core = ov.Core()
     ov_model = core.read_model("path_to_the_model")
     #! [ov:get_ov_model]
     
     # reshape input if needed
 
     #! [ov:reshape_ov_model]
-    ov_model.reshape({"X": PartialShape([1, 1, 16])})
+    ov_model.reshape({"X": ov.PartialShape([1, 1, 16])})
     #! [ov:reshape_ov_model]
 
     #! [ov:apply_low_latency_2]
@@ -48,7 +47,7 @@ def low_latency_2_example():
     manager.register_pass(LowLatency2())
     manager.run_passes(ov_model)
     #! [ov:apply_low_latency_2]
-    hd_specific_model = core.compile_model(ov_model)
+    hd_specific_model = ov.compile_model(ov_model)
     # Try to find the Variable by name
     infer_request = hd_specific_model.create_infer_request()
     states = infer_request.query_state()
@@ -65,7 +64,7 @@ def low_latency_2_example():
 
 def apply_make_stateful_tensor_names():
     #! [ov:make_stateful_tensor_names]
-    core = Core()
+    core = ov.Core()
     ov_model = core.read_model("path_to_the_model")
     tensor_names = {"tensor_name_1": "tensor_name_4",
                     "tensor_name_3": "tensor_name_6"}
@@ -77,10 +76,10 @@ def apply_make_stateful_tensor_names():
 
 def apply_make_stateful_ov_nodes():
     #! [ov:make_stateful_ov_nodes]
-    core = Core()
+    core = ov.Core()
     ov_model = core.read_model("path_to_the_model")
     # Parameter_1, Result_1, Parameter_3, Result_3 are 
-    # ops.parameter/ops.result in the ov_model
+    # ov.opset10.parameter/ov.opset10.result in the ov_model
     pairs = ["""(Parameter_1, Result_1), (Parameter_3, Result_3)"""]
     manager = Manager()
     manager.register_pass(MakeStateful(pairs))
@@ -92,7 +91,7 @@ def main():
     #! [ov:state_api_usage]
     # 1. Load inference engine
     log.info("Loading Inference Engine")
-    core = Core()
+    core = ov.Core()
 
     # 2. Read a model
     log.info("Loading network files")
@@ -100,7 +99,7 @@ def main():
     
 
     # 3. Load network to CPU
-    hw_specific_model = core.compile_model(model, "CPU")
+    hw_specific_model = ov.compile_model(model, "CPU")
 
     # 4. Create Infer Request
     infer_request = hw_specific_model.create_infer_request()
@@ -153,7 +152,7 @@ def main():
     # Part 3
     log.info("\nSet state value between utterances to 5...\n")
     v = np.asarray([5], dtype=np.float32)
-    tensor = Tensor(v, shared_memory=True)
+    tensor = ov.Tensor(v, shared_memory=True)
     target_state.state = tensor
 
     log.info("Infer the third utterance")

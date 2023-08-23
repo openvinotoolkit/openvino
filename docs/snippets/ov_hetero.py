@@ -1,4 +1,4 @@
-import openvino.runtime as ov
+import openvino as ov
 
 core = ov.Core()
 model = core.read_model("sample.xml")
@@ -26,18 +26,18 @@ for node in model.get_ops():
     node.get_rt_info()["affinity"] = "CPU"
 
 # load model with manually set affinities
-compiled_model = core.compile_model(model, device)
+compiled_model = ov.compile_model(model, device)
 #! [fix_automatic_affinities]
 
 #! [compile_model]
-compiled_model = core.compile_model(model, device_name="HETERO:GPU,CPU")
+compiled_model = ov.compile_model(model, device_name="HETERO:GPU,CPU")
 # device priorities via configuration property
-compiled_model = core.compile_model(model, device_name="HETERO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
+compiled_model = ov.compile_model(model, device_name="HETERO", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 #! [compile_model]
 
 #! [configure_fallback_devices]
 core.set_property("HETERO", {"MULTI_DEVICE_PRIORITIES": "GPU,CPU"})
 core.set_property("GPU", {"PERF_COUNT": "YES"})
 core.set_property("CPU", {"INFERENCE_PRECISION_HINT": "f32"})
-compiled_model = core.compile_model(model=model, device_name="HETERO")
+compiled_model = ov.compile_model(model=model, device_name="HETERO")
 #! [configure_fallback_devices]

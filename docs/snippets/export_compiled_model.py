@@ -1,7 +1,7 @@
 #! [export_compiled_model]
 
-from openvino.runtime import Core
+import openvino as ov
 
-ov.Core().compile_model(device, modelPath, properties).export_model(compiled_blob)
+ov.compile_model(device, modelPath, properties).export_model(compiled_blob)
 
 #! [export_compiled_model]

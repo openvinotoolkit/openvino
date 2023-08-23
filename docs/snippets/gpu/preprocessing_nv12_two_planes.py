@@ -2,17 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #! [init_preproc]
-from openvino.runtime import Core, Type, Layout
-from openvino.preprocess import PrePostProcessor, ColorFormat
+import openvino as ov
 
-core = Core()
+core = ov.Core()
 model = core.read_model("model.xml")
 
-p = PrePostProcessor(model)
-p.input().tensor().set_element_type(Type.u8) \
-                  .set_color_format(ColorFormat.NV12_TWO_PLANES, ["y", "uv"]) \
+p = ov.preprocess.PrePostProcessor(model)
+p.input().tensor().set_element_type(ov.Type.u8) \
+                  .set_color_format(ov.preprocess.ColorFormat.NV12_TWO_PLANES, ["y", "uv"]) \
                   .set_memory_type("GPU_SURFACE")
-p.input().preprocess().convert_color(ColorFormat.BGR)
-p.input().model().set_layout(Layout("NCHW"))
+p.input().preprocess().convert_color(ov.preprocess.ColorFormat.BGR)
+p.input().model().set_layout(ov.Layout("NCHW"))
 model_with_preproc = p.build()
 #! [init_preproc]

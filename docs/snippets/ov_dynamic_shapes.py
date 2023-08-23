@@ -3,12 +3,12 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 #! [reshape_undefined]
-Core = ov.Core()
-model = core.read_model(“model.xml”)
+core = ov.Core()
+model = core.read_model("model.xml")
 
 # Set first dimension to be dynamic while keeping others static
 model.reshape([-1, 3, 224, 224])
@@ -51,7 +51,7 @@ if model.output(0).partial_shape[1].is_dynamic():
     pass
 #! [detect_dynamic]
 
-executable = core.compile_model(model)
+executable = ov.compile_model(model)
 infer_request = executable.create_infer_request()
 
 #! [set_input_tensor]

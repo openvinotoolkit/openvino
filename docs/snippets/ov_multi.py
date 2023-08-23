@@ -1,11 +1,10 @@
 import sys
-from openvino.runtime import Core
+import openvino as ov
 model_path = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 path_to_model = "/openvino_CI_CD/result/install_pkg/tests/test_model_zoo/core/models/ir/add_abc.xml"
 def MULTI_0():
 #! [MULTI_0]
-    core = Core()
-
+    core = ov.Core()
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
     
@@ -13,19 +12,19 @@ def MULTI_0():
     # Pre-configure MULTI globally with explicitly defined devices,
     # and compile the model on MULTI using the newly specified default device list.
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
-    compiled_model = core.compile_model(model=model, device_name="MULTI")
+    compiled_model = ov.compile_model(model=model, device_name="MULTI")
 
     # Option 2
     # Specify the devices to be used by MULTI explicitly at compilation.
     # The following lines are equivalent:
-    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU")
-    compiled_model = core.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
+    compiled_model = ov.compile_model(model=model, device_name="MULTI:GPU,CPU")
+    compiled_model = ov.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
 
 #! [MULTI_0]
 
 def MULTI_1():
 #! [MULTI_1]
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model_path)
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"})
     # Once the priority list is set, you can alter it on the fly:
@@ -53,10 +52,10 @@ def MULTI_1():
 def available_devices_1():
 #! [available_devices_1]
     all_devices = "MULTI:"
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model_path)
     all_devices += ",".join(core.available_devices)
-    compiled_model = core.compile_model(model=model, device_name=all_devices)
+    compiled_model = ov.compile_model(model=model, device_name=all_devices)
 #! [available_devices_1]
 
 def available_devices_2():
@@ -64,13 +63,13 @@ def available_devices_2():
     match_list = []
     all_devices = "MULTI:"
     dev_match_str = "GPU"
-    core = Core()
+    core = ov.Core()
     model = core.read_model(model_path)
     for d in core.available_devices:
         if dev_match_str in d:
             match_list.append(d)
     all_devices += ",".join(match_list)
-    compiled_model = core.compile_model(model=model, device_name=all_devices)
+    compiled_model = ov.compile_model(model=model, device_name=all_devices)
 #! [available_devices_2]
 
 
@@ -82,7 +81,7 @@ def available_devices_2():
 
 def MULTI_4():
 #! [MULTI_4]
-    core = Core()
+    core = ov.Core()
     cpu_config = {}
     gpu_config = {}
 
@@ -91,7 +90,7 @@ def MULTI_4():
 
     # When compiling the model on MULTI, configure CPU and GPU 
     # (devices, priorities, and device configurations; gpu_config and cpu_config will load during compile_model() ):
-    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
+    compiled_model = ov.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
 
     # Optionally, query the optimal number of requests:
     nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")

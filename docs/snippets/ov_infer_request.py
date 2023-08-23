@@ -3,12 +3,12 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 core = ov.Core()
 model = core.read_model("model.xml")
-compiled_model = core.compile_model(model, "AUTO")
+compiled_model = ov.compile_model(model, "AUTO")
 
 #! [create_infer_request]
 infer_request = compiled_model.create_infer_request()

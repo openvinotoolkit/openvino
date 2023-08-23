@@ -3,7 +3,7 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 import openvino.runtime.passes as passes
 
@@ -59,8 +59,7 @@ def ov_api_examples():
 
 # ! [ov:serialize]
 def serialize_example(m : ov.Model):
-    from openvino.runtime import serialize
-    serialize(m, xml_path='model.xml', bin_path='model.bin')
+    ov.serialize(m, xml_path='model.xml', bin_path='model.bin')
 # ! [ov:serialize]
 
 # ! [ov:visualize]

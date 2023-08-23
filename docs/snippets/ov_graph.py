@@ -25,7 +25,7 @@
 #        |    result   |
 #        |_____________|
 
-import openvino.runtime as ov
+import openvino as ov
 
 
 data1 = ov.opset8.parameter([1, 3, 2, 2], ov.Type.i64)

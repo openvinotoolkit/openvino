@@ -2,30 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from openvino.runtime import Core
+import openvino as ov
 
 device_name = 'GNA'
 xml_path = '/tmp/myModel.xml'
 # ! [ov:caching:part0]
-core = Core()
+core = ov.Core()
 core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
 model = core.read_model(model=xml_path)
-compiled_model = core.compile_model(model=model, device_name=device_name)
+compiled_model = ov.compile_model(model=model, device_name=device_name)
 # ! [ov:caching:part0]
 
 assert compiled_model
 
 # ! [ov:caching:part1]
-core = Core()
-compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
+compiled_model = ov.compile_model(model_path=xml_path, device_name=device_name)
 # ! [ov:caching:part1]
 
 assert compiled_model
 
 # ! [ov:caching:part2]
-core = Core()
+core = ov.Core()
 core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
-compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
+compiled_model = ov.compile_model(model_path=xml_path, device_name=device_name)
 # ! [ov:caching:part2]
 
 assert compiled_model

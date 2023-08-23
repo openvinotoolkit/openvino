@@ -1,56 +1,55 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-import openvino.runtime as ov
+import openvino as ov
 
 # ! [ov:layout:simple]
-from openvino.runtime import Layout
-layout = Layout('NCHW')
+
+layout = ov.Layout('NCHW')
 # ! [ov:layout:simple]
 # ! [ov:layout:complex]
 # Each dimension has name separated by comma
 # Layout is wrapped with square brackets
-layout = Layout('[time,temperature,humidity]')
+layout = ov.Layout('[time,temperature,humidity]')
 # ! [ov:layout:complex]
 # ! [ov:layout:partially_defined]
 # First dimension is batch, 4th is 'channels'.
 # Others are not important for us
-layout = Layout('N??C')
+layout = ov.Layout('N??C')
 
 # Or the same using advanced syntax
-layout = Layout('[n,?,?,c]')
+layout = ov.Layout('[n,?,?,c]')
 # ! [ov:layout:partially_defined]
 # ! [ov:layout:dynamic]
 # First dimension is 'batch' others are whatever
-layout = Layout('N...')
+layout = ov.Layout('N...')
 
 # Second dimension is 'channels' others are whatever
-layout = Layout('?C...')
+layout = ov.Layout('?C...')
 
 # Last dimension is 'channels' others are whatever
-layout = Layout('...C')
+layout = ov.Layout('...C')
 # ! [ov:layout:dynamic]
 
 # ! [ov:layout:predefined]
-from openvino.runtime import layout_helpers
 # returns 0 for batch
-layout_helpers.batch_idx(Layout('NCDHW'))
+ov.layout_helpers.batch_idx(ov.Layout('NCDHW'))
 
 # returns 1 for channels
-layout_helpers.channels_idx(Layout('NCDHW'))
+ov.layout_helpers.channels_idx(ov.Layout('NCDHW'))
 
 # returns 2 for depth
-layout_helpers.depth_idx(Layout('NCDHW'))
+ov.layout_helpers.depth_idx(ov.Layout('NCDHW'))
 
 # returns -2 for height
-layout_helpers.height_idx(Layout('...HW'))
+ov.layout_helpers.height_idx(ov.Layout('...HW'))
 
 # returns -1 for width
-layout_helpers.width_idx(Layout('...HW'))
+ov.layout_helpers.width_idx(ov.Layout('...HW'))
 # ! [ov:layout:predefined]
 
 # ! [ov:layout:dump]
-layout = Layout('NCHW')
+layout = ov.Layout('NCHW')
 print(layout)    # prints [N,C,H,W]
 # ! [ov:layout:dump]
 
@@ -73,7 +72,7 @@ model = create_simple_model()
 
 # ! [ov:layout:get_from_model]
 # Get layout for model input
-layout = layout_helpers.get_layout(model.input("input_tensor_name"))
+layout = ov.layout_helpers.get_layout(model.input("input_tensor_name"))
 # Get layout for model with single output
-layout = layout_helpers.get_layout(model.output())
+layout = ov.layout_helpers.get_layout(model.output())
 # ! [ov:layout:get_from_model]

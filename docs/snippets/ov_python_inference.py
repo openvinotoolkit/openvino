@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 
 INPUT_SIZE = 1_000_000  # Use bigger values if necessary, i.e.: 300_000_000
 
@@ -14,7 +14,7 @@ model = ov.Model(res, [input_0, input_1], name="my_model")
 model.outputs[0].tensor.set_names({"reduced_result"})  # Add name for Output
 
 core = ov.Core()
-compiled_model = core.compile_model(model, device_name="CPU")
+compiled_model = ov.compile_model(model, device_name="CPU")
 
 data_0 = np.array([0.1] * INPUT_SIZE, dtype=np.float32)
 data_1 = np.array([-0.1] * INPUT_SIZE, dtype=np.float32)

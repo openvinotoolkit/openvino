@@ -9,12 +9,12 @@ import statistics
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version, AsyncInferQueue
-from openvino.runtime.utils.types import get_dtype
+import openvino as ov
+from openvino.runtime import get_version
 
 
 def fill_tensor_random(tensor):
-    dtype = get_dtype(tensor.element_type)
+    dtype = ov.utils.types.get_dtype(tensor.element_type)
     rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
@@ -39,10 +39,9 @@ def main():
     # Create Core and use it to compile a model.
     # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device
-    core = Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', tput)
+    compiled_model = ov.compile_model(sys.argv[1], 'CPU', tput)
     # AsyncInferQueue creates optimal number of InferRequest instances
-    ireqs = AsyncInferQueue(compiled_model)
+    ireqs = ov.AsyncInferQueue(compiled_model)
     # Fill input data for ireqs
     for ireq in ireqs:
         for model_input in compiled_model.inputs:

@@ -9,12 +9,13 @@ import sys
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version
-from openvino.runtime.utils.types import get_dtype
+import openvino as ov
+from openvino.runtime import get_version
+
 
 
 def fill_tensor_random(tensor):
-    dtype = get_dtype(tensor.element_type)
+    dtype = ov.utils.types.get_dtype(tensor.element_type)
     rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
@@ -40,8 +41,7 @@ def main():
     # Pick a device by replacing CPU, for example AUTO:GPU,CPU.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used
-    core = Core()
-    compiled_model = core.compile_model(sys.argv[1], 'CPU', latency)
+    compiled_model = ov.compile_model(sys.argv[1], 'CPU', latency)
     ireq = compiled_model.create_infer_request()
     # Fill input data for the ireq
     for model_input in compiled_model.inputs:

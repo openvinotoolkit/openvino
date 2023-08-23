@@ -21,7 +21,7 @@ quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
+import openvino as ov
 
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(quantized_model)

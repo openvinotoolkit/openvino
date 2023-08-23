@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from openvino.runtime import Core
+import openvino as ov
 
 #! [part0]
-core = Core()
+core = ov.Core()
 core.set_property("GPU", {"CONFIG_FILE": "<path_to_the_xml_file>"})
 #! [part0]

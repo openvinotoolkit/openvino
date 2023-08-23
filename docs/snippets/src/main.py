@@ -3,7 +3,7 @@
 
 import numpy as np
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 #! [part1]
@@ -11,19 +11,19 @@ core = ov.Core()
 #! [part1]
 
 #! [part2_1]
-compiled_model = core.compile_model("model.xml", "AUTO")
+compiled_model = ov.compile_model("model.xml", "AUTO")
 #! [part2_1]
 #! [part2_2]
-compiled_model = core.compile_model("model.onnx", "AUTO")
+compiled_model = ov.compile_model("model.onnx", "AUTO")
 #! [part2_2]
 #! [part2_3]
-compiled_model = core.compile_model("model.pdmodel", "AUTO")
+compiled_model = ov.compile_model("model.pdmodel", "AUTO")
 #! [part2_3]
 #! [part2_4]
-compiled_model = core.compile_model("model.pb", "AUTO")
+compiled_model = ov.compile_model("model.pb", "AUTO")
 #! [part2_4]
 #! [part2_5]
-compiled_model = core.compile_model("model.tflite", "AUTO")
+compiled_model = ov.compile_model("model.tflite", "AUTO")
 #! [part2_5]
 #! [part2_6]
 def create_model():
@@ -36,7 +36,7 @@ def create_model():
     return ov.Model([res], [data], "model")
 
 model = create_model()
-compiled_model = core.compile_model(model, "AUTO")
+compiled_model = ov.compile_model(model, "AUTO")
 #! [part2_6]
 
 #! [part3]

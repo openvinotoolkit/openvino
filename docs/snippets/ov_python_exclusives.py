@@ -4,7 +4,7 @@
 import numpy as np
 
 #! [auto_compilation]
-import openvino.runtime as ov
+import openvino as ov
 
 compiled_model = ov.compile_model("model.xml")
 #! [auto_compilation]
@@ -15,7 +15,7 @@ core = ov.Core()
 input_a = ov.opset11.parameter([8], name="input_a")
 res = ov.opset11.absolute(input_a)
 model = ov.Model(res, [input_a])
-compiled = core.compile_model(model, "CPU")
+compiled = ov.compile_model(model, "CPU")
 model.outputs[0].tensor.set_names({"result_0"})  # Add name for Output
 
 print(model.inputs)
@@ -102,7 +102,7 @@ input_a = ov.opset8.parameter([8])
 input_b = ov.opset8.parameter([8])
 res = ov.opset8.add(input_a, input_b)
 model = ov.Model(res, [input_a, input_b])
-compiled = core.compile_model(model, "CPU")
+compiled = ov.compile_model(model, "CPU")
 
 # Number of InferRequests that AsyncInferQueue holds
 jobs = 4
@@ -140,22 +140,18 @@ assert all(data_done)
 unt8_data = np.ones([100])
 
 #! [packing_data]
-from openvino.helpers import pack_data
-
-packed_buffer = pack_data(unt8_data, ov.Type.u4)
+packed_buffer = ov.helpers.pack_data(unt8_data, ov.Type.u4)
 # Create tensor with shape in element types
 t = ov.Tensor(packed_buffer, [1, 128], ov.Type.u4)
 #! [packing_data]
 
 #! [unpacking]
-from openvino.helpers import unpack_data
-
-unpacked_data = unpack_data(t.data, t.element_type, t.shape)
+unpacked_data = ov.helpers.unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 
 #! [releasing_gil]
-import openvino.runtime as ov
+import openvino as ov
 import cv2 as cv
 from threading import Thread
 
@@ -180,7 +176,7 @@ thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,
 # while main thread is running in the background.
-compiled = core.compile_model(model, "GPU")
+compiled = ov.compile_model(model, "GPU")
 # After returning from compile_model, the main thread acquires the GIL
 # and starts create_infer_request which releases it once again.
 request = compiled.create_infer_request()
