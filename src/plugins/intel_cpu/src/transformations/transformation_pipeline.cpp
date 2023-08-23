@@ -102,6 +102,7 @@
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#include "transformations/cpu_opset/arm/pass/disable_conversion.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
@@ -346,6 +347,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
         ov::pass::LSTMCellDecomposition);
+
+// If MVN node is decomposed, we need to disable fp16 compression to keep reduce in fp32
+/*    CPU_SET_CALLBACK_ARM(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string errorMessage;
+            return node::MVN::isSupportedOperation(node, errorMessage);
+        },
+        DisableConversion);*/
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -717,7 +726,7 @@ void Transformations::MainSnippets(void) {
 }
 
 void Transformations::PostSnippets(void) {
-    ov::pass::Manager postSnippetsManager;
+            ov::pass::Manager postSnippetsManager;
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_COMMON(postSnippetsManager,
@@ -727,6 +736,14 @@ void Transformations::PostSnippets(void) {
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
+    precisions_map fp_convert_precision_map = {
+            {ov::element::f32, ov::element::f16}
+    };
+    type_to_fuse_map empty_fuse_map = {};
+    const bool keep_precision_sensitive_in_fp32 = true;
+    CPU_REGISTER_PASS_ARM(postSnippetsManager, ov::pass::ConvertPrecision, fp_convert_precision_map,
+                                                                           empty_fuse_map,
+                                                                           keep_precision_sensitive_in_fp32);
     postSnippetsManager.run_passes(model);
 }
 

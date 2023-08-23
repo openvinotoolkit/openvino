@@ -114,6 +114,11 @@ public:
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
+            if (ov::is_type<ov::op::v1::ReduceSum>(node) ||
+                ov::is_type<ov::op::v1::ReduceMean>(node)) {
+                disable_fp16_compression(node);
+                return true;
+            }
             bool has_marked_output = false;
             for (const auto& output : node->outputs()) {
                 for (const auto& out_inputs : output.get_target_inputs()) {
@@ -126,7 +131,7 @@ public:
 
             if (!has_marked_output)
                 return false;
-
+            
             auto convert_node = as_type_ptr<ov::op::v0::Convert>(node);
             if (convert_node) {
                 // if during propagating up there is a Convert it must go to Const,
@@ -134,8 +139,8 @@ public:
                 auto const_node = as_type_ptr<ov::op::v0::Constant>(node->input_value(0).get_node_shared_ptr());
                 if (!const_node)
                     return false;
-            }
-
+                }
+            
             disable_fp16_compression(node);
             return true;
         };

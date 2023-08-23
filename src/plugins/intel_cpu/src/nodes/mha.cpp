@@ -17,6 +17,7 @@
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "dnnl_extension_utils.h"
 #include <ie_ngraph_utils.hpp>
+#include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
