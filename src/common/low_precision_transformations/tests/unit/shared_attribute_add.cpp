@@ -13,10 +13,10 @@ TEST(LPT_SharedAttribute, assign) {
     const auto attribute1 = ngraph::PrecisionPreservedAttribute();
     ASSERT_EQ(1ul, attribute1.attribute->sharedValue->getAttributes().size());
 
-    const auto attribute2 = ngraph::AvgPoolPrecisionPreservedAttribute();
+    const auto attribute2 = ngraph::PrecisionPreservedAttribute();
     ASSERT_EQ(1ul, attribute2.attribute->sharedValue->getAttributes().size());
 
-    ngraph::pass::low_precision::NetworkHelper::reassign<ngraph::AvgPoolPrecisionPreservedAttribute>(
+    ngraph::pass::low_precision::NetworkHelper::reassign<ngraph::PrecisionPreservedAttribute>(
         attribute1.attribute->sharedValue,
         { attribute1.attribute, attribute2.attribute });
 

@@ -25,7 +25,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<fuseTransposeBrgemmParams> obj);
 protected:
     void SetUp() override;
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
 };
 
 }  // namespace snippets
