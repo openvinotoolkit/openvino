@@ -384,12 +384,12 @@ TEST(type_prop, irdft_invalid_input) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes),
                     ov::Exception,
-                    HasSubstr("The input rank must be greater or equal to 2."));
+                    HasSubstr("The input rank must be greater or equal to 2"));
 
     data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes),
                     ov::Exception,
-                    HasSubstr("The last dimension of input data must be 2."));
+                    HasSubstr("The last dimension of input data must be 2"));
 
     data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::IRDFT>(data, axes),

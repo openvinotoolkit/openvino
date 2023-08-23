@@ -299,7 +299,7 @@ TEST(type_prop, rdft_invalid_input) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
                     ov::Exception,
-                    HasSubstr("The input rank must be greater or equal to 1."));
+                    HasSubstr("The input rank must be greater or equal to 1"));
 
     data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),

@@ -24,16 +24,13 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
                            input_shapes,
                            input_rank >= min_rank,
                            "The input rank must be greater or equal to ",
-                           min_rank,
-                           ". Got input rank: ",
-                           input_rank);
+                           min_rank);
 
     if (fft_kind == FFTKind::ComplexInput) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                input_shape[input_rank - 1].compatible(2),
-                               "The last dimension of input data must be 2. Got: ",
-                               input_shape[input_rank - 1]);
+                               "The last dimension of input data must be 2.");
     }
 
     if (axes_shape.is_dynamic()) {
@@ -44,20 +41,12 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
-                               "The input rank must be greater than or equal to the number of axes. "
-                               "Got input rank: ",
-                               input_rank,
-                               ", number of axes: ",
-                               axes_shape[0].get_length());
+                               "The input rank must be greater than or equal to the number of axes. ");
     } else {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
-                               "The input rank must be greater than number of axes. Got "
-                               "input rank: ",
-                               input_rank,
-                               ", number of axes: ",
-                               axes_shape[0].get_length());
+                               "The input rank must be greater than number of axes.");
     }
 }
 
@@ -122,18 +111,13 @@ void validate_signal_size(const ov::op::util::FFTBase* op,
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
                            signal_size_shape.rank().compatible(1),
-                           "Signal size input must be 1D tensor. Got signal: ",
-                           signal_size_shape);
+                           "Signal size input must be 1D tensor.");
 
     if (axes_shape.is_static() && signal_size_shape.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
                                axes_shape[0].compatible(signal_size_shape[0]),
-                               "Sizes of inputs 'axes' and 'signal_size' must be equal. "
-                               "Got size of 'axes': ",
-                               axes_shape[0],
-                               ", size of 'signal_size': ",
-                               signal_size_shape[0]);
+                               "Sizes of inputs 'axes' and 'signal_size' must be equal.");
     }
 }
 

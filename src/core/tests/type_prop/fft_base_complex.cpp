@@ -398,12 +398,12 @@ TYPED_TEST_P(FFTInvalidInput, invalid_input_data) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
                     ov::Exception,
-                    HasSubstr("The input rank must be greater or equal to 2."));
+                    HasSubstr("The input rank must be greater or equal to 2"));
 
     data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
                     ov::Exception,
-                    HasSubstr("The last dimension of input data must be 2."));
+                    HasSubstr("The last dimension of input data must be 2"));
 
     data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes),
@@ -443,7 +443,7 @@ TYPED_TEST_P(FFTInvalidInput, invalid_signal_size) {
     auto signal_size = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes, signal_size),
                     ov::Exception,
-                    HasSubstr("Signal size input must be 1D tensor."));
+                    HasSubstr("Signal size input must be 1D tensor"));
 
     signal_size = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes, signal_size),
