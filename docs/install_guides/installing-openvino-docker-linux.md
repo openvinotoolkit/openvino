@@ -6,18 +6,13 @@
    :description: Learn how to use a prebuilt Docker image or create an image 
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
-
-
-
 Supported host operating systems for the Docker Base image: 
 
 - Linux
 - Windows (WSL2)
 - macOS (CPU exectuion only)
 
-.. _pre-built-images:
-
-Pre-built images are available in:
+You can get started easily with pre-built and published docker images, which are available at:
 
 * `Docker Hub <https://hub.docker.com/u/openvino>`__
 * `Red Hat Quay.io <https://quay.io/organization/openvino>`__
@@ -31,9 +26,7 @@ Pre-built images are available in:
 
 You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__ or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ , which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. 
 
-You can get started easily with `pre-built and published docker images <#pre-built-images>`__ . Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
-
-To start using them, the following conditions must be met:
+Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__. To start using them, the following conditions must be met:
 
 - Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl-install>`)
 - Installed docker engine or compatible container engine
