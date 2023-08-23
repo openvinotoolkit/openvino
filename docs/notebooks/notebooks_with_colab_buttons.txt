@@ -21,6 +21,8 @@
 232-clip-language-saliency-map
 243-tflite-selfie-segmentation
 244-named-entity-recognition
+250-music-generation
+251-tiny-sd-image-generation
 305-tensorflow-quantization-aware-training
 401-object-detection
 404-style-transfer

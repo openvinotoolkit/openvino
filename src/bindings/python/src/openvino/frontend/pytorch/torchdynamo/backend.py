@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
     We can then use this model for inference. We only need to add two lines of code to
     the Pytorch applications which are marked in the code below
 
-    1) import openvino.frontend.pytorch.torchdynamo.backend
+    1) import openvino.torch
     model = torchvision.models.resnet50()
     2) model = torch.compile(model, backend="openvino")
 """
