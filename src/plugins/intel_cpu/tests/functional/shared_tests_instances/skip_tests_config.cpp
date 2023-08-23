@@ -241,6 +241,10 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
+        // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
+        // tests are useless on such platforms
+        retVector.emplace_back(R"(.*(BF|bf)16.*)");
+        retVector.emplace_back(R"(.*bfloat16.*)");
         // MatMul in Snippets uses BRGEMM that is supported only on AVX512 platforms
         // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
         retVector.emplace_back(R"(.*Snippets.*MHA.*)");
