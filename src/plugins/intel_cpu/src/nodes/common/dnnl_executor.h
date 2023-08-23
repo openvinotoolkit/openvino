@@ -61,7 +61,7 @@ class DnnlExecutor {
         }
 
     protected:
-        void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+        virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
 
     protected:
         dnnl::primitive execPrim;
