@@ -29,16 +29,36 @@ Backends
 
 OpenVINO has two backends available with ``torch.compile``:
 
-1. ``openvino``, where Torch FX subgraphs are directly converted to OpenVINO representation without any additional PyTorch based tracing/scripting,
-2. ``openvino_ts``, where Torch FX subgraphs are traced/scripted with PyTorch Torchscript, and then converted to OpenVINO representation.
+1. ``openvino``
+2. ``openvino_ts``
 
-.. code-block:: console
+.. tab-set::
 
-   from openvino.frontend.pytorch.torchdynamo import backend
-   ...
-   model = torch.compile(model, backend='openvino')
-   (or)
-   model = torch.compile(model, backend='openvino_ts')
+   .. tab-item:: openvino
+      :sync: openvino
+
+      In this backend, Torch FX subgraphs are directly converted to OpenVINO representation without any additional PyTorch based tracing/scripting.
+
+      .. code-block:: console
+
+         from openvino.frontend.pytorch.torchdynamo import backend
+         ...
+         model = torch.compile(model, backend='openvino')
+
+      .. image:: _static/images/torch_compile_backend_openvino.svg
+
+   .. tab-item:: openvino_ts
+      :sync: openvino-ts
+
+      In this backend, Torch FX subgraphs are first traced/scripted with PyTorch Torchscript, and then converted to OpenVINO representation 
+
+      .. code-block:: console
+
+         from openvino.frontend.pytorch.torchdynamo import backend
+         ...
+         model = torch.compile(model, backend='openvino_ts')
+
+         .. image:: _static/images/torch_compile_backend_openvino_ts.svg
 
 Architecture
 ++++++++++++++++++++++
@@ -54,17 +74,6 @@ When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces th
 
 All the operators that are supported are clustered into OpenVINO submodules, converted to OpenVINO graph using OpenVINO’s PyTorch decoder and executed on Intel hardware in an optimized manner using OpenVINO runtime. All unsupported operators fall back to native PyTorch runtime on CPU. If the subgraph fails during OpenVINO conversion, the subgraph falls back to PyTorch’s default inductor backend.
 
-.. tab-set::
-
-   .. tab-item:: backend = “openvino”
-      :sync: backend-openvino
-
-      .. image:: _static/images/torch_compile_backend_openvino.svg
-
-   .. tab-item:: backend = “openvino_ts”
-      :sync: backend-openvino-ts
-
-      .. image:: _static/images/torch_compile_backend_openvino_ts.svg
 
 Environment Variables
 +++++++++++++++++++++++++++
