@@ -5,26 +5,26 @@
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
     auto data_pattern = pass::pattern::any_input();
-    auto relu_pattern = ngraph::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, pattern::consumers_count(1));
-    auto input_low_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fq_pattern = ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({relu_pattern,
-                                                                            input_low_pattern,
-                                                                            pass::pattern::any_input(),
-                                                                            pass::pattern::any_input(),
-                                                                            pass::pattern::any_input()});
+    auto relu_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({data_pattern}, pattern::consumers_count(1));
+    auto input_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({relu_pattern,
+                                                                              input_low_pattern,
+                                                                              pass::pattern::any_input(),
+                                                                              pass::pattern::any_input(),
+                                                                              pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -57,6 +57,6 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fq_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(fq_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
