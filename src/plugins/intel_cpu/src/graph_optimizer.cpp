@@ -964,68 +964,68 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         return true;
     };
 
-    // auto initializeOutputCompensation = [](NodePtr node) {
-    //     auto* convNode = dynamic_cast<Convolution*>(node.get());
-    //     if (convNode == nullptr)
-    //         IE_THROW() << "Cannot get convolution node " << node->getName();
+    auto initializeOutputCompensation = [](NodePtr node) {
+        auto* convNode = dynamic_cast<Convolution*>(node.get());
+        if (convNode == nullptr)
+            IE_THROW() << "Cannot get convolution node " << node->getName();
 
-    //     if (convNode->legacyInputZeroPoints.empty())
-    //         return;
-    //     if (convNode->legacyOutputCompensation.empty())
-    //         convNode->legacyOutputCompensation.resize(convNode->getOutputShapeAtPort(0).getDims()[1]);
+        if (convNode->legacyInputZeroPoints.empty())
+            return;
+        if (convNode->legacyOutputCompensation.empty())
+            convNode->legacyOutputCompensation.resize(convNode->getOutputShapeAtPort(0).getDims()[1]);
 
-    //     auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
-    //     if (!weightsConstant || !weightsConstant->isConstant())
-    //         return;
+        auto weightsConstant = dynamic_cast<node::Input*>(convNode->getParentEdgesAtPort(1)[0]->getParent().get());
+        if (!weightsConstant || !weightsConstant->isConstant())
+            return;
 
-    //     auto weightsBlob = weightsConstant->getMemoryPtr();
-    //     if (weightsBlob == nullptr)
-    //         IE_THROW() << "Cannot cast to TBlob internal weights blob";
+        auto weightsBlob = weightsConstant->getMemoryPtr();
+        if (weightsBlob == nullptr)
+            IE_THROW() << "Cannot cast to TBlob internal weights blob";
 
-    //     auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
-    //     if (weightsPtr == nullptr)
-    //         IE_THROW() << "weightsBlob has not allocated buffer";
+        auto weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
+        if (weightsPtr == nullptr)
+            IE_THROW() << "weightsBlob has not allocated buffer";
 
-    //     auto G = convNode->getGroupNum();
-    //     const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
-    //     auto& weightsConstantDims = weightsConstant->outputShapes[0].getStaticDims();
+        auto G = convNode->getGroupNum();
+        const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
+        auto& weightsConstantDims = weightsConstant->outputShapes[0].getStaticDims();
 
-    //     auto OC = weightsConstantDims[0 + groupOffset];
-    //     auto IC = weightsConstantDims[1 + groupOffset];
-    //     auto KD = weightsConstantDims.size() == (5 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 3] : 1;
-    //     auto KH = weightsConstantDims.size() == (3 + groupOffset) ? 1 : weightsConstantDims[weightsConstantDims.size() - 2];
-    //     auto KW = weightsConstantDims[weightsConstantDims.size() - 1];
+        auto OC = weightsConstantDims[0 + groupOffset];
+        auto IC = weightsConstantDims[1 + groupOffset];
+        auto KD = weightsConstantDims.size() == (5 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 3] : 1;
+        auto KH = weightsConstantDims.size() == (3 + groupOffset) ? 1 : weightsConstantDims[weightsConstantDims.size() - 2];
+        auto KW = weightsConstantDims[weightsConstantDims.size() - 1];
 
-    //     for (size_t g = 0; g < G; g++) {
-    //         for (size_t oc = 0; oc < OC; oc++) {
-    //             int32_t a = 0;
-    //             for (size_t ic = 0; ic < IC; ic++) {
-    //                 for (size_t kd = 0; kd < KD; kd++) {
-    //                     for (size_t kh = 0; kh < KH; kh++) {
-    //                         for (size_t kw = 0; kw < KW; kw++) {
-    //                             size_t widx = g * OC * IC * KD * KH * KW +
-    //                                           oc * IC * KD * KH * KW +
-    //                                           ic * KD * KH * KW +
-    //                                           kd * KH * KW +
-    //                                           kh * KW +
-    //                                           kw;
+        for (size_t g = 0; g < G; g++) {
+            for (size_t oc = 0; oc < OC; oc++) {
+                int32_t a = 0;
+                for (size_t ic = 0; ic < IC; ic++) {
+                    for (size_t kd = 0; kd < KD; kd++) {
+                        for (size_t kh = 0; kh < KH; kh++) {
+                            for (size_t kw = 0; kw < KW; kw++) {
+                                size_t widx = g * OC * IC * KD * KH * KW +
+                                              oc * IC * KD * KH * KW +
+                                              ic * KD * KH * KW +
+                                              kd * KH * KW +
+                                              kh * KW +
+                                              kw;
 
-    //                             auto w = static_cast<int32_t>(weightsPtr[widx]);
+                                auto w = static_cast<int32_t>(weightsPtr[widx]);
 
-    //                             auto izp = !convNode->legacyInputZeroPoints.empty() ? static_cast<int32_t>(convNode->legacyInputZeroPoints[g * IC + ic]) : 0;
-    //                             a += w * izp;
+                                auto izp = !convNode->legacyInputZeroPoints.empty() ? static_cast<int32_t>(convNode->legacyInputZeroPoints[g * IC + ic]) : 0;
+                                a += w * izp;
 
-    //                             auto wzp = !convNode->legacyWeightsZeroPoints.empty() ?
-    //                                         static_cast<int32_t>(convNode->legacyWeightsZeroPoints[g * OC + oc]) : 0;
-    //                             a -= wzp * izp;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //             convNode->legacyOutputCompensation[g * OC + oc] = -a;
-    //         }
-    //     }
-    // };
+                                auto wzp = !convNode->legacyWeightsZeroPoints.empty() ?
+                                            static_cast<int32_t>(convNode->legacyWeightsZeroPoints[g * OC + oc]) : 0;
+                                a -= wzp * izp;
+                            }
+                        }
+                    }
+                }
+                convNode->legacyOutputCompensation[g * OC + oc] = -a;
+            }
+        }
+    };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
         auto conv = graphNodes[i];
@@ -1041,7 +1041,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
                         " is optimized as zeropoint of Conv ##", conv->getName());
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
-            //initializeOutputCompensation(conv);
+            initializeOutputCompensation(conv);
         }
     }
 }
@@ -1149,8 +1149,8 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (conv == nullptr)
             IE_THROW() << "Cannot cast to convolution node " << node->getName();
 
-        // if (!conv->legacyWeightsZeroPoints.empty())
-        //     return false;
+        if (!conv->legacyWeightsZeroPoints.empty())
+            return false;
 
         const auto &strides = conv->getStride();
         const auto &paddings = conv->getPaddingL();
@@ -1199,7 +1199,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         if (!everyone_is(Precision::FP32, parentOutputPrecision, childOutputPrecision))
             return false;
 
-        if (!convChild->inputZeroPoints.empty())
+        if (!convChild->legacyInputZeroPoints.empty() || !convChild->legacyWeightsZeroPoints.empty())
             return false;
 
         bool withBias = convChild->getOriginalInputPrecisions().size() == 3;
