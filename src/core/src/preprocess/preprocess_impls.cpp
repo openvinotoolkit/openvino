@@ -324,7 +324,6 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
     auto start_out_node_names = node.get_tensor().get_names();
-    node.get_tensor().set_names({});
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     // Set result layout from 'model' information
     if (get_model_data()->is_layout_set()) {
@@ -340,6 +339,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     }
     // Apply post-processing
     node = result->get_input_source_output(0);
+    node.get_tensor().set_names({});
     bool post_processing_applied = false;
     for (const auto& action : get_postprocess()->actions()) {
         auto action_result = action.m_op({node}, context);
