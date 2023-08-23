@@ -148,6 +148,7 @@ jobs:
       - name: Setup ccache
         run: |
           mkdir -p $CCACHE_DIR
+          echo "this is from pipeline" >> $CCACHE_DIR/testfile
 
       - name: Get tools versions
         run: |
