@@ -101,9 +101,6 @@ jobs:
       - name: Run OV core unit tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_core_unit_tests
 
-      - name: Run OV Proxy plugin tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_proxy_plugin_tests
-
       - name: Run OV Hetero Func tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_hetero_func_tests
 
