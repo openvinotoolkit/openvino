@@ -5,6 +5,7 @@
 #include "openvino/op/normalize_l2.hpp"
 
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace std;
 using namespace ov;

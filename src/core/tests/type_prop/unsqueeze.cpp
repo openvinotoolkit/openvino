@@ -8,6 +8,7 @@
 #include "gmock/gmock.h"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "sequnce_generator.hpp"
@@ -231,7 +232,7 @@ TEST_P(UnsqueezeTest, use_default_ctor) {
     const auto axes_node = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{axes.size()}, axes);
 
     const auto unsqueeze = make_shared<op::v0::Unsqueeze>();
-    unsqueeze->set_arguments({param, axes_node});
+    unsqueeze->set_arguments(ov::NodeVector{param, axes_node});
     unsqueeze->validate_and_infer_types();
 
     EXPECT_EQ(unsqueeze->get_output_element_type(0), element::f32);
