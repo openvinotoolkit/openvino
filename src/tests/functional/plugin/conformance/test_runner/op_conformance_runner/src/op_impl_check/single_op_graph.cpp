@@ -435,10 +435,10 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v6::GatherElem
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::GatherTree> &node) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 10}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 10}}),
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 10}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 10}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
     const auto gather_tree = std::make_shared<ov::op::v1::GatherTree>(params[0], params[1], params[2], params[3]);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_tree)};
     return std::make_shared<ov::Model>(results, params, "GatherTree");
@@ -610,9 +610,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::MatMul> &n
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
 
     auto nms = std::make_shared<ov::op::v1::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -628,9 +628,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::NonMaxSupp
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
 
     auto nms = std::make_shared<ov::op::v3::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -646,9 +646,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonMaxSupp
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
 
     auto nms = std::make_shared<ov::op::v4::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -664,9 +664,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::NonMaxSupp
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
 
     auto nms = std::make_shared<ov::op::v5::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -682,9 +682,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSupp
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::NonMaxSuppression> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 6, 4}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{1, 1, 6}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}}),
-                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{}})};
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{})};
 
     auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0],
                                                                params[1],
@@ -713,7 +713,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::NormalizeL
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::OneHot> &node) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{{}})};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{})};
     const auto depth = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{3});
     const auto onvalue = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{1});
     const auto offvalue = ngraph::builder::makeConstant<int32_t>(ov::element::i32, {}, std::vector<int32_t>{0});
@@ -1811,7 +1811,7 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
                                  std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1))};;
         return std::make_shared<ov::Model>(results, params, "LSTMCell4BaseGraph");
     } else if (ov::is_type<ov::op::v5::GRUSequence>(node)) {
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{{5, 10, 10}}),
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 10, 10}}),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{5})};
 
