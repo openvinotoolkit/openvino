@@ -114,8 +114,7 @@ public:
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
-            if (ov::is_type<ov::op::v1::ReduceSum>(node) ||
-                ov::is_type<ov::op::v1::ReduceMean>(node)) {
+            if (ov::is_type<ov::op::v1::ReduceMean>(node)) {
                 disable_fp16_compression(node);
                 return true;
             }

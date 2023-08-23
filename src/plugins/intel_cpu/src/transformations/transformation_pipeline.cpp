@@ -736,14 +736,14 @@ void Transformations::PostSnippets(void) {
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
-    precisions_map fp_convert_precision_map = {
+    /*precisions_map fp_convert_precision_map = {
             {ov::element::f32, ov::element::f16}
     };
     type_to_fuse_map empty_fuse_map = {};
     const bool keep_precision_sensitive_in_fp32 = true;
     CPU_REGISTER_PASS_ARM(postSnippetsManager, ov::pass::ConvertPrecision, fp_convert_precision_map,
                                                                            empty_fuse_map,
-                                                                           keep_precision_sensitive_in_fp32);
+                                                                           keep_precision_sensitive_in_fp32);*/
     postSnippetsManager.run_passes(model);
 }
 

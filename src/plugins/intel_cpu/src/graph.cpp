@@ -193,7 +193,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         graphNodes.push_back(outNode);
     }
 
-    //EnforceInferencePrecision();
+    EnforceInferencePrecision();
 }
 
 void Graph::Replicate(const CNNNetwork &network) {
@@ -312,7 +312,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         output.second->setOriginalInputPrecisionAtPort(0, precToSet);
     }
     // enforce must be performed after inputs and outputs info are taken into account
-    //EnforceInferencePrecision();
+    EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
     for (auto &input : inputNodesMap) {
         const auto& inputNode = input.second;
@@ -1764,7 +1764,7 @@ void Graph::EnforceInferencePrecision() {
     for (const auto& node : graphNodes) {
         if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
             continue;
-
+        if (one_of(node->getType(), Type::Reduce, Type::Eltwise)) continue;
         if (one_of(node->getType(), Type::Input, Type::Output))
             continue;
 
@@ -1797,7 +1797,7 @@ void Graph::EnforceInferencePrecision() {
 
             if (keepOriginalInputPrecisionAtPort(node, i))
                 continue;
-
+            
             node->setOriginalInputPrecisionAtPort(i, inferPrec);
         }
 
