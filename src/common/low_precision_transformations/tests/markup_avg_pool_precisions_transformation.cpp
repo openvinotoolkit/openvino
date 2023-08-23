@@ -137,14 +137,14 @@ TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
 
     {
         auto avgPoolPrecisioinPreservedAttribute =
-            ngraph::pass::low_precision::getAttribute<ngraph::PrecisionPreservedAttribute>(*avgPoolOperations.begin());
+            ngraph::pass::low_precision::getAttribute<ngraph::AvgPoolPrecisionPreservedAttribute>(*avgPoolOperations.begin());
         ASSERT_FALSE(avgPoolPrecisioinPreservedAttribute.empty());
-        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute.as<ngraph::PrecisionPreservedAttribute>().value());
+        ASSERT_EQ(true, avgPoolPrecisioinPreservedAttribute.as<ngraph::AvgPoolPrecisionPreservedAttribute>().value());
     }
 
     const auto precisionPreserved = LayerTransformation::get<ov::op::v1::MaxPool>(actualFunction);
-    ASSERT_TRUE(checkIfAttributesAreTheSame<ngraph::PrecisionPreservedAttribute>(precisionPreserved))
-        << "ngraph::PrecisionPreservedAttribute are not the same";
+    ASSERT_TRUE(checkIfAttributesAreTheSame<ngraph::AvgPoolPrecisionPreservedAttribute>(precisionPreserved))
+        << "AvgPoolPrecisionPreservedAttribute are not the same";
 
     // auto res = compare_functions(actualFunction, referenceFunction, true, true);
     // ASSERT_TRUE(res.first) << res.second;
