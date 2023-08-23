@@ -433,7 +433,6 @@ TYPED_TEST_P(FFTInvalidInput, invalid_axes) {
                     HasSubstr("Axis value: 2, must be in range (-3, 2)"));
 
     axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-
     OV_EXPECT_THROW(std::ignore = this->make_op(data, axes), ov::Exception, HasSubstr("Axes input must be 1D tensor."));
 }
 

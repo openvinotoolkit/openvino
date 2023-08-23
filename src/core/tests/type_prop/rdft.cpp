@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
@@ -293,80 +294,56 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToDummyParamName());
 
 TEST(type_prop, rdft_invalid_input) {
-    auto axes = op::Constant::create(element::i64, Shape{2}, {0, 1});
+    auto axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
 
-    try {
-        auto data = std::make_shared<op::Parameter>(element::f32, Shape{});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid input.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater or equal to 1.");
-    }
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("The input rank must be greater or equal to 1."));
 
-    try {
-        auto data = std::make_shared<op::Parameter>(element::f32, Shape{4});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid input.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "The input rank must be greater than or equal to the number of axes.");
-    }
+    data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("The input rank must be greater than or equal to the number of axes."));
 }
 
 TEST(type_prop, rdft_invalid_axes) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3, 2});
 
-    try {
-        auto axes = op::Constant::create(element::i64, Shape{1}, {3});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: 3, must be in range (-4, 3)");
-    }
+    auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axis value: 3, must be in range (-4, 3)"));
 
-    try {
-        auto axes = op::Constant::create(element::i64, Shape{1}, {-4});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axis value: -4, must be in range (-4, 3)");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{1}, {-4});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axis value: -4, must be in range (-4, 3)"));
 
-    try {
-        auto axes = op::Constant::create(element::i64, Shape{2}, {0, -3});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Each axis must be unique");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -3});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("Each axis must be unique"));
 
-    try {
-        auto axes = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes);
-        FAIL() << "RDFT node was created with invalid axes.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Axes input must be 1D tensor");
-    }
+    axes = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
+                    ov::Exception,
+                    HasSubstr("Axes input must be 1D tensor."));
 }
 
 TEST(type_prop, rdft_invalid_signal_size) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 3, 2});
+    auto axes = op::v0::Constant::create(element::i64, Shape{1}, {0});
 
-    try {
-        auto signal_size = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes, signal_size);
-        FAIL() << "RDFT node was created with invalid signal size.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Signal size input must be 1D tensor");
-    }
+    auto signal_size = op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes, signal_size),
+                    ov::Exception,
+                    HasSubstr("Signal size input must be 1D tensor."));
 
-    try {
-        auto signal_size = op::Constant::create(element::i64, Shape{2}, {0, 1});
-        auto rdft = std::make_shared<op::v9::RDFT>(data, axes, signal_size);
-        FAIL() << "RDFT node was created with invalid signal size.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Sizes of inputs 'axes' and 'signal_size' must be equal");
-    }
+    signal_size = op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes, signal_size),
+                    ov::Exception,
+                    HasSubstr("Sizes of inputs 'axes' and 'signal_size' must be equal."));
 }
 
 TEST(type_prop, rdft_dynamic_types) {
