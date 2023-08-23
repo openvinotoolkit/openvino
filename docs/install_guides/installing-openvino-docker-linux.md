@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
+# Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image {#openvino_docs_install_guides_installing_openvino_docker_linux}
 
 @sphinxdirective
 
@@ -14,9 +14,17 @@ Supported operating systems for the Docker Base image:
 - RedHat UBI 8
 - Windows (WSL2)
 
-.. important::
+Prebuilt images are available in:
 
-   While Windows is listed as a supported system, there is no dedicated Docker Image for it. To work with Windows, use Windows Subsystem for Linux (WSL2).
+* `Docker Hub <https://hub.docker.com/u/openvino>`__
+* `Red Hat Quay.io <https://quay.io/organization/openvino>`__
+* `Red Hat Ecosystem Catalog (runtime image) <https://catalog.redhat.com/software/containers/intel/openvino-runtime/606ff4d7ecb5241699188fb3>`__
+* `Red Hat Ecosystem Catalog (development image) <https://catalog.redhat.com/software/containers/intel/openvino-dev/613a450dc9bc35f21dc4a1f7>`__
+* `Azure Marketplace <https://azuremarketplace.microsoft.com/en-us/marketplace/apps/intel_corporation.openvino>`__
+
+.. note::
+
+   OpenVINO development environment in a docker container is available also in `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be deployed in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__
 
 The `Docker CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. You can get started easily with pre-built and published docker images. Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__.
 
