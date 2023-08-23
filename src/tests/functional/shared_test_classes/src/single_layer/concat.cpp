@@ -32,7 +32,10 @@ void ConcatLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::tie(axis, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, inputShape);
+    ov::ParameterVector params;
+    for (auto&& shape : inputShape) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(shape)));
+    }
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
