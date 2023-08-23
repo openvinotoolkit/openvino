@@ -31,7 +31,7 @@ onnx_model_path = "model.onnx"
 torch.onnx.export(quantized_model, input_fp32, onnx_model_path)
 
 # convert ONNX model to OpenVINO model
-ov_quantized_model = ov.convert_model(onnx_model_path)
+ov_quantized_model = convert_model(onnx_model_path)
 
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(ov_quantized_model)
