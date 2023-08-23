@@ -329,6 +329,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
 
             // Configs
             ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
