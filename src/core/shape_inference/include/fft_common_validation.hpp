@@ -14,23 +14,26 @@ namespace fft_common_validation {
 enum class FFTKind { RealInput, ComplexInput };
 template <class T>
 void validate_input_rank(const ov::op::util::FFTBase* op,
+                         const std::vector<T>& input_shapes,
                          const T& input_shape,
                          const T& axes_shape,
                          size_t input_rank,
                          FFTKind fft_kind) {
     const size_t min_rank = (fft_kind == FFTKind::RealInput) ? 1 : 2;
-    NODE_VALIDATION_CHECK(op,
-                          input_rank >= min_rank,
-                          "The input rank must be greater or equal to ",
-                          min_rank,
-                          ". Got input rank: ",
-                          input_rank);
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_rank >= min_rank,
+                           "The input rank must be greater or equal to ",
+                           min_rank,
+                           ". Got input rank: ",
+                           input_rank);
 
     if (fft_kind == FFTKind::ComplexInput) {
-        NODE_VALIDATION_CHECK(op,
-                              input_shape[input_rank - 1].compatible(2),
-                              "The last dimension of input data must be 2. Got: ",
-                              input_shape[input_rank - 1]);
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               input_shape[input_rank - 1].compatible(2),
+                               "The last dimension of input data must be 2. Got: ",
+                               input_shape[input_rank - 1]);
     }
 
     if (axes_shape.is_dynamic()) {
@@ -38,26 +41,29 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
     }
 
     if (fft_kind == FFTKind::RealInput) {
-        NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
-                              "The input rank must be greater than or equal to the number of axes. "
-                              "Got input rank: ",
-                              input_rank,
-                              ", number of axes: ",
-                              axes_shape[0].get_length());
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
+                               "The input rank must be greater than or equal to the number of axes. "
+                               "Got input rank: ",
+                               input_rank,
+                               ", number of axes: ",
+                               axes_shape[0].get_length());
     } else {
-        NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
-                              "The input rank must be greater than number of axes. Got "
-                              "input rank: ",
-                              input_rank,
-                              ", number of axes: ",
-                              axes_shape[0].get_length());
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
+                               "The input rank must be greater than number of axes. Got "
+                               "input rank: ",
+                               input_rank,
+                               ", number of axes: ",
+                               axes_shape[0].get_length());
     }
 }
 
 template <class T>
 void validate_axes(const ov::op::util::FFTBase* op,
+                   const std::vector<T>& input_shapes,
                    const T& axes_shape,
                    std::vector<int64_t>& axes,
                    size_t input_rank,
@@ -89,15 +95,16 @@ void validate_axes(const ov::op::util::FFTBase* op,
 
     ov::AxisSet axes_set;
     for (int64_t& axis : axes) {
-        NODE_VALIDATION_CHECK(op,
-                              axis_min_value < axis && axis < axis_max_value,
-                              "Axis value: ",
-                              axis,
-                              ", must be in range (",
-                              axis_min_value,
-                              ", ",
-                              axis_max_value,
-                              ").");
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               axis_min_value < axis && axis < axis_max_value,
+                               "Axis value: ",
+                               axis,
+                               ", must be in range (",
+                               axis_min_value,
+                               ", ",
+                               axis_max_value,
+                               ").");
         if (axis < 0) {
             axis += axis_correction;
         }
@@ -108,20 +115,25 @@ void validate_axes(const ov::op::util::FFTBase* op,
 }
 
 template <class T>
-void validate_signal_size(const ov::op::util::FFTBase* op, const T& axes_shape, const T& signal_size_shape) {
-    NODE_VALIDATION_CHECK(op,
-                          signal_size_shape.rank().compatible(1),
-                          "Signal size input must be 1D tensor. Got signal: ",
-                          signal_size_shape);
+void validate_signal_size(const ov::op::util::FFTBase* op,
+                          const std::vector<T>& input_shapes,
+                          const T& axes_shape,
+                          const T& signal_size_shape) {
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           signal_size_shape.rank().compatible(1),
+                           "Signal size input must be 1D tensor. Got signal: ",
+                           signal_size_shape);
 
     if (axes_shape.is_static() && signal_size_shape.is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              axes_shape[0].compatible(signal_size_shape[0]),
-                              "Sizes of inputs 'axes' and 'signal_size' must be equal. "
-                              "Got size of 'axes': ",
-                              axes_shape[0],
-                              ", size of 'signal_size': ",
-                              signal_size_shape[0]);
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               axes_shape[0].compatible(signal_size_shape[0]),
+                               "Sizes of inputs 'axes' and 'signal_size' must be equal. "
+                               "Got size of 'axes': ",
+                               axes_shape[0],
+                               ", size of 'signal_size': ",
+                               signal_size_shape[0]);
     }
 }
 
@@ -136,15 +148,15 @@ void shape_validation(const ov::op::util::FFTBase* op,
 
     if (input_shape.rank().is_static()) {
         const auto input_rank = input_shape.size();
-        validate_input_rank(op, input_shape, axes_shape, input_rank, fft_kind);
-        validate_axes(op, axes_shape, axes, input_rank, axes_are_known, fft_kind);
+        validate_input_rank(op, input_shapes, input_shape, axes_shape, input_rank, fft_kind);
+        validate_axes(op, input_shapes, axes_shape, axes, input_rank, axes_are_known, fft_kind);
     }
 
     NODE_SHAPE_INFER_CHECK(op, input_shapes, axes_shape.rank().compatible(1), "Axes input must be 1D tensor.");
 
     if (input_shapes.size() == 3) {
         const auto& signal_size_shape = input_shapes[2];
-        validate_signal_size(op, axes_shape, signal_size_shape);
+        validate_signal_size(op, input_shapes, axes_shape, signal_size_shape);
     }
 }
 }  // namespace fft_common_validation
