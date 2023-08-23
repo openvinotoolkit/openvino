@@ -957,23 +957,23 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     attrs.resize(1);
     auto outputShape = outputStaticShape();
     // attr[0] - Legacy post ops + Legacy zero points.
-    DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
-    setPostOps(attrs[0], outputShape, true);
+    DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=false");
+    setPostOps(attrs[0], outputShape, false);
     addLegacyZeroPoints(attrs[0]);
 
-    //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
-    if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
-        return;
-    }
+    // //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
+    // if (attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::convolution)) {
+    //     return;
+    // }
 
-    // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
-    if (inputZeroPointType == zpType::None &&
-        !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
-        !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
-        return;
-    }
+    // // no matter if brgconv is available, 1 attribute is enough. Avoid duplicated attribute
+    // if (inputZeroPointType == zpType::None &&
+    //     !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::depthwise) &&
+    //     !attrContainsPostOp(attrs[0], dnnl::impl::primitive_kind::quantization)) {
+    //     return;
+    // }
     // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
-    if (inputZeroPointType == zpType::PerChannel) {
+    if (inputZeroPointType == zpType::PerChannel || inputZeroPointType == zpType::None) {
         DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
         return;
     }
@@ -983,16 +983,17 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     }
     // Try 2 attributes.
     attrs.resize(2);
-    if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-        //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
-        //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
-        //For now, have to adapt to JIT_AMX kernel for performance.
-        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
-        setPostOps(attrs[1], outputShape, true);
-    } else {
-        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
-        setPostOps(attrs[1], outputShape, false);
-    }
+    // if (inputZeroPointType == zpType::PerTensor && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    //     //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
+    //     //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
+    //     //For now, have to adapt to JIT_AMX kernel for performance.
+    //     DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
+    //     setPostOps(attrs[1], outputShape, true);
+    // } else {
+    //     DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
+    //     setPostOps(attrs[1], outputShape, false);
+    // }
+    setPostOps(attrs[1], outputShape, false);
     addZeroPoints(attrs[1]);
 }
 
@@ -1009,8 +1010,7 @@ void Convolution::initDescriptor(const NodeConfig& config) {
     int attrId = attrs.size() == 1 ? 0 :
         descId % 2 == 0 ? 0 : 1;
 
-    preferLegacyPostOps = (attrId == 0 || (attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
-                                      dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
+    preferLegacyPostOps = false;
     //attr[0] for legacy zero point.
     //attr[1] for stock per-tensor zero point.
     preferLegacyZeroPoint = (attrId == 0);
