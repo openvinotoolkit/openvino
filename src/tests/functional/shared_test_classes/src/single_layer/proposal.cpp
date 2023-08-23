@@ -147,7 +147,10 @@ void ProposalLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
         // a_ and b_ are a workaround to solve alphabetic param sorting that destroys ordering
-    auto params = ngraph::builder::makeParams(ngPrc, {{"a_scores", scoresShape}, {"b_boxes", boxesShape}});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape)),
+                               std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape))};
+    params[0]->set_friendly_name("a_scores");
+    params[1]->set_friendly_name("b_boxes");
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
