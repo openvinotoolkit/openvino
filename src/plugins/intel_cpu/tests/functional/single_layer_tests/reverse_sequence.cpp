@@ -70,7 +70,7 @@ protected:
         init_input_shapes({dataInputShape, seqLengthsShape});
 
         const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto paramsIn = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes[0]});
+        ov::ParameterVector paramsIn{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputDynamicShapes[0])};
 
         constexpr auto seqLengthsPrc = ngraph::element::Type_t::i32; //according to the specification
         std::shared_ptr<ngraph::Node> seqLengthsInput;

@@ -47,7 +47,10 @@ protected:
 
         init_input_shapes({input_shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(input_precision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(input_precision, shape));
+        }
         const VariableInfo variable_info { inputDynamicShapes[0], input_precision, "v0" };
         auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(params.at(0), variable);

@@ -94,7 +94,10 @@ protected:
             selectedType = makeSelectedTypeStr(selectedType, dataPrecision);
         }
 
-        auto params = ngraph::builder::makeDynamicParams(dataPrecision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrecision, shape));
+        }
         params[0]->set_friendly_name("data");
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(params));
         std::shared_ptr<ov::Node> uniqueNode;

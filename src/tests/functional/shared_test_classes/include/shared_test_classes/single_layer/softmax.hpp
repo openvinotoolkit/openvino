@@ -62,7 +62,10 @@ protected:
         std::tie(ngPrc, inType, outType, shapes, axis, targetDevice, configuration) = this->GetParam();
         init_input_shapes({shapes});
 
-        const auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngPrc, shape));
+        }
         const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

@@ -74,7 +74,7 @@ protected:
         }
 
         init_input_shapes(shapesToInit);
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
         std::shared_ptr<ov::Node> splitLengthsOp;
         if (lengthsType == ngraph::helpers::InputLayerType::PARAMETER) {

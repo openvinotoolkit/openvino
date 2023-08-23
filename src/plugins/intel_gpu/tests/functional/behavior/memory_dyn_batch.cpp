@@ -54,14 +54,14 @@ public:
     }
 
     static std::shared_ptr<ov::Model> buildModel(ElementType precision, const ov::PartialShape& shape) {
-        auto param = builder::makeDynamicParams(precision, { shape });
+        auto param = std::make_shared<ov::op::v0::Parameter>(precision, shape);
         const VariableInfo variable_info { shape, precision, "v0" };
         auto variable = std::make_shared<Variable>(variable_info);
-        auto read_value = std::make_shared<ReadValue>(param.at(0), variable);
-        auto add = std::make_shared<Add>(read_value, param.at(0));
+        auto read_value = std::make_shared<ReadValue>(param, variable);
+        auto add = std::make_shared<Add>(read_value, param);
         auto assign = std::make_shared<Assign>(add, variable);
         auto res = std::make_shared<Result>(add);
-        return std::make_shared<ov::Model>(ResultVector { res }, SinkVector { assign }, param,
+        return std::make_shared<ov::Model>(ResultVector { res }, SinkVector { assign }, ov::ParameterVector{param},
             "MemoryDynamicBatchTest");
     }
 
