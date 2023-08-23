@@ -5,21 +5,21 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 
 #include <memory>
-#include <ngraph/graph_util.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
         auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
@@ -37,7 +37,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
 
         // Create copies of the TensorIterator body, the number of copies is equal to the number of iterations.
         // Assign names to the created layers.
-        std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
+        std::vector<std::shared_ptr<ov::Model>> body_functions(num_iter);
         for (int64_t idx = 0; idx < num_iter; ++idx) {
             body_functions[idx] = function->clone();
             for (auto& node : body_functions[idx]->get_ops()) {
@@ -120,10 +120,10 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                     std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
                         return ov::as_type<ov::op::v0::Result>(target_inp.get_node()) != nullptr;
                     })) {
-                    NGRAPH_SUPPRESS_DEPRECATED_START
+                    OPENVINO_SUPPRESS_DEPRECATED_START
                     ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
                                                               ov::op::util::create_ie_output_name(ti_output));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                 }
             };
 
@@ -138,7 +138,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                 // If the number of iterations is 1, then the Concat is not needed.
 
                 if (num_iter > 1) {
-                    ngraph::OutputVector to_concat(num_iter);
+                    ov::OutputVector to_concat(num_iter);
                     auto stride = concat_desc->m_stride;
 
                     // Connect outputs of the bodies to the Concat layer
@@ -152,7 +152,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                     auto concat = std::make_shared<ov::op::v0::Concat>(to_concat, concat_desc->m_axis);
                     copy_runtime_info(sub_graph_op, concat);
 
-                    // set output name to Tensor to store it for ngraph to cnn conversion
+                    // set output name to Tensor to store it for openvino to cnn conversion
                     insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), concat->output(0));
 
                     // connect the Concat layer to the corresponding TI outputs
@@ -164,7 +164,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                     std::shared_ptr<ov::op::v0::Result> result =
                         body_functions[0]->get_results().at(concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
-                    // set output name to Tensor to store it for ngraph to cnn conversion
+                    // set output name to Tensor to store it for openvino to cnn conversion
                     insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), input_to_res);
 
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
@@ -216,7 +216,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                 for (int64_t idx = 0; idx < num_iter; ++idx) {
                     const auto iter_idx = loop->get_special_body_ports().current_iteration_input_idx;
                     const auto& param_to_delete = body_functions[idx]->get_parameters()[iter_idx];
-                    auto cur_iter_const = std::make_shared<ov::op::v0::Constant>(ngraph::element::i64, Shape{}, idx);
+                    auto cur_iter_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, Shape{}, idx);
                     replace_node(param_to_delete, cur_iter_const);
                     body_functions[idx]->remove_parameter(param_to_delete);
                 }
