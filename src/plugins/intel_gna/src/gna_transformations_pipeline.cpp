@@ -192,6 +192,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
     manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
     manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+    manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphsCleanup>();
+
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
