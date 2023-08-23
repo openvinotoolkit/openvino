@@ -5,8 +5,8 @@ import logging as log
 import numpy as np
 import sys
 
-from openvino.runtime import opset10 as ops
-from openvino.runtime import Core, Model, PartialShape, Tensor, Type
+from openvino import Core, Model, PartialShape, Tensor
+from openvino.runtime import opset12 as ops
 from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
 
 
