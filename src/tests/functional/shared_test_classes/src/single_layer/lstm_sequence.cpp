@@ -76,12 +76,15 @@ namespace LayerTestsDefinitions {
         const auto& B_shape = inputShapes[6];
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = makeParams(ngPrc, {inputShapes[0], inputShapes[1], inputShapes[2]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShapes[0]),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShapes[1]),
+                                   std::make_shared<ov::op::v0::Parameter>(ngPrc, inputShapes[2])};
+
         std::shared_ptr<ov::Node> seq_lengths_node;
         if (m_mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM ||
             m_mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) {
-            auto param = makeParams(ov::element::i64, {inputShapes[3]}).at(0);
+            auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputShapes[3]);
             seq_lengths_node = param;
             seq_lengths_node->set_friendly_name("seq_lengths");
             params.push_back(param);

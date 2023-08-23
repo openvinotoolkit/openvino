@@ -79,7 +79,7 @@ protected:
         bool normalizeVariance, acrossChannels, mvnVersion6;
         std::tie(normalizeVariance, eps, epsMode, acrossChannels, mvnVersion6) = mvnParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto input = builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         InferenceEngine::SizeVector axes(inputShape.size() - 2);
         std::iota(axes.begin(), axes.end(), 2);
         std::shared_ptr<ngraph::Node> mvn;
