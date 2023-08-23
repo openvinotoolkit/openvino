@@ -41,7 +41,6 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
@@ -483,6 +482,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install/samples
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       BUILD_DIR: ${{ github.workspace }}/build
       DATA_PATH: ${{ github.workspace }}/testdata
       MODELS_PATH: ${{ github.workspace }}/testdata
