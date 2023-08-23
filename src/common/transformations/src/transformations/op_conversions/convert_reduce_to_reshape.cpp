@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-bool CvtReduceBase::is_redundant(ngraph::Shape input, ngraph::Shape output) {
+bool CvtReduceBase::is_redundant(ov::Shape input, ov::Shape output) {
     if (shape_size(input) != shape_size(output))
         return false;
 

@@ -4,12 +4,12 @@
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/rt_info/dequantization_node.hpp>
-#include <transformations/rt_info/disable_constant_folding.hpp>
-#include <transformations/utils/utils.hpp>
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions,
                                                                  const bool fold_subtract_const) {

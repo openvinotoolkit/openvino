@@ -5,14 +5,14 @@
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 #include <array>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 

@@ -5,18 +5,18 @@
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/or.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
@@ -130,6 +130,6 @@ ov::pass::BatchToSpaceFusion::BatchToSpaceFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_or_transpose_after_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_or_transpose_after_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

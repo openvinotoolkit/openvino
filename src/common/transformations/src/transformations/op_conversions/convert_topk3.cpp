@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);
@@ -24,7 +24,7 @@ ov::pass::ConvertTopK3::ConvertTopK3() {
         }
         Output<Node> last0;
         Output<Node> last1;
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         auto new_topk = std::make_shared<ov::op::v1::TopK>(topk->input_value(0),
                                                            topk->input_value(1),
@@ -58,12 +58,12 @@ ov::pass::ConvertTopK3::ConvertTopK3() {
             last1.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         }
 
-        ngraph::copy_runtime_info(topk, new_ops);
+        ov::copy_runtime_info(topk, new_ops);
         topk->output(0).replace(last0);
         topk->output(1).replace(last1);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(topk, matcher_name);
     register_matcher(m, callback);
 }

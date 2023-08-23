@@ -8,13 +8,13 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph/pattern/op/wrap_type.hpp"
-#include "ngraph/rt_info.hpp"
-#include "ngraph/validation_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 /// \brief      Check for correct Transpose orders which are before and after MatMul. Second Transpose must be back for
@@ -121,23 +121,23 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
         return node.get_partial_shape().is_static();
     });
 
-    auto const_transpose_before_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_transpose_before_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_before_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Transpose>({input_2_pattern, const_transpose_before_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({input_2_pattern, const_transpose_before_pattern});
 
-    auto const_reshape_before_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_reshape_before_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_before_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Reshape>({transpose_before_pattern, const_reshape_before_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({transpose_before_pattern, const_reshape_before_pattern});
 
-    auto matmul_pattern = ngraph::pattern::wrap_type<ov::op::v0::MatMul>({input_1_pattern, reshape_before_pattern});
+    auto matmul_pattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({input_1_pattern, reshape_before_pattern});
 
-    auto const_reshape_after_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_reshape_after_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto reshape_after_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Reshape>({matmul_pattern, const_reshape_after_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({matmul_pattern, const_reshape_after_pattern});
 
-    auto const_transpose_after_pattern = ngraph::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_transpose_after_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_after_pattern =
-        ngraph::pattern::wrap_type<ov::op::v1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({reshape_after_pattern, const_transpose_after_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
@@ -191,6 +191,6 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(transpose_after_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_after_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

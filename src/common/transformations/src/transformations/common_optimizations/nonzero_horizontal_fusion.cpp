@@ -5,11 +5,11 @@
 #include "transformations/common_optimizations/nonzero_horizontal_fusion.hpp"
 
 #include <memory>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::NonZeroHorizontalFusion::NonZeroHorizontalFusion() {

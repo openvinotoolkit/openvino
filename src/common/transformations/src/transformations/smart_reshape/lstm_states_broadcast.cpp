@@ -115,11 +115,11 @@ bool broadcast_state_by_batch(ov::Input<ov::Node> input, const shared_ptr<ov::No
     const auto& broadcast_by_batch = make_shared<ov::op::v3::Broadcast>(
         constant_copy,
         make_shared<ov::op::v0::Concat>(
-            ngraph::NodeVector{batch_delivering_node,
-                               ov::op::util::make_try_fold<ov::op::v8::Gather>(
-                                   ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(constant_copy),
-                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
-                                   ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
+            ov::NodeVector{batch_delivering_node,
+                           ov::op::util::make_try_fold<ov::op::v8::Gather>(
+                               ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(constant_copy),
+                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}))},
             0));
     input.replace_source_output(broadcast_by_batch->output(0));
     return true;

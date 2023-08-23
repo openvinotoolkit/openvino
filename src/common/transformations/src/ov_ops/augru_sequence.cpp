@@ -6,7 +6,6 @@
 
 #include "augru_sequence_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
 

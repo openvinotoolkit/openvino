@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/prior_box.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);
@@ -42,8 +41,8 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
                                                                    prior_box_v8_node->input_value(1),
                                                                    attrs_v0);
         prior_box_v0->set_friendly_name(prior_box_v8_node->get_friendly_name());
-        ngraph::copy_runtime_info(prior_box_v8_node, prior_box_v0);
-        ngraph::replace_node(prior_box_v8_node, prior_box_v0);
+        ov::copy_runtime_info(prior_box_v8_node, prior_box_v0);
+        ov::replace_node(prior_box_v8_node, prior_box_v0);
 
         return true;
     };

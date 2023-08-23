@@ -4,16 +4,15 @@
 
 #include "openvino/op/convolution.hpp"
 
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 
 static bool compare_convolutions(const ov::op::v1::Convolution* conv1, ov::Node* node) {

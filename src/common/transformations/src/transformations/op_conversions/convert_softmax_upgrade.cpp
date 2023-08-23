@@ -4,11 +4,10 @@
 
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertSoftMax1ToSoftMax8::ConvertSoftMax1ToSoftMax8() {
     MATCHER_SCOPE(ConvertSoftMax1ToSoftMax8);

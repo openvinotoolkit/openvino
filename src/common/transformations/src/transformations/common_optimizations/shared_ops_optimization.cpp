@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/gather.hpp>
-#include <openvino/op/gather_elements.hpp>
-#include <openvino/op/reshape.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/slice.hpp>
-#include <openvino/op/squeeze.hpp>
-#include <openvino/op/tile.hpp>
-#include <openvino/op/unsqueeze.hpp>
-#include <openvino/op/util/sub_graph_base.hpp>
-#include <transformations/common_optimizations/shared_ops_optimization.hpp>
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ov;

@@ -5,16 +5,16 @@
 #include "transformations/common_optimizations/binarize_weights.hpp"
 
 #include <memory>
-#include <ngraph/rt_info.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 
@@ -34,8 +34,8 @@ static std::vector<float> quantize_weights(const Shape& weights_shape,
                                            Shape output_low_high_shape,
                                            const std::vector<float>& output_low,
                                            const std::vector<float>& output_high) {
-    NGRAPH_CHECK(shape_size(input_low_high_shape) == 1 || shape_size(input_low_high_shape) == weights_shape[0]);
-    NGRAPH_CHECK(shape_size(output_low_high_shape) == 1 || shape_size(output_low_high_shape) == weights_shape[0]);
+    OPENVINO_ASSERT(shape_size(input_low_high_shape) == 1 || shape_size(input_low_high_shape) == weights_shape[0]);
+    OPENVINO_ASSERT(shape_size(output_low_high_shape) == 1 || shape_size(output_low_high_shape) == weights_shape[0]);
     size_t out_feat_off = 1;
     for (size_t i = 1; i < weights_shape.size(); i++)
         out_feat_off *= weights_shape[i];

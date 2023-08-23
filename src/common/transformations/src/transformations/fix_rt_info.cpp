@@ -5,14 +5,14 @@
 #include "transformations/fix_rt_info.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-bool ov::pass::FixRtInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::FixRtInfo::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(FixRtInfo);
 
     for (auto& node : f->get_ops()) {

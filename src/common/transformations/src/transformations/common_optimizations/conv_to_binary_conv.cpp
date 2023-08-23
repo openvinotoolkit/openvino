@@ -5,12 +5,11 @@
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
@@ -19,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
@@ -38,14 +38,14 @@ static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) 
 ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
     MATCHER_SCOPE(ConvToBinaryConv);
     auto fq_pattern =
-        ngraph::pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
-                                                              pattern::any_input(),
-                                                              pattern::any_input(),
-                                                              ngraph::pattern::wrap_type<ov::op::v0::Constant>(),
-                                                              ngraph::pattern::wrap_type<ov::op::v0::Constant>()},
-                                                             pattern::consumers_count(1));
-    auto conv_pattern = ngraph::pattern::wrap_type<ov::op::v1::Convolution>(
-        {fq_pattern, ngraph::pattern::wrap_type<ov::op::v0::Constant>()});
+        ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                pattern::any_input(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>(),
+                                                                ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
+                                                               pattern::consumers_count(1));
+    auto conv_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
+        {fq_pattern, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
@@ -122,7 +122,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 ov::op::v0::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
             OPENVINO_SUPPRESS_DEPRECATED_START
-            weights_reduced_reshaped = ngraph::get_constant_from_source(weights_reduced_reshaped);
+            weights_reduced_reshaped = ov::get_constant_from_source(weights_reduced_reshaped);
             OPENVINO_SUPPRESS_DEPRECATED_END
             auto add = std::make_shared<ov::op::v1::Add>(new_conv, weights_reduced_reshaped);
             auto mul =
@@ -151,6 +151,6 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
 
-bool make_compatible_shape(const ngraph::PartialShape& input_shape, std::vector<size_t>& target_shape) {
+bool make_compatible_shape(const ov::PartialShape& input_shape, std::vector<size_t>& target_shape) {
     if (input_shape.rank().is_dynamic()) {
         return false;
     }
