@@ -65,7 +65,7 @@ def get_value_from_list_or_dict(container, name, idx):
 
 def extract_input_info_from_example(args, inputs):
     try:
-        from openvino.frontend.pytorch.utils import pt_to_ov_type_map # pylint: disable=no-name-in-module,import-error
+        from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
@@ -77,6 +77,8 @@ def extract_input_info_from_example(args, inputs):
     input_names = None
     if not isinstance(example_inputs, (list, tuple, dict)):
         list_inputs = [list_inputs]
+    if args.input_model._input_is_list:
+        list_inputs[0] = list_inputs[0].unsqueeze(0)
     if args.input_model._input_signature is not None and not is_dict_input:
         input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[0] == "self" else args.input_model._input_signature
         if not is_dict_input:
@@ -155,10 +157,6 @@ def prepare_torch_inputs(example_inputs):
         inputs = example_inputs
         if isinstance(inputs, list):
             inputs = [to_torch_tensor(x) for x in inputs]
-            if len(inputs) == 1:
-                inputs = torch.unsqueeze(inputs[0], 0)
-            else:
-                inputs = inputs
         elif isinstance(inputs, tuple):
             inputs = [to_torch_tensor(x) for x in inputs]
             inputs = tuple(inputs)
