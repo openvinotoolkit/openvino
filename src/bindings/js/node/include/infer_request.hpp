@@ -38,7 +38,7 @@ public:
      */
     static Napi::Object Wrap(Napi::Env env, ov::InferRequest infer_request);
 
-     /**
+    /**
      * @brief Sets an input/output tensor to infer on.
      * @param info contains passed arguments.
      * @param info[0] Name of the input or output tensor as Napi::String.
@@ -47,13 +47,43 @@ public:
     Napi::Value set_tensor(const Napi::CallbackInfo& info);
 
     /**
-     * @brief Sets an input tensor to infer models with single input.
+     * @brief Sets an input tensor to infer.
      * The model needs to have a single input if only one argument is passed.
      * @param info contains passed arguments.
      * @param info[0] Index of the input tensor or Javascript Tensor object.
      * @param info[1] Javascript Tensor object (optional).
      */
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Sets an output tensor to infer.
+     * The model needs to have a single input if only one argument is passed.
+     * @param info contains passed arguments.
+     * @param info[0] Index of the output tensor or Javascript Tensor object.
+     * @param info[1] Javascript Tensor object (optional).
+     */
+    Napi::Value set_output_tensor(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Gets an input/output tensor for inference.
+     * @param info contains passed arguments.
+     * @param info[0] Javascript ov::Output<ov::Node> object
+     * @return Tensor for the specified Node object
+     */
+    Napi::Value get_tensor(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Gets an input tensor for inference.
+     * @note The model needs to have a single input if no argument is passed.
+     * @param idx Index of the tensor to get. (optional)
+     */
+    Napi::Value get_input_tensor(const Napi::CallbackInfo& info);
+
+    /** @return A Javascript output tensor for the model. If model has several outputs, an error occurs. */
+    Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
+
+    /** @return A Javascript object with model outputs. */
+    Napi::Value get_output_tensors(const Napi::CallbackInfo& info);
 
     /** @brief  Checks incoming Napi::Value and calls overloaded infer() method */
     Napi::Value infer_dispatch(const Napi::CallbackInfo& info);
@@ -68,19 +98,8 @@ public:
      */
     void infer(const Napi::Array& inputs);
 
-    /**
-     * @brief Gets an input/output tensor for inference.
-     * @param info contains passed arguments.
-     * @param info[0] Javascript ov::Output<ov::Node> object
-     * @return Tensor for the specified Node object
-     */
-    Napi::Value get_tensor(const Napi::CallbackInfo& info);
-
-    /** @return A Javascript output tensor for the model. If model has several outputs, an error occurs. */
-    Napi::Value get_output_tensor(const Napi::CallbackInfo& info);
-
-    /** @return A Javascript object with model outputs. */
-    Napi::Value get_output_tensors(const Napi::CallbackInfo& info);
+    /** @return A Javascript CompiledModel. */
+    Napi::Value get_compiled_model(const Napi::CallbackInfo& info);
 
 private:
     ov::InferRequest _infer_request;
