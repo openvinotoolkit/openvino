@@ -35,14 +35,14 @@ public:
         std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
         std::ostringstream result;
 
-        result << "IS" << CommonTestUtils::vec2str(tmp_input_shapes) << "_";
-        result << "widths" << CommonTestUtils::vec2str(tmp_attrs.widths) << "_";
-        result << "heights" << CommonTestUtils::vec2str(tmp_attrs.heights) << "_";
+        result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
+        result << "widths" << ov::test::utils::vec2str(tmp_attrs.widths) << "_";
+        result << "heights" << ov::test::utils::vec2str(tmp_attrs.heights) << "_";
         result << "clip(" << unit_test::boolToString(tmp_attrs.clip) << ")_";
         result << "step_widths(" << tmp_attrs.step_widths<< ")_";
         result << "step_heights(" << tmp_attrs.step_heights << ")_";
         result << "offset(" << tmp_attrs.offset << ")_";
-        result << "variances" << CommonTestUtils::vec2str(tmp_attrs.variances) << "_";
+        result << "variances" << ov::test::utils::vec2str(tmp_attrs.variances) << "_";
         result << "exp_shape(" << tmp_exp_shape << ")";
         return result.str();
     }
