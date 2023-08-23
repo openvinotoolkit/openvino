@@ -16,6 +16,9 @@
    openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
 
+.. meta::
+   :description: Learn about supported model formats and the methods used to convert, read and compile them in OpenVINO™.
+
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other model formats presented below will ultimately be converted to :doc:`OpenVINO IR <openvino_ir>`.
 
