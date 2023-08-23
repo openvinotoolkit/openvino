@@ -38,11 +38,20 @@ public:
      */
     static Napi::Object Wrap(Napi::Env env, ov::InferRequest infer_request);
 
+     /**
+     * @brief Sets an input/output tensor to infer on.
+     * @param info contains passed arguments.
+     * @param info[0] Name of the input or output tensor as Napi::String.
+     * @param info[1] Javascript Tensor object.
+     */
+    Napi::Value set_tensor(const Napi::CallbackInfo& info);
+
     /**
      * @brief Sets an input tensor to infer models with single input.
-     * Unwraps Javascript Tensor object to create a pointer to TensorWrap object.
+     * The model needs to have a single input if only one argument is passed.
      * @param info contains passed arguments.
-     * @param info[0] Javascript Tensor object.
+     * @param info[0] Index of the input tensor or Javascript Tensor object.
+     * @param info[1] Javascript Tensor object (optional).
      */
     Napi::Value set_input_tensor(const Napi::CallbackInfo& info);
 
