@@ -38,8 +38,7 @@ def make_model(add_consts, mul_consts):
 
 
 def get_constants(model) -> List[Constant]:
-    from pathlib import Path
-    model_name = Path(tempfile.gettempdir()) / "f32_partially_compressed.xml"
+    model_name = tempfile.NamedTemporaryFile(suffix="_partially_compressed.xml").name
     ov.save_model(model, model_name)
     core = ov.Core()
     restored_model = core.read_model(model_name)
