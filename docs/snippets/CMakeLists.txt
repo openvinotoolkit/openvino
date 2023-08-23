@@ -91,6 +91,42 @@ endif()
 #                     ADDITIONAL_INCLUDE_DIRECTORIES
 #                         $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
+#
+# Check python snippets
+# 
+
+if(ENABLE_PYTHON AND NOT CMAKE_CROSSCOMPILING)
+    find_package(PythonInterp REQUIRED)
+
+    file(GLOB_RECURSE PYTHON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
+    set(PYTHON_SNIPPETS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/python_snippets")
+
+    if(OV_GENERATOR_MULTI_CONFIG)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python)
+    else()
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python)
+    endif()
+
+    foreach(python_snippet IN LISTS PYTHON_SOURCES)
+        string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${PYTHON_SNIPPETS_OUTPUT_DIR}" output_file ${python_snippet})
+        add_custom_command(OUTPUT ${output_file}
+            COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_BRIDGE_OUTPUT_DIRECTORY}
+                ${PYTHON_EXECUTABLE} ${python_snippet}
+            COMMAND ${CMAKE_COMMAND} -E touch ${output_file}
+            DEPENDS ${python_snippet} ie_api pyopenvino ov_frontends ov_plugins
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Check python docs snippet ${python_snippet}"
+            VERBATIM)
+        list(APPEND outputs ${output_file})
+    endforeach()
+
+    add_custom_target(${TARGET_NAME}_python ALL DEPENDS ${outputs})
+endif()
+
+#
+# Example
+#
+
 # Detect OpenVINO
 find_package(OpenVINO QUIET
              PATHS "${CMAKE_BINARY_DIR}"
@@ -98,10 +134,6 @@ find_package(OpenVINO QUIET
 if(NOT OpenVINO_FOUND)
     set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
 endif()
-
-#
-# Example
-#
 
 set(TARGET_NAME "ov_integration_snippet")
 # [cmake:integration_example_cpp]
