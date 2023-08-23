@@ -213,7 +213,7 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
 private:
-    int64_t _max_iteration;
+    int64_t _max_iteration = 0;
     std::vector<cldnn::loop::backedge_mapping> _back_edges;
 };
 

@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/pattern.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <openvino/op/util/pad_base.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     MATCHER_SCOPE(ConvertPadToGroupConvolution);
-    auto neg = ngraph::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
+    auto neg = ov::pass::pattern::wrap_type<op::util::PadBase>(pattern::has_static_dim(1));
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ov::op::util::PadBase>(m.get_match_root());
@@ -94,11 +94,11 @@ ov::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
             std::make_shared<ov::op::v1::GroupConvolution>(input, weights, stride, new_pad_begin, new_pad_end, stride);
 
         conv->set_friendly_name(pad->get_friendly_name());
-        ngraph::copy_runtime_info(pad, conv);
-        ngraph::replace_node(pad, conv);
+        ov::copy_runtime_info(pad, conv);
+        ov::replace_node(pad, conv);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(neg, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(neg, matcher_name);
     this->register_matcher(m, callback);
 }

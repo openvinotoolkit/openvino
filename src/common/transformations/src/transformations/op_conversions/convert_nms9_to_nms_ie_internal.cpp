@@ -5,21 +5,21 @@
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMS9ToNMSIEInternal);
-    auto nms = ngraph::pattern::wrap_type<ov::op::v9::NonMaxSuppression>();
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v9::NonMaxSuppression>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto nms_9 = std::dynamic_pointer_cast<ov::op::v9::NonMaxSuppression>(m.get_match_root());
@@ -37,7 +37,7 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         const auto& score_threshold =
             num_of_inputs > 4 ? new_args.at(4) : ov::op::v0::Constant::create(element::f32, Shape{}, {.0f});
 
-        // vector of new nGraph operations
+        // vector of new openvino operations
         NodeVector new_ops;
 
         auto one_dim_shape = Shape{1};
@@ -47,10 +47,10 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         Output<Node> new_score_threshold;
         Output<Node> new_soft_nms_sigma;
 
-        Output<Node> new_shape_for_max_per_class = ov::op::v0::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_iou_threshold = ov::op::v0::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_score_threshold = ov::op::v0::Constant::create(ngraph::element::i64, Shape{1}, {1});
-        Output<Node> new_shape_for_soft_nms_sigma = ov::op::v0::Constant::create(ngraph::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_max_per_class = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_iou_threshold = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_score_threshold = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {1});
+        Output<Node> new_shape_for_soft_nms_sigma = ov::op::v0::Constant::create(ov::element::i64, Shape{1}, {1});
 
         new_max_per_class = std::make_shared<ov::op::v1::Reshape>(max_per_class, new_shape_for_max_per_class, true);
         new_ops.emplace_back(new_max_per_class.get_node_shared_ptr());
@@ -121,11 +121,11 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         }
 
         nms_legacy->set_friendly_name(nms_9->get_friendly_name());
-        ngraph::copy_runtime_info(nms_9, new_ops);
-        ngraph::replace_node(nms_9, {output_0, nms_legacy->output(1), output_2});
+        ov::copy_runtime_info(nms_9, new_ops);
+        ov::replace_node(nms_9, {output_0, nms_legacy->output(1), output_2});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }
