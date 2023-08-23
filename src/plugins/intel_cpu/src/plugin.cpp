@@ -499,6 +499,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
+    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
+    transformations.UpToLpt();
+
     if (!is_cpu_map_available()) {
         ApplyPerformanceHints(config, nGraphFunc);
     }
@@ -510,8 +513,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     conf.readProperties(config, modelType);
     CalculateStreams(conf, nGraphFunc);
 
-    Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
-    transformations.UpToCpuSpecificOpSet();
+    transformations.PostLpt();
+    transformations.Snippets();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -783,7 +786,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
                                            Transformations transformation(model, enableLPT, conf.inferencePrecision, isLegacyAPI(), snippetsMode, engConfig);
-                                           transformation.UpToCpuSpecificOpSet();
+                                           transformation.UpToLpt();
+                                           transformation.PostLpt();
+                                           transformation.Snippets();
                                            transformation.CpuSpecificOpSet();
                                        },
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
