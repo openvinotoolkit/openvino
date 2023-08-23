@@ -871,14 +871,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::RandomUnif
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Range> &node) {
-    const auto params = ngraph::builder::makeParams(ov::element::f32, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape())};
     auto Node = std::make_shared<ov::op::v0::Range>(params.at(0), params.at(1), params.at(2));
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
     return std::make_shared<ov::Model>(results, params, "RangeGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Range> &node) {
-    const auto params = ngraph::builder::makeParams(ov::element::f32, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape())};
     auto Node = std::make_shared<ov::op::v4::Range>(params.at(0), params.at(1), params.at(2), ov::element::f32);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
     return std::make_shared<ov::Model>(results, params, "RangeGraph");
@@ -907,7 +911,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Reshape> &
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Result> &node) {
-    const auto params = ngraph::builder::makeParams(ov::element::f32, {{2, 2}});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2})};
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(params.at(0))};
     return std::make_shared<ov::Model>(results, params, "ResultGraph");
 }
