@@ -869,6 +869,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
+const auto deconvParams_AutoPadding_2D_AMX = ::testing::Combine(
+    ::testing::ValuesIn(deconvAmxKernels2d),
+    ::testing::ValuesIn(deconvAmxStrides2d),
+    ::testing::ValuesIn(padBegins2d),
+    ::testing::ValuesIn(padEnds2d),
+    ::testing::ValuesIn(dilations2d),
+    ::testing::Values(256),
+    ::testing::Values(ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER),
+    ::testing::ValuesIn(emptyOutputPadding)
+);
+
+const DeconvInputData inputs_2D_AutoPadding_AMX = {
+    InputShape{{-1, 512, -1, -1}, {{ 1, 512, 32, 51}, { 1, 512, 68, 101}}},
+    ngraph::helpers::InputLayerType::PARAMETER,
+    {{64, 101}, {135, 202}}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_AMX_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        deconvParams_AutoPadding_2D_AMX,
+        ::testing::Values(inputs_2D_AutoPadding_AMX),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_nspc_brgconv_amx})),
+        ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
 } // namespace
 
 } // namespace CPULayerTestsDefinitions
