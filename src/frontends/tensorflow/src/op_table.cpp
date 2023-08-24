@@ -46,6 +46,7 @@ TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_xla_dot_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -155,6 +156,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
+        {"FakeQuantWithMinMaxArgs", CreatorFunction(translate_fake_quant_with_min_max_args)},
         {"FIFOQueue", CreatorFunction(translate_fifo_queue_op)},
         {"FIFOQueueV2", CreatorFunction(translate_fifo_queue_op)},
         {"Fill", CreatorFunction(translate_fill_op)},
@@ -271,6 +273,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Transpose", CreatorFunction(translate_transpose_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
+        {"UnsortedSegmentSum", CreatorFunction(translate_unsorted_segment_sum_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},
         {"Xdivy", CreatorFunction(translate_x_div_y_op)},
@@ -299,6 +302,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
+
+        // XLA operations
+        {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
     };
 };
 }  // namespace op

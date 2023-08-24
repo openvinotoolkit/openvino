@@ -24,7 +24,6 @@ macro(ov_debian_cpack_set_dirs)
         endif()
     endif()
     set(OV_CPACK_LIBRARYDIR ${OV_CPACK_RUNTIMEDIR})
-    set(OV_WHEEL_RUNTIMEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_ARCHIVEDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
     set(OV_CPACK_IE_CMAKEDIR ${OV_CPACK_RUNTIMEDIR}/cmake/inferenceengine${OpenVINO_VERSION})
@@ -103,6 +102,8 @@ macro(ov_define_component_include_rules)
     set(OV_CPACK_COMP_OVC_EXCLUDE_ALL ${OV_CPACK_COMP_PYTHON_OPENVINO_EXCLUDE_ALL})
     # we don't need wheels in Debian packages
     set(OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL EXCLUDE_FROM_ALL)
+    # because numpy is installed by apt
+    set(OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL EXCLUDE_FROM_ALL)
     set(OV_CPACK_COMP_DEPLOYMENT_MANAGER_EXCLUDE_ALL EXCLUDE_FROM_ALL)

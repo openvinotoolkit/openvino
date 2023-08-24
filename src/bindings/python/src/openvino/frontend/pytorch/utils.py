@@ -55,7 +55,21 @@ def get_type_from_py_type(value):
     return OVType.dynamic
 
 
-def ivalue_to_constant(ivalue):
+def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
+    torch_t = torch_t.contiguous()
+    if torch_t.dtype == torch.bfloat16:
+        # reinterpret bfloat16 data as float16 to allow conversion to numpy
+        torch_t = torch_t.view(torch.float16)
+        narr = torch_t.numpy(force=True)
+        tensor = Tensor(narr, torch_t.shape, OVType.bf16)
+        ov_const = op.Constant(tensor, shared_memory=shared_memory)
+    else:
+        narr = torch_t.numpy(force=True)
+        ov_const = op.Constant(narr, shared_memory=shared_memory)
+    return ov_const
+
+
+def ivalue_to_constant(ivalue, shared_memory=True):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
@@ -67,22 +81,7 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        ivalue = ivalue.to(memory_format=torch.contiguous_format)
-        if ivalue.dtype == torch.bfloat16:
-            # reinterpret bfloat16 data as float16 to allow conversion to numpy
-            ivalue = ivalue.view(torch.float16)
-            narr = ivalue.numpy(force=True)
-            if not narr.flags['C_CONTIGUOUS']:
-                narr = np.ascontiguousarray(narr)
-            # TODO: this tensor doesn't share memory with initial tensor
-            tensor = Tensor(narr, ivalue.shape, OVType.bf16)
-            ov_const = op.Constant(tensor, shared_memory=True)
-        else:
-            narr = ivalue.numpy(force=True)
-            if not narr.flags['C_CONTIGUOUS']:
-                narr = np.ascontiguousarray(narr)
-            ov_const = op.Constant(narr, shared_memory=True)
-        return ov_const.outputs()
+        return torch_tensor_to_ov_const(ivalue, shared_memory=shared_memory).outputs()
     return None
 
 def get_value_from_getattr(getattr_node, self_module):

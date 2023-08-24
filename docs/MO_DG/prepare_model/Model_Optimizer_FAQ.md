@@ -335,7 +335,7 @@ Q31. What does the message "Input port > 0 in --input is not supported if --inpu
 
 **A:** When using the ``PORT:NODE`` notation for the ``--input`` command line argument and ``PORT`` > 0, you should specify ``--input_shape`` for this input. This is a limitation of the current Model Optimizer implementation.
 
-> **NOTE**: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
+.. note:: It is no longer relevant message since the limitation on input port index for model truncation has been resolved.
 
 .. _question-32:
 

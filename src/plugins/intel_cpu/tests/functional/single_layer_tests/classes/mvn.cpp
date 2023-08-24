@@ -99,9 +99,12 @@ void MvnLayerCPUTest::SetUp() {
 
     init_input_shapes({inputShapes});
 
-    auto param = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
+    ov::ParameterVector params;
+    for (auto&& shape : inputDynamicShapes) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+    }
     auto paramOuts =
-        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+        ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
     if (!axes.empty()) {
         mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
@@ -114,11 +117,9 @@ void MvnLayerCPUTest::SetUp() {
         rel_threshold = 250.f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
+    updateSelectedType(getPrimitiveType(), netPrecision, configuration);
 
-    selectedType = getPrimitiveType();
-    selectedType = makeSelectedTypeStr(selectedType, netPrecision);
-
-    function = makeNgraphFunction(netPrecision, param, mvn, "mvn");
+    function = makeNgraphFunction(netPrecision, params, mvn, "mvn");
 }
 
 TEST_P(MvnLayerCPUTest, CompareWithRefs) {
