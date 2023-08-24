@@ -353,7 +353,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
-                "framework": "onnx",
                 'output': "a,b,c"}
 
         argv = args_to_argv(**args)
@@ -366,7 +365,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
-                "framework": "onnx",
                 'output': "a, b, c"}
 
         argv = args_to_argv(**args)
@@ -379,7 +377,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
-                "framework": "onnx",
                 'output': "a,b, c"}
 
         argv = args_to_argv(**args)
@@ -392,7 +389,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
-                "framework": "onnx",
                 'output': "a,b"}
 
         argv = args_to_argv(**args)
@@ -405,7 +401,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
-                "framework": "onnx",
                 'output': ["a,b, c", 23]}
 
         argv = args_to_argv(**args)
