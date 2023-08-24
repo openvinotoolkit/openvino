@@ -16,8 +16,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for reshape_node!");
     auto input_layout = impl_param.get_non_padded_input_layout();
     auto desc = impl_param.typed_desc<reshape>();
     if (desc->output_shape.count() == 0) {
@@ -54,8 +52,6 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 
 template<typename ShapeType>
 std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
-    assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for reshape_node!");
     auto prim = impl_param.typed_desc<reshape>();
     auto input_layout = impl_param.get_input_layout(0);
 

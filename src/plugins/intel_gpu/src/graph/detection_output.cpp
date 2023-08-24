@@ -14,9 +14,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
 layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for "
-           "detection_output_node!");
     auto desc = impl_param.typed_desc<detection_output>();
     CLDNN_ERROR_NOT_EQUAL(desc->id,
                           "Detection output layer input number",

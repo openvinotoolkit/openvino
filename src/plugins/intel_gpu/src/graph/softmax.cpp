@@ -11,9 +11,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(softmax)
 
 layout softmax_inst::calc_output_layout(softmax_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for softmax_node!");
-
     auto output_layout = impl_param.get_input_layout();
 
     if (impl_param.has_fused_primitives())

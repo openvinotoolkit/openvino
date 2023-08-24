@@ -16,8 +16,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(border)
 
 layout border_inst::calc_output_layout(border_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for border_node!");
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
     auto desc = impl_param.typed_desc<border>();

@@ -17,8 +17,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(crop)
 
 layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for crop_node!");
     auto desc = impl_param.typed_desc<crop>();
     const auto& ref_in_sizes = desc->reference_input;
     const auto in_layout = impl_param.get_input_layout();
@@ -41,9 +39,6 @@ layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params c
 
 template<typename ShapeType>
 std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, const kernel_impl_params& impl_param) {
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false,
-           "Output data type forcing is not supported for crop_node!");
-
     auto desc = impl_param.typed_desc<crop>();
     const auto in_layout = impl_param.get_input_layout();
     std::vector<ShapeType> output_shapes = {ShapeType()};

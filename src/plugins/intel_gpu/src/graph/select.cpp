@@ -13,9 +13,6 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(select)
 
 layout select_inst::calc_output_layout(select_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for select_node!");
-
     auto in_layout = impl_param.get_non_padded_input_layout(1);
     auto output_size = in_layout.get_tensor();
 
