@@ -387,8 +387,8 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
             return {element::get_value_or_limit_of(et, lb), element::get_value_or_limit_of(et, ub)};
         };
     };
-    constexpr auto cast = ov::util::Cast<TData>();
 
+    constexpr auto cast = ov::util::Cast<TData>();
     ov::optional<TResult> out;
 
     if (const auto t = ta(port)) {
@@ -402,20 +402,12 @@ ov::optional<TResult> get_input_bounds(const ov::Node* op, size_t port, const IT
 
         if (bounds.first && bounds.second) {
             const auto& et = bounds.first.get_element_type();
-            constexpr auto cast = ov::util::Cast<TData>();
             auto lowers = get_tensor_data_as<TData>(bounds.first, cast);
             auto uppers = get_tensor_data_as<TData>(bounds.second, cast);
 
             out.emplace();
             out->reserve(lowers.size());
-            std::transform(
-                lowers.begin(),
-                lowers.end(),
-                uppers.begin(),
-                std::back_inserter(*out),
-                [&et](TData lb, TData ub) -> typename TResult::value_type {
-                    return {element::get_value_or_limit_of(et, lb), element::get_value_or_limit_of(et, ub)};
-                });
+            std::transform(lowers.begin(), lowers.end(), uppers.begin(), std::back_inserter(*out), make_bound(et));
         }
     }
 

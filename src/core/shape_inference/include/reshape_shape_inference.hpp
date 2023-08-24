@@ -225,7 +225,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                     output_shape.emplace_back(dim::inf_bound);
                     output_product = dim::inf_bound;
                 } else {
-                    NODE_VALIDATION_CHECK(op, i < input_shape.size(), "'0' dimension is out of range");
+                    NODE_SHAPE_INFER_CHECK(op, input_shapes, i < input_shape.size(), "'0' dimension is out of range");
                     output_shape.push_back(input_shape[i]);
                     // we do not include dimension to output product here and won't include in input
                     // product later because we will divide output_product by input_product. This
@@ -263,12 +263,12 @@ std::vector<TRShape> shape_infer(const Reshape* op,
             const auto backward_compatible_check = (zero_dims && special_zero) || has_minus_one_idx;
             const auto in_out_elements_equal = (input_product.total() == output_product);
 
-            NODE_VALIDATION_CHECK(op,
-                                  backward_compatible_check || in_out_elements_equal,
-                                  "Requested output shape ",
-                                  output_shape,
-                                  " is incompatible with input shape ",
-                                  input_shape);
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   backward_compatible_check || in_out_elements_equal,
+                                   "Requested output shape ",
+                                   output_shape,
+                                   " is incompatible with input shape");
         }
     } else if (pattern_shape_rank.is_static()) {
         auto out_rank = pattern_shape_rank.get_length() == 0
