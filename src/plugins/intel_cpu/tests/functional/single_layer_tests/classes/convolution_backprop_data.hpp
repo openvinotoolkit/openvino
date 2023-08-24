@@ -14,8 +14,11 @@
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include "gtest/gtest.h"
 
+using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ngraph::helpers;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
@@ -56,5 +59,23 @@ private:
     std::vector<std::vector<int32_t>> outShapeData;
     size_t inferRequestNum = 0;
 };
+
+namespace Deconvolution {
+    const std::vector<fusingSpecificParams>& fusingParamsSet();
+    const std::map<std::string, std::string>& cpuEmptyPluginConfig();
+    const std::map<std::string, std::string> cpuBF16PluginConfig();
+    const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding();
+    const InferenceEngine::SizeVector numOutChannels_Planar();
+    const InferenceEngine::SizeVector numOutChannels_Blocked();
+
+    /* ============= Deconvolution params (2D) ============= */
+    const std::vector<InferenceEngine::SizeVector> kernels2d();
+    const std::vector<InferenceEngine::SizeVector> strides2d();
+    const std::vector<std::vector<ptrdiff_t>> padBegins2d();
+    const std::vector<std::vector<ptrdiff_t>> padEnds2d();
+    const std::vector<InferenceEngine::SizeVector> dilations2d();
+    const std::vector<InferenceEngine::SizeVector> deconvAmxKernels2d();
+    const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d();
+} // namespace Deconvolution
 
 } // namespace CPULayerTestsDefinitions
