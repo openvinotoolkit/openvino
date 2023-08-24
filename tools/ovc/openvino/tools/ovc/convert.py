@@ -73,9 +73,9 @@ def convert_model(
             same as order of specified operation names. For PaddlePaddle model represented
             as a Python object, you can specify outputs as a PaddlePaddle Python objects or
             a list of such objects. Example with ovc.convert_model: output=["out_1", "out_2"].
-            When ovc cli tool is used outputs should be separated with coma+backspace:
+            When ovc cli tool is used outputs should be separated with coma (spaces are ignored):
             Example 1: ovc ... output="out_1, out_2".
-            Example 2: ovc ... output="x,y, output_2" means there are 2 names "x,y" and "output_2".
+            Example 2: ovc ... output="x,y,z" equivalent to ovc ... output="x, y, z".
         :param example_input:
             Sample of model input in original framework.
             For PyTorch it can be torch.Tensor.
