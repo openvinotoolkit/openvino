@@ -37,7 +37,7 @@ TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_
 
     std::shared_ptr<op::v9::RDFT> rdft;
     if (params.signal_size.empty()) {
-        rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
+        rdft = std::make_shared<ov::op::v9::RDFT>(data, axes_input);
     } else {
         auto signal_size_input =
             op::v0::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
