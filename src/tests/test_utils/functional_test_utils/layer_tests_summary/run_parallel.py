@@ -537,7 +537,7 @@ class TestParallelRunner:
         h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
-    def postprocess_logs(self, split_unit: str):
+    def postprocess_logs(self):
         test_results = dict()
         logger.info(f"Log analize is started")
         saved_tests = list()
@@ -650,13 +650,13 @@ class TestParallelRunner:
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
 
-                if (split_unit == constants.SUITE_UNIT_NAME):
+                if (self._split_unit == constants.SUITE_UNIT_NAME):
                     test_cnt_real = len(test_suites)
                 else:
                     test_cnt_real = test_cnt_real_saved_now
 
                 if test_cnt_real < test_cnt_expected:
-                    logger.error(f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {split_unit}")
+                    logger.error(f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {self._split_unit}")
                 else:
                     os.remove(log_filename)
 
@@ -814,7 +814,7 @@ if __name__ == "__main__":
                                      repeat_failed = args.repeat_failed,
                                      is_parallel_devices = args.parallel_devices)
     test_runner.run()
-    if not test_runner.postprocess_logs(args.split_unit):
+    if not test_runner.postprocess_logs():
         logger.error("Run is not successful")
         sys.exit(-1)
     else:
