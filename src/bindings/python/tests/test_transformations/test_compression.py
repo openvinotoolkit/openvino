@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import tempfile
 from typing import List
 
 import numpy as np
@@ -10,6 +9,7 @@ from openvino.runtime.op import Parameter, Constant
 from openvino.runtime.opset12 import add, multiply
 
 import openvino as ov
+from tests.test_utils.test_utils import create_filename_for_test
 
 
 def make_constant(values, transposed):
@@ -37,12 +37,11 @@ def make_model(add_consts, mul_consts):
     return ov.Model([mul1], [parameter1])
 
 
-def get_constants(model) -> List[Constant]:
-    from pathlib import Path
-    model_name = Path(tempfile.gettempdir()) / "f32_partially_compressed.xml"
-    ov.save_model(model, model_name)
+def get_constants(model, request, tmp_path) -> List[Constant]:
+    model_fname, _ = create_filename_for_test(request.node.name, tmp_path)
+    ov.save_model(model, model_fname)
     core = ov.Core()
-    restored_model = core.read_model(model_name)
+    restored_model = core.read_model(model_fname)
 
     op_ind_map = {"Add": 0, "Multiply": 1}
     constants_list = [[]] * len(op_ind_map)
@@ -70,9 +69,9 @@ def get_constants(model) -> List[Constant]:
     return constants_list
 
 
-def test_compression_1():
+def test_compression_1(request, tmp_path):
     model = make_model(more_in_range, more_out_of_range)
-    const_fp16, const_fp32 = get_constants(model)
+    const_fp16, const_fp32 = get_constants(model, request, tmp_path)
     assert const_fp32 is not None, "There is no Constant op on FP32 branch"
     assert const_fp16 is not None, "There is no compressed Constant + Convert op on FP16 branch"
 
@@ -85,9 +84,9 @@ def test_compression_1():
     assert np.all(np.array(converted_more_in_range, dtype=np.float32) == const_fp16.get_vector()), msg
 
 
-def test_compression_2():
+def test_compression_2(request, tmp_path):
     model = make_model(more_in_range, more_in_range)
-    const_fp16_1, const_fp16_2 = get_constants(model)
+    const_fp16_1, const_fp16_2 = get_constants(model, request, tmp_path)
 
     assert const_fp16_1 is not None, "There is no Constant op on FP16 branch"
     assert const_fp16_2 is not None, "There is no Constant op on FP16 branch"
@@ -101,9 +100,9 @@ def test_compression_2():
     assert np.all(in_range_clipped == const_fp16_2.get_vector())
 
 
-def test_no_compression():
+def test_no_compression(request, tmp_path):
     model = make_model(more_out_of_range, more_out_of_range)
-    const_fp32_1, const_fp32_2 = get_constants(model)
+    const_fp32_1, const_fp32_2 = get_constants(model, request, tmp_path)
 
     assert const_fp32_1 is not None, "There is no Constant op on FP32 branch"
     assert const_fp32_2 is not None, "There is no Constant op on FP32 branch"

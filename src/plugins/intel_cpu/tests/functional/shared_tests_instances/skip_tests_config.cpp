@@ -180,7 +180,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 111412
         R"(.*smoke_Proposal_(Static|Dynamic)_Test_Case1/ProposalLayerCPUTest.*)",
         // Issue: 111418
-        R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS=.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
+        R"(.*smoke_Snippets_ConvertStub/ConvertStub\.CompareWithRefImpl/IS.*_OT=\(bf16\)_#N=2_#S=2_targetDevice=CPU.*)",
         // Issue: 111944
         R"(.*smoke_DefConvLayoutTest6.*)",
         // Issue: 106939
@@ -214,11 +214,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
     // int8 specific
     retVector.emplace_back(R"(smoke_Quantized.*)");
-    // TODO: Issue 115961
-    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_1_num_req_64*)");
-    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_get_blob_batch_size_4_num_streams_2_num_req_64*)");
-    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_1_num_req_64*)");
-    retVector.emplace_back(R"(.*compareAutoBatchingToSingleBatch/CPU_set_blob_batch_size_4_num_streams_2_num_req_64*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)

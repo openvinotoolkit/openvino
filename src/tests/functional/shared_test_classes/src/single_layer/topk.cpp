@@ -38,7 +38,7 @@ void TopKLayerTest::SetUp() {
     std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
     auto paramIn = ngraph::helpers::convert2OutputVector(
                         ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 

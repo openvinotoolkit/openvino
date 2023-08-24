@@ -4,14 +4,13 @@
 
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
-
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::MatMulConstTransposesExtraction::MatMulConstTransposesExtraction() {
     auto data_pattern = pattern::any_input();

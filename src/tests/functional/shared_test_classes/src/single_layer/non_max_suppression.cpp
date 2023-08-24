@@ -310,7 +310,8 @@ void NmsLayerTest::SetUp() {
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
     auto nms = builder::makeNms(paramOuts[0],
@@ -367,7 +368,8 @@ void Nms9LayerTest::SetUp() {
 
     const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(boxesShape)),
+                                std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(scoresShape))};
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
     auto nms = builder::makeNms(paramOuts[0],

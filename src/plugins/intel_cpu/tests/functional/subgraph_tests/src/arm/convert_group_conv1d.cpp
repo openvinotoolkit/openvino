@@ -63,7 +63,10 @@ protected:
         const size_t numOfGroups = 2;
         const op::PadType paddingType = op::PadType::EXPLICIT;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
         switch (convType) {
             case nodeType::convolution : {
