@@ -10,6 +10,7 @@ import sys
 import traceback
 from collections import OrderedDict
 from pathlib import Path
+from typing import Iterable, List
 
 try:
     import openvino_telemetry as tm
@@ -76,6 +77,13 @@ def print_argv(argv: argparse.Namespace):
     print('\n'.join(lines), flush=True)
 
 
+def check_iterable_types(iterable: Iterable, type_name: type):
+    for element in iterable:
+        if not isinstance(element, type_name):
+            return False
+    return True
+
+
 def arguments_post_parsing(argv: argparse.Namespace):
     # TODO: This function looks similar to another one. Check for code duplicates.
     log.debug("Model Conversion API started")
@@ -86,10 +94,19 @@ def arguments_post_parsing(argv: argparse.Namespace):
         print_argv(argv)
 
     params_parsing(argv)
-    argv.output = argv.output.split(', ') if isinstance(argv.output, (str, pathlib.Path)) else argv.output
-
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
+    if not hasattr(argv, 'output') or argv.output is None:
+        return argv
+
+    if argv.is_python_api_used:
+        error_msg = f"output '{argv.output}' is incorrect, it should be string or a list of strings"
+        assert isinstance(argv.output, (str, list)), error_msg
+        if isinstance(argv.output, list):
+            assert check_iterable_types(argv.output, str), error_msg
+    else:
+        assert isinstance(argv.output, str)
+        argv.output = argv.output.replace(' ', '').split(',')
     return argv
 
 
