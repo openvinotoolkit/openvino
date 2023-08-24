@@ -571,8 +571,7 @@ void Subgraph::data_flow_transformations(const std::vector<snippets::pass::Manag
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
 
-    for (const auto& pos_pass : backend_passes)
-        manager.register_pass_instance(pos_pass.first, pos_pass.second);
+    manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
 }
 

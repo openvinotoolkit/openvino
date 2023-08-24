@@ -40,7 +40,7 @@ protected:
 
         std::shared_ptr<Node> data2;
         if (scalar_input) {
-            data2 = op::v0::Constant::create(precision, {1}, {2.f});
+            data2 = op::v0::Constant::create(precision, {}, {2.f});
         } else {
             auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
             parameters.push_back(parameter);
@@ -61,7 +61,7 @@ protected:
         ParameterVector parameters{data0, data1};
         std::shared_ptr<Node> data2;
         if (scalar_input) {
-            data2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{1}, 2.f);
+            data2 = std::make_shared<ov::snippets::op::Scalar>(precision, Shape{}, 2.f);
         } else {
             auto parameter = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
             parameters.push_back(parameter);

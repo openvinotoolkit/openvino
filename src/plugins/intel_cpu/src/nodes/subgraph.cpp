@@ -698,7 +698,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     std::vector<Manager::PositionedPass> backend_passes;
 
 #define SNIPPETS_ADD_POS_PASS(POS, PASS, ...) \
-            backend_passes.emplace_back(POS, std::make_shared<PASS>(__VA_ARGS__))
+            backend_passes.emplace_back(Manager::PassPosition(POS), std::make_shared<PASS>(__VA_ARGS__))
 
     SNIPPETS_ADD_POS_PASS("", ConvertToSwishCPU);
     if (enforceBF16 && snippet_for_generation->has_domain_sensitive_ops()) {

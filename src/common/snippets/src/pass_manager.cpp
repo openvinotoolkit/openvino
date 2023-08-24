@@ -8,8 +8,14 @@ namespace ov {
 namespace snippets {
 namespace pass {
 
-Manager::PassPosition::pass_list_type::const_iterator
-Manager::PassPosition::get_insert_position(const pass_list_type& pass_list) const {
+Manager::PassPosition::PassPosition(std::string pass_name, bool after, size_t pass_instance)
+: m_pass_name(std::move(pass_name)), m_pass_instance(pass_instance), m_after(after) {
+    OPENVINO_ASSERT((!m_pass_name.empty()) || (m_pass_instance == 0),
+                    "Non-zero pass_instance is not allowed if pass_name is not provided");
+}
+
+Manager::PassPosition::PassListType::const_iterator
+Manager::PassPosition::get_insert_position(const PassListType& pass_list) const {
     if (m_pass_name.empty())
         return m_after ? pass_list.cend() : pass_list.cbegin();
     size_t pass_count = 0;
@@ -38,6 +44,30 @@ Manager::PassPosition::get_insert_position(const pass_list_type& pass_list) cons
         std::advance(insert_it, 1);
     return insert_it;
 }
+
+std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPosition& position,
+                                                                   const std::shared_ptr<PassBase>& pass) {
+    pass->set_pass_config(m_pass_config);
+    return insert_pass_instance(position, pass);
+}
+
+void Manager::register_positioned_passes(const std::vector<PositionedPass>& backend_passes) {
+    for (const auto& pos_pass : backend_passes)
+        register_pass_instance(pos_pass.position, pos_pass.pass);
+}
+
+std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosition& position,
+                                                                 const std::shared_ptr<PassBase>& pass) {
+    auto insert_pos = position.get_insert_position(m_pass_list);
+    insert_pos = m_pass_list.insert(insert_pos, pass);
+    if (m_per_pass_validation) {
+        // Note: insert_pos points to the newly inserted pass, so advance to validate the pass results
+        std::advance(insert_pos, 1);
+        m_pass_list.insert(insert_pos, std::make_shared<ov::pass::Validate>());
+    }
+    return pass;
+}
+
 } // namespace pass
 }// namespace snippets
 }// namespace ov
