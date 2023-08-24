@@ -367,9 +367,16 @@ void MulticlassNmsLayerTest::SetUp() {
 
     ParameterVector params;
     if (inputDynamicShapes.size() > 2) {
-        params = ngraph::builder::makeDynamicParams({paramsPrec, paramsPrec, roisnumPrec}, inputDynamicShapes);
+        std::vector<ov::element::Type> types {paramsPrec, paramsPrec, roisnumPrec};
+        OPENVINO_ASSERT(types.size() == inputDynamicShapes.size());
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
     } else {
-        params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+        }
     }
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
