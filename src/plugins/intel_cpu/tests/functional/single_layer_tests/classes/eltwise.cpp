@@ -126,11 +126,12 @@ void EltwiseLayerCPUTest::SetUp() {
     }
 #endif
 
-    auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
+    ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ngraph::Node> secondaryInput;
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        secondaryInput = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.back()}).front();
-        parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        auto param = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.back());
+        secondaryInput = param;
+        parameters.push_back(param);
     } else {
         auto pShape = inputDynamicShapes.back();
         ngraph::Shape shape;

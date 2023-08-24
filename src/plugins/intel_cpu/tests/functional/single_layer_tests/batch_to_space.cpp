@@ -109,7 +109,7 @@ protected:
         else
             selectedType = std::string("ref_any_") + netPrecision.name();
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrec, inputDynamicShapes.front())};
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         paramShape = {paramOuts[0].get_partial_shape().size()};
 

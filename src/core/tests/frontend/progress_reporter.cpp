@@ -4,7 +4,8 @@
 
 #include "openvino/frontend/extension/progress_reporter.hpp"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "openvino/frontend/exception.hpp"
 
 using namespace ov::frontend;
