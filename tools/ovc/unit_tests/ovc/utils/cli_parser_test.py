@@ -354,7 +354,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
                 "framework": "onnx",
-                'verbose': False,
                 'output': "a,b,c"}
 
         argv = args_to_argv(**args)
@@ -368,7 +367,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
                 "framework": "onnx",
-                'verbose': False,
                 'output': "a, b, c"}
 
         argv = args_to_argv(**args)
@@ -382,7 +380,6 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
                 "framework": "onnx",
-                'verbose': False,
                 'output': "a,b, c"}
 
         argv = args_to_argv(**args)
@@ -391,26 +388,24 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         argv = arguments_post_parsing(argv)
         assert argv.output == ["a", "b", "c"]
 
-    def test_output_post_parsing_3(self):
+    def test_output_post_parsing_4(self):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
                 "framework": "onnx",
-                'verbose': False,
-                'output': ["a,b"]}
+                'output': "a,b"}
 
         argv = args_to_argv(**args)
 
         argv.is_python_api_used = True
         argv = arguments_post_parsing(argv)
-        assert argv.output == ["a,b"]
+        assert argv.output == ["a,b"]  # post parsing should decorate single string into a list
 
     def test_raises_output_post_parsing(self):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
                 "framework": "onnx",
-                'verbose': False,
                 'output': ["a,b, c", 23]}
 
         argv = args_to_argv(**args)

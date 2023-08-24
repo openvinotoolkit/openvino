@@ -90,7 +90,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if not argv.is_python_api_used:
         log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.output_model))
 
-    if argv.verbose:
+    if is_verbose(argv):
         print_argv(argv)
 
     params_parsing(argv)
@@ -104,6 +104,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         assert isinstance(argv.output, (str, list, tuple)), error_msg
         if isinstance(argv.output, list):
             assert check_iterable_types(argv.output, str), error_msg
+        else:
+            argv.output = [argv.output]
     else:
         assert isinstance(argv.output, str)
         argv.output = argv.output.replace(' ', '').split(',')
