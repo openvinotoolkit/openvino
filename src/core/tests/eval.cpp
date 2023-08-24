@@ -1393,7 +1393,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
-    EXPECT_EQ(result_tensor.get_shape(), (PartialShape{3, 3}));
+    EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
     auto cval = read_vector<float>(result_tensor);
     vector<float> out{1.1f, 1.0f, 1.2f, 2.0f, 2.2f, 2.1f, 0.0f, 0.0f, 0.0f};
     ASSERT_EQ(cval, out);
