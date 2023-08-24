@@ -114,9 +114,18 @@ bool DnnlExtensionUtils::isSupportedPrecision(const InferenceEngine::Precision& 
         case InferenceEngine::Precision::BOOL:
         case InferenceEngine::Precision::BIN:
         case InferenceEngine::Precision::BF16:
-        case InferenceEngine::Precision::FP16:
             return true;
-    default:
+        case InferenceEngine::Precision::FP16:
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+            return true;
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#    if defined(OV_CPU_ARM_ENABLE_FP16)
+            return true;
+#    else
+            return false;
+#    endif
+#endif
+        default:
             return false;
     }
     return false;
