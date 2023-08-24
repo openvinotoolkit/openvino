@@ -46,7 +46,7 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::Shape param_shape) {
 }
 
 template <class T>
-static bool registerAndRunReducePass(std::shared_ptr<ov::Model> function) {
+static bool registerAndRunReducePass(std::shared_ptr<ov::Model> model) {
     ov::pass::Manager manager;
     if (std::is_same<T, ov::opset1::ReduceMin>::value) {
         manager.register_pass<ConvertReduceMin>();
