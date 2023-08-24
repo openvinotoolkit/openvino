@@ -118,8 +118,7 @@ void concat_input_order::run(program& p) {
         // 4. Not already aligned
         // 5. Users can accept shuffled features
         // 6. No fused primitives
-        if (!node->is_type<concatenation>() || node->is_output() ||
-            (node->is_valid_output_layout() && node->get_output_layout().is_dynamic()))
+        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic())
             continue;
 
         auto& concat_node = node->as<concatenation>();
@@ -146,6 +145,7 @@ void concat_input_order::run(program& p) {
             single_format &= dep_layout.format == out_format;
             feature_sizes.push_back(dep_layout.feature());
         }
+
         // Alignment is not optimal if aligned input follows unaligned one
         bool already_aligned = true;
         for (size_t i = 1; i < feature_sizes.size(); ++i) {
