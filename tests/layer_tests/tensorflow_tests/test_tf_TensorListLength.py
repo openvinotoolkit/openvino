@@ -47,7 +47,6 @@ class TestTensorListLength(CommonTFLayerTest):
 
 class TestTensorListLengthEmptyList(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        #assert 'tensor_list_size' in inputs_info
         inputs_data = {}
         inputs_data['tensor_list_size'] = np.array([self.tensor_list_size], dtype=np.int32)
         return inputs_data
