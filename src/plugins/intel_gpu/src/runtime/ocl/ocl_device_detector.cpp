@@ -10,6 +10,7 @@
 #include <vector>
 #include <list>
 #include <utility>
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -185,6 +186,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 
 std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     cl_uint num_platforms = 0;
+    GPU_DEBUG_TRACE << "Start device enumeration" << std::endl;
     // Get number of platforms availible
     cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
     if (num_platforms == 0 || error_code == CL_PLATFORM_NOT_FOUND_KHR) {
@@ -196,15 +198,18 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     std::vector<cl_platform_id> platform_ids(num_platforms);
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
+    GPU_DEBUG_TRACE << "num platforms: " << num_platforms << std::endl;
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
+        GPU_DEBUG_TRACE << "  Platform name: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
 
         try {
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
             for (auto& device : devices) {
+                GPU_DEBUG_TRACE << "    Device name: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
                 if (!does_device_match_config(device))
                     continue;
                 supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), id));
