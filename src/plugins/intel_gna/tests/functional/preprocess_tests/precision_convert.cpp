@@ -54,7 +54,10 @@ protected:
 
         init_input_shapes({input_shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(net_type, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(net_type, shape));
+        }
         auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto concat = std::make_shared<ngraph::opset8::Concat>(paramOuts, 1);
