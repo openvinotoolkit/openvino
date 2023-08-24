@@ -3,12 +3,10 @@
 //
 
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset4.hpp"
+#include "openvino/opsets/opset4.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(type_prop, lstm_cell) {
     const size_t batch_size = 2;

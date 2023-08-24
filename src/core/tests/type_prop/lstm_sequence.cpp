@@ -3,13 +3,11 @@
 //
 
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset5.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 //
 // RNN sequence parameters

@@ -4,12 +4,14 @@
 
 #include "openvino/op/interpolate.hpp"
 
+#include <gtest/gtest.h>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -19,8 +21,8 @@ using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 using ShapeCalcMode = op::v4::Interpolate::ShapeCalcMode;
 
 TEST(type_prop, interpolate_v0_default_ctor) {
-    auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = op::Constant::create<float>(element::i32, Shape{2}, {15, 30});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2, 30, 60});
+    auto target_shape = ov::op::v0::Constant::create<float>(element::i32, Shape{2}, {15, 30});
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
@@ -38,8 +40,8 @@ TEST(type_prop, interpolate_v0_default_ctor) {
 }
 
 TEST(type_prop, interpolate_v0_all_inputs_dynamic_rank) {
-    const auto image = std::make_shared<op::Parameter>(element::f16, PartialShape::dynamic());
-    const auto target_shape = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape::dynamic());
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
@@ -53,8 +55,8 @@ TEST(type_prop, interpolate_v0_all_inputs_dynamic_rank) {
 }
 
 TEST(type_prop, interpolate_v0_all_inputs_static_rank) {
-    const auto image = std::make_shared<op::Parameter>(element::f16, PartialShape::dynamic(6));
-    const auto target_shape = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic(1));
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape::dynamic(6));
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic(1));
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{2, 3};
@@ -68,8 +70,8 @@ TEST(type_prop, interpolate_v0_all_inputs_static_rank) {
 }
 
 TEST(type_prop, interpolate_v0_target_shape_not_constant) {
-    const auto image = std::make_shared<op::Parameter>(element::bf16, PartialShape{2, 4, 12, 12});
-    const auto target_shape = std::make_shared<op::Parameter>(element::i64, PartialShape{1});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, PartialShape{2, 4, 12, 12});
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape{1});
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{3, 1};
@@ -88,8 +90,9 @@ TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
     set_shape_labels(img_shape, 10);
     set_shape_labels(out_shape, 20);
 
-    auto image = std::make_shared<op::Parameter>(element::f64, img_shape);
-    auto target_shape = std::make_shared<op::ShapeOf>(std::make_shared<op::Parameter>(element::i32, out_shape));
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f64, img_shape);
+    auto target_shape =
+        std::make_shared<op::v0::ShapeOf>(std::make_shared<ov::op::v0::Parameter>(element::i32, out_shape));
 
     op::v0::Interpolate::Attributes attrs;
     attrs.axes = AxisSet{3, 1};
@@ -104,10 +107,10 @@ TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
 
 // --- v4 ---
 TEST(type_prop, interpolate_v4_default_ctor) {
-    auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2, 30, 60});
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -130,10 +133,10 @@ TEST(type_prop, interpolate_v4_default_ctor) {
 }
 
 TEST(type_prop, interpolate_v4) {
-    auto image = std::make_shared<op::Parameter>(element::f32, Shape{2, 2, 30, 60});
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{15, 30});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2, 30, 60});
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{15, 30});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -155,10 +158,10 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::f16, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -180,11 +183,11 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::bf16, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i64, Shape{2});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2, 1}, {0.5f, 0.5f});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, img_shape);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2, 1}, {0.5f, 0.5f});
 
-    auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -203,10 +206,10 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
 }
 
 TEST(type_prop, interpolate_v4_img_dynamic_rank) {
-    auto image = std::make_shared<op::Parameter>(element::bf16, PartialShape::dynamic());
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, PartialShape::dynamic());
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -227,10 +230,10 @@ TEST(type_prop, interpolate_v4_partial_static_rank) {
     auto img_shape = PartialShape{2, 2, -1, {5, 30}};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -253,10 +256,10 @@ TEST(type_prop, interpolate_v4_img_intervals_use_scales) {
     auto img_shape = PartialShape{{1, 2}, -1, 10, {5, 30}};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -280,10 +283,11 @@ TEST(type_prop, interpolate_v4_use_sizes_as_shape_of) {
     set_shape_labels(img_shape, 10);
     set_shape_labels(out_shape, 20);
 
-    auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    auto target_shape = std::make_shared<op::ShapeOf>(std::make_shared<op::Parameter>(element::i32, out_shape));
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {3, 1});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    auto target_shape =
+        std::make_shared<op::v0::ShapeOf>(std::make_shared<ov::op::v0::Parameter>(element::i32, out_shape));
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {1.0f / 3.0f, 1.0f / 3.0f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {3, 1});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -305,10 +309,10 @@ TEST(type_prop, interpolate_v4_use_scales_interval_shapes) {
     auto img_shape = PartialShape{2, 2, {12, 800}, {0, -1}, {24, -1}};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{3});
-    auto scales = op::Constant::create<float>(element::f32, Shape{3}, {0.5f, 0.25f, 0.125f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{3}, {0.5f, 0.25f, 0.125f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
 
     InterpolateAttrs attrs;
     attrs.mode = InterpolateMode::NEAREST;
@@ -328,10 +332,10 @@ TEST(type_prop, interpolate_v4_use_scales_interval_shapes) {
 }
 
 TEST(type_prop, interpolate_v4_target_shapes_gt_axes_number) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto target_shape = op::Constant::create<float>(element::i32, Shape{3}, {10, 12, 20});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{1}, {0.3f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = ov::op::v0::Constant::create<float>(element::i32, Shape{3}, {10, 12, 20});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{1}, {0.3f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {0, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -344,10 +348,10 @@ TEST(type_prop, interpolate_v4_target_shapes_gt_axes_number) {
 }
 
 TEST(type_prop, interpolate_v4_scales_gt_axes_number) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{3});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{3}, {0.2f, 0.2f, 0.3f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{3}, {0.2f, 0.2f, 0.3f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -360,10 +364,10 @@ TEST(type_prop, interpolate_v4_scales_gt_axes_number) {
 }
 
 TEST(type_prop, interpolate_v4_incorrect_mode) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto target_shape = std::make_shared<op::Parameter>(element::i32, Shape{2});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -382,9 +386,9 @@ TEST(type_prop, interpolate_v4_incorrect_mode) {
 }
 
 TEST(type_prop, interpolate_v4_target_shape_not_1d) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -394,28 +398,28 @@ TEST(type_prop, interpolate_v4_target_shape_not_1d) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
                         image,
-                        std::make_shared<op::Parameter>(element::i32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2}),
                         scales,
                         axes,
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [1] is not rank 1"));
 
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<ov::op::v4::Interpolate>(image,
-                                                                std::make_shared<op::Parameter>(element::i32, Shape{}),
-                                                                scales,
-                                                                axes,
-                                                                attrs),
-        ov::NodeValidationFailure,
-        HasSubstr("Input [1] is not rank 1"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
+                        image,
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{}),
+                        scales,
+                        axes,
+                        attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Input [1] is not rank 1"));
 }
 
 TEST(type_prop, interpolate_v4_scales_not_1d) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto target_shape = op::Constant::create<float>(element::i32, Shape{2}, {10, 20});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = ov::op::v0::Constant::create<float>(element::i32, Shape{2}, {10, 20});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -426,27 +430,27 @@ TEST(type_prop, interpolate_v4_scales_not_1d) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
                         image,
                         target_shape,
-                        std::make_shared<op::Parameter>(element::f32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2}),
                         axes,
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [2] is not rank 1"));
 
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<ov::op::v4::Interpolate>(image,
-                                                                target_shape,
-                                                                std::make_shared<op::Parameter>(element::f32, Shape{}),
-                                                                axes,
-                                                                attrs),
-        ov::NodeValidationFailure,
-        HasSubstr("Input [2] is not rank 1"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v4::Interpolate>(
+                        image,
+                        target_shape,
+                        std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{}),
+                        axes,
+                        attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Input [2] is not rank 1"));
 }
 
 TEST(type_prop, interpolate_v4_axes_not_1d) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto target_shape = op::Constant::create<float>(element::i32, Shape{2}, {10, 20});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto target_shape = ov::op::v0::Constant::create<float>(element::i32, Shape{2}, {10, 20});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -458,7 +462,7 @@ TEST(type_prop, interpolate_v4_axes_not_1d) {
                         image,
                         target_shape,
                         scales,
-                        std::make_shared<op::Parameter>(element::i32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2}),
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [3] is not rank 1"));
@@ -467,7 +471,7 @@ TEST(type_prop, interpolate_v4_axes_not_1d) {
                         image,
                         target_shape,
                         scales,
-                        std::make_shared<op::Parameter>(element::i32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2}),
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [3] is not rank 1"));
@@ -475,9 +479,9 @@ TEST(type_prop, interpolate_v4_axes_not_1d) {
 
 // --- v11 ---
 TEST(type_prop, interpolate_v11_default_ctor) {
-    auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -495,9 +499,9 @@ TEST(type_prop, interpolate_v11_default_ctor) {
 }
 
 TEST(type_prop, interpolate_v11_scales) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -510,9 +514,9 @@ TEST(type_prop, interpolate_v11_scales) {
 }
 
 TEST(type_prop, interpolate_v11_scales_all_inputs_static_rank) {
-    const auto image = std::make_shared<op::Parameter>(element::f16, PartialShape::dynamic(8));
-    const auto scales = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
-    const auto axes = std::make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape::dynamic(8));
+    const auto scales = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic(1));
+    const auto axes = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -525,9 +529,9 @@ TEST(type_prop, interpolate_v11_scales_all_inputs_static_rank) {
 }
 
 TEST(type_prop, interpolate_v11_sizes) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto sizes = op::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -540,9 +544,9 @@ TEST(type_prop, interpolate_v11_sizes) {
 }
 
 TEST(type_prop, interpolate_v11_sizes_all_inputs_dynamic_rank) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto sizes = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
-    const auto axes = std::make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto sizes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    const auto axes = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -558,9 +562,9 @@ TEST(type_prop, interpolate_v11_intervals_with_scales_mode) {
     auto img_shape = PartialShape{{1, 3}, 3, {1, 10}, {10, -1}, {10, 20}};
     set_shape_labels(img_shape, 10);
 
-    const auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    const auto scales = op::Constant::create<float>(element::f32, Shape{3}, {2.0f, 3.0f, 1.0f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{3}, {2.0f, 3.0f, 1.0f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -577,9 +581,9 @@ TEST(type_prop, interpolate_v11_intervals_with_sizes_mode) {
     auto img_shape = PartialShape{{1, 3}, 3, {1, 10}, {10, -1}};
     set_shape_labels(img_shape, 10);
 
-    const auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    const auto sizes = op::Constant::create<float>(element::i32, Shape{2}, {200, 300});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    const auto sizes = ov::op::v0::Constant::create<float>(element::i32, Shape{2}, {200, 300});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -597,10 +601,10 @@ TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
     set_shape_labels(img_shape, 10);
     set_shape_labels(sizes_shape, 20);
 
-    const auto image = std::make_shared<op::Parameter>(element::f32, img_shape);
-    const auto param = std::make_shared<op::Parameter>(element::f32, sizes_shape);
-    const auto sizes = std::make_shared<op::ShapeOf>(param);
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 1});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
+    const auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, sizes_shape);
+    const auto sizes = std::make_shared<op::v0::ShapeOf>(param);
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 1});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -616,9 +620,9 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
     set_shape_labels(img_shape, 10);
 
-    auto image = std::make_shared<op::Parameter>(element::f16, img_shape);
-    auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
-    auto axes = std::make_shared<op::Parameter>(element::i32, PartialShape{2});
+    auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
+    auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -632,9 +636,9 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
 }
 
 TEST(type_prop, interpolate_v11_scales_incorrect_et) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto scales = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 2});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -647,9 +651,9 @@ TEST(type_prop, interpolate_v11_scales_incorrect_et) {
 }
 
 TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto sizes = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
-    const auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -662,8 +666,8 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
 }
 
 TEST(type_prop, interpolate_v11_scales_incorrect_number) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.2f, 0.2f});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -675,8 +679,8 @@ TEST(type_prop, interpolate_v11_scales_incorrect_number) {
 }
 
 TEST(type_prop, interpolate_v11_sizes_incorrect_number) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto sizes = op::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto sizes = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{2}, {6, 12});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
@@ -688,8 +692,8 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_number) {
 }
 
 TEST(type_prop, interpolate_v11_scales_not_1d) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto axes = op::Constant::create<int64_t>(element::i32, Shape{2}, {2, 3});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto axes = ov::op::v0::Constant::create<int64_t>(element::i32, Shape{2}, {2, 3});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -698,24 +702,24 @@ TEST(type_prop, interpolate_v11_scales_not_1d) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,
-                        std::make_shared<op::Parameter>(element::f32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2}),
                         axes,
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [1] is not rank 1"));
 
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<ov::op::v11::Interpolate>(image,
-                                                                 std::make_shared<op::Parameter>(element::f32, Shape{}),
-                                                                 axes,
-                                                                 attrs),
-        ov::NodeValidationFailure,
-        HasSubstr("Input [1] is not rank 1"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
+                        image,
+                        std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{}),
+                        axes,
+                        attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Input [1] is not rank 1"));
 }
 
 TEST(type_prop, interpolate_v11_axes_not_1d) {
-    const auto image = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 30, 60});
-    const auto scales = op::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
+    const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 30, 60});
+    const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {6.f, 12.f});
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
@@ -726,16 +730,16 @@ TEST(type_prop, interpolate_v11_axes_not_1d) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,
                         scales,
-                        std::make_shared<op::Parameter>(element::i32, Shape{1, 2}),
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{1, 2}),
                         attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Input [2] is not rank 1"));
 
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<ov::op::v11::Interpolate>(image,
-                                                                 scales,
-                                                                 std::make_shared<op::Parameter>(element::i32, Shape{}),
-                                                                 attrs),
-        ov::NodeValidationFailure,
-        HasSubstr("Input [2] is not rank 1"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
+                        image,
+                        scales,
+                        std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{}),
+                        attrs),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Input [2] is not rank 1"));
 }
