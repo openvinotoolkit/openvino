@@ -247,11 +247,6 @@ void ReadIRTest::SetUp() {
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
         }
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>("test.xml", "test.bin");
-        manager.run_passes(function);
-        auto b = function->get_parameters();
-        auto c = 0;
     }
 
     bool hasDynamic = false;
