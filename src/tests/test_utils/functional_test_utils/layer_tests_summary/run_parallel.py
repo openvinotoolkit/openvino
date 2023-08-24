@@ -372,11 +372,11 @@ class TestParallelRunner:
         runtime_test_dict = dict()
 
         for test in test_dict_cache:
-            if test in test_dict_runtime:
+            if test in test_dict_runtime and test not in self._excluded_tests:
                 cached_test_dict[test] = test_dict_cache[test] if test_dict_cache[test] != -1 else test_dict_runtime.get(test, -1)
 
         for test in test_dict_runtime:
-            if test not in cached_test_dict:
+            if test not in cached_test_dict and test not in self._excluded_tests:
                 runtime_test_dict[test] = test_dict_runtime[test]
 
         if len(runtime_test_dict) > 0:
