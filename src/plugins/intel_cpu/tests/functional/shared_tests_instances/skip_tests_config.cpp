@@ -280,6 +280,8 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue 117407
     retVector.emplace_back(R"(.*EltwiseLayerCPUTest.*IS=\(\[1\.\.10\.2\.5\.6\]_\).*eltwiseOpType=SqDiff.*_configItem=INFERENCE_PRECISION_HINT=f16.*)");
 #endif // OV_CPU_ARM_ENABLE_FP16
+    // Issue 117850: Supported Eltwise executor (FP16) is not found
+    retVector.emplace_back(R"(.*smoke_SetBlobCPU/SetBlobTest.*_Device=CPU_PrecisionInNet=FP16_PrecisionInNgraph=BOOL.*)");
 #endif
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
