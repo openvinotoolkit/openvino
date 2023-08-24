@@ -102,7 +102,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         worker_request.m_inferrequest->set_callback(
             [worker_request_ptr, this, device, idle_workerrequests_ptr](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, *idle_workerrequests_ptr};
-                worker_request_ptr->m_exception_ptr = exception_ptr;
+                worker_request_ptr->m_exception_ptr = std::move(exception_ptr);
                 {
                     auto stop_retry_and_continue = [worker_request_ptr]() {
                         auto captured_task = std::move(worker_request_ptr->m_task);
@@ -154,7 +154,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                 : m_inferrequest(infer_request),
                   m_worker(worker) {
                 m_inferrequest->set_callback([this](std::exception_ptr exceptionPtr) mutable {
-                    m_exceptionptr = exceptionPtr;
+                    m_exceptionptr = std::move(exceptionPtr);
                     auto capturedTask = std::move(m_task);
                     capturedTask();
                     INFO_RUN([&]() {
