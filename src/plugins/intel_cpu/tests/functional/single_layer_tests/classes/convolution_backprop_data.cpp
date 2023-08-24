@@ -254,11 +254,6 @@ const std::vector<fusingSpecificParams>& fusingParamsSet() {
     return fusingParamsSet;
 }
 
-const std::map<std::string, std::string>& cpuEmptyPluginConfig() {
-    static const std::map<std::string, std::string> cpuEmptyPluginConfig;
-    return cpuEmptyPluginConfig;
-}
-
 const std::map<std::string, std::string> cpuBF16PluginConfig() {
     static const std::map<std::string, std::string> cpuBF16PluginConfig = {
             {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16,

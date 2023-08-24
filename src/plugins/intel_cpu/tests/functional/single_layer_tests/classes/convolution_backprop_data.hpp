@@ -62,7 +62,6 @@ private:
 
 namespace Deconvolution {
     const std::vector<fusingSpecificParams>& fusingParamsSet();
-    const std::map<std::string, std::string>& cpuEmptyPluginConfig();
     const std::map<std::string, std::string> cpuBF16PluginConfig();
     const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding();
     const InferenceEngine::SizeVector numOutChannels_Planar();
