@@ -266,11 +266,15 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     // swap params.batchSize and params.seqLength
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1]),
+                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[2])};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1], inputShapes[2]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1]),
+                                                std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[2])};
                 auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ov::OutputVector out_vector = {squeeze, body_params[1], body_params[2]};
 
@@ -329,11 +333,14 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     // swap params.batchSize and params.seqLength
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
+
                 auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
 
@@ -388,11 +395,13 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     // swap params.batchSize and params.seqLength
                     std::swap(inputShapes[0][0], inputShapes[0][1]);
                 }
-                auto outer_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector outer_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
 
                 // 1. Create TensorIterator body.
                 inputShapes[0][params.sequenceAxis] = 1; // sliced dimension
-                auto body_params = ngraph::builder::makeParams(params.iType, {inputShapes[0], inputShapes[1]});
+                ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
+                                                std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
                 auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
                 ngraph::OutputVector out_vector = {squeeze, body_params[1]};
 
