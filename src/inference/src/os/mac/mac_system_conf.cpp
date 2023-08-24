@@ -44,7 +44,7 @@ int parse_processor_info_macos(int& _processors,
 
     _numa_nodes = 1;
     _sockets = 1;
-    
+
     if (sysctlbyname("hw.optional.arm64", &output, &size, NULL, 0) < 0) {
         _proc_type_table.resize(1, std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
         _proc_type_table[0][ALL_PROC] = _processors;

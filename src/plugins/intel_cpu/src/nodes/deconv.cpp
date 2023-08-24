@@ -991,18 +991,16 @@ void Deconvolution::prepareParams() {
                                                               key.stride, key.dilation, key.paddingL, key.paddingR, key.attr, engine);
             }
 
-            auto anyDeconvItpd = anyDeconvDesc;
-
-            if (anyDeconvItpd) {
+            if (anyDeconvDesc) {
                 if (key.isInt8) {
-                    auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
+                    auto prim_desc = deconvolution_forward::primitive_desc(anyDeconvDesc.get());
                     execPtr = std::make_shared<DeconvExecutorInt8>(prim_desc,
                                                                    key.inp0->getDnnlDesc(),
                                                                    key.inp1->getDnnlDesc(),
                                                                    key.out->getDnnlDesc(),
                                                                    engine);
                 } else {
-                    auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
+                    auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvDesc.get());
                     execPtr = std::make_shared<DeconvExecutorDefault>(prim_desc,
                                                                       key.inp0->getDnnlDesc(),
                                                                       key.inp1->getDnnlDesc(),
