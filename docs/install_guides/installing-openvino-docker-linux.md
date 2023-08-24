@@ -6,6 +6,8 @@
    :description: Learn how to use a prebuilt Docker image or create an image 
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
+This guide presents infromation on how to use a pre-built Docker image/create an image manually to install OpenVINO™ Runtime.
+
 Supported host operating systems for the Docker Base image: 
 
 - Linux
