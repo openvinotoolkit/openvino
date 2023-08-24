@@ -17,6 +17,7 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/add.hpp"
@@ -145,6 +146,7 @@ TEST(eval, evaluate_shape_of) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::i64);
     EXPECT_EQ(result.get_shape(), (Shape{2}));
     auto result_shape = read_vector<int64_t>(result);
@@ -167,6 +169,7 @@ TEST(eval, evaluate_dynamic_range_sum) {
                                       make_tensor<element::Type_t::f32>({}, {3.0f}),
                                       make_tensor<element::Type_t::f32>({}, {7.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3}));
     auto cval = read_vector<float>(result_tensor);
@@ -185,6 +188,7 @@ TEST(eval, evaluate_broadcast_v3_bidirectional) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{4, 1}, {1.0f, 2.0f, 3.0f, 4.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (ov::Shape{2, 4, 4}));
     auto result_val = read_vector<float>(result);
@@ -203,6 +207,7 @@ TEST(eval, evaluate_broadcast_v3_bidirectional_target_rank_smaller_than_input) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(shape_a, {1.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{1, 1, 1, 1, 1, 3, 1, 1}));
     auto result_val = read_vector<float>(result);
@@ -221,6 +226,7 @@ TEST(eval, evaluate_broadcast_v3_bidirectional_target_rank_smaller_than_input_2)
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{1, 3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{1, 3, 1}));
     auto result_val = read_vector<float>(result);
@@ -240,6 +246,7 @@ TEST(eval, evaluate_broadcast_v3_bidirectional_dyn) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{4, 1}, {1, 2, 3, 4}),
                                       make_tensor<element::Type_t::i32>(Shape{3}, {2, 1, 4})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::i32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 4, 4}));
     auto result_val = read_vector<int32_t>(result);
@@ -259,6 +266,7 @@ TEST(eval, evaluate_broadcast_v3_numpy) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -280,6 +288,7 @@ TEST(eval, evaluate_broadcast_v3_numpy_dyn) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f}),
                                       make_tensor<element::Type_t::i32>(Shape{3}, {2, 3, 6})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -301,6 +310,7 @@ TEST(eval, evaluate_broadcast_v3_numpy_vs_bidi) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(in_shape, {1.0f, 2.0f, 3.0f, 4.0f})};
     ASSERT_TRUE(model_num->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{1, 4, 4}));
     auto result_val = read_vector<float>(result);
@@ -315,6 +325,7 @@ TEST(eval, evaluate_broadcast_v3_numpy_vs_bidi) {
     auto out_vector2 = ov::TensorVector{result2};
     auto in_vector2 = ov::TensorVector{make_tensor<element::Type_t::f32>(in_shape, {1.0f, 2.0f, 3.0f, 4.0f})};
     ASSERT_TRUE(model_bidi->evaluate(out_vector2, in_vector2));
+    result2 = out_vector.at(0);
     EXPECT_EQ(result2.get_element_type(), element::f32);
     EXPECT_EQ(result2.get_shape(), (Shape{1, 4, 4}));
     auto result_val2 = read_vector<float>(result2);
@@ -334,6 +345,7 @@ TEST(eval, evaluate_broadcast_v3_bidi_3d) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(in_shape, {1.0f, 2.0f, 3.0f, 4.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{1, 4, 3}));
     auto result_val = read_vector<float>(result);
@@ -354,6 +366,7 @@ TEST(eval, evaluate_broadcast_v3_bidi_4d) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(in_shape, {1.0f, 2.0f, 3.0f, 4.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{1, 4, 2, 2}));
     auto result_val = read_vector<float>(result);
@@ -372,6 +385,7 @@ TEST(eval, evaluate_broadcast_v3_pdpd) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -393,6 +407,7 @@ TEST(eval, evaluate_broadcast_v3_pdpd_dyn) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f}),
                                       make_tensor<element::Type_t::i32>(Shape{3}, {2, 3, 6})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -413,6 +428,7 @@ TEST(eval, evaluate_broadcast_v1_numpy) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -434,6 +450,7 @@ TEST(eval, evaluate_broadcast_v1_numpy_dyn) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f}),
                                       make_tensor<element::Type_t::i64>(Shape{3}, {2, 3, 6})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -455,6 +472,7 @@ TEST(eval, evaluate_broadcast_v1_pdpd) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -477,6 +495,7 @@ TEST(eval, evaluate_broadcast_v1_pdpd_dyn) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f}),
                                       make_tensor<element::Type_t::i64>(Shape{3}, {2, 3, 6})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 6}));
     auto result_val = read_vector<float>(result);
@@ -501,6 +520,7 @@ TEST(eval, evaluate_broadcast_v1_explicit) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{3, 1}, {1.0f, 2.0f, 3.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 1}));
     auto result_val = read_vector<float>(result);
@@ -526,6 +546,7 @@ TEST(eval, evaluate_broadcast_v1_explicit_dyn) {
                                       make_tensor<element::Type_t::i64>(Shape{3}, {2, 3, 1}),
                                       make_tensor<element::Type_t::i32>(Shape{2}, {1, 2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 1}));
     auto result_val = read_vector<float>(result);
@@ -551,6 +572,7 @@ TEST(eval, evaluate_broadcast_v3_explicit_dyn) {
                                       make_tensor<element::Type_t::i64>(Shape{3}, {2, 3, 1}),
                                       make_tensor<element::Type_t::i32>(Shape{2}, {1, 2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3, 1}));
     auto result_val = read_vector<float>(result);
@@ -595,6 +617,7 @@ TEST(eval, test_op_multi_out) {
     ov::TensorVector ins{make_tensor<element::Type_t::f32>(Shape{2, 3}),
                          make_tensor<element::Type_t::f64>(Shape{2, 2})};
     ASSERT_TRUE(model->evaluate(outs, ins));
+    result = outs.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     EXPECT_EQ(result.get_shape(), (Shape{2, 3}));
     auto result_val = read_vector<float>(result);
@@ -617,6 +640,7 @@ TEST(eval, evaluate_reshape_v1) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({2, 5}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}),
                                       make_tensor<element::Type_t::i64>({2}, {5, 2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{5, 2}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -634,6 +658,7 @@ TEST(eval, evaluate_reshape_v1_negative_index) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({2, 5}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}),
                                       make_tensor<element::Type_t::i64>({2}, {2, -1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{2, 5}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -652,6 +677,7 @@ TEST(eval, evaluate_reshape_v1_negative_index_zero_dim_zero_flag) {
         make_tensor<element::Type_t::f32>({2, 2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
         make_tensor<element::Type_t::i64>({6}, {2, 0, 1, -1, 1, 2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{2, 2, 1, 2, 1, 2}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -670,6 +696,7 @@ TEST(eval, evaluate_reshape_v1_pattern_int16) {
         make_tensor<element::Type_t::f32>({2, 2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),
         make_tensor<element::Type_t::i16>({6}, {2, 0, 1, -1, 1, 2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{2, 2, 1, 2, 1, 2}));
     auto computed_val = read_vector<float>(result_tensor);
@@ -689,6 +716,7 @@ TEST(eval, evaluate_reshape_v1_data_dynamic_shape) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
                                       make_tensor<element::Type_t::i64>(pattern->get_shape(), {2, 0, 1, -1, 1, 1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), exp_dtype);
     EXPECT_EQ(result_tensor.get_shape(), Shape({2, 2, 1, 2, 1, 1}));
@@ -723,6 +751,7 @@ TEST(eval, evaluate_convert) {
         auto out_vector = ov::TensorVector{result};
         auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{1, 2}, inputs[i])};
         ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+        result = out_vector.at(0);
         EXPECT_EQ(result.get_element_type(), element::i64);
         EXPECT_EQ(result.get_shape(), (Shape{1, 2}));
         auto result_data = read_vector<int64_t>(result);
@@ -739,6 +768,7 @@ TEST(eval, evaluate_abs) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {0.0f, -1.0f, -2.0f, -3.0f, 4.0f, 5.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
@@ -754,6 +784,7 @@ TEST(eval, evaluate_erf) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {0.0f, -1.0f, -2.0f, -3.0f, 4.0f, 5.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{std::erf(0.0f),
@@ -774,6 +805,7 @@ TEST(eval, evaluate_exp) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {0.0f, -1.0f, -2.0f, -3.0f, 4.0f, 5.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{std::exp(0.0f),
@@ -793,6 +825,7 @@ TEST(eval, evaluate_floor) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 2}, {-2.5f, -2.0f, 0.3f, 4.8f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{-3.0f, -2.0f, 0.0f, 4.0f};
@@ -808,6 +841,7 @@ TEST(eval, evaluate_floor_int32) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 2}, {-2, -136314888, 0x40000010, 0x40000001})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::i32);
     auto result_val = read_vector<int32_t>(result);
     vector<int32_t> expec{-2, -136314888, 0x40000010, 0x40000001};
@@ -823,6 +857,7 @@ TEST(eval, evaluate_log) {
     auto in_vector = ov::TensorVector{
         make_tensor<element::Type_t::f32>(Shape{2, 2, 2}, {0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{std::log(0.125f),
@@ -846,6 +881,7 @@ TEST(eval, evaluate_negative_f32) {
         make_tensor<element::Type_t::f32>(Shape{2, 5},
                                           {1.35f, 8.76f, -8.0f, 17.234f, -2.121f, 1.0f, 8.7f, -8.92f, 17.0f, -1.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{-1.35f, -8.76f, 8.0f, -17.234f, 2.121f, -1.0f, -8.7f, 8.92f, -17.0f, 1.0f};
@@ -861,6 +897,7 @@ TEST(eval, evaluate_negative_i32) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 5}, {1, 8, -8, 17, -2, 1, 8, -8, 17, 0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::i32);
     auto result_val = read_vector<int32_t>(result);
     vector<int32_t> expec{-1, -8, 8, -17, 2, -1, -8, 8, -17, 0};
@@ -876,6 +913,7 @@ TEST(eval, evaluate_relu_2Ffprop_f32) {
     auto in_vector = ov::TensorVector{
         make_tensor<element::Type_t::f32>(Shape{2, 5}, {1, 8, -8, 17, -0.5f, 0.1f, 8.5f, -8, 17, -0.5f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{1, 8, 0, 17, 0, 0.1f, 8.5f, 0, 17, 0};
@@ -891,6 +929,7 @@ TEST(eval, evaluate_relu_2Ffprop_i32) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::i32>(Shape{2, 5}, {1, 8, -8, 17, -2, 1, 8, -8, 17, -1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::i32);
     auto result_val = read_vector<int32_t>(result);
     vector<int32_t> expec{1, 8, 0, 17, 0, 1, 8, 0, 17, 0};
@@ -905,6 +944,7 @@ TEST(eval, evaluate_round) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{5}, {0.9f, 2.5f, 2.3f, 1.5f, -4.5f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{1.0f, 2.0f, 2.0f, 2.0f, -4.0f};
@@ -921,6 +961,7 @@ TEST(eval, evaluate_round_2D) {
         Shape{3, 5},
         {0.1f, 0.5f, 0.9f, 1.2f, 1.5f, 1.8f, 2.3f, 2.5f, 2.7f, -1.1f, -1.5f, -1.9f, -2.2f, -2.5f, -2.8f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{0.f, 0.f, 1.f, 1.f, 2.f, 2.f, 2.f, 2.f, 3.f, -1.f, -2.f, -2.f, -2.f, -2.f, -3.f};
@@ -939,6 +980,7 @@ TEST(eval, evaluate_sigmoid) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{1, 1, 2, 2}, {x1, x2, x1, x2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -954,6 +996,7 @@ TEST(eval, evaluate_sign) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3}, {1, -2, 0, -4.8f, 4.8f, -0.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -971,6 +1014,7 @@ TEST(eval, evaluate_sin) {
         make_tensor<element::Type_t::f32>(Shape{11},
                                           {0.f, 0.25f, -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -997,6 +1041,7 @@ TEST(eval, evaluate_sinh) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{6}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -1015,6 +1060,7 @@ TEST(eval, evaluate_sqrt) {
     vector<float> input{16, 4, 81, 100, 10000, 0};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{6}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -1031,6 +1077,7 @@ TEST(eval, evaluate_acos) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{11}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
@@ -1050,6 +1097,7 @@ TEST(eval, evaluate_asin) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{11}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1069,6 +1117,7 @@ TEST(eval, evaluate_atan) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{11}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1088,6 +1137,7 @@ TEST(eval, evaluate_ceiling) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 2}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     vector<float> expec{-2.0f, -2.0f, 1.0f, 5.0f};
@@ -1104,6 +1154,7 @@ TEST(eval, evaluate_cos) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{11}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1123,6 +1174,7 @@ TEST(eval, evaluate_cosh) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{6}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1142,6 +1194,7 @@ TEST(eval, evaluate_tan) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{11}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1161,6 +1214,7 @@ TEST(eval, evaluate_tanh) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{6}, input)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
     EXPECT_EQ(result.get_element_type(), element::f32);
     auto result_val = read_vector<float>(result);
     std::transform(input.begin(), input.end(), input.begin(), [](float x) -> float {
@@ -1178,6 +1232,7 @@ TEST(eval, evaluate_logical_not_dynamic_input_shape) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::boolean>(Shape{2, 1, 2}, {0, 0, 1, 1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::boolean);
     EXPECT_EQ(result.get_shape(), Shape({2, 1, 2}));
@@ -1192,6 +1247,7 @@ TEST(eval, evaluate_logical_not) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::boolean>(Shape{2, 2}, {1, 0, 1, 0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), element::boolean);
     auto result_val = read_vector<char>(result);
@@ -1211,6 +1267,7 @@ TEST(eval, evaluate_dynamic_gather_v1) {
                                       make_tensor<element::Type_t::i32>({2}, {1, 0}),
                                       make_tensor<element::Type_t::i32>({1}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1231,6 +1288,7 @@ TEST(eval, evaluate_dynamic_gather_v1_scalar_axis) {
         make_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
         make_tensor<element::Type_t::u64>({}, {1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 1, 2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1252,6 +1310,7 @@ TEST(eval, evaluate_dynamic_gather_v7) {
                                       make_tensor<element::Type_t::i32>({2, 2}, {1, 0, 1, 0}),
                                       make_tensor<element::Type_t::i32>({1}, {axis})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{2, 2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1274,6 +1333,7 @@ TEST(eval, evaluate_dynamic_gather_v7_axis_scalar) {
         make_tensor<element::Type_t::i32>({1, 2}, {0, 2}),
         make_tensor<element::Type_t::i64>({}, {axis})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 1, 2}));
     auto cval = read_vector<float>(result_tensor);
@@ -1291,6 +1351,7 @@ TEST(eval, evaluate_dynamic_concat) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({1, 1}, {1.0f}),
                                       make_tensor<element::Type_t::f32>({1, 2}, {8.0f, 10.0f})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{1, 3}));
     auto cval = read_vector<float>(result_tensor);
@@ -1309,6 +1370,7 @@ TEST(eval, max_pool_v1_dynamic) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>({1, 1, 14}, {0, 1, 0, 2, 1, 0, 3, 2, 0, 0, 2, 0, 0, 0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{1, 1, 12}));
@@ -1337,6 +1399,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_static_scatter_elements_upd
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
     auto cval = read_vector<float>(result_tensor);
@@ -1363,6 +1426,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -1391,6 +1455,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>(axis_shape, {-1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -1418,6 +1483,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
                          make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({1}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -1446,6 +1512,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
                          make_tensor<element::Type_t::i32>(indices_shape, {2}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3, 3}));
@@ -1486,6 +1553,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_sum) {
         make_tensor<element::Type_t::f32>(indices_shape, {5.0f, 6.0f, 1.5f, -5.0f}),
         make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -1516,6 +1584,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_prod_exclusive) {
         make_tensor<element::Type_t::f32>(indices_shape, {5.0f, 6.0f, 1.5f, -2.0f}),
         make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -1546,6 +1615,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean) {
         make_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f, 25.f, 38.f}),
         make_tensor<element::Type_t::i64>({}, {1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -1577,6 +1647,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_exclusive) {
         make_tensor<element::Type_t::f32>(indices_shape, {10.f, 21.f, 25.f, 38.f}),
         make_tensor<element::Type_t::i64>({}, {1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -1607,6 +1678,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_mean_ints) {
                                       make_tensor<element::Type_t::i32>(indices_shape, {-6, -2, 600, -120}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1637,6 +1709,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_min) {
                          make_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1667,6 +1740,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_max) {
                          make_tensor<element::Type_t::i32>(indices_shape, {-999, 1, 3, 5, -4, 6, 8, 9, -1001}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1697,6 +1771,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_max_exclusive) {
                          make_tensor<element::Type_t::i32>(indices_shape, {999, 10, 20, 30, -40, 6, 8, 9, 555}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<int32_t>(result_tensor);
@@ -1726,6 +1801,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_sum) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 0, 1, 1, 1}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1755,6 +1831,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_sum_exclusive) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 0, 1, 1, 1}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1784,6 +1861,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_prod) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 1, 1, 0, 1}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1813,6 +1891,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_prod_exclusive) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 1, 1, 1, 1}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1842,6 +1921,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_min) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 0, 1, 0, 1, 1, 0}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1871,6 +1951,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_min_exclusive) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 0, 1, 1, 0, 1, 1, 1}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1900,6 +1981,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_max) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 0, 1, 0, 1, 0, 0}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1929,6 +2011,7 @@ TEST(eval, evaluate_static_scatter_elements_update_boolean_max_exclusive) {
                                       make_tensor<element::Type_t::boolean>(indices_shape, {0, 1, 1, 0, 0, 1, 0, 0}),
                                       make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::boolean);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<char>(result_tensor);
@@ -1958,6 +2041,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_sum_negative_idx) {
         make_tensor<element::Type_t::f32>(indices_shape, {5.0f, 6.0f, 1.5f, -5.0f}),
         make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -1987,6 +2071,7 @@ TEST(eval, evaluate_static_scatter_elements_update_reduction_none_negative_idx) 
         make_tensor<element::Type_t::f32>(indices_shape, {11.5f, 12.5f, 13.5f, 14.5f}),
         make_tensor<element::Type_t::i64>({}, {1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), data_shape);
     const auto cval = read_vector<float>(result_tensor);
@@ -2010,6 +2095,8 @@ TEST(eval, topk_v1) {
     auto in_vector =
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2041,6 +2128,8 @@ TEST(eval, topk_v1_dyn) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2070,6 +2159,8 @@ TEST(eval, topk_v3_dyn) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2099,6 +2190,8 @@ TEST(eval, topk_v3_dyn_values) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2128,6 +2221,8 @@ TEST(eval, topk_v3_dyn_values_k0) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 3, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2160,6 +2255,8 @@ TEST(eval, topk_v1_dyn_k0) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i64>(Shape{}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 3, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2188,6 +2285,8 @@ TEST(eval, topk_v3_param_dyn_values_k0) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 3, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2215,6 +2314,8 @@ TEST(eval, topk_v3_param_dyn_values_k2) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i32>(Shape{}, {2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2246,6 +2347,8 @@ TEST(eval, topk_v1_param_dyn_k2) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i64>(Shape{}, {2})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 2, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2278,6 +2381,8 @@ TEST(eval, topk_v1_param_dyn_k0) {
         ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{2, 3, 2}, {12, 2, 10, 9, 8, 4, 6, 1, 5, 3, 11, 7}),
                          make_tensor<element::Type_t::i64>(Shape{}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result0 = out_vector.at(0);
+    result1 = out_vector.at(1);
     EXPECT_EQ(result0.get_element_type(), element::f32);
     EXPECT_EQ(result0.get_shape(), (Shape{2, 3, 2}));
     EXPECT_EQ(result1.get_element_type(), element::i32);
@@ -2311,6 +2416,7 @@ TEST(eval, evaluate_static_scatter_update_basic_axes_indices_i32) {
                          make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i32>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
     auto cval = read_vector<float>(result_tensor);
@@ -2337,6 +2443,7 @@ TEST(eval, evaluate_static_scatter_update_basic_axes_indices_i64) {
                          make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
     auto cval = read_vector<float>(result_tensor);
@@ -2364,6 +2471,7 @@ TEST(eval, evaluate_dynamic_scatter_update_basic) {
                          make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -2393,6 +2501,7 @@ TEST(eval, evaluate_dynamic_scatter_update_negative_axis) {
                          make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>(axis_shape, {-1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -2421,6 +2530,7 @@ TEST(eval, evaluate_dynamic_scatter_update_1d_axis) {
                          make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
                          make_tensor<element::Type_t::i64>({1}, {1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3}));
@@ -2449,6 +2559,7 @@ TEST(eval, evaluate_dynamic_scatter_update_one_elem_i32) {
                          make_tensor<element::Type_t::i32>(updates_shape, {1, 2, 3, 4, 5, 6}),
                          make_tensor<element::Type_t::i64>({}, {0})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::i32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{3, 3, 2}));
@@ -2466,6 +2577,7 @@ TEST(eval, evaluate_softmax_8) {
     auto out_vector = ov::TensorVector{result_tensor};
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(data_shape, {1, 1})};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result_tensor = out_vector.at(0);
 
     EXPECT_EQ(result_tensor.get_element_type(), element::f32);
     EXPECT_EQ(result_tensor.get_shape(), (Shape{1, 2}));
@@ -2513,6 +2625,7 @@ TEST(eval, evaluate_fake_quantize_dynamic_input) {
     auto out_vector = ov::TensorVector{result};
     auto in_vector = ov::TensorVector{make_tensor<et>(exp_shape, input_data)};
     ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
 
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), exp_shape);
