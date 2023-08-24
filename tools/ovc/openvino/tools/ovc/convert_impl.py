@@ -86,7 +86,12 @@ def arguments_post_parsing(argv: argparse.Namespace):
         print_argv(argv)
 
     params_parsing(argv)
-    argv.output = argv.output.split(',') if isinstance(argv.output, (str, pathlib.Path)) else argv.output
+
+    if not argv.is_python_api_used and isinstance(argv.output, str):
+        if argv.output.find(', ') != -1:
+            argv.output = argv.output.split(', ')
+        else:
+            argv.output = argv.output.split(',')
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
