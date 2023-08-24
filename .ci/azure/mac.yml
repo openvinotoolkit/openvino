@@ -185,10 +185,6 @@ jobs:
     displayName: 'OV Core UT'
     enabled: 'false'
 
-  - script: $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
-    displayName: 'OV Proxy Plugin Tests'
-    enabled: 'false'
-
   - script: $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     displayName: 'OV Hetero Func Tests'
     enabled: 'false'

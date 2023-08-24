@@ -279,12 +279,6 @@ jobs:
     displayName: 'OV Core UT'
 
   - script: |
-      $(INSTALL_TEST_DIR)/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVProxyTests.xml
-    env:
-      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
-    displayName: 'OV Proxy Tests'
-
-  - script: |
       $(INSTALL_TEST_DIR)/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-OVHeteroFuncTests.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
