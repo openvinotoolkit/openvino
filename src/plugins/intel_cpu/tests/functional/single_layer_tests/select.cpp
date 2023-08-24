@@ -86,7 +86,7 @@ protected:
 
 TEST_P(SelectLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, "Eltwise");
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 const std::vector<ElementType> precisions = {

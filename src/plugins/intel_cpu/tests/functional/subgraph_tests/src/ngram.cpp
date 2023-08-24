@@ -13,6 +13,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include <openvino/opsets/opset1.hpp>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -205,6 +206,11 @@ protected:
         std::tie(inputShapes, data_et, idces_et, k) = this->GetParam();
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
+
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::DISABLE});
+        }
     }
 };
 

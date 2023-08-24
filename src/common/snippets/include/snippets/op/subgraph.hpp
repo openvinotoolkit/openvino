@@ -116,6 +116,7 @@ public:
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
+    ov::PartialShape canonicalized_body_shape_infer(const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
     std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
 
@@ -161,6 +162,8 @@ private:
 
     ov::PartialShape master_shape;
     size_t tileRank = 0; // set by plugin to specify the number of dimensions processed in a single kernel call
+    size_t maxInputRank = 0;
+    std::vector<size_t> appendOnesForCanonical;
 
     /**
     * @interface SubgraphConfig

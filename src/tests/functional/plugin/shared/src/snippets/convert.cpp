@@ -6,22 +6,27 @@
 #include "snippets/convert.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
 std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj) {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(inputShape, types, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "IS=";
-    for (const auto& sh : inputShape)
-        result << ov::test::utils::vec2str(sh.get_shape()) << "_";
+    for (size_t i = 0; i < inputShape.size(); ++i) {
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({inputShape[i].first}) << "_";
+        result << "TS[" << i << "]=";
+        for (const auto& shape : inputShape[i].second) {
+            result << ov::test::utils::vec2str(shape) << "_";
+        }
+    }
     result << "IT=" << ov::test::utils::vec2str(types.first) << "_";
     result << "OT=" << ov::test::utils::vec2str(types.second) << "_";
     result << "#N=" << num_nodes << "_";
@@ -31,13 +36,17 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
 }
 
 void Convert::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
-    auto f = ov::test::snippets::ConvertFunction(inputShape, types.first[0], types.second[0]);
+    init_input_shapes(inputShape);
+    auto f = ov::test::snippets::ConvertFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 parameters Convert::generate_params_random() const {
@@ -84,12 +93,16 @@ void Convert::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
 }
 
 void ConvertInput::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
-    auto f = ov::test::snippets::ConvertInputFunction(inputShape, types.first[0], types.second[0]);
+    init_input_shapes(inputShape);
+    auto f = ov::test::snippets::ConvertInputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 parameters ConvertInput::generate_params_random() const {
@@ -123,65 +136,89 @@ parameters ConvertInput::generate_params_random() const {
 }
 
 void ConvertOutput::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertOutputFunction(inputShape, types.first[0], types.second[0]);
+    auto f = ov::test::snippets::ConvertOutputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void ConvertStub::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertStubFunction(inputShape, types.first[0], types.second[0]);
+    auto f = ov::test::snippets::ConvertStubFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void ConvertPartialInputsAndResults::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputShape, types.first, types.second);
+    auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void ConvertManyOnInputs::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputShape, types.first);
+    auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void ConvertManyOnOutputs::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputShape, types.first);
+    auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 void ConvertManyOnInputOutput::SetUp() {
-    std::vector<ov::PartialShape> inputShape;
+    std::vector<InputShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
+    init_input_shapes(inputShape);
 
-    auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputShape, types.first, types.second);
+    auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
+    if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+        configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+    }
 }
 
 TEST_P(Convert, CompareWithRefImpl) {

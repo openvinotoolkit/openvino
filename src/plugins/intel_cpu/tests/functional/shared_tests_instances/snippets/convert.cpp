@@ -30,10 +30,14 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::u8 }, { ov::element::i8 } },
 };
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes_Convert = {
-        { ov::PartialShape{2, 16} },
-        { ov::PartialShape{5, 5} },
-        { ov::PartialShape{2, 12, 1} }
+const std::vector<std::vector<ov::test::InputShape>> inputShapes_Convert = {
+        { {{}, {{2, 16}}} },
+        { {{}, {{5, 5}}} },
+        { {{}, {{2, 12, 1}}} },
+        // DS(dynamic shape)
+        { {{-1, -1}, {{2, 16}, {2, 8}, {2, 16}}} },
+        { {{{1, 5}, 5}, {{5, 5}, {1, 5}, {5, 5}}} },
+        { {{{1, 10}, {4, 12}, {1, 2}}, {{2, 12, 1}, {4, 4, 2}, {2, 12, 1}}} }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Convert, Convert,
@@ -57,10 +61,14 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::u8 }, { ov::element::bf16 } },
 };
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes_ConvertInput = {
-        { ov::PartialShape{2, 16}, ov::PartialShape{1, 16} },
-        { ov::PartialShape{5, 18}, ov::PartialShape{5, 1} },
-        { ov::PartialShape{3, 1}, ov::PartialShape{3, 21} }
+const std::vector<std::vector<ov::test::InputShape>> inputShapes_ConvertInput = {
+        { {{}, {{2, 16}}}, {{}, {{1, 16}}} },
+        { {{}, {{5, 18}}}, {{}, {{5, 1}}} },
+        { {{}, {{3, 1}}}, {{}, {{3, 21}}} },
+        // DS
+        { {{-1, -1}, {{2, 16}, {1, 16}, {2, 16}}}, {{-1, -1}, {{1, 16}, {2, 16}, {1, 16}}} },
+        { {{5, -1}, {{5, 18}, {5, 1}, {5, 18}}}, {{-1, 1}, {{5, 1}, {1, 1}, {5, 1}}} },
+        { {{{1, 4}, {1, 8}}, {{3, 1}, {4, 8}, {3, 1}}}, {{{1, 4}, {8, 21}}, {{3, 21}, {1, 8}, {3, 21}}} }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertInput, ConvertInput,
@@ -94,10 +102,12 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::i8, ov::element::i8, ov::element::f32 }, { ov::element::f32, ov::element::i8 } },
 };
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes_ConvertPartialInputsAndResults = {
-        { ov::PartialShape{2, 16}, ov::PartialShape{1, 16}, ov::PartialShape{1, 1} },
-        { ov::PartialShape{5, 18}, ov::PartialShape{5, 1}, ov::PartialShape{1, 18} },
-        { ov::PartialShape{3, 1}, ov::PartialShape{3, 21}, ov::PartialShape{3, 1} }
+const std::vector<std::vector<ov::test::InputShape>> inputShapes_ConvertPartialInputsAndResults = {
+        { {{}, {{2, 16}}}, {{}, {{1, 16}}}, {{}, {{1, 1}}} },
+        { {{}, {{5, 18}}}, {{}, {{5, 1}}}, {{}, {{1, 18}}} },
+        { {{}, {{3, 1}}}, {{}, {{3, 21}}}, {{}, {{3, 1}}} },
+        // DS
+        { {{-1, -1}, {{3, 1}, {2, 4}, {3, 1}}}, {{{1, 3}, -1}, {{3, 21}, {2, 1}, {3, 21}}}, {{{1, 3}, {1, 2}}, {{3, 1}, {1, 1}, {3, 1}}} },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertPartialInputsAndResults, ConvertPartialInputsAndResults,
@@ -115,9 +125,15 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::f32, ov::element::f32, ov::element::i8, ov::element::i8 }, {} },
 };
 
+const std::vector<std::vector<ov::test::InputShape>> inputShapes_ConvertManyOnInputs = {
+        { {{}, {{5, 5, 5, 5}}} },
+        // DS
+        { {{-1, -1, -1, -1}, {{5, 5, 5, 5}, {3, 3, 3, 3}, {5, 5, 5, 5}}} }
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
+                                 ::testing::ValuesIn(inputShapes_ConvertManyOnInputs),
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
@@ -126,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputs, ConvertManyOnInputs
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnOutputs, ConvertManyOnOutputs,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
+                                 ::testing::ValuesIn(inputShapes_ConvertManyOnInputs),
                                  ::testing::ValuesIn(types_ConvertMany),
                                  ::testing::Values(1),
                                  ::testing::Values(1),
@@ -140,7 +156,7 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ConvertManyOnInputOutput, ConvertManyOnInputOutput,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{{5, 5, 5, 5}}),
+                                 ::testing::ValuesIn(inputShapes_ConvertManyOnInputs),
                                  ::testing::ValuesIn(types_ConvertManyIO),
                                  ::testing::Values(1),
                                  ::testing::Values(1),

@@ -325,7 +325,8 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     PartialShape baseShape;
     AxisVector baseOrder;
     std::tie(baseShape, baseOrder, std::ignore) = getMaxRankBlockedShape(inputShapes);
-    const auto baseRank = baseShape.size();
+    maxInputRank = baseShape.size();
+    appendOnesForCanonical.resize(inputShapes.size(), 0);
     const bool baseIsBlocked = baseOrder.size() != std::set<size_t>(baseOrder.begin(), baseOrder.end()).size();
     for (size_t i = 0; i < inputShapes.size(); i++) {
         const auto& blockedShape = inputShapes[i];
@@ -334,14 +335,16 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
         element::Type inType;
         std::tie(inShape, inOrder, inType) = blockedShape;
         const auto inRank = inShape.size();
-        NODE_VALIDATION_CHECK(this, inRank <= baseRank, "Input rank can't be larger than output rank in snippets.");
-        if (inRank < baseRank) {
-            PartialShape newShape(ov::Shape(baseRank, 1));
+        NODE_VALIDATION_CHECK(this, inRank <= maxInputRank, "Input rank can't be larger than output rank in snippets.");
+        if (inRank < maxInputRank) {
+            appendOnesForCanonical[i] = maxInputRank - inRank;
+            PartialShape newShape(ov::Shape(maxInputRank, 1));
             // todo: more complicated logics is needed if we want to merge smth else than blocked and planar
             if (baseIsBlocked) {
                 const bool inIsNotBlocked = inOrder.size() == std::set<size_t>(inOrder.begin(), inOrder.end()).size();
                 NODE_VALIDATION_CHECK(this, inIsNotBlocked, "Snippets don't support conversion between blocked layouts of different ranks");
                 inShape.insert(inShape.end(), ov::Dimension(1));
+                appendOnesForCanonical[i]--;
             }
             NODE_VALIDATION_CHECK(this, PartialShape::broadcast_merge_into(newShape, inShape, ov::op::AutoBroadcastType::NUMPY),
                                   "Failed to broadcast_merge inputs in snippets canonicalization");
@@ -364,6 +367,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                 body_ptr()->replace_parameter(i, std::make_shared<ov::op::v0::Parameter>(paramType, inShape));
     }
     body_ptr()->validate_nodes_and_infer_types();
+
     auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
@@ -411,6 +415,43 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     // to align precision inside Subgraph body that is supported by Plugin
     align_element_types(outputShapes, inputShapes);
 
+    master_shape = outPShape;
+    return master_shape;
+}
+
+ov::PartialShape snippets::op::Subgraph::canonicalized_body_shape_infer(const BlockedShapeVector& inputShapes) {
+    std::vector<Shape> normInputShapes;
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        PartialShape inShape = std::get<0>(inputShapes[i]);
+        const auto inRank = inShape.size();
+        if (inRank < maxInputRank) {
+            PartialShape newShape(ov::Shape(maxInputRank, 1));
+            for (size_t ir = 0; ir < inRank; ir++) {
+                newShape[appendOnesForCanonical[i] + ir] = inShape[ir];
+            }
+            normInputShapes.push_back(newShape.get_shape());
+        } else {
+            normInputShapes.push_back(inShape.get_shape());
+        }
+    }
+    reshape_body(normInputShapes);
+
+    const auto& body_results = body_ptr()->get_results();
+    PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
+    const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
+    if (body_results.size() == 1 &&
+        ov::is_type<ov::op::v1::Transpose>(result_parent) &&
+        ov::is_type<ov::op::v0::MatMul>(result_parent->get_input_node_shared_ptr(0))) {
+        outPShape = result_parent->get_input_partial_shape(0);
+    } else {
+        for (size_t i = 0; i < body_results.size(); i++) {
+            auto shape_i = body_results[i]->get_input_partial_shape(0);
+            bool compatibleWithOtherOutputs = PartialShape::broadcast_merge_into(outPShape, shape_i,
+                                                                                 ::ov::op::AutoBroadcastType::NUMPY);
+            NODE_VALIDATION_CHECK(this, compatibleWithOtherOutputs,
+                                  "Snippets output shapes must be numpy broadcastable");
+        }
+    }
     master_shape = outPShape;
     return master_shape;
 }
