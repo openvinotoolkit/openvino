@@ -550,14 +550,6 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
             denormals_as_zero(false);
         }
     }
-
-#if 0
-    ov::pass::Manager manager;
-    std::string model_xml_name="test_compiled_model.xml";
-    std::string model_bin_name="test_compiled_model.bin";
-    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    manager.run_passes(cloned_model);
-#endif
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, extensionManager);
 }
 

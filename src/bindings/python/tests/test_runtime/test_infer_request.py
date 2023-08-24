@@ -404,9 +404,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 
-    # Temporarily skip due to issue-117486
-    if ov_type != Type.bf16:
-        assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -430,9 +428,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, share_inputs):
 
     request.start_async([tensor1, array1], share_inputs=share_inputs)
     request.wait()
-    # Temporarily skip due to issue-117486
-    if ov_type != Type.bf16:
-        assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
