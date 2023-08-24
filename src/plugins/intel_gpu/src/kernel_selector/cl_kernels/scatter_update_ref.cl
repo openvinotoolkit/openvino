@@ -12,6 +12,7 @@
 #define AXIS_X (OUTPUT_DIMS - 1)
 
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
+#define GET_INPUT_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
@@ -121,8 +122,10 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+    const uint dict_idx = GET_INPUT_INDEX(ORDER);
 
-    INPUT0_TYPE val = dictionary[output_idx];
+    // Use input index instead of output index because output padding is not empty.
+    INPUT0_TYPE val = dictionary[dict_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_FIRST_KERNEL);
@@ -233,6 +236,7 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 }
 
 #undef GET_OUTPUT_INDEX
+#undef GET_INPUT_INDEX
 #undef ORDER
 #undef AXIS_B
 #undef AXIS_F
