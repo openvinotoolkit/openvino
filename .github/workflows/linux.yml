@@ -694,13 +694,13 @@ jobs:
 
       - name: TensorFlow Hub Tests - TF FE
         run: |
-          python3 -m pip install -r ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
 
-          export PYTHONPATH=${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}:$PYTHONPATH
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
 
           source ${{ env.INSTALL_DIR }}/setupvars.sh
 
-          python3 -m pytest ${{ env.MODEL_HUB_TESTS_INSTALL_DIR }}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
         env:
           TEST_DEVICE: CPU
 
