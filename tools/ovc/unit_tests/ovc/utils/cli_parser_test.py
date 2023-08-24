@@ -334,7 +334,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         from openvino.frontend import ConversionExtension
         args = {'input_model': os.path.dirname(__file__),
                 'extension': ConversionExtension("Ext", lambda x: x),
-                'input': ['name', ("a", [1,2,3], ov.Type.f32)],
+                'input': ['name', ("a", [1, 2, 3], ov.Type.f32)],
                 'output': ["a", "b", "c"]}
 
         cli_parser = get_all_cli_parser()
@@ -343,7 +343,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         assert argv.input_model == args['input_model']
         assert argv.extension == args['extension']
         assert argv.input == ['name', ("a", [1,2,3], ov.Type.f32)]
-        assert argv.output == ["a","b","c"]
+        assert argv.output == ["a", "b", "c"]
 
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
@@ -361,7 +361,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         argv.is_python_api_used = False
         argv = arguments_post_parsing(argv)
-        assert argv.output == ["a", "b", "c"]
+        assert argv.output == ["a,b,c"]
 
     def test_output_post_parsing_2(self):
         args = {'input_model': os.path.dirname(__file__),
