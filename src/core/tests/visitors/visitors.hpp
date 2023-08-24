@@ -290,8 +290,10 @@ public:
         adapter.set(m_values.get<std::vector<double>>(name));
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         HostTensorPtr& data = m_values.get<HostTensorPtr>(name);
         data->read(adapter.get_ptr(), adapter.size());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
 protected:
