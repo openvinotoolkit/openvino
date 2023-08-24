@@ -805,7 +805,7 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --repeat_failed={args.repeat_failed}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(exec_file_path = args.exec_file,
+    test_runner = TestParallelRunner(exec_file_path = args.exec_file,
                                      test_command_line = exec_file_args,
                                      worker_num = args.workers,
                                      working_dir = args.working_dir,
@@ -813,8 +813,8 @@ if __name__ == "__main__":
                                      split_unit = args.split_unit,
                                      repeat_failed = args.repeat_failed,
                                      is_parallel_devices = args.parallel_devices)
-    conformance.run()
-    if not conformance.postprocess_logs(args.split_unit):
+    test_runner.run()
+    if not test_runner.postprocess_logs(args.split_unit):
         logger.error("Run is not successful")
         sys.exit(-1)
     else:
