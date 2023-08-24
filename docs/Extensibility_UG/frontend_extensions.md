@@ -301,10 +301,18 @@ This mapping also specifies the input name "X" and output name "Out".
 
 The last step is to register this custom operation by following:
 
-
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_macro_add_extension]
+
+.. important::
+
+   To map an operation on a specific framework, you have to link to a respective 
+   frontend (``openvino::frontend::onnx``, ``openvino::frontend::tensorflow``, ``openvino::frontend::paddle``) in the ``CMakeLists.txt`` file:
+
+   .. code-block:: sh
+
+      target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::onnx)
 
 
 Mapping to Multiple Operations with ConversionExtension

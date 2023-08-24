@@ -499,6 +499,9 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    transformations.UpToLpt();
+
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
     }
@@ -509,8 +512,8 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
-    transformations.UpToCpuSpecificOpSet();
+    transformations.PostLpt();
+    transformations.Snippets();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -796,10 +799,16 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
-            transformation.UpToCpuSpecificOpSet();
+            Transformations transformation(model,
+                                           enableLPT,
+                                           conf.inferencePrecision,
+                                           is_legacy_api(),
+                                           snippetsMode,
+                                           engConfig);
+            transformation.UpToLpt();
+            transformation.PostLpt();
+            transformation.Snippets();
             transformation.CpuSpecificOpSet();
-            transformation.RunPrecisionConvert();
         },
         [&](const std::shared_ptr<ov::Node>& op) {
             std::unique_ptr<Node> ptr;

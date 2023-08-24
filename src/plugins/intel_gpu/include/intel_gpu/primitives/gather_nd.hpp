@@ -52,7 +52,7 @@ struct gather_nd : public primitive_base<gather_nd> {
     uint8_t batch_dims;
 
     /// @brief GatherND batch_merged_output
-    bool batch_merged_output;
+    bool batch_merged_output = true;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

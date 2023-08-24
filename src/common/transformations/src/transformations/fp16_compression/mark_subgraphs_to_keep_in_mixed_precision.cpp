@@ -4,8 +4,6 @@
 
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
-#include <openvino/op/util/pad_base.hpp>
-
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -39,6 +37,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"

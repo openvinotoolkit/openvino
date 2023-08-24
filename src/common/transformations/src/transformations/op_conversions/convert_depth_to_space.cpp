@@ -5,20 +5,20 @@
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     MATCHER_SCOPE(ConvertDepthToSpace);
     auto dts_node =
-        ngraph::pattern::wrap_type<ov::op::v0::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
+        ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ov::op::v0::DepthToSpace>(m.get_match_root());
@@ -99,11 +99,11 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape_begin, create_constant(order));
         auto reshape_end = std::make_shared<ov::op::v1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(dts_node->get_friendly_name());
-        ngraph::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
-        ngraph::replace_node(dts_node, reshape_end);
+        ov::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
+        ov::replace_node(dts_node, reshape_end);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(dts_node, matcher_name);
     this->register_matcher(m, callback);
 }

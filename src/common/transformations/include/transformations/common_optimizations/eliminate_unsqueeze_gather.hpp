@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/pattern/matcher.hpp>
-#include <transformations_visibility.hpp>
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {

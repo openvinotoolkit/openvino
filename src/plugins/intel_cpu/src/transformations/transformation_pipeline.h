@@ -37,9 +37,11 @@ public:
             CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
           }
 
-    void UpToCpuSpecificOpSet();
+    void UpToLpt();
     void CpuSpecificOpSet();
     void RunPrecisionConvert();
+    void PostLpt();
+    void Snippets(void);
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -53,13 +55,9 @@ private:
 
     void Lpt(const bool hasINT16orINT32Levels, const std::vector<ov::element::Type>& defaultPrecisions);
 
-    void PostLpt();
-
     void MainSnippets(void);
 
     void PostSnippets(void);
-
-    void Snippets(void);
 
     static precisions_map get_convert_precisions();
 
