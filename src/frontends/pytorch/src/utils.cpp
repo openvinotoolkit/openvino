@@ -451,7 +451,7 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     if (lhs_dst_type != rhs_dst_type) {
         auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
         // If integer type are mixed signed+unsigned align to next bitness
-        if (lhs_dst_type.is_integral() && lhs_dst_type.is_integral() &&
+        if (dst_bitness < 64 && lhs_dst_type.is_integral() && lhs_dst_type.is_integral() &&
             lhs_dst_type.bitwidth() == rhs_dst_type.bitwidth() && lhs_dst_type != rhs_dst_type) {
             dst_bitness *= 2;
         }
