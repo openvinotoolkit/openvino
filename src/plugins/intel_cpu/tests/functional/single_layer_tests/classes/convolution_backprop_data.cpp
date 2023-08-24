@@ -254,62 +254,62 @@ const std::vector<fusingSpecificParams>& fusingParamsSet() {
     return fusingParamsSet;
 }
 
-const std::map<std::string, std::string> cpuBF16PluginConfig() {
+const std::map<std::string, std::string>& cpuBF16PluginConfig() {
     static const std::map<std::string, std::string> cpuBF16PluginConfig = {
             {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16,
              InferenceEngine::PluginConfigParams::YES}};
     return cpuBF16PluginConfig;
 }
 
-const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding() {
+const std::vector<std::vector<ptrdiff_t>>& emptyOutputPadding() {
     static const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
     return emptyOutputPadding;
 }
 
-const InferenceEngine::SizeVector numOutChannels_Planar() {
+const InferenceEngine::SizeVector& numOutChannels_Planar() {
     /* ============= Deconvolution params (planar layout) ============= */
     static const InferenceEngine::SizeVector numOutChannels_Planar = {6};
     return numOutChannels_Planar;
 }
 
-const InferenceEngine::SizeVector numOutChannels_Blocked() {
+const InferenceEngine::SizeVector& numOutChannels_Blocked() {
     /* ============= Deconvolution params (blocked layout) ============= */
     static const InferenceEngine::SizeVector numOutChannels_Blocked = {64};
     return numOutChannels_Blocked;
 }
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<InferenceEngine::SizeVector> kernels2d() {
+const std::vector<InferenceEngine::SizeVector>& kernels2d() {
     static const std::vector<InferenceEngine::SizeVector> kernels2d = {{3, 3}, {1, 1}};
     return kernels2d;
 }
 
-const std::vector<InferenceEngine::SizeVector> strides2d() {
+const std::vector<InferenceEngine::SizeVector>& strides2d() {
     static const std::vector<InferenceEngine::SizeVector> strides2d = {{1, 1}, {2, 2}};
     return strides2d;
 }
 
-const std::vector<std::vector<ptrdiff_t>> padBegins2d() {
+const std::vector<std::vector<ptrdiff_t>>& padBegins2d() {
     static const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
     return padBegins2d;
 }
 
-const std::vector<std::vector<ptrdiff_t>> padEnds2d() {
+const std::vector<std::vector<ptrdiff_t>>& padEnds2d() {
     static const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
     return padEnds2d;
 }
 
-const std::vector<InferenceEngine::SizeVector> dilations2d() {
+const std::vector<InferenceEngine::SizeVector>& dilations2d() {
     static const std::vector<InferenceEngine::SizeVector> dilations2d = {{1, 1}};
     return dilations2d;
 }
 
-const std::vector<InferenceEngine::SizeVector> deconvAmxKernels2d() {
+const std::vector<InferenceEngine::SizeVector>& deconvAmxKernels2d() {
     static const std::vector<InferenceEngine::SizeVector> deconvAmxKernels2d = {{3, 3}, {2, 2}};
     return deconvAmxKernels2d;
 }
 
-const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d() {
+const std::vector<InferenceEngine::SizeVector>& deconvAmxStrides2d() {
     static const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d = {{2, 2}};
     return deconvAmxStrides2d;
 }

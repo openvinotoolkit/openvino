@@ -62,19 +62,19 @@ private:
 
 namespace Deconvolution {
     const std::vector<fusingSpecificParams>& fusingParamsSet();
-    const std::map<std::string, std::string> cpuBF16PluginConfig();
-    const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding();
-    const InferenceEngine::SizeVector numOutChannels_Planar();
-    const InferenceEngine::SizeVector numOutChannels_Blocked();
+    const std::map<std::string, std::string>& cpuBF16PluginConfig();
+    const std::vector<std::vector<ptrdiff_t>>& emptyOutputPadding();
+    const InferenceEngine::SizeVector& numOutChannels_Planar();
+    const InferenceEngine::SizeVector& numOutChannels_Blocked();
 
     /* ============= Deconvolution params (2D) ============= */
-    const std::vector<InferenceEngine::SizeVector> kernels2d();
-    const std::vector<InferenceEngine::SizeVector> strides2d();
-    const std::vector<std::vector<ptrdiff_t>> padBegins2d();
-    const std::vector<std::vector<ptrdiff_t>> padEnds2d();
-    const std::vector<InferenceEngine::SizeVector> dilations2d();
-    const std::vector<InferenceEngine::SizeVector> deconvAmxKernels2d();
-    const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d();
+    const std::vector<InferenceEngine::SizeVector>& kernels2d();
+    const std::vector<InferenceEngine::SizeVector>& strides2d();
+    const std::vector<std::vector<ptrdiff_t>>& padBegins2d();
+    const std::vector<std::vector<ptrdiff_t>>& padEnds2d();
+    const std::vector<InferenceEngine::SizeVector>& dilations2d();
+    const std::vector<InferenceEngine::SizeVector>& deconvAmxKernels2d();
+    const std::vector<InferenceEngine::SizeVector>& deconvAmxStrides2d();
 } // namespace Deconvolution
 
 } // namespace CPULayerTestsDefinitions
