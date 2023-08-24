@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/except.hpp>
-#include <openvino/op/abs.hpp>
-#include <openvino/op/constant.hpp>
-#include <openvino/opsets/opset.hpp>
+#include <gtest/gtest.h>
 
-#include "gtest/gtest.h"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset.hpp"
 
 #ifdef SELECTIVE_BUILD_ANALYZER
 #    define SELECTIVE_BUILD_ANALYZER_ON
@@ -33,7 +32,7 @@ TEST(conditional_compilation, disabled_op_scope) {
     EXPECT_EQ(n, 42);
 
     // Simple Scope1 is disabled and throws exception
-    ASSERT_THROW(OV_OP_SCOPE(Scope1), ngraph::ngraph_error);
+    ASSERT_THROW(OV_OP_SCOPE(Scope1), ov::Exception);
 #undef ov_op_Scope0
 }
 

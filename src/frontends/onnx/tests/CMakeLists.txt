@@ -138,7 +138,7 @@ if(ONNX_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_onnx_frontend_tests PRIVATE gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common func_test_utils)
+    openvino_onnx_frontend openvino_onnx_common func_test_utils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.

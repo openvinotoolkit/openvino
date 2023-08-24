@@ -204,7 +204,8 @@ void FullyConnected::getSupportedDescriptors() {
 
     useSparseWeights = useSparseWeightsDecompression();
     useWeightsDecompressionImpl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-                                  inputDataType == memory::data_type::f32 && weightsDataType == memory::data_type::u8;
+                                  one_of(inputDataType, memory::data_type::f32, memory::data_type::bf16) &&
+                                  weightsDataType == memory::data_type::u8;
 
     // revert back outputDataType on special cases
     if (inputDataType == memory::data_type::f32) {
@@ -216,12 +217,14 @@ void FullyConnected::getSupportedDescriptors() {
             outputDataType = memory::data_type::bf16;
         }
     } else if (inputDataType == memory::data_type::f16) {
+#if defined(OV_CPU_WITH_ACL)
+        // acl fc does not support precisions conversion
+        outputDataType = weightsDataType = memory::data_type::f16;
+#else
         // f16 input only supports f16/f32 output, even if FQ is fused as post-ops
         if (!one_of(outputDataType , memory::data_type::f32, memory::data_type::f16)) {
             outputDataType = memory::data_type::f16;
         }
-#if defined(OV_CPU_WITH_ACL)
-        weightsDataType = memory::data_type::f16;
 #endif
     } else if (one_of(inputDataType, memory::data_type::u8, memory::data_type::s8)) {
         if (weightsDataType != memory::data_type::s8) {
@@ -594,10 +597,18 @@ void FullyConnected::setPostOps(dnnl::primitive_attr& attr, const VectorDims& di
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, postOpsArgs, dims, dims.size() - 1, canBeExecutedInInt8(),
                                     1 << 0,  getDQScales(), withBiases);
 
+    NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+    // OneDNN API doesn't provide an abilitiy to query optimal layout for runtime attributes
+    // As workaround we assume that all AMX IP implementations use equal internal IC block size for weights layout
+    // and prepack runtime attributes accordingly for better performance
+    bool withAMX = selected_pd->getImplementationType() & impl_desc_type::amx;
+    int icBlock = withAMX ? 2 : 1;
     if (!decompressionMultiply.empty())
-        dnnlpoc.appendDecompressionScales(decompressionMultiply);
+        dnnlpoc.appendDecompressionScales(decompressionMultiply, icBlock);
     if (!decompressionSubtract.empty())
-        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract);
+        dnnlpoc.appendDecompressionZeroPoints(decompressionSubtract, icBlock);
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];

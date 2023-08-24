@@ -56,20 +56,15 @@ def get_type_from_py_type(value):
 
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
-    torch_t = torch_t.to(memory_format=torch.contiguous_format)
+    torch_t = torch_t.contiguous()
     if torch_t.dtype == torch.bfloat16:
         # reinterpret bfloat16 data as float16 to allow conversion to numpy
         torch_t = torch_t.view(torch.float16)
         narr = torch_t.numpy(force=True)
-        if not narr.flags['C_CONTIGUOUS']:
-            narr = np.ascontiguousarray(narr)
-        # TODO: this tensor doesn't share memory with initial tensor
         tensor = Tensor(narr, torch_t.shape, OVType.bf16)
         ov_const = op.Constant(tensor, shared_memory=shared_memory)
     else:
         narr = torch_t.numpy(force=True)
-        if not narr.flags['C_CONTIGUOUS']:
-            narr = np.ascontiguousarray(narr)
         ov_const = op.Constant(narr, shared_memory=shared_memory)
     return ov_const
 

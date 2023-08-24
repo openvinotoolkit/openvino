@@ -435,10 +435,18 @@ static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineC
         OPENVINO_THROW("Wrong value for property key LP_TRANSFORMS_MODE. Expected values: YES/NO");
 }
 
-static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig, const Config& engineConfig) {
+static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
+                                               const Config& engineConfig,
+                                               Config::ModelType modelType) {
     Config tempConf = engineConfig;
-    tempConf.readProperties(modelConfig);
+    tempConf.readProperties(modelConfig, modelType);
     return tempConf.inferencePrecision;
+}
+
+static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    return op::util::has_op_with_type<op::v1::Convolution>(model) ||
+           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
+           Config::ModelType::CNN : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -503,11 +511,16 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
     const bool enableLPT = shouldEnableLPT(config, engConfig);
-    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig);
-    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
+
+    Config::ModelType modelType = getModelType(cloned_model);
+    ov::element::Type inferencePrecision = getInferencePrecision(config, engConfig, modelType);
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig); 
 
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
     print_model(cloned_model, "AddPreprocess model:");
+
+    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
+    transformations.UpToLpt();
 
     if (!is_cpu_map_available()) {
         apply_performance_hints(config, cloned_model);
@@ -516,11 +529,12 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    conf.readProperties(config);
-    calculate_streams(conf, cloned_model);
 
-    Transformations transformations(cloned_model, enableLPT, inferencePrecision, is_legacy_api(), snippetsMode, conf);
-    transformations.UpToCpuSpecificOpSet();
+
+    conf.readProperties(config, modelType);
+    calculate_streams(conf, cloned_model);
+    transformations.PostLpt();
+    transformations.Snippets();
 
     // need to check that all outputs have static shapes
     // checking that all inputs have static shapes is performed in the common part
@@ -786,7 +800,8 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     WeightsSharing::Ptr fake_w_cache;
 
     Config conf = engConfig;
-    conf.readProperties(config);
+    Config::ModelType modelType = getModelType(model);
+    conf.readProperties(config, modelType);
 
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT =
@@ -795,18 +810,22 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
-    auto context =
-        std::make_shared<GraphContext>(conf, nullptr, fake_w_cache, false);
-
+    auto context = std::make_shared<GraphContext>(conf, nullptr, fake_w_cache, false);
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, enableLPT, conf.inferencePrecision, is_legacy_api(), snippetsMode, engConfig);
-            transformation.UpToCpuSpecificOpSet();
+            Transformations transformation(model,
+                                           enableLPT,
+                                           conf.inferencePrecision,
+                                           is_legacy_api(),
+                                           snippetsMode,
+                                           engConfig);
+            transformation.UpToLpt();
+            transformation.PostLpt();
+            transformation.Snippets();
             transformation.CpuSpecificOpSet();
-            transformation.RunPrecisionConvert();
         },
-        [&](const std::shared_ptr<ov::Node>& op) {
+        [&](const std::shared_ptr<ngraph::Node>& op) {
             std::unique_ptr<Node> ptr;
             try {
                 ptr.reset(Node::factory().create(op, context));
@@ -836,11 +855,13 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
+    Config::ModelType modelType = getModelType(model);
     Config conf = engConfig;
-    conf.readProperties(config);
+    conf.readProperties(config, modelType);
 
     // import config props from caching model
     calculate_streams(conf, model, true);
+
 
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, extensionManager, true);
     return compiled_model;
