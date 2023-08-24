@@ -102,7 +102,7 @@ protected:
     }
 
     std::shared_ptr<ngraph::Function> createFunction(bool secondInputConst) {
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, inputDynamicShapes[0])};
         params.front()->set_friendly_name("ParamsInput");
         std::shared_ptr<ov::Node> secondInput;
         if (secondInputConst) {

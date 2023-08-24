@@ -124,8 +124,10 @@ protected:
             attributes.offset,
             attributes.variances) = specParams;
 
-        auto params = ngraph::builder::makeDynamicParams(netPrecision, { inputShapes.first, imageShapes.first });
-
+        ov::ParameterVector params;
+        for (auto&& shape : { inputShapes.first, imageShapes.first }) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));
+        }
         auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
         auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
         auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClustered>(
