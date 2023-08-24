@@ -14,7 +14,6 @@ from openvino.runtime import get_version
 from openvino.runtime.utils.types import get_dtype
 
 
-
 def fill_tensor_random(tensor):
     dtype = get_dtype(tensor.element_type)
     rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
