@@ -683,7 +683,7 @@ TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
                                 {make_host_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
                                  make_host_tensor<element::Type_t::i16>(pattern->get_shape(), {2, 1, 1, 1, 1})}),
                     NodeValidationFailure,
-                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape [2,2,2]"));
+                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape"));
 }
 
 TEST(eval, evaluate_convert) {

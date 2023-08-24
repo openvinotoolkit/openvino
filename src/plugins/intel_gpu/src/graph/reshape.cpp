@@ -148,6 +148,8 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     reshape_info.add("input id", input.id());
     reshape_info.add("output shape", desc->output_shape);
     reshape_info.add("output pshape", desc->output_partial_shape);
+    reshape_info.add("output pattern", desc->output_pattern);
+    reshape_info.add("special zero", desc->special_zero);
 
     node_info->add("reshape info", reshape_info);
     node_info->dump(primitive_description);

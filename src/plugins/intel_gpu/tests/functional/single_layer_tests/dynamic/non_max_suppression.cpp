@@ -151,7 +151,10 @@ protected:
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(paramsPrec, shape));
+        }
         params[0]->set_friendly_name("param_1");
         params[1]->set_friendly_name("param_2");
 
