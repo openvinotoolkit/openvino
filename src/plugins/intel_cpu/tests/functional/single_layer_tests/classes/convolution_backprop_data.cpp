@@ -245,7 +245,6 @@ TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
 
 namespace Deconvolution {
 
-/* COMMON PARAMS */
 const std::vector<fusingSpecificParams>& fusingParamsSet() {
     static const std::vector<fusingSpecificParams> fusingParamsSet{
             emptyFusingSpec,
@@ -278,7 +277,6 @@ const InferenceEngine::SizeVector& numOutChannels_Blocked() {
     return numOutChannels_Blocked;
 }
 
-/* ============= Deconvolution params (2D) ============= */
 const std::vector<InferenceEngine::SizeVector>& kernels2d() {
     static const std::vector<InferenceEngine::SizeVector> kernels2d = {{3, 3}, {1, 1}};
     return kernels2d;
@@ -313,8 +311,6 @@ const std::vector<InferenceEngine::SizeVector>& deconvAmxStrides2d() {
     static const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d = {{2, 2}};
     return deconvAmxStrides2d;
 }
-
-/* ============= */
 
 } // namespace Deconvolution
 
