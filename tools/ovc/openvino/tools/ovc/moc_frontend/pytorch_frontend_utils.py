@@ -17,17 +17,20 @@ def get_pytorch_decoder(model, example_inputs, args):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    try:
-        if 'nncf' in sys.modules:
-            from nncf.torch.nncf_network import NNCFNetwork # pylint: disable=undefined-variable
-            from packaging import version
+    if 'nncf' in sys.modules:
+        is_good_version = True
+        try:
+            from nncf.torch.nncf_network import NNCFNetwork
 
             if isinstance(model, NNCFNetwork):
-                if version.parse(nncf.__version__) <= version.parse("2.6"): # pylint: disable=undefined-variable
-                    raise RuntimeError(
-                        "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
-    except:
-        pass
+                from packaging import version
+                if version.parse(sys.modules['nncf'].__version__) < version.parse("2.6"):
+                    is_good_version = False
+        except:
+            pass
+        if not is_good_version:
+            raise RuntimeError(
+                    "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     decoder = TorchScriptPythonDecoder(model, example_input=inputs, shared_memory=args.get("share_weights", True))
     args['input_model'] = decoder
@@ -77,6 +80,8 @@ def extract_input_info_from_example(args, inputs):
     input_names = None
     if not isinstance(example_inputs, (list, tuple, dict)):
         list_inputs = [list_inputs]
+    if args.input_model._input_is_list:
+        list_inputs[0] = list_inputs[0].unsqueeze(0)
     if args.input_model._input_signature is not None and not is_dict_input:
         input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[0] == "self" else args.input_model._input_signature
         if not is_dict_input:
@@ -149,16 +154,11 @@ def to_torch_tensor(tensor):
 
 
 def prepare_torch_inputs(example_inputs):
-    import torch
     inputs = None
     if example_inputs is not None:
         inputs = example_inputs
         if isinstance(inputs, list):
             inputs = [to_torch_tensor(x) for x in inputs]
-            if len(inputs) == 1:
-                inputs = torch.unsqueeze(inputs[0], 0)
-            else:
-                inputs = inputs
         elif isinstance(inputs, tuple):
             inputs = [to_torch_tensor(x) for x in inputs]
             inputs = tuple(inputs)
