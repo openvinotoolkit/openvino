@@ -10,6 +10,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -24,52 +25,24 @@ BufferManager::BufferManager(const lowered::LinearIR& linear_ir) {
 int64_t BufferManager::allocate() {
     initialization();
 
+    if (m_enable_optimizations) {
+        // Initialize boxes for MemorySolver
+        init_boxes();
+
+        MemorySolver staticMemSolver(boxes);
+        m_scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+
+        // Set offsets for Buffers (edges)
+        for (auto& box : boxes) {
+            for (auto& buffer : buffer_clusters[box.id]) {
+                int64_t offset = staticMemSolver.getOffset(box.id);
+                set_buffer_offset(buffer, offset * alignment);  // alignment in byte
+            }
+        }
+    }
+
     return m_scratchpad_size;
 }
-
-void BufferManager::init_clusters(const LinearIR& linear_ir) {
-    int64_t order = 0;
-    for (const auto& expr : linear_ir) {
-        const auto op = expr->get_node();
-        if (ov::is_type<ngraph::op::v0::Constant>(op) ||
-            ov::is_type<ngraph::op::v0::Parameter>(op) ||
-            ov::is_type<ngraph::op::v0::Result>(op) ||
-            ov::is_type<op::LoopBegin>(op))
-            continue;
-
-        if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            ov::snippets::pass::SetTopologicalOrder(buffer, order++);
-            buffer_clusters.push_back(BufferCluster{expr}); // TODO: Add support of inplace
-            continue;
-        }
-        if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(op)) {
-            // LoopBegin should have the same order as the corresponding LoopEnd
-            const auto loop_begin = loop_end->get_loop_begin();
-            ov::snippets::pass::SetTopologicalOrder(loop_begin, order);
-            ov::snippets::pass::SetTopologicalOrder(op, order++);
-            continue;
-        }
-
-        //bool is_node = false;  // Meaning in MemoryManager bounds
-        //for (size_t i = 0; i < op->get_input_size() && !is_node; ++i) {
-        //    is_node = is_node || ov::is_type<op::Buffer>(op->get_input_node_shared_ptr(i));
-        //}
-        //for (size_t i = 0; i < op->get_output_size() && !is_node; ++i) {
-        //    const auto target_consumers = op->get_output_target_inputs(i);
-        //    for (const auto& in : target_consumers) {
-        //        if (ov::is_type<op::Buffer>(in.get_node())) {
-        //            is_node = true;
-        //            break;
-        //        }
-        //    }
-        //}
-
-        // if (is_node) {
-            // ov::snippets::pass::SetTopologicalOrder(op, order++);
-        // }
-    }
-}
-
 
 void BufferManager::initialization() {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferManager::initialization")
@@ -85,7 +58,7 @@ void BufferManager::initialization() {
                 continue;
 
             const auto byte_size = buffer->get_byte_size();
-            propagate_offset(buffer_expr, buffer_offset);
+            set_buffer_offset(buffer_expr, buffer_offset);
             buffer->set_id(buffer_id);
 
             buffer_offset += byte_size;
@@ -95,7 +68,71 @@ void BufferManager::initialization() {
     m_scratchpad_size = buffer_offset;
 }
 
-void BufferManager::propagate_offset(const ExpressionPtr& buffer_expr, const size_t offset) const {
+void BufferManager::init_clusters(const LinearIR& linear_ir) {
+    int64_t order = 0;
+    for (const auto& expr : linear_ir) {
+        const auto op = expr->get_node();
+        if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
+            buffer_clusters.push_back(BufferCluster{expr}); // TODO: Add support of inplace
+        }
+        ov::snippets::pass::SetTopologicalOrder(op, order++);
+    }
+}
+
+void BufferManager::init_boxes() {
+    const auto count = static_cast<int>(buffer_clusters.size());
+    for (int i = 0; i < count; i++) {
+        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+        int64_t box_size = 0;
+        for (const auto& buffer_expr : buffer_clusters[i]) {
+            int e_start = 0, e_finish = 0;
+            const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(buffer_expr->get_node());
+            OPENVINO_ASSERT(buffer != nullptr, "BufferManager expects Buffer ops in clusters");
+            const auto buffer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(buffer));
+
+            // life finish time - order of LoopEnd / MemoryAccess ops
+            const auto buffer_outs = buffer_expr->get_output_port_connectors();
+            for (const auto& buffer_out : buffer_outs) {
+                const auto consumers = buffer_out->get_consumers();
+                for (const auto& consumer : consumers) {
+                    const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
+                    e_finish = std::max(e_finish, consumer_order);
+                }
+            }
+            e_start = e_finish;
+
+            const auto buffer_ins = buffer_expr->get_input_port_connectors();
+            for (const auto& buffer_in : buffer_ins) {
+                const auto& source = buffer_in->get_source();
+                auto local_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
+
+                const auto buffer_siblings = buffer_in->get_consumers();
+                for (const auto& sibling : buffer_siblings) {
+                    const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node());
+                    if (!loop_end)
+                        continue;
+                    const auto loop_end_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end));
+                    if (loop_end_order < buffer_order) {
+                        local_order = std::min(local_order, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                    }
+                }
+                e_start = std::min(e_start, local_order);
+            }
+
+            // TODO: Added support of Dynamic Buffers
+            auto buffer_size = static_cast<int64_t>(buffer->get_byte_size());
+            box_size = std::max(buffer_size, box_size);
+
+            box.start = std::min(e_start, box.start);
+            box.finish = std::max(e_finish, box.finish);
+        }
+
+        box.size = utils::div_up(box_size, alignment);
+        boxes.push_back(box);
+    }
+}
+
+void BufferManager::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) const {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 

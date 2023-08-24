@@ -51,6 +51,12 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
     return val == item && everyone_is(val, item_others...);
 }
 
+template <typename T, typename U>
+inline T div_up(const T a, const U b) {
+    assert(b);
+    return static_cast<T>((a + b - 1) / b);
+}
+
 VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& layout);
 VectorDims get_planar_vdims(const snippets::lowered::PortDescriptorPtr& port_desc);
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
