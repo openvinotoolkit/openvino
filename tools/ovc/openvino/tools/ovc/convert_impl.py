@@ -361,7 +361,7 @@ def params_parsing(argv: argparse.Namespace):
                     data_type_list.append(inp.type)
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
-    if argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
+    if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
         extract_input_info_from_example(argv, inputs)
 
 
