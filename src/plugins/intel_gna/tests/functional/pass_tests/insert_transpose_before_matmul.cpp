@@ -68,7 +68,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, firstInConst) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputShape})};
 
         auto matmul_in_shape = firstInConst ? ngraph::Shape{inputShape / 8, 8} : ngraph::Shape{8, inputShape / 8};
         auto pattern =
@@ -161,7 +161,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, inputShape, firstInConst) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto params = ngraph::builder::makeParams(ngPrc, {{1, inputShape}});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape{1, inputShape})};
         auto matmul_in_shape = ngraph::Shape{inputShape / 8, 8};
         auto pattern =
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{2}, matmul_in_shape);

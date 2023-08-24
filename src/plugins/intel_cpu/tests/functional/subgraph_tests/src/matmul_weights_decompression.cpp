@@ -100,7 +100,7 @@ protected:
                                                 const bool transpose_weights,
                                                 const bool add_subtract,
                                                 const bool reshape_on_decompression) {
-        auto params = builder::makeDynamicParams(data_precision, {inputShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, inputShapes[0])};
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
             if (!transpose_weights)
                 return shape;
