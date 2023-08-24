@@ -1,24 +1,15 @@
-//*****************************************************************************
-// Copyright 2017-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "openvino/op/dft.hpp"
+
+#include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/constant.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 struct ConstantAxesAndConstantSignalSizeTestParams {
     PartialShape input_shape;
@@ -34,15 +25,15 @@ struct ConstantAxesAndConstantSignalSizeTest : ::testing::TestWithParam<Constant
 TEST_P(ConstantAxesAndConstantSignalSizeTest, dft_constant_axes_and_signal_size) {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
-    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = ov::op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
 
     std::shared_ptr<op::v7::DFT> dft;
     if (params.signal_size.empty()) {
         dft = std::make_shared<op::v7::DFT>(data, axes_input);
     } else {
         auto signal_size_input =
-            op::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
+            ov::op::v0::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
         dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
     }
 
@@ -187,8 +178,8 @@ TEST(type_prop, dft_dynamic_axes) {
     const auto ref_output_shape =
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension(1, 18)};
 
-    auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::i64, axes_shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, input_shape);
+    auto axes_input = std::make_shared<ov::op::v0::Parameter>(element::i64, axes_shape);
     auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
 
     EXPECT_EQ(dft->get_element_type(), element::f32);
@@ -206,8 +197,8 @@ struct NonConstantAxesTest : ::testing::TestWithParam<NonConstantAxesTestParams>
 TEST_P(NonConstantAxesTest, dft_non_constant_axes) {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::i64, params.axes_shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = std::make_shared<ov::op::v0::Parameter>(element::i64, params.axes_shape);
     auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
 
     EXPECT_EQ(dft->get_element_type(), element::f32);
@@ -279,9 +270,9 @@ struct NonConstantSignalSizeTest : ::testing::TestWithParam<NonConstantSignalSiz
 TEST_P(NonConstantSignalSizeTest, dft_non_constant_signal_size) {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
-    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
-    auto signal_size_input = std::make_shared<op::Parameter>(element::i64, params.signal_size_shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = ov::op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto signal_size_input = std::make_shared<ov::op::v0::Parameter>(element::i64, params.signal_size_shape);
     auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(dft->get_element_type(), element::f32);
@@ -310,10 +301,10 @@ INSTANTIATE_TEST_SUITE_P(
     PrintToDummyParamName());
 
 TEST(type_prop, dft_invalid_input) {
-    auto axes = op::Constant::create(element::i64, Shape{2}, {0, 1});
+    auto axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
 
     try {
-        auto data = std::make_shared<op::Parameter>(element::f32, Shape{2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
@@ -321,7 +312,7 @@ TEST(type_prop, dft_invalid_input) {
     }
 
     try {
-        auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
@@ -329,7 +320,7 @@ TEST(type_prop, dft_invalid_input) {
     }
 
     try {
-        auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 2});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid input.";
     } catch (const NodeValidationFailure& error) {
@@ -338,10 +329,10 @@ TEST(type_prop, dft_invalid_input) {
 }
 
 TEST(type_prop, dft_invalid_axes) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3, 2});
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{1}, {3});
+        auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {3});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -349,7 +340,7 @@ TEST(type_prop, dft_invalid_axes) {
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{1}, {-3});
+        auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {-3});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -357,7 +348,7 @@ TEST(type_prop, dft_invalid_axes) {
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{2}, {0, -2});
+        auto axes = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, -2});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -365,7 +356,7 @@ TEST(type_prop, dft_invalid_axes) {
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{1}, {2});
+        auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {2});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -373,7 +364,7 @@ TEST(type_prop, dft_invalid_axes) {
     }
 
     try {
-        auto axes = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+        auto axes = ov::op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
         auto dft = std::make_shared<op::v7::DFT>(data, axes);
         FAIL() << "DFT node was created with invalid axes.";
     } catch (const NodeValidationFailure& error) {
@@ -382,11 +373,11 @@ TEST(type_prop, dft_invalid_axes) {
 }
 
 TEST(type_prop, dft_invalid_signal_size) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 3, 2});
-    auto axes = op::Constant::create(element::i64, Shape{1}, {0});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3, 2});
+    auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
 
     try {
-        auto signal_size = op::Constant::create(element::i64, Shape{1, 2}, {0, 1});
+        auto signal_size = ov::op::v0::Constant::create(element::i64, Shape{1, 2}, {0, 1});
         auto dft = std::make_shared<op::v7::DFT>(data, axes, signal_size);
         FAIL() << "DFT node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
@@ -394,7 +385,7 @@ TEST(type_prop, dft_invalid_signal_size) {
     }
 
     try {
-        auto signal_size = op::Constant::create(element::i64, Shape{2}, {0, 1});
+        auto signal_size = ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1});
         auto dft = std::make_shared<op::v7::DFT>(data, axes, signal_size);
         FAIL() << "DFT node was created with invalid signal size.";
     } catch (const NodeValidationFailure& error) {
@@ -408,9 +399,9 @@ TEST(type_prop, dft_dynamic_types) {
     const auto signal_size_shape = PartialShape::dynamic();
     const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2};
 
-    auto data = std::make_shared<op::Parameter>(element::dynamic, input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::dynamic, axes_shape);
-    auto signal_size_input = std::make_shared<op::Parameter>(element::dynamic, signal_size_shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::dynamic, input_shape);
+    auto axes_input = std::make_shared<ov::op::v0::Parameter>(element::dynamic, axes_shape);
+    auto signal_size_input = std::make_shared<ov::op::v0::Parameter>(element::dynamic, signal_size_shape);
     auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(dft->get_element_type(), element::dynamic);
