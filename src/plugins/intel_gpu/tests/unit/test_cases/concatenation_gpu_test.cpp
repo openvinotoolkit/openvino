@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/convolution.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/grid_sample.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -378,6 +379,66 @@ TEST(concat_gpu, mixed_input_types_5d) {
     for (size_t x = 0; x < output_layout.count(); ++x) {
         ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
+}
+
+
+TEST(concat_gpu, pooling_dynamic_input_no_exception) {
+    auto& engine = get_test_engine();
+
+    auto input0 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 8, 3}});
+    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 8, 3}});
+
+    auto input_dyn_layout = layout{ ov::PartialShape{ 1, ov::Dimension(), 8, 2 }, data_types::f32, format::bfyx };
+    auto input_actual_grid = layout{ ov::PartialShape{ 1, 3, 8, 2 }, data_types::f32, format::bfyx};
+    auto input_grid = engine.allocate_memory(input_actual_grid);
+
+    set_values(input_grid, { 13, 13, 13, 13, 15, 15,
+                        16, 15, 16, 14, 13, 14,
+                        13, 14, 13, 18, 16, 18,
+                        16, 15, 16, 15, 18, 14 });
+
+    set_values<float>(input0, { 11, 12, 13,
+                                 14, 12, 12,
+                                 13, -14, 13,
+                                 13, -13, 15,
+                                 16, -16, -13,
+                                 -14, 12, 11,
+                                 16, -14, -13,
+                                 18, -13, -15, });
+    set_values<float>(input1, { 11, 12, 13,
+                         15, 12, 12,
+                         13, 14, 12,
+                         13, 13, 15,
+                         12, 14, 13,
+                         14, 17, 18,
+                         13, 14, 11,
+                         13, 13, 15 });
+
+    GridSampleOp::Attributes attributes(false, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::ZEROS);
+
+    layout reorder_layout(data_types::f32, format::yxfb, {7, 2, 2, 1});
+    topology topology(input_layout("input0", input0->get_layout()),
+                      input_layout("input1", input1->get_layout()),
+                      input_layout("input_dyn", input_dyn_layout),
+                      grid_sample("grid_sample", { input_info("input0"), input_info("input_dyn") }, attributes),
+                      pooling("pool0", input_info("grid_sample"), pooling_mode::max, {2, 2}, {1, 1}),
+                      pooling("pool1", input_info("input1"), pooling_mode::max, {2, 2}, {1, 1}),
+                      concatenation("concat",
+                                    { input_info("pool0"), input_info("pool1") },
+                                    1,
+                                    data_types::f32,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      reorder("reorder", input_info("concat"), reorder_layout));
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input_dyn", input_grid);
+
+    EXPECT_NO_THROW(network.execute());
 }
 
 TEST(concat_gpu, i8_optimization_with_pool) {
