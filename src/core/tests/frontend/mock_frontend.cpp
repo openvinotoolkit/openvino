@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/visibility.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/frontend/visibility.hpp"
@@ -10,7 +9,6 @@
 
 #define MOCK_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 
-using namespace ngraph;
 using namespace ov::frontend;
 
 class InputModelMock : public InputModel {
@@ -102,16 +100,16 @@ public:
         FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
-    void set_partial_shape(const Place::Ptr& place, const PartialShape& shape) override {
+    void set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) override {
         FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
-    PartialShape get_partial_shape(const Place::Ptr& place) const override {
+    ov::PartialShape get_partial_shape(const Place::Ptr& place) const override {
         FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
         return {};
     }
 
-    void set_element_type(const Place::Ptr& place, const element::Type& type) override {
+    void set_element_type(const Place::Ptr& place, const ov::element::Type& type) override {
         FRONT_END_GENERAL_CHECK(!m_throw, "Test exception");
     }
 
@@ -185,13 +183,14 @@ public:
 
     std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
         FRONT_END_GENERAL_CHECK(!m_throw_next, "Test exception");
-        auto shape = Shape{1, 2, 300, 300};
+        auto shape = ov::Shape{1, 2, 300, 300};
         auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
         std::vector<float> data(ov::shape_size(shape), 1.f);
         auto constant = ov::opset8::Constant::create(ov::element::f32, shape, data);
         auto op = std::make_shared<ov::opset8::Add>(param, constant);
         auto res = std::make_shared<ov::opset8::Result>(op);
-        auto ov_model = std::make_shared<ov::Model>(ResultVector({res}), ParameterVector({param}), "mock1_model");
+        auto ov_model =
+            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::ParameterVector({param}), "mock1_model");
         ov_model->get_rt_info()["mock_test"] = std::string(1024, 't');
         return ov_model;
     }

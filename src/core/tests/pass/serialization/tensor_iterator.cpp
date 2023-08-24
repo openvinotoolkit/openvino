@@ -7,7 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ie_blob.h"
 #include "ie_core.hpp"

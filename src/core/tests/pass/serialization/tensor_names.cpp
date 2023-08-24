@@ -29,10 +29,9 @@ protected:
 };
 
 TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
-    std::shared_ptr<ngraph::Function> function;
+    std::shared_ptr<ov::Model> model;
     {
-        auto parameter =
-            std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        auto parameter = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
         parameter->set_friendly_name("parameter");
         parameter->get_output_tensor(0).set_names({"input"});
         auto relu_prev = std::make_shared<ov::opset8::Relu>(parameter);
@@ -41,18 +40,18 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
         auto relu = std::make_shared<ov::opset8::Relu>(relu_prev);
         relu->set_friendly_name("relu");
         relu->get_output_tensor(0).set_names({"relu,t", "identity"});
-        const ngraph::ResultVector results{std::make_shared<ov::opset8::Result>(relu)};
+        const ov::ResultVector results{std::make_shared<ov::opset8::Result>(relu)};
         results[0]->set_friendly_name("out");
-        ngraph::ParameterVector params{parameter};
-        function = std::make_shared<ngraph::Function>(results, params, "TensorNames");
+        ov::ParameterVector params{parameter};
+        model = std::make_shared<ov::Model>(results, params, "TensorNames");
     }
 
-    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(function);
+    ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(model);
     auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
                         .enable(FunctionsComparator::CONST_VALUES);
-    const auto res = fc.compare(result, function);
+    const auto res = fc.compare(result, model);
     EXPECT_TRUE(res.valid) << res.message;
 }

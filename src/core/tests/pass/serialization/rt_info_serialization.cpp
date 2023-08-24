@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/file_utils.hpp>
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/serialize.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {

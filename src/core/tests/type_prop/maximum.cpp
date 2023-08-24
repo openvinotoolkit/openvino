@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/maximum.hpp"
+
 #include "arithmetic_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v1::Maximum>;
+using Type = ::testing::Types<ov::op::v1::Maximum>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_maximum, ArithmeticOperator, Type);
