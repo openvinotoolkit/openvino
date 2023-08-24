@@ -14,7 +14,7 @@ import numpy as np
 
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, check_positive, writable_dir, \
     readable_file_or_object, get_all_cli_parser, get_mo_convert_params
-from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace
+from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
@@ -348,6 +348,48 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         for arg, value in vars(argv).items():
             if arg not in args and arg != 'is_python_api_used':
                 assert value == cli_parser.get_default(arg)
+
+    def test_output_post_parsing_1(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                "framework": "onnx",
+                'verbose': False,
+                'output': "a,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                "framework": "onnx",
+                'verbose': False,
+                'output': "a, b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                "framework": "onnx",
+                'verbose': False,
+                'output': "a,b, c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a,b", "c"]
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}
