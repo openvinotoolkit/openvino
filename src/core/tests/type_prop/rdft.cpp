@@ -1,25 +1,17 @@
-//*****************************************************************************
-// Copyright 2017-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//*****************************************************************************
+
+#include "openvino/op/rdft.hpp"
+
+#include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 struct RDFTConstantAxesAndConstantSignalSizeTestParams {
@@ -40,15 +32,15 @@ TEST_P(RDFTConstantAxesAndConstantSignalSizeTest, rdft_constant_axes_and_signal_
 
     auto input_shape = params.input_shape;
     set_shape_labels(input_shape, 10);
-    auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
 
     std::shared_ptr<op::v9::RDFT> rdft;
     if (params.signal_size.empty()) {
         rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
     } else {
         auto signal_size_input =
-            op::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
+            op::v0::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
         rdft = std::make_shared<op::v9::RDFT>(data, axes_input, signal_size_input);
     }
 
@@ -187,8 +179,8 @@ TEST(type_prop, rdft_dynamic_axes) {
     const auto axes_shape = PartialShape::dynamic();
     const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2};
 
-    auto data = std::make_shared<op::Parameter>(element::f32, input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::i64, axes_shape);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, axes_shape);
     auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
@@ -206,8 +198,8 @@ struct RDFTNonConstantAxesTest : ::testing::TestWithParam<RDFTNonConstantAxesTes
 TEST_P(RDFTNonConstantAxesTest, rdft_non_constant_axes) {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::i64, params.axes_shape);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
     auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input);
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
@@ -259,9 +251,9 @@ struct RDFTNonConstantSignalSizeTest : ::testing::TestWithParam<RDFTNonConstantS
 TEST_P(RDFTNonConstantSignalSizeTest, rdft_non_constant_signal_size) {
     auto params = GetParam();
 
-    auto data = std::make_shared<op::Parameter>(element::f32, params.input_shape);
-    auto axes_input = op::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
-    auto signal_size_input = std::make_shared<op::Parameter>(element::i64, params.signal_size_shape);
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
+    auto axes_input = op::v0::Constant::create<int64_t>(element::i64, params.axes_shape, params.axes);
+    auto signal_size_input = std::make_shared<op::v0::Parameter>(element::i64, params.signal_size_shape);
     auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(rdft->get_element_type(), element::f32);
@@ -352,9 +344,9 @@ TEST(type_prop, rdft_dynamic_types) {
     const auto signal_size_shape = PartialShape::dynamic();
     const auto ref_output_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2};
 
-    auto data = std::make_shared<op::Parameter>(element::dynamic, input_shape);
-    auto axes_input = std::make_shared<op::Parameter>(element::dynamic, axes_shape);
-    auto signal_size_input = std::make_shared<op::Parameter>(element::dynamic, signal_size_shape);
+    auto data = std::make_shared<op::v0::Parameter>(element::dynamic, input_shape);
+    auto axes_input = std::make_shared<op::v0::Parameter>(element::dynamic, axes_shape);
+    auto signal_size_input = std::make_shared<op::v0::Parameter>(element::dynamic, signal_size_shape);
     auto rdft = std::make_shared<op::v9::RDFT>(data, axes_input, signal_size_input);
 
     EXPECT_EQ(rdft->get_element_type(), element::dynamic);
