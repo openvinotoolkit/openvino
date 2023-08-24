@@ -25,7 +25,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_TwoResults_Dynamic, EltwiseTwoRe
                              ::testing::Values(InputShape {{{1, 2}, {1, 64}, {1, 10}, 1}, {{1, 64, 10, 1}, {2, 1, 1, 1}, {1, 64, 10, 1}}}),
                              ::testing::Values(2),
                              ::testing::Values(2),
-                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseTwoResults::getTestCaseName);
 
 } // namespace

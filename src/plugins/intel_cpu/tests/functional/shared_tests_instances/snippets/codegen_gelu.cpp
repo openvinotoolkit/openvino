@@ -45,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(NoReshapeAndReshapeDynamic, CodegenGelu,
         ::testing::ValuesIn(inShapesDynamic0),
         ::testing::ValuesIn(inShapesDynamic1),
         ::testing::Values(true, false),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)),
         CodegenGelu::getTestCaseName);
 
 } // namespace

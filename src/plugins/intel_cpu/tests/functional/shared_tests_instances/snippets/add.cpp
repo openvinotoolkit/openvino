@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_Add, Add,
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(1),
                                  ::testing::Values(1), // Subgraph is created, since the inputs are followed by converts
-                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Add::getTestCaseName);
 
 // ===================================AddPair=========================================================//
