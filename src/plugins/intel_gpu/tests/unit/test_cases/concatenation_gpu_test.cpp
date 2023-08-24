@@ -192,6 +192,13 @@ void start_concat_test_dynamic(impl_types impl_type) {
                   {{1, 5, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 3, 3, 4}, data_types::f32, format::bfyx},
                   {{1, 2, 3, 4}, data_types::f32, format::bfyx});
+
+    if (impl_type == impl_types::cpu) {
+        run_on_shapes({{1, 2, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 0, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 3, 3, 4}, data_types::f32, format::bfyx},
+                    {{1, 8, 3, 4}, data_types::f32, format::bfyx});
+    }
 }
 
 TEST(concat_gpu, dynamic_4d_f) {
