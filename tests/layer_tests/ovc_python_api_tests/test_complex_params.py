@@ -165,11 +165,9 @@ class TestComplexParams(CommonMOConvertTest):
         from onnx import helper
         from onnx import TensorProto
 
-        shape = [1, 3, 2, 2]
-
-        input_1 = helper.make_tensor_value_info('input_1', TensorProto.FLOAT, shape)
-        input_2 = helper.make_tensor_value_info('input_2', TensorProto.FLOAT, shape)
-        output = helper.make_tensor_value_info('relu_1,relu_2', TensorProto.FLOAT, shape)
+        input_1 = helper.make_tensor_value_info('input_1', TensorProto.FLOAT, [1, 3, 2, 2])
+        input_2 = helper.make_tensor_value_info('input_2', TensorProto.FLOAT, [1, 3, 2, 2])
+        output = helper.make_tensor_value_info('relu_1,relu_2', TensorProto.FLOAT, [1, 3, 4, 2])
 
         node_def_1 = onnx.helper.make_node(
             'Relu',
