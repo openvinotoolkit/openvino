@@ -6,7 +6,7 @@
 
 #include <ngraph/op/normalize_l2.hpp>
 
-#include "openvino/reference/autobroadcast_binop.hpp"
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 #include "openvino/reference/sum.hpp"
 
 namespace ngraph {

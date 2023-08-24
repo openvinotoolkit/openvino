@@ -10,7 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "openvino/reference/softmax.hpp"
+#include "ngraph/runtime/reference/softmax.hpp"
 
 using namespace std;
 using namespace ngraph;
