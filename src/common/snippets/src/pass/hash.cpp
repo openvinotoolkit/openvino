@@ -279,48 +279,6 @@ std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& 
     return edges;
 }
 
-std::string get_precision_name(const ov::element::Type& elem_type) {
-    switch (elem_type) {
-    case ::ov::element::Type_t::undefined:
-    case ::ov::element::Type_t::dynamic:
-        return "UNSPECIFIED";
-    case ::ov::element::Type_t::f16:
-        return "FP16";
-    case ::ov::element::Type_t::f32:
-        return "FP32";
-    case ::ov::element::Type_t::bf16:
-        return "BF16";
-    case ::ov::element::Type_t::f64:
-        return "FP64";
-    case ::ov::element::Type_t::i4:
-        return "I4";
-    case ::ov::element::Type_t::i8:
-        return "I8";
-    case ::ov::element::Type_t::i16:
-        return "I16";
-    case ::ov::element::Type_t::i32:
-        return "I32";
-    case ::ov::element::Type_t::i64:
-        return "I64";
-    case ::ov::element::Type_t::u4:
-        return "U4";
-    case ::ov::element::Type_t::u8:
-        return "U8";
-    case ::ov::element::Type_t::u16:
-        return "U16";
-    case ::ov::element::Type_t::u32:
-        return "U32";
-    case ::ov::element::Type_t::u64:
-        return "U64";
-    case ::ov::element::Type_t::u1:
-        return "BIN";
-    case ::ov::element::Type_t::boolean:
-        return "BOOL";
-    default:
-        OPENVINO_THROW("Unsupported precision in snippets hash generation: ", elem_type);
-    }
-}
-
 void hash_rt_info(uint64_t& hash, const std::string& name, const ov::Any& data) {
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
@@ -389,7 +347,7 @@ void ovfunction_2_hash(uint64_t& hash,
             for (auto& i : node->inputs()) {
                 hash = hash_combine(hash, AttrType::port);
                 hash = hash_combine(hash_combine(hash, AttrType::id), port_id++);
-                hash = hash_combine(hash_combine(hash, AttrType::precision), get_precision_name(i.get_element_type()));
+                hash = hash_combine(hash_combine(hash, AttrType::precision), i.get_element_type().hash());
                 hash = hash_combine(hash_combine(hash, AttrType::dimension), i.get_partial_shape().to_string());
                 append_runtime_info(hash, i.get_rt_info());
             }
@@ -400,7 +358,7 @@ void ovfunction_2_hash(uint64_t& hash,
             for (auto& o : node->outputs()) {
                 hash = hash_combine(hash, AttrType::port);
                 hash = hash_combine(hash_combine(hash, AttrType::id), port_id++);
-                hash = hash_combine(hash_combine(hash, AttrType::precision), get_precision_name(o.get_element_type()));
+                hash = hash_combine(hash_combine(hash, AttrType::precision), o.get_element_type().hash());
                 hash = hash_combine(hash_combine(hash, AttrType::dimension), o.get_partial_shape().to_string());
                 append_runtime_info(hash, o.get_rt_info());
             }
