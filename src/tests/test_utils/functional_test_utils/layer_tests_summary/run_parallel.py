@@ -89,26 +89,6 @@ def get_device_by_args(args: list):
             break
     return device
 
-def get_suite_filter(test_filter: str, suite_filter: str):
-    filters = test_filter.split(':')
-    suite_filter_mixed = ''
-    for filter in filters:
-        patterns = filter.strip('\"').split('*')
-        suite_filter_part = f'{suite_filter}*'
-        for pattern in patterns:
-            if (pattern and suite_filter.find(pattern) == -1):
-                suite_filter_part += f'{pattern}*'
-        if suite_filter_part == f'{suite_filter}*':
-            suite_filter_mixed = f'"{suite_filter_part}"'
-            break
-
-        if not suite_filter_mixed:
-            suite_filter_mixed = f'"{suite_filter_part}"'
-        else:
-            suite_filter_mixed += f':"{suite_filter_part}"'
-
-    return suite_filter_mixed
-
 # Class to read test cache
 class TestStructure:
     _name = ""
@@ -289,6 +269,25 @@ class TestParallelRunner:
         return command
 
     @staticmethod
+    def __get_suite_filter(test_filter: str, suite_filter: str):
+        filters = test_filter.split(':')
+        suite_filter_mixed = ''
+        for filter in filters:
+            patterns = filter.strip('\"').split('*')
+            suite_filter_part = f'{suite_filter}*'
+            for pattern in patterns:
+                if (pattern and suite_filter.find(pattern) == -1):
+                    suite_filter_part += f'{pattern}*'
+            if suite_filter_part == f'{suite_filter}*':
+                suite_filter_mixed = f'"{suite_filter_part}"'
+                break
+            if not suite_filter_mixed:
+                suite_filter_mixed = f'"{suite_filter_part}"'
+            else:
+                suite_filter_mixed += f':"{suite_filter_part}"'
+        return suite_filter_mixed
+
+    @staticmethod
     def __replace_restricted_symbols(input_string:str):
         restricted_symbols = "!@$%^&-+`~:;\",<>?"
         for symbol in restricted_symbols:
@@ -405,7 +404,7 @@ class TestParallelRunner:
 
             if self._split_unit == constants.SUITE_UNIT_NAME:
                 # fix the suite filters to execute the right amount of the tests
-                test_pattern = f'{get_suite_filter(self._gtest_filter, test_pattern)}:'
+                test_pattern = f'{self.__get_suite_filter(self._gtest_filter, test_pattern)}:'
             else:
                 # add quotes and pattern splitter
                 test_pattern = f'"{test_pattern}":'
