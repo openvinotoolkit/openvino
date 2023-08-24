@@ -266,6 +266,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
 
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+    precisions_map fp_convert_precision_map = {
+            {ov::element::f32, ov::element::f16}
+    };
+    type_to_fuse_map empty_fuse_map = {};
+    const bool keep_precision_sensitive_in_fp32 = true;
+    CPU_REGISTER_PASS_ARM(manager, ov::pass::ConvertPrecision, fp_convert_precision_map,
+                                                                           empty_fuse_map,
+                                                                           keep_precision_sensitive_in_fp32);
+    //CPU_REGISTER_PASS_ARM(manager, DisableConversion);
+
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::BroadcastTransition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
@@ -299,7 +310,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // However, if the extension operation produces an output precision that is not natively supported, this may lead to inconsistency during
     // element type propagation. This transformation is called before the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
+    //CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
