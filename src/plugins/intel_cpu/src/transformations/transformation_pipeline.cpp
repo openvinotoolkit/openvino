@@ -157,13 +157,10 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& 
     return false;
 }
 
-void Transformations::UpToCpuSpecificOpSet() {
+void Transformations::UpToLpt() {
     const bool useLpt = enableLpt &&
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
-
-    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
-        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
 
     auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
     bool hasINT16orINT32Levels = false;
@@ -183,11 +180,6 @@ void Transformations::UpToCpuSpecificOpSet() {
 
     if (useLpt)
         Lpt(hasINT16orINT32Levels, defaultPrecisions);
-
-    PostLpt();
-
-    if (useSnippets)
-        Snippets();
 }
 
 void Transformations::CpuSpecificOpSet(void) {
@@ -731,8 +723,12 @@ void Transformations::PostSnippets(void) {
 }
 
 void Transformations::Snippets(void) {
-    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
+    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
+        CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
+    if (!useSnippets)
+        return;
 
+    CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Snippets);
     MainSnippets();
     PostSnippets();
 }
