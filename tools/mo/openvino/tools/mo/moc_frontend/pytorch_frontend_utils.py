@@ -78,6 +78,8 @@ def extract_input_info_from_example(args, inputs):
     input_names = None
     if not isinstance(example_inputs, (list, tuple, dict)):
         list_inputs = [list_inputs]
+    if args.input_model._input_is_list:
+        list_inputs[0] = list_inputs[0].unsqueeze(0)
     if args.input_model._input_signature is not None and not is_dict_input:
         input_names = args.input_model._input_signature[1:] if args.input_model._input_signature[0] == "self" else args.input_model._input_signature
         if not is_dict_input:
@@ -150,16 +152,11 @@ def to_torch_tensor(tensor):
 
 
 def prepare_torch_inputs(example_inputs):
-    import torch
     inputs = None
     if example_inputs is not None:
         inputs = example_inputs
         if isinstance(inputs, list):
             inputs = [to_torch_tensor(x) for x in inputs]
-            if len(inputs) == 1:
-                inputs = torch.unsqueeze(inputs[0], 0)
-            else:
-                inputs = inputs
         elif isinstance(inputs, tuple):
             inputs = [to_torch_tensor(x) for x in inputs]
             inputs = tuple(inputs)
