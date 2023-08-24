@@ -89,12 +89,25 @@ def get_device_by_args(args: list):
             break
     return device
 
-def get_suite_filter(test_filter: str, suite_filter : str) :
-    filters = test_filter.strip('\"').split('*')
-    for filter in filters :
-        if (filter and suite_filter.find(filter) == -1) :
-            suite_filter += f'*{filter}'
-    return suite_filter
+def get_suite_filter(test_filter: str, suite_filter: str):
+    filters = test_filter.split(':')
+    suite_filter_mixed = ''
+    for filter in filters:
+        patterns = filter.strip('\"').split('*')
+        suite_filter_part = f'{suite_filter}*'
+        for pattern in patterns:
+            if (pattern and suite_filter.find(pattern) == -1):
+                suite_filter_part += f'{pattern}*'
+        if suite_filter_part == f'{suite_filter}*':
+            suite_filter_mixed = f'"{suite_filter_part}"'
+            break
+
+        if not suite_filter_mixed:
+            suite_filter_mixed = f'"{suite_filter_part}"'
+        else:
+            suite_filter_mixed += f':"{suite_filter_part}"'
+
+    return suite_filter_mixed
 
 # Class to read test cache
 class TestStructure:
@@ -385,34 +398,35 @@ class TestParallelRunner:
 
         tasks_crashed = []
         tasks_full = []
-        tasks = [(0, "")] * real_worker_num
+        tasks_not_full = []
         tests_sorted = sorted(proved_test_dict.items(), key=lambda i: i[1], reverse=True)
         for test_pattern, test_time in tests_sorted:
             test_pattern = f'{self.__replace_restricted_symbols(test_pattern)}'
 
-            # fix the suite filters to execute the right amount of the tests
-            if (self._split_unit == constants.SUITE_UNIT_NAME):
-                test_pattern = get_suite_filter(self._gtest_filter, test_pattern) + "*"
-            # add quotes and pattern splitter
-            test_pattern = f'"{test_pattern}":'
+            if self._split_unit == constants.SUITE_UNIT_NAME:
+                # fix the suite filters to execute the right amount of the tests
+                test_pattern = f'{get_suite_filter(self._gtest_filter, test_pattern)}:'
+            else:
+                # add quotes and pattern splitter
+                test_pattern = f'"{test_pattern}":'
 
-            if (test_time == -1):
+            if test_time == -1:
                 tasks_crashed.append({test_time, test_pattern})
             else:
-                while (len(tasks) > 0):
-                    t_time, t_pattern = tasks[0]
+                while len(tasks_not_full) > 0:
+                    t_time, t_pattern = tasks_not_full[0]
                     length = len(t_pattern) + def_length + len(test_pattern.replace(self._device, longest_device))
                     if length < MAX_LENGHT:
                         break
                     else:
-                        tasks_full.append(tasks.pop())
+                        tasks_full.append(tasks_not_full.pop())
 
-                if (len(tasks) < real_worker_num):
-                    heapq.heappush(tasks, (test_time, test_pattern))
+                if len(tasks_not_full) < real_worker_num:
+                    heapq.heappush(tasks_not_full, (test_time, test_pattern))
                 else:
-                    heapq.heapreplace(tasks, (t_time + test_time, t_pattern + test_pattern))
+                    heapq.heapreplace(tasks_not_full, (t_time + test_time, t_pattern + test_pattern))
 
-        test_filters = tasks_full + tasks + tasks_crashed
+        test_filters = tasks_full + tasks_not_full + tasks_crashed
         test_filters.sort(reverse=True)
         # convert to list and exlude empty jobs
         test_filters = [task[1] for task in test_filters if task[1]]
@@ -643,7 +657,7 @@ class TestParallelRunner:
                     test_cnt_real = test_cnt_real_saved_now
 
                 if test_cnt_real < test_cnt_expected:
-                    logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {split_unit}")
+                    logger.error(f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {split_unit}")
                 else:
                     os.remove(log_filename)
 
@@ -664,7 +678,7 @@ class TestParallelRunner:
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:
-                cache_file.writelines([f"{time}:{test_name}\n" for time, test_name in test_names])
+                cache_file.writelines([f"{time}:{test_name}\n" for time, test_name in test_times])
                 cache_file.close()
                 logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
