@@ -361,7 +361,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         argv.is_python_api_used = False
         argv = arguments_post_parsing(argv)
-        assert argv.output == ["a,b,c"]
+        assert argv.output == ["a", "b", "c"]
 
     def test_output_post_parsing_2(self):
         args = {'input_model': os.path.dirname(__file__),
@@ -389,7 +389,34 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         argv.is_python_api_used = False
         argv = arguments_post_parsing(argv)
-        assert argv.output == ["a,b", "c"]
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                "framework": "onnx",
+                'verbose': False,
+                'output': ["a,b"]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a,b"]
+
+    def test_raises_output_post_parsing(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                "framework": "onnx",
+                'verbose': False,
+                'output': ["a,b, c", 23]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        self.assertRaises(AssertionError, arguments_post_parsing, argv)
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}
