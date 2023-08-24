@@ -428,16 +428,11 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
         // if div we need to also align float types to highest bitness regardless of scalar
         if (!align_scalars)
             rhs_dst_type = element::f32;
-    } else if (is_lhs_scalar) {
+    } else if (is_lhs_scalar && rhs_type != element::boolean) {
         lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, rhs));
         return;
-    } else if (is_rhs_scalar) {
+    } else if (is_rhs_scalar && lhs_type != element::boolean) {
         rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, lhs));
-        return;
-    }
-
-    if (lhs_dst_type == element::boolean || rhs_dst_type == element::boolean) {
-        // Do nothing with bool
         return;
     }
 
@@ -446,16 +441,33 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     } else if (lhs_dst_type.is_real() && !rhs_dst_type.is_real()) {
         rhs_dst_type = element::f32;
     }
-    // Align bitness to higher
-    if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
-        const auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
-        element::Type* type_to_align = &lhs_dst_type;
-        if (rhs_dst_type.bitwidth() < dst_bitness)
-            type_to_align = &rhs_dst_type;
-        if (type_to_align->is_real()) {
-            *type_to_align = bit_to_float.at(dst_bitness);
-        } else {
-            *type_to_align = bit_to_int.at(dst_bitness);
+    // Align bool to other type
+    if (lhs_dst_type == element::boolean) {
+        lhs_dst_type = rhs_dst_type;
+    } else if (rhs_dst_type == element::boolean) {
+        rhs_dst_type = lhs_dst_type;
+    }
+    // At this point we either have both floating point type or both integer type. Align bitness to higher
+    if (lhs_dst_type != rhs_dst_type) {
+        auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+        // If integer type are mixed signed+unsigned align to next bitness
+        if (lhs_dst_type.is_integral() && lhs_dst_type.is_integral() &&
+            lhs_dst_type.bitwidth() == rhs_dst_type.bitwidth() && lhs_dst_type != rhs_dst_type) {
+            dst_bitness *= 2;
+        }
+        if (lhs_dst_type.bitwidth() != dst_bitness) {
+            if (lhs_dst_type.is_real()) {
+                lhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                lhs_dst_type = bit_to_int.at(dst_bitness);
+            }
+        }
+        if (rhs_dst_type.bitwidth() != dst_bitness) {
+            if (rhs_dst_type.is_real()) {
+                rhs_dst_type = bit_to_float.at(dst_bitness);
+            } else {
+                rhs_dst_type = bit_to_int.at(dst_bitness);
+            }
         }
     }
 
