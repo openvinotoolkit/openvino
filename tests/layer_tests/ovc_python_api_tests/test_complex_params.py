@@ -1,13 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-import openvino.runtime as ov
 import os
-import pytest
 import tempfile
 import unittest
-from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
+
+import numpy as np
+import openvino.runtime as ov
+import pytest
+from openvino.runtime import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
@@ -157,6 +158,126 @@ class TestComplexParams(CommonMOConvertTest):
         test_params.update({'input_model': tf_net_path})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
+
+    @staticmethod
+    def create_onnx_model_with_coma_in_names(temp_dir):
+        import onnx
+        from onnx import helper
+        from onnx import TensorProto
+
+        shape = [1, 3, 2, 2]
+
+        input_1 = helper.make_tensor_value_info('input_1', TensorProto.FLOAT, shape)
+        input_2 = helper.make_tensor_value_info('input_2', TensorProto.FLOAT, shape)
+        output = helper.make_tensor_value_info('relu_1,relu_2', TensorProto.FLOAT, shape)
+
+        node_def_1 = onnx.helper.make_node(
+            'Relu',
+            inputs=['input_1'],
+            outputs=['Relu_1_data'],
+            name='relu_1'
+        )
+        node_def_2 = onnx.helper.make_node(
+            'Relu',
+            inputs=['input_2'],
+            outputs=['Relu_2_data'],
+            name='relu_2'
+        )
+        node_def_3 = onnx.helper.make_node(
+            'Concat',
+            inputs=['Relu_1_data', 'Relu_2_data'],
+            outputs=['relu_1,relu_2'],
+            axis=3,
+        )
+
+        graph_def = helper.make_graph(
+            [node_def_1, node_def_2, node_def_3],
+            'test_model',
+            [input_1, input_2],
+            [output],
+        )
+        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        model_path = temp_dir + '/test_model.onnx'
+        onnx.save(onnx_net, model_path)
+        return model_path
+
+    @staticmethod
+    def create_ref_graph_with_coma_in_names():
+        from openvino.runtime.opset12 import relu, concat
+        from openvino.runtime.op import Parameter
+        import openvino as ov
+
+        parameter1 = Parameter(ov.Type.f32, ov.Shape([1, 3, 2, 2]))
+        parameter2 = Parameter(ov.Type.f32, ov.Shape([1, 3, 2, 2]))
+        relu_1 = relu(parameter1)
+        relu_2 = relu(parameter2)
+
+        output = concat([relu_1, relu_2], 3)
+        return ov.Model([output], [parameter1, parameter2])
+
+    @staticmethod
+    def create_onnx_model_with_several_outputs(temp_dir):
+        import onnx
+        from onnx import helper
+        from onnx import TensorProto
+
+        shape = [1, 3, 2, 2]
+
+        input_1 = helper.make_tensor_value_info('input_1', TensorProto.FLOAT, shape)
+        input_2 = helper.make_tensor_value_info('input_2', TensorProto.FLOAT, shape)
+        concat_output = helper.make_tensor_value_info('concat', TensorProto.FLOAT, shape)
+        relu_output = helper.make_tensor_value_info('Relu_1_data', TensorProto.FLOAT, shape)
+
+        node_def_1 = onnx.helper.make_node(
+            'Relu',
+            inputs=['input_1'],
+            outputs=['Relu_1_data'],
+            name='relu_1'
+        )
+        node_def_2 = onnx.helper.make_node(
+            'Relu',
+            inputs=['input_2'],
+            outputs=['Relu_2_data'],
+            name='relu_2'
+        )
+        node_def_3 = onnx.helper.make_node(
+            'Concat',
+            inputs=['Relu_1_data', 'Relu_2_data'],
+            outputs=['concat'],
+            axis=3,
+        )
+
+        graph_def = helper.make_graph(
+            [node_def_1, node_def_2, node_def_3],
+            'test_model',
+            [input_1, input_2],
+            [relu_output, concat_output],
+        )
+        onnx_net = helper.make_model(graph_def, producer_name='test_model')
+        model_path = temp_dir + '/test_model.onnx'
+        onnx.save(onnx_net, model_path)
+        return model_path
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_ovc_convert_model_with_coma_in_names(self, ie_device, precision, ir_version,
+                                                  temp_dir, use_new_frontend, use_old_api):
+        onnx_net_path = self.create_onnx_model_with_coma_in_names(temp_dir)
+        ref_model = self.create_ref_graph_with_coma_in_names()
+        test_params = {'input_model': onnx_net_path, 'output': 'relu_1,relu_2'}
+
+        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_ovc_convert_model_with_several_output(self, ie_device, precision, ir_version,
+                                                  temp_dir, use_new_frontend, use_old_api):
+        onnx_net_path = self.create_onnx_model_with_several_outputs(temp_dir)
+        convert_model_params = {'input_model': onnx_net_path, 'output': ['Relu_1_data', 'concat']}
+        cli_tool_params = {'input_model': onnx_net_path, 'output': 'Relu_1_data,concat'}
+
+        self._test(temp_dir, convert_model_params, cli_tool_params)
+
 
 class NegativeCases(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))
