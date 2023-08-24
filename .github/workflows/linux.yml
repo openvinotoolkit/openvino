@@ -203,13 +203,13 @@ jobs:
         run: cmake -GNinja -S ${OPENVINO_REPO}/tests/layer_tests -B ${BUILD_DIR}/layer_tests
 
       - name: Cmake Model Hub Tests
-        run: cmake -GNinja -S ${{ env.OPENVINO_REPO }}/tests/model_hub_tests -B ${{ env.BUILD_DIR }}/model_hub_tests
+        run: cmake -GNinja -S ${OPENVINO_REPO}/tests/model_hub_tests -B ${BUILD_DIR}/model_hub_tests
 
       - name: Build Layer Tests
         run: cmake --build ${BUILD_DIR}/layer_tests --parallel --config Release
 
       - name: Build Model Hub Tests
-        run: cmake --build ${{ env.BUILD_DIR }}/model_hub_tests --parallel --config Release
+        run: cmake --build ${BUILD_DIR}/model_hub_tests --parallel --config Release
 
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
@@ -218,7 +218,7 @@ jobs:
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/layer_tests/cmake_install.cmake
 
       - name: Install Model Hub Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/model_hub_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/model_hub_tests/cmake_install.cmake
 
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${INSTALL_DIR}/tools
