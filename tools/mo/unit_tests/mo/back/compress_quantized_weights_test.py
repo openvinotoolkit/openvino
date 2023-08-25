@@ -260,7 +260,7 @@ class TestCompressionDataTypeTest():
 
         error_message = 'Unexpected number of {} nodes {} CompressQuantizeWeights.dequantize_data call `{}`'
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        assert (len(fq_nodes), 1, error_message.format('FakeQuantize', 'before', len(fq_nodes)))
+        assert len(fq_nodes) == 1, error_message.format('FakeQuantize', 'before', len(fq_nodes))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()
@@ -268,7 +268,7 @@ class TestCompressionDataTypeTest():
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        assert (len(fq_nodes), 0, error_message.format('FakeQuantize', 'after', len(fq_nodes)))
+        assert len(fq_nodes) == 0, error_message.format('FakeQuantize', 'after', len(fq_nodes))
 
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
@@ -339,7 +339,7 @@ class TestAccuracyCheckFP32Test():
         # constants of different data type since FakeQuantize always have f32 output dtype, but eltwises use numpy
         # for folding which doesn't have such restriction
         const_node = graph.get_op_nodes(type='Const')
-        assert (len(const_node), 1)
+        assert len(const_node) == 1
         if const_node[0].data_type == np.float64:
             const_node[0].data_type = np.float32
 
