@@ -20,7 +20,7 @@ nGraph API
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ngraph.py
+      .. doxygensnippet:: docs/snippets/ngraph_snippet.py
          :language: Python
          :fragment: ngraph:graph
 

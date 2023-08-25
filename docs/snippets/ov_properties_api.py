@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from openvino.runtime import Core
+import openvino as ov
+from utils import get_model
 
 # [get_available_devices]
-core = Core()
+core = ov.Core()
 available_devices = core.available_devices
 # [get_available_devices]
 
@@ -17,7 +18,7 @@ device_priorites = core.get_property("HETERO", "MULTI_DEVICE_PRIORITIES")
 cpu_device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
 # [cpu_device_name]
 
-model = core.read_model(model="sample.xml")
+model = get_model()
 # [compile_model_with_property]
 config = {"PERFORMANCE_HINT": "THROUGHPUT",
         "INFERENCE_PRECISION_HINT": "f32"}

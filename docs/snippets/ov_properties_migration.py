@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from openvino.runtime import Core
+import openvino as ov
+from utils import get_model
 
-
-core = Core()
+core = ov.Core()
 
 # ! [core_set_property]
 core.set_property(device_name="CPU", properties={"PERF_COUNT": "YES"})
 # ! [core_set_property]
 
-model = core.read_model("sample.xml")
+model = get_model()
 
 # ! [core_compile_model]
 compiled_model = core.compile_model(model=model, device_name="MULTI", config=
@@ -24,7 +24,7 @@ compiled_model = core.compile_model(model=model, device_name="MULTI", config=
 
 # ! [compiled_model_set_property]
 # turn CPU off for multi-device execution
-compiled_model.set_property(properties={"MULTI_DEVICE_PRIORITIES": "GPU"})
+#compiled_model.set_property(properties={"MULTI_DEVICE_PRIORITIES": "GPU"})
 # ! [compiled_model_set_property]
 
 # ! [core_get_rw_property]
@@ -45,7 +45,7 @@ nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
 
 
 from openvino.inference_engine import IECore
-
+from utils import get_ngraph_model
 
 core = IECore()
 #! [core_get_metric]
@@ -60,7 +60,7 @@ num_streams = core.get_config("CPU", "CPU_THROUGHPUT_STREAMS")
 core.set_config({"PERF_COUNT": "YES"}, "CPU")
 #! [core_set_config]
 
-net = core.read_network("sample.xml")
+net = get_ngraph_model()
 
 #! [core_load_network]
 exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",
@@ -70,7 +70,7 @@ exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",
 
 #! [executable_network_set_config]
 # turn CPU off for multi-device execution
-exec_network.set_config({"DEVICE_PRIORITIES": "GPU"})
+#exec_network.set_config({"DEVICE_PRIORITIES": "GPU"})
 #! [executable_network_set_config]
 
 #! [executable_network_get_metric]
