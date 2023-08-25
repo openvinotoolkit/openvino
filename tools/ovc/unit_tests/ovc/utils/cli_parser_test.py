@@ -389,6 +389,18 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
+                'output': "a , b ,  c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        argv = arguments_post_parsing(argv)
+        assert argv.output == ["a", "b", "c"]
+
+    def test_output_post_parsing_5(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
                 'output': "a,b"}
 
         argv = args_to_argv(**args)
@@ -397,7 +409,20 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         argv = arguments_post_parsing(argv)
         assert argv.output == ["a,b"]  # post parsing should decorate single string into a list
 
-    def test_raises_output_post_parsing(self):
+    def test_output_post_parsing_6(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ["first na me", "second name"]}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        # when used in python api should be able to handle names with spaces
+        assert argv.output == ["first na me", "second name"]
+
+    def test_raises_output_post_parsing_1(self):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
                 'output_model': os.getcwd() + "model.xml",
@@ -407,6 +432,30 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
         argv.is_python_api_used = True
         self.assertRaises(AssertionError, arguments_post_parsing, argv)
+
+    def test_raises_output_post_parsing_2(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "na me, full_name"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
+
+    def test_raises_output_post_parsing_3(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': "a,,b,c"}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = False
+        with self.assertRaisesRegex(AssertionError, ".*output names should not be empty or contain spaces"):
+            arguments_post_parsing(argv)
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}

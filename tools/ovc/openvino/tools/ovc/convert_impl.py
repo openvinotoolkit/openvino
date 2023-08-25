@@ -5,12 +5,11 @@ import argparse
 import datetime
 import logging as log
 import os
-import pathlib
 import sys
 import traceback
 from collections import OrderedDict
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, Callable
 
 try:
     import openvino_telemetry as tm
@@ -40,6 +39,7 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
+import re
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -77,9 +77,9 @@ def print_argv(argv: argparse.Namespace):
     print('\n'.join(lines), flush=True)
 
 
-def check_iterable_types(iterable: Iterable, type_name: type):
+def check_iterable(iterable: Iterable, func: Callable):
     for element in iterable:
-        if not isinstance(element, type_name):
+        if not func(element):
             return False
     return True
 
@@ -103,12 +103,17 @@ def arguments_post_parsing(argv: argparse.Namespace):
         error_msg = f"output '{argv.output}' is incorrect, it should be string or a list/tuple of strings"
         assert isinstance(argv.output, (str, list, tuple)), error_msg
         if isinstance(argv.output, list):
-            assert check_iterable_types(argv.output, str), error_msg
+            assert check_iterable(argv.output, lambda x: isinstance(x, str)), error_msg
         else:
             argv.output = [argv.output]
     else:
         assert isinstance(argv.output, str)
-        argv.output = argv.output.replace(' ', '').split(',')
+
+        error_msg = f"output '{argv.output}' is incorrect, output names should not be empty or contain spaces"
+        processed_output = re.split(r'\s*,\s*', argv.output.strip())
+        assert check_iterable(processed_output, lambda x: x.find(' ') == -1), error_msg
+        assert check_iterable(processed_output, lambda x: len(x) > 0), error_msg
+        argv.output = processed_output
     return argv
 
 
