@@ -41,7 +41,7 @@ public:
 
 private:
     DeconvAttrs deconvAttrs;
-    impl_desc_type implType = impl_desc_type::acl;
+    impl_desc_type implType = impl_desc_type::gemm_acl;
 
     arm_compute::Tensor srcTensor;
     arm_compute::Tensor weiTensor;

@@ -61,21 +61,40 @@ private:
 };
 
 namespace Deconvolution {
-/* COMMON PARAMS */
-    const std::vector<fusingSpecificParams>& fusingParamsSet();
-    const std::map<std::string, std::string>& cpuBF16PluginConfig();
-    const std::vector<std::vector<ptrdiff_t>>& emptyOutputPadding();
-    const InferenceEngine::SizeVector& numOutChannels_Planar();
-    const InferenceEngine::SizeVector& numOutChannels_Blocked();
 
-    /* ============= Deconvolution params (2D) ============= */
-    const std::vector<InferenceEngine::SizeVector>& kernels2d();
-    const std::vector<InferenceEngine::SizeVector>& strides2d();
-    const std::vector<std::vector<ptrdiff_t>>& padBegins2d();
-    const std::vector<std::vector<ptrdiff_t>>& padEnds2d();
-    const std::vector<InferenceEngine::SizeVector>& dilations2d();
-    const std::vector<InferenceEngine::SizeVector>& deconvAmxKernels2d();
-    const std::vector<InferenceEngine::SizeVector>& deconvAmxStrides2d();
+/* COMMON PARAMS */
+const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string>cpuBF16PluginConfig = { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16,
+                                                                  InferenceEngine::PluginConfigParams::YES } };
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
+
+/* ============= Deconvolution params (planar layout) ============= */
+const InferenceEngine::SizeVector numOutChannels_Planar = { 6 };
+
+/* ============= Deconvolution params (blocked layout) ============= */
+const InferenceEngine::SizeVector numOutChannels_Blocked = { 64 };
+
+/* ============= Deconvolution params (2D) ============= */
+const std::vector<InferenceEngine::SizeVector> kernels2d = { {3, 3}, {1, 1} };
+const std::vector<InferenceEngine::SizeVector> strides2d = { {1, 1}, {2, 2} };
+const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
+const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
+const std::vector<InferenceEngine::SizeVector> dilations2d = { {1, 1} };
+
+
+const std::vector<InferenceEngine::SizeVector> deconvAmxKernels2d = { {3, 3}, {2, 2}};
+const std::vector<InferenceEngine::SizeVector> deconvAmxStrides2d = { {2, 2}};
+
+/* ============= Deconvolution params (3D) ============= */
+const std::vector<InferenceEngine::SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
+const std::vector<InferenceEngine::SizeVector> strides3d = { {1, 1, 1}, {2, 2, 2} };
+const std::vector<std::vector<ptrdiff_t>> padBegins3d = { {0, 0, 0} };
+const std::vector<std::vector<ptrdiff_t>> padEnds3d = { {0, 0, 0} };
+const std::vector<InferenceEngine::SizeVector> dilations3d = { {1, 1, 1} };
+
+const std::vector<InferenceEngine::SizeVector> deconvAmxKernels3d = { {3, 3, 3}, {2, 2, 2} };
+const std::vector<InferenceEngine::SizeVector> deconvAmxStrides3d = {  {2, 2, 2} };
+
 /* ============= */
 } // namespace Deconvolution
 
