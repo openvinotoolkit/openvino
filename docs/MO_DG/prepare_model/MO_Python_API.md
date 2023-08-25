@@ -19,7 +19,7 @@ Example of converting a PyTorch model directly from memory:
    :force:
 
    import torchvision
-   
+
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model)
 
@@ -36,7 +36,7 @@ Example of using native Python classes to set ``input_shape``, ``mean_values`` a
    :force:
 
    from openvino.runtime import PartialShape, Layout
-   
+
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
 
 Example of using strings for setting ``input_shape``, ``mean_values`` and ``layout``:
@@ -74,7 +74,7 @@ Example of using ``InputCutInfo`` to freeze an input with value:
    :force:
 
    from openvino.tools.mo import convert_model, InputCutInfo
-   
+
    ov_model = convert_model(model, input=InputCutInfo("input_name", [3], np.float32, [0.5, 2.1, 3.4]))
 
 To set parameters for models with multiple inputs, use ``list`` of parameters.
@@ -104,7 +104,7 @@ Example of using the ``Layout`` class to set the layout of a model input:
 
    from openvino.runtime import Layout
    from openvino.tools.mo import convert_model
-   
+
    ov_model = convert_model(model, source_layout=Layout("NCHW"))
 
 To set both source and destination layouts in the ``layout`` parameter, use the ``LayoutMap`` class. ``LayoutMap`` accepts two parameters: ``source_layout`` and ``target_layout``.
@@ -117,7 +117,7 @@ Example of using the ``LayoutMap`` class to change the layout of a model input:
    :force:
 
    from openvino.tools.mo import convert_model, LayoutMap
-   
+
    ov_model = convert_model(model, layout=LayoutMap("NCHW", "NHWC"))
 
 @endsphinxdirective
