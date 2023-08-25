@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/reorg_yolo.hpp"
+#include "openvino/reference/reorg_yolo.hpp"
 
 #include "evaluate_node.hpp"
 
