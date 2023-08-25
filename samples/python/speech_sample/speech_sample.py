@@ -152,7 +152,7 @@ def main():
 # --------------------------- Step 5. Loading model to the device -----------------------------------------------------
     log.info('Loading the model to the plugin')
     if args.model:
-        compiled_model = ov.compile_model(model, device_str, plugin_config)
+        compiled_model = core.compile_model(model, device_str, plugin_config)
     else:
         with open(args.import_gna_model, 'rb') as f:
             buf = BytesIO(f.read())
