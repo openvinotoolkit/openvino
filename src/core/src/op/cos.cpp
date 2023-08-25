@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/cos.hpp"
+
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/cos.hpp"
 #include "openvino/reference/cos.hpp"
 
 using namespace std;

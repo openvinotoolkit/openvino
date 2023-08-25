@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tanh.hpp"
+
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/tanh.hpp"
 #include "openvino/reference/tanh.hpp"
 
 namespace ov {

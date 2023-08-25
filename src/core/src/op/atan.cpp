@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/atan.hpp"
+
 #include <string>
 #include <vector>
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/atan.hpp"
 #include "openvino/reference/atan.hpp"
 
 namespace ov {
