@@ -18,8 +18,11 @@ For more details on how to configure a system to use GNA, see the :doc:`GNA conf
 
 .. note::
 
-   Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) will be the last generation of hardware to include it.
-   Consider Intel's new Visual Processing Unit as a low-power solution for offloading neural network computation, for processors offering the technology.
+   Intel's GNA is being discontinued and Intel® Core™ Ultra (formerly known as Meteor Lake) 
+   will be the last generation of hardware to include it.
+   For this reason, OpenVINO 2023.2 will also be the last version supporting the GNA plugin.
+   Consider Intel's new Visual Processing Unit as a low-power solution for offloading 
+   neural network computation, for processors offering the technology.
    
 
 Intel® GNA Generational Differences
