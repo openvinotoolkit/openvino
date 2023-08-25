@@ -76,6 +76,8 @@
 #include "op/greater.hpp"
 #include "op/grid_sample.hpp"
 #include "op/gru.hpp"
+#include "op/hammingwindow.hpp"
+#include "op/hannwindow.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hard_swish.hpp"
 #include "op/hardmax.hpp"
@@ -392,6 +394,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Greater", 1, greater);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GRU", 1, gru);
+    REGISTER_OPERATOR("HannWindow", 1, hannwindow);
+    REGISTER_OPERATOR("HammingWindow", 1, hammingwindow);
     REGISTER_OPERATOR("Hardmax", 1, hardmax);
     REGISTER_OPERATOR("Hardmax", 13, hardmax);
     REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);

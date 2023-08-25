@@ -6706,12 +6706,54 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_blackmanwindow) {
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
                                                             SERIALIZED_ZOO,
-                                                            "onnx/blackmanwindow.onnx"));
+                                                            "onnx/blackmanwindow_periodic.onnx"));
 
     auto test_case = ov::test::TestCase(function, s_device);
 
     test_case.add_input<int64_t>({10});
     test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.0509f, 0.2580f, 0.6300f, 0.9511f, 0.9511f, 0.6300f, 0.2580f, 0.0509f, 0.0000f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hammingwindow_periodic) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/hammingwindow_periodic.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10}, {0.0800f, 0.2533f, 0.6424f, 1.0000f, 0.6424f, 0.2533f, 0.0800f, 0.0000f, 0.0800f, 0.2533f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_periodic) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/hannwindow_periodic.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.1908f, 0.5f, 0.8092f, 1.0000f, 0.8092f, 0.5f, 0.1908f, 0.0000f, 0.0000f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_hannwindow_symmetric) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(ov::test::utils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/hannwindow_symmetric.onnx"));
+
+    auto test_case = ov::test::TestCase(function, s_device);
+
+    test_case.add_input<int64_t>({10});
+    test_case.add_expected_output<float>(Shape{10}, {0.0000f, 0.1908f, 0.5f, 0.8092f, 1.0000f, 0.8092f, 0.5f, 0.1908f, 0.0000f, 0.0000f});
 
     test_case.run();
 }
