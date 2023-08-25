@@ -283,11 +283,8 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_no_signal_size) {
         auto dft = this->make_op(data, axes_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
-        EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
-
-        std::vector<label_t> expected_labels(params.input_shape.size() - 1, no_label);
-        expected_labels.push_back(get_shape_labels(params.input_shape).back());
-        EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), expected_labels);
+        EXPECT_EQ(dft->get_output_partial_shape(0), params.input_shape);
+        EXPECT_EQ(get_shape_labels(dft->get_output_partial_shape(0)), get_shape_labels(params.input_shape));
     }
 }
 
@@ -318,7 +315,7 @@ TYPED_TEST_P(FFTNonConstantAxesTest, non_constant_axes_const_signal_size) {
         auto axes_input = std::make_shared<op::v0::Parameter>(element::i64, params.axes_shape);
         auto signal_size_input = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {100, 200});
 
-        auto dft = this->make_op(data, axes_input);
+        auto dft = this->make_op(data, axes_input, signal_size_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);
         EXPECT_EQ(dft->get_output_partial_shape(0), params.ref_output_shape);
