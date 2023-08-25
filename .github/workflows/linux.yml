@@ -218,7 +218,7 @@ jobs:
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/layer_tests/cmake_install.cmake
 
       - name: Install Model Hub Tests
-        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${BUILD_DIR}/model_hub_tests/cmake_install.cmake
+        run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/model_hub_tests/cmake_install.cmake
 
       - name: Install python wheels
         run: python3 -m pip install openvino-dev --find-links=${INSTALL_DIR}/tools
@@ -698,7 +698,7 @@ jobs:
 
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
 
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          source ${INSTALL_DIR}/setupvars.sh
 
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_hub_tf_fe.xml
         env:
