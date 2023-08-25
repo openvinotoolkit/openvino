@@ -80,10 +80,7 @@ Environment Variables
 Architecture
 #################
 
-The ``torch.compile`` feature is part of PyTorch 2.0, which has reduced more than 2000 Ops, 
-introducing a set of around 250 primitive Ops, as well as simplyfied Op semantics.
-
-``torch.compile`` is based on:
+The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 
 * **TorchDynamo** - a Python-level JIT that hooks into the frame evaluation API in CPython,
   (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators 
