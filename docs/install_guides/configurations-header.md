@@ -13,6 +13,7 @@
    :hidden:
  
    For GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
+   For NPU <openvino_docs_install_guides_configurations_for_intel_npu>
    For GNA <openvino_docs_install_guides_configurations_for_intel_gna>
 
 

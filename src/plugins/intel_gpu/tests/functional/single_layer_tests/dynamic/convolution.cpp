@@ -84,7 +84,10 @@ protected:
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
 
-        auto inputParams = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        ov::ParameterVector inputParams;
+        for (auto&& shape : inputDynamicShapes) {
+            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
         auto convolutionNode = ngraph::builder::makeConvolution(paramOuts.front(), netType, kernel, stride, padBegin,
@@ -127,6 +130,50 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic1DSymPad, Convolut
                 ::testing::Values(ElementType::f16),
                 ::testing::Values(ElementType::undefined),
                 ::testing::ValuesIn(dynInputShapes1D),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
+
+const std::vector<SizeVector> kernels1D = { {3}, {1} };
+const std::vector<SizeVector> strides1D = { {1} };
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = { {0} };
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = { {0} };
+const std::vector<SizeVector> dilations1D = { {1} };
+const SizeVector numOutChannels = { 64, 63 };
+const std::vector<InputShape> inputShapes1D = {
+        {{}, {{ 2, 64, 7 }}},
+        {{}, {{ 1, 67, 7 }}},
+        {
+            //dynamic shape
+            { -1, 64, {1, 200} },
+            { //target static shapes
+                { 2, 64, 7 },
+                { 1, 64, 9 }
+            }
+        },
+        {
+            //dynamic shape
+            { {1, 200}, 64, -1 },
+            { //target static shapes
+                { 2, 64, 7 },
+                { 1, 64, 5 }
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_ExplicitPad1D, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(kernels1D),
+                        ::testing::ValuesIn(strides1D),
+                        ::testing::ValuesIn(padBegins1D),
+                        ::testing::ValuesIn(padEnds1D),
+                        ::testing::ValuesIn(dilations1D),
+                        ::testing::ValuesIn(numOutChannels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT)),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::f16),
+                ::testing::Values(ElementType::undefined),
+                ::testing::ValuesIn(inputShapes1D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 

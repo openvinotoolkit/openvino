@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 
-#include "ngraph/op/space_to_batch.hpp"
-#include "ngraph/op/constant.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/constant.hpp"
 
 #include "intel_gpu/primitives/space_to_batch.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
+static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::SpaceToBatch>& op) {
     validate_inputs_count(op, {4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -26,7 +26,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
 
     bool non_constant_input = false;
     for (size_t i = 1; i < 4; ++i) {
-        auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(i));
+        auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
         bool is_const_input = (inConst != nullptr);
         OPENVINO_ASSERT((i == 1) || (i >= 2 && non_constant_input != is_const_input),
@@ -47,7 +47,7 @@ static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v
         p.add_primitive(*op, spaceToBatchPrim);
     } else {
         for (size_t i = 1; i < 4; ++i) {
-            auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(i));
+            auto inConst = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
             std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
             int32_t default_size = i == 1 ? 1 : 0;

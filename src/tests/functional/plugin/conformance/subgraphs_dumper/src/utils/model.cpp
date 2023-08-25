@@ -25,7 +25,7 @@ void save_model_status_to_file(const std::map<ModelCacheStatus, std::vector<std:
 // { models, { not_read_model }}
 std::pair<std::vector<std::string>, std::pair<ModelCacheStatus, std::vector<std::string>>>
 find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
-    std::vector<std::string> models, full_content;
+    std::vector<std::string> models, full_content, not_read_model;
     for (const auto& dir : dirs) {
         std::vector<std::string> dir_content;
         if (ov::util::directory_exists(dir)) {
@@ -33,15 +33,13 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
         } else if (ov::util::file_exists(dir) && std::regex_match(dir, std::regex(".*" + std::string(ov::test::utils::LST_EXTENSION)))) {
             dir_content = ov::test::utils::readListFiles({dir});
         } else {
-            std::string msg = "Input directory (" + dir + ") doesn't not exist!";
-            throw std::runtime_error(msg);
+            std::cout << "[ ERROR ] Input directory (" << dir << ") doesn't not exist!" << std::endl;
         }
         if (!dir_content.empty()) {
             full_content.insert(full_content.end(), dir_content.begin(), dir_content.end());
         }
     }
     std::multimap<size_t, std::string> models_sorted_by_size;
-    std::vector<std::string> not_read_model;
     auto in_regex = std::regex(regexp);
     for (const auto& model_file : full_content) {
         if (std::regex_match(model_file, in_regex)) {
@@ -73,38 +71,39 @@ find_models(const std::vector<std::string> &dirs, const std::string& regexp) {
 }
 
 std::map<ModelCacheStatus, std::vector<std::string>> cache_models(
-    std::vector<std::shared_ptr<ICache>>& caches,
+    std::shared_ptr<ICache>& cache,
     const std::vector<std::string>& models,
-    bool extract_body) {
+    bool extract_body, bool from_cache) {
     std::map<ModelCacheStatus, std::vector<std::string>> cache_status = {
         { ModelCacheStatus::SUCCEED, {} },
         { ModelCacheStatus::NOT_FULLY_CACHED, {} },
         { ModelCacheStatus::NOT_READ, {} }
     };
     auto core = ov::test::utils::PluginCache::get().core();
+    auto models_size = models.size();
 
-    for (auto& cache : caches) {
-        for (const auto& model : models) {
-            if (ov::util::file_exists(model)) {
-                ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
+    for (size_t i = 0; i < models_size; ++i) {
+        const auto& model = models[i];
+
+        if (ov::util::file_exists(model)) {
+            std::cout << "[ INFO ] [ " << i << "/" << models_size << " ] model will be processed" << std::endl;
+            ModelCacheStatus model_status = ModelCacheStatus::SUCCEED;
+            try {
+                std::shared_ptr<ov::Model> function = core->read_model(model);
                 try {
-                    std::shared_ptr<ov::Model> function = core->read_model(model);
-                    try {
-                        cache->update_cache(function, model, extract_body);
-                    } catch (std::exception &e) {
-                        std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
-                        model_status = ModelCacheStatus::NOT_FULLY_CACHED;
-                    }
+                    cache->update_cache(function, model, extract_body, from_cache);
                 } catch (std::exception &e) {
-                    model_status = ModelCacheStatus::NOT_READ;
-                    std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
+                    std::cout << "[ ERROR ] Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                    model_status = ModelCacheStatus::NOT_FULLY_CACHED;
                 }
-                cache_status[model_status].push_back(model);
+            } catch (std::exception &e) {
+                model_status = ModelCacheStatus::NOT_READ;
+                std::cout << "[ ERROR ] Model reading failed with exception:" << std::endl << e.what() << std::endl;
             }
+            cache_status[model_status].push_back(model);
         }
-        cache->serialize_cache();
-        cache->reset_cache();
     }
+
     return cache_status;
 }
 

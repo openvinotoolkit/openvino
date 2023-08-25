@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
+#include "openvino/reference/convolution_backprop_data.hpp"
 
 #include "evaluate_node.hpp"
 

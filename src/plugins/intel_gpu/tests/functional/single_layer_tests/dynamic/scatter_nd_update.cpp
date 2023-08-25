@@ -104,15 +104,18 @@ protected:
 
         init_input_shapes(inputShapes);
 
-        auto dataParams = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0], inputDynamicShapes[2] });
-        auto indicesParam = ngraph::builder::makeDynamicParams(idxPrecision, { inputDynamicShapes[1] });
+
+        ov::ParameterVector dataParams{std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]),
+                                   std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[2])};
+
+        auto indicesParam = std::make_shared<ov::op::v0::Parameter>(idxPrecision, inputDynamicShapes[1]);
         dataParams[0]->set_friendly_name("Param_1");
-        indicesParam[0]->set_friendly_name("Param_2");
+        indicesParam->set_friendly_name("Param_2");
         dataParams[1]->set_friendly_name("Param_3");
 
-        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam[0], dataParams[1]);
+        auto scatter = std::make_shared<ngraph::opset4::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
 
-        ngraph::ParameterVector allParams{ dataParams[0], indicesParam[0], dataParams[1] };
+        ngraph::ParameterVector allParams{ dataParams[0], indicesParam, dataParams[1] };
 
         auto makeFunction = [](ParameterVector &params, const std::shared_ptr<Node> &lastNode) {
             ResultVector results;
