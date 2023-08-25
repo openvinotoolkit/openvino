@@ -6,7 +6,6 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/target_machine.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -77,10 +76,6 @@ void Expression::set_reg_info(RegInfo rinfo) {
     for (size_t i = 0; i < m_output_port_descriptors.size(); ++i) {
         m_output_port_descriptors[i]->set_reg(out[i]);
     }
-}
-
-void Expression::init_emitter(const std::shared_ptr<const TargetMachine>& target) {
-    m_emitter = target->get(m_source_node->get_type_info())(shared_from_this());
 }
 
 void Expression::validate() const {

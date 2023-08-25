@@ -7,6 +7,7 @@
 #include <list>
 
 #include "expression.hpp"
+#include "snippets/target_machine.hpp"
 
 namespace ov {
 namespace snippets {
@@ -110,6 +111,7 @@ private:
 
     void register_expression(const ExpressionPtr& expr, bool io_allowed = false);
     void unregister_expression(const ExpressionPtr& expr);
+    void init_emitter(const ExpressionPtr& expr, const std::shared_ptr<TargetMachine>& target);
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;

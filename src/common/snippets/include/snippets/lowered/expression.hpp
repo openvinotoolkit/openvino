@@ -14,7 +14,6 @@
 
 namespace ov {
 namespace snippets {
-class TargetMachine;
 namespace lowered {
 
 class LinearIR;
@@ -47,7 +46,6 @@ public:
     size_t get_output_count() const { return m_output_port_connectors.size(); }
 
     void validate() const;
-    void init_emitter(const std::shared_ptr<const TargetMachine>& target);
 
     ExpressionPort get_input_port(size_t i);
     ExpressionPort get_output_port(size_t i);
