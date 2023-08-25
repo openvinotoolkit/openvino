@@ -32,8 +32,12 @@ void clamp_fp16_output::run(program& p) {
                 local_desc.input_layout = node->get_output_layout();
                 local_desc.f_param = act_node.get_fuse_params();
                 local_desc.outer_dep_start_idx = -1;  // No external dep
-                local_desc.total_num_deps = 0;
+                local_desc.total_num_deps = 1;
                 local_desc.output_layout = node->get_output_layout();
+                if (node->get_fused_primitives().size() > 0) {
+                    local_desc.fused_deps.emplace(node->get_fused_primitives().back().desc->id, 0);
+                }
+
                 node->add_fused_primitive(local_desc);
             }
         }
