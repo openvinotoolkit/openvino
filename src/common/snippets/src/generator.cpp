@@ -8,6 +8,7 @@
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
 
+#include "snippets/target_machine.hpp"
 #include "snippets/op/kernel.hpp"
 
 #include "snippets/itt.hpp"

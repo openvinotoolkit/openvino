@@ -6,6 +6,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/target_machine.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"

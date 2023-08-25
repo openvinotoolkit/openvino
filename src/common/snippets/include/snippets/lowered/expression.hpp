@@ -8,13 +8,13 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "snippets/emitter.hpp"
-#include "snippets/target_machine.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
 
 namespace ov {
 namespace snippets {
+class TargetMachine;
 namespace lowered {
 
 class LinearIR;

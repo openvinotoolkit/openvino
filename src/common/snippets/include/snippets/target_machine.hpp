@@ -9,10 +9,10 @@
 #pragma once
 
 #include "emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov {
 namespace snippets {
-
 typedef std::pair<std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ov::Node>&)>,
         std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
 
@@ -46,7 +46,7 @@ public:
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
-    std::function<std::shared_ptr<Emitter>(const std::shared_ptr<Node>)> get(const ov::DiscreteTypeInfo& type) const;
+    std::function<std::shared_ptr<Emitter>(const std::shared_ptr<ov::Node>)> get(const ov::DiscreteTypeInfo& type) const;
     std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo type) const;
 
     /**

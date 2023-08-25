@@ -4,6 +4,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/remarks.hpp"
+#include "snippets/target_machine.hpp"
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"

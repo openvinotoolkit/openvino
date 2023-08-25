@@ -7,6 +7,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/target_machine.hpp"
 #include "openvino/core/rt_info.hpp"
 
 #include <assert.h>
