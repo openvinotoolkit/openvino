@@ -24,6 +24,7 @@ on:
 #   group: ${{ github.head_ref || github.run_id }}-linux
   # cancel-in-progress: true
   # empty commit 1
+  # empty commit 2
 jobs:
   Build:
     defaults:
