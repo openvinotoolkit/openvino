@@ -33,8 +33,7 @@ Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, cons
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
-    auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
-    loops2DKernel->compile_params = compile_params;
+    auto loops2DKernel = linear_ir.create_kernel(compile_params);
     std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernel);
 
     kernel->emit_code({}, {});

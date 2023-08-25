@@ -38,6 +38,7 @@ public:
     explicit LinearIR(const std::shared_ptr<ov::Model>& m, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs);
+    ExpressionPtr create_kernel(const void* compile_params);
 
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end);
 

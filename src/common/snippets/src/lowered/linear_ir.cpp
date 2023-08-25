@@ -51,6 +51,12 @@ ExpressionPtr LinearIR::create_expression(const std::shared_ptr<Node>& n, const 
     return ExpressionFactory::build(n, inputs);
 }
 
+ExpressionPtr LinearIR::create_kernel(const void* compile_params) {
+    auto kernel = std::make_shared<op::Kernel>(*this);
+    kernel->compile_params = compile_params;
+    return create_expression(kernel, std::vector<PortConnectorPtr>{});
+}
+
 ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     if (!m->get_sinks().empty())
         OPENVINO_THROW("Linear IR is not supposed to work for model with sinks. Check your transformation pipeline.");
