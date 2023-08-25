@@ -494,7 +494,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls == 1)
                 return true;
 
-            if (node.get_output_layout().is_dynamic()) {
+            if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
             }
 
