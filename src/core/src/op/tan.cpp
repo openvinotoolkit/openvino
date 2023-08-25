@@ -10,7 +10,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/tan.hpp"
+#include "openvino/reference/tan.hpp"
 
 using namespace std;
 using namespace ngraph;
