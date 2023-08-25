@@ -20,7 +20,7 @@ namespace reference {
 template <typename T>
 void asin(const T* arg, T* out, const size_t count) {
     std::transform(arg, arg + count, out, [](T in) {
-        return std::asin(in);
+        return static_cast<T>(std::asin(in));
     });
 }
 }  // namespace reference

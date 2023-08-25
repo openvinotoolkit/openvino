@@ -19,7 +19,7 @@ T cos(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T cos(const T in) {
-    return std::round(std::cos(in));
+    return static_cast<T>(std::round(std::cos(in)));
 }
 }  // namespace func
 

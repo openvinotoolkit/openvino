@@ -19,7 +19,7 @@ T sinh(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T sinh(const T in) {
-    return std::round(std::sinh(in));
+    return static_cast<T>(std::round(std::sinh(in)));
 }
 }  // namespace func
 

@@ -20,7 +20,7 @@ namespace reference {
 template <typename T>
 void acos(const T* arg, T* out, const size_t count) {
     std::transform(arg, arg + count, out, [](T in) {
-        return std::acos(in);
+        return static_cast<T>(std::acos(in));
     });
 }
 }  // namespace reference

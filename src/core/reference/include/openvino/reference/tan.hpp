@@ -19,7 +19,7 @@ T tan(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T tan(const T in) {
-    return std::round(std::tan(in));
+    return static_cast<T>(std::round(std::tan(in)));
 }
 }  // namespace func
 

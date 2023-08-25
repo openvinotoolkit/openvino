@@ -19,7 +19,7 @@ T cosh(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T cosh(const T in) {
-    return std::round(std::cosh(in));
+    return static_cast<T>(std::round(std::cosh(in)));
 }
 }  // namespace func
 
