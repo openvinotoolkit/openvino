@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
+#include "openvino/reference/multiclass_nms.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
 #include "multiclass_nms_shape_inference.hpp"
-#include "ngraph/runtime/reference/utils/nms_common.hpp"
+#include "openvino/reference/utils/nms_common.hpp"
 
 namespace multiclass_nms {
 using namespace ov;

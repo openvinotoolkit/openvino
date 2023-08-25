@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/idft.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, idft_op) {
     NodeBuilder::get_ops().register_factory<op::v7::IDFT>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10, 10, 2});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
     auto idft = make_shared<op::v7::IDFT>(data, axes);
 
     NodeBuilder builder(idft, {data, axes});
@@ -26,9 +28,9 @@ TEST(attributes, idft_op) {
 
 TEST(attributes, idft_op_signal) {
     NodeBuilder::get_ops().register_factory<op::v7::IDFT>();
-    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
-    auto signal = op::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20});
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 10, 10, 2});
+    auto axes = ov::op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2});
+    auto signal = ov::op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20});
     auto idft = make_shared<op::v7::IDFT>(data, axes, signal);
 
     NodeBuilder builder(idft, {data, axes, signal});

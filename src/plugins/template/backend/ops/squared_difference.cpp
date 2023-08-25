@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/squared_difference.hpp"
+#include "openvino/reference/squared_difference.hpp"
 
 #include "evaluate_node.hpp"
 
