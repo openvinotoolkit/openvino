@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/deformable_psroi_pooling.hpp"
+#include "openvino/reference/deformable_psroi_pooling.hpp"
 
 #include "evaluate_node.hpp"
 
