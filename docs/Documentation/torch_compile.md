@@ -48,7 +48,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       .. image:: _static/images/torch_compile_backend_openvino.svg
          :width: 992px
          :height: 720px
-         :scale: 40%
+         :scale: 60%
 
    .. tab-item:: openvino_ts
       :sync: backend-openvino-ts
@@ -65,7 +65,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       .. image:: _static/images/torch_compile_backend_openvino_ts.svg
          :width: 1088px
          :height: 720px
-         :scale: 40%
+         :scale: 60%
 
 
 Environment Variables
