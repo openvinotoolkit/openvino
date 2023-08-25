@@ -247,10 +247,10 @@ std::vector<TRShape> shape_infer(const NonMaxSuppression* op,
 
     auto output_shapes = std::vector<TRShape>{TRShape{TDim(dim::inf_bound), 3}};
 
-    if (const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-        if (boxes_shape.rank().is_static() && scores_shape.rank().is_static()) {
-            const auto& num_boxes = boxes_shape[1];
-            if (num_boxes.is_static()) {
+    if (boxes_shape.rank().is_static() && scores_shape.rank().is_static()) {
+        const auto& num_boxes = boxes_shape[1];
+        if (num_boxes.is_static()) {
+            if (const auto max_out_boxes_per_class = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
                 auto& selected_boxes = output_shapes[0][0];
                 selected_boxes = std::min(num_boxes.get_length(), static_cast<V>(max_out_boxes_per_class->front()));
                 selected_boxes *= scores_shape[0].get_max_length();
