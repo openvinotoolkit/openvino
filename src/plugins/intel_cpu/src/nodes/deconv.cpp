@@ -480,12 +480,14 @@ void Deconvolution::getSupportedDescriptors() {
             config.inConfs.resize(getParentEdges().size());
             config.outConfs.resize(getOriginalOutputsNumber());
 
-            for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            config.inConfs[0].setMemDesc(
+                    creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), inShape));
+            for (size_t i = 1; i < getParentEdges().size(); ++i) {
                 config.inConfs[i].setMemDesc(
                         creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
             }
             config.outConfs[0].setMemDesc(
-                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+                    creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), outShape));
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             for (size_t i = 0; i < config.inConfs.size(); i++) {

@@ -413,7 +413,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_AutoPadding_FP32, DeconvolutionLayerCPU
         ::testing::ValuesIn(inputs_2D_AutoPadding),
         ::testing::Values(ElementType::f32),
         ::testing::Values(emptyFusingSpec),
-        ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_acl_2D, conv_avx512_2D})),
+        ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_acl_2D})),
         ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig)),
         DeconvolutionLayerCPUTest::getTestCaseName);
 
