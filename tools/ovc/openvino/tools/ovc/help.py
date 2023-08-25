@@ -28,11 +28,12 @@ def get_convert_model_help_specifics():
                  'Example with unnamed inputs: \"[1,100],[1,?]\".'},
         'output':
             {'description':
-                'The name of the output operation of the model or list of names. For TensorFlow*, '
-                'do not add :0 to this name. The order of outputs in converted model is the '
-                'same as order of specified operation names. Outputs should be separated with comma (spaces are ignored): '
-                'Example 1: ovc ... output="out_1, out_2". '
-                'Example 2: ovc ... output="x,y,z" equivalent to ovc ... output="x, y, z".'},
+                 'One or more comma-separated model outputs to be preserved in the converted model. '
+                 'Other outputs are removed. If `output` parameter is not specified then all outputs from '
+                 'the original model are preserved. '
+                 'Do not add :0 to the names for TensorFlow. The order of outputs in the converted model is the '
+                 'same as the order of specified names. '
+                 'Example: ovc model.onnx output=out_1,out_2'},
         'extension':
             {'description':
                  'Paths or a comma-separated list of paths to libraries '
