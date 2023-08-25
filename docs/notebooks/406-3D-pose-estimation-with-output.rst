@@ -16,17 +16,19 @@ extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__\ **and
 been using JupyterLab to run the demo as suggested in the
 ``README.md``**
 
-   **NOTE**: *To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a remote server, the webcam
    will not work. However, you can still do inference on a video file in
    the final step. This demo utilizes the Python interface in
    ``Three.js`` integrated with WebGL to process data from the model
    inference. These results are processed and displayed in the
-   notebook.*
+   notebook.
 
-*To ensure that the results are displayed correctly, run the code in a
-recommended browser on one of the following operating systems:* *Ubuntu,
-Windows: Chrome* *macOS: Safari*
+To ensure that the results are displayed correctly, run the code in a
+recommended browser on one of the following operating systems: Ubuntu,
+Windows: Chrome, macOS: Safari.
 
 **Table of contents**:
 
@@ -178,7 +180,7 @@ directory structure and downloads the selected model.
 Convert Model to OpenVINO IR format `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- The selected model
+The selected model
 comes from the public directory, which means it must be converted into
 OpenVINO Intermediate Representation (OpenVINO IR). We use
 ``omz_converter`` to convert the ONNX format model to the OpenVINO IR
@@ -588,7 +590,7 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**:
+.. note::
 
    *1. To use this notebook with a webcam, you need to run the notebook
    on a computer with a webcam. If you run the notebook on a server
@@ -596,6 +598,7 @@ Firefox, may cause flickering. If you experience flickering, set
 
    *2. Popup mode may not work if you run this notebook on a remote
    computer (e.g. Binder).*
+
 
 Using the following method, you can click and move your mouse over the
 picture on the left to interact.
