@@ -104,14 +104,6 @@ private:
     void run(program& p) override;
 };
 
-class clamp_fp16_output : public base_pass {
-public:
-    clamp_fp16_output() : base_pass("clamp_fp16_output") {}
-
-private:
-    void run(program& p) override;
-};
-
 class mark_shape_of_subgraphs : public base_pass {
     // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
     // There are few key requirements to decide if node belongs to shape_of subgraph or not:
