@@ -48,6 +48,8 @@ std::shared_ptr<ov::Model> get_test_model(bool insert_squeeze, bool use_friendly
     if (!use_friendly_names) {
         result0->get_input_tensor(0).add_names({"res0"});
         result1->get_input_tensor(0).add_names({"res1"});
+        result0->get_output_tensor(0).add_names({"res0"});
+        result1->get_output_tensor(0).add_names({"res1"});
     } else {
         result0->set_friendly_name("res0");
         result1->set_friendly_name("res1");
@@ -164,8 +166,8 @@ TEST(TransformationTests, make_stateful_dynamic_shapes) {
         auto add = make_shared<Add>(X, Y);
         auto result0 = make_shared<Result>(add);
         auto result1 = make_shared<Result>(add);
-        result0->get_input_tensor(0).add_names({"res0"});
-        result1->get_input_tensor(0).add_names({"res1"});
+        result0->get_output_tensor(0).add_names({"res0"});
+        result1->get_output_tensor(0).add_names({"res1"});
 
         f = make_shared<Model>(ResultVector{result0, result1}, ParameterVector{X, Y});
         map<std::string, std::string> pair_names = {{"x", "res0"}, {"y", "res1"}};
