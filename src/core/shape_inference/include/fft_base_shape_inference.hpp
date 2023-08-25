@@ -34,19 +34,20 @@ std::vector<TRShape> shape_infer(const util::FFTBase* op,
 
     if (input_shape.rank().is_static() && axes_shape.rank().is_static() && input_shapes.size() == 3 && axes) {
         const auto& signal_size_shape = input_shapes[2];
-        auto signal_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
 
-        if (signal_size_shape.rank().is_static() && signal_size) {
-            size_t num_of_axes = axes->size();
-            for (size_t i = 0; i < num_of_axes; ++i) {
-                if ((*signal_size)[i] == -1) {
-                    continue;
+        if (signal_size_shape.rank().is_static()) {
+            if (auto signal_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
+                size_t num_of_axes = axes->size();
+                for (size_t i = 0; i < num_of_axes; ++i) {
+                    if ((*signal_size)[i] == -1) {
+                        continue;
+                    }
+                    output_shape[(*axes)[i]] = DimType((*signal_size)[i]);
                 }
-                output_shape[(*axes)[i]] = DimType((*signal_size)[i]);
-            }
-        } else if (signal_size_shape.rank().is_static()) {
-            for (int64_t& axis : *axes) {
-                output_shape[axis] = ov::Dimension::dynamic();
+            } else {
+                for (int64_t& axis : *axes) {
+                    output_shape[axis] = ov::Dimension::dynamic();
+                }
             }
         }
     } else if (input_shape.rank().is_static() && (axes_shape.rank().is_dynamic() || !axes)) {
