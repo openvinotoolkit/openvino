@@ -6,11 +6,11 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/scatter_update.hpp"
 
 using namespace std;
 using namespace ngraph;

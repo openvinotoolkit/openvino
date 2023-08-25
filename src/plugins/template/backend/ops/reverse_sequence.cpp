@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/reverse_sequence.hpp"
+#include "openvino/reference/reverse_sequence.hpp"
 
 #include "evaluate_node.hpp"
 

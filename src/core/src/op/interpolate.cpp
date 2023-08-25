@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/reference/interpolate.hpp"
 
 #include <algorithm>
 #include <cmath>

@@ -13,8 +13,8 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/runtime/reference/space_to_depth.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/space_to_depth.hpp"
 
 using namespace ngraph;
 

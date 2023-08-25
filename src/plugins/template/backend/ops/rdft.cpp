@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/rdft.hpp"
+#include "openvino/reference/rdft.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/fft.hpp"
+#include "openvino/reference/fft.hpp"
 
 namespace rfft_v9 {
 struct InfoForRFFT9 {

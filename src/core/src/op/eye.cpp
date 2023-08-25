@@ -6,8 +6,8 @@
 
 #include "eye_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/eye.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/eye.hpp"
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {

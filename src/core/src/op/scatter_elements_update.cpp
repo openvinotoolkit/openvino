@@ -7,8 +7,8 @@
 #include <scatter_elements_update_shape_inference.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/scatter_elements_update.hpp"
 
 using namespace std;
 

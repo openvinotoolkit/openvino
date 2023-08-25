@@ -4,8 +4,8 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_max_pool.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>

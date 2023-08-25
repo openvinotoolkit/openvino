@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hswish.hpp"
+#include "openvino/reference/hswish.hpp"
 
 using namespace std;
 using namespace ngraph;

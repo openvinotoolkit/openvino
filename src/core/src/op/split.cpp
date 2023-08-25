@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/split.hpp"
+#include "openvino/reference/split.hpp"
 
 #include <numeric>
 #include <split_shape_inference.hpp>

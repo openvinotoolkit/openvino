@@ -9,8 +9,8 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/equal.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/reference/equal.hpp"
 
 using namespace std;
 using namespace ngraph;

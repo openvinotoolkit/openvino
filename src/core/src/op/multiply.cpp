@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/multiply.hpp"
+#include "openvino/reference/multiply.hpp"
 
 using namespace std;
 using namespace ngraph;

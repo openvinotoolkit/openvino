@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/gru_cell.hpp"
+#include "openvino/reference/gru_cell.hpp"
 
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_cell.hpp"

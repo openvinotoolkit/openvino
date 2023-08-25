@@ -6,8 +6,8 @@
 
 #include "grid_sample_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/grid_sample.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/grid_sample.hpp"
 
 namespace ov {
 op::v9::GridSample::GridSample(const Output<Node>& data, const Output<Node>& grid, const Attributes& attributes)

@@ -4,7 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "openvino/reference/scatter_nd_update.hpp"
 #include "scatter_nd_update_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>

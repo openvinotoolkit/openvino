@@ -13,7 +13,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/reverse.hpp"
+#include "openvino/reference/reverse.hpp"
 #include "reverse_shape_inference.hpp"
 
 using namespace std;

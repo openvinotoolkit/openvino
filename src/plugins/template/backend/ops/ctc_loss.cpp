@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/ctc_loss.hpp"
+#include "openvino/reference/ctc_loss.hpp"
 // clang-format on
 
 namespace ctc_loss_v4 {

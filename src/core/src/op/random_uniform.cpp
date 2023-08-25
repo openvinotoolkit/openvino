@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/random_uniform.hpp"
+#include "openvino/reference/random_uniform.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/random_uniform.hpp"

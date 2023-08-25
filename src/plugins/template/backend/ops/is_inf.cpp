@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/is_inf.hpp"
+#include "openvino/reference/is_inf.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>

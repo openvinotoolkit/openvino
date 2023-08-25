@@ -11,8 +11,8 @@
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/maximum.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/maximum.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
+#include "openvino/reference/ctc_greedy_decoder.hpp"
 
 #include "evaluate_node.hpp"
 

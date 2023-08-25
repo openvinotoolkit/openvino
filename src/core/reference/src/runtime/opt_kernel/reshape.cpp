@@ -8,8 +8,8 @@
 #include <cstring>
 
 #include "ngraph/check.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace ngraph;
 

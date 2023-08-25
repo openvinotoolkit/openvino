@@ -8,7 +8,7 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sqrt.hpp"
+#include "openvino/reference/sqrt.hpp"
 
 using namespace std;
 using namespace ngraph;

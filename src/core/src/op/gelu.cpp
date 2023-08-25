@@ -8,7 +8,7 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gelu.hpp"
+#include "openvino/reference/gelu.hpp"
 
 using namespace std;
 using namespace ngraph;

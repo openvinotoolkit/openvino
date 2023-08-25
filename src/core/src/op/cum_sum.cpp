@@ -5,9 +5,9 @@
 #include "openvino/op/cum_sum.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/cum_sum.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/reference/cum_sum.hpp"
 
 using namespace std;
 

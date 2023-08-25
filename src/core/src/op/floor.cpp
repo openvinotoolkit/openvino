@@ -7,8 +7,8 @@
 #include "itt.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
-#include "ngraph/runtime/reference/floor.hpp"
+#include "openvino/reference/copy.hpp"
+#include "openvino/reference/floor.hpp"
 
 using namespace std;
 using namespace ngraph;

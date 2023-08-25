@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "matmul_shape_inference.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/matmul.hpp"
+#include "openvino/reference/matmul.hpp"
 
 using namespace std;
 using namespace ngraph;

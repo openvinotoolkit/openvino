@@ -9,8 +9,8 @@
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/min.hpp"
 
 using namespace std;
 using namespace ngraph;

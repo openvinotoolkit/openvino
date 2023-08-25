@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/roi_align.hpp"
+#include "openvino/reference/roi_align.hpp"
 
 #include "evaluate_node.hpp"
 

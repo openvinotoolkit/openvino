@@ -5,7 +5,7 @@
 // clang-format off
 #include "evaluates_map.hpp"
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/non_max_suppression.hpp"
+#include "openvino/reference/non_max_suppression.hpp"
 // clang-format on
 
 namespace nms_v9 {

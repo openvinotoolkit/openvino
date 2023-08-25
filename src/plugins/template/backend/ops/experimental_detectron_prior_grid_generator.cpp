@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp"
+#include "openvino/reference/experimental_detectron_prior_grid_generator.hpp"
 
 #include "evaluate_node.hpp"
 

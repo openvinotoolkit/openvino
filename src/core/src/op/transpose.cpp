@@ -6,8 +6,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/transpose.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/transpose.hpp"
 #include "transpose_shape_inference.hpp"
 
 using namespace std;

@@ -10,8 +10,8 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/max.hpp"
 
 using namespace std;
 using namespace ngraph;

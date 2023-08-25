@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/embedding_segments_sum.hpp"
+#include "openvino/reference/embedding_segments_sum.hpp"
 
 #include "evaluate_node.hpp"
 

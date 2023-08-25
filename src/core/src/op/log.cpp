@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/log.hpp"
+#include "openvino/reference/log.hpp"
 
 using namespace std;
 using namespace ngraph;

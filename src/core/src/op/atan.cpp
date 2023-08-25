@@ -14,8 +14,8 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/atan.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/atan.hpp"
 
 using namespace std;
 using namespace ngraph;

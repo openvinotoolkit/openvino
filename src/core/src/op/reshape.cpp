@@ -12,9 +12,9 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/reshape.hpp"
 
 using namespace std;
 using namespace ngraph;

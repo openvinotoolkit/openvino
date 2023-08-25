@@ -11,7 +11,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
+#include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
 
 using namespace std;

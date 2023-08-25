@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/einsum.hpp"
+#include "openvino/reference/einsum.hpp"
 
 #include "evaluate_node.hpp"
 

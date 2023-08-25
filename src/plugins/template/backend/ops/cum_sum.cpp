@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/cum_sum.hpp"
+#include "openvino/reference/cum_sum.hpp"
 // clang-format on
 
 namespace cum_sum_v0 {

@@ -7,8 +7,8 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/not.hpp"
 
 using namespace ngraph;
 using namespace std;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/prior_box_clustered.hpp"
+#include "openvino/reference/prior_box_clustered.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/prior_box_clustered.hpp"

@@ -4,7 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/activation.hpp>

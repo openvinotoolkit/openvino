@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/irdft.hpp"
+#include "openvino/reference/irdft.hpp"
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/fft.hpp"
+#include "openvino/reference/fft.hpp"
 
 namespace irfft_v9 {
 struct InfoForIRFFT9 {

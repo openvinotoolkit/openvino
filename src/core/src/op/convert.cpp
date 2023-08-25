@@ -10,7 +10,7 @@
 #include "itt.hpp"
 #include "ngraph/op/equal.hpp"
 #include "ngraph/op/select.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
+#include "openvino/reference/convert.hpp"
 
 using namespace std;
 using namespace ngraph;

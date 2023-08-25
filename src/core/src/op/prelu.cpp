@@ -4,10 +4,10 @@
 
 #include "ngraph/op/prelu.hpp"
 
-#include <ngraph/runtime/reference/prelu.hpp>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "openvino/reference/prelu.hpp"
 
 using namespace std;
 

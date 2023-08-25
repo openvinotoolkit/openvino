@@ -8,8 +8,8 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/clamp.hpp"
 
 using namespace std;
 using namespace ngraph;

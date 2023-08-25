@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/slice.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 using namespace std;

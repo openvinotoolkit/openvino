@@ -9,11 +9,11 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/broadcast.hpp"
 
 using namespace std;
 

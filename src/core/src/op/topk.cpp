@@ -13,10 +13,10 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/topk.hpp"
 
 using namespace std;
 using namespace ngraph;

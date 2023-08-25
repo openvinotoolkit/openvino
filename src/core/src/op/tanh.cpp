@@ -9,7 +9,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/tanh.hpp"
+#include "openvino/reference/tanh.hpp"
 
 using namespace std;
 using namespace ngraph;

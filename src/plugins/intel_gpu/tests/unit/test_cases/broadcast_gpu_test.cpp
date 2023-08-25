@@ -3,8 +3,8 @@
 //
 
 #include "test_utils.h"
-#include "ngraph/runtime/reference/tile.hpp"
-#include "ngraph/runtime/reference/broadcast.hpp"
+#include "openvino/reference/tile.hpp"
+#include "openvino/reference/broadcast.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/broadcast.hpp>

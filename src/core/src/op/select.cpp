@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/select.hpp"
 #include "select_shape_inference.hpp"
 
 using namespace std;
