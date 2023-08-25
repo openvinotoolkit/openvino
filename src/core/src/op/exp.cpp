@@ -8,7 +8,7 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/exp.hpp"
+#include "openvino/reference/exp.hpp"
 
 using namespace std;
 using namespace ngraph;
