@@ -55,6 +55,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     std::reverse(splittedFilename.begin(), splittedFilename.end());
     bool is_valid_path_format = true;
 
+    std::string subgrapth_dir = "subgraph";
+    std::vector<std::string> graphConvertLogicTypes = { "fused_names", "repeat_pattern" };
+
     // Check that op is valid
     if (splittedFilename.size() > 2) {
         auto pos = splittedFilename[2].find('-');
@@ -72,22 +75,34 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
             }
             message += "_";
             result << message;
-        } else {
+        } else if (splittedFilename[2] != subgrapth_dir) {
             is_valid_path_format = false;
         }
     }
+
     // Check the element_type
     if (splittedFilename.size() > 1) {
         if (std::find(ov::test::conformance::element_type_names.begin(),
                       ov::test::conformance::element_type_names.end(),
                       splittedFilename[1]) != ov::test::conformance::element_type_names.end()) {
             result << "Type=" << splittedFilename[1] << "_";
+        } else if (std::find(graphConvertLogicTypes.begin(),
+                             graphConvertLogicTypes.end(),
+                             splittedFilename[1]) != graphConvertLogicTypes.end()) {
+            result << "ConvertLogic=" << splittedFilename[1] << "_";
         } else {
             is_valid_path_format = false;
         }
     }
     result << "IR=" << (is_valid_path_format ? ov::test::utils::replaceExt(splittedFilename[0], "") : path_to_model) << "_";
     result << "Device=" << deviceName << "_";
+
+    std::vector<std::string> shapeModes = { "static", "dynamic" };
+    // Check the shape type
+    if (splittedFilename.size() > 3 &&
+        std::find(shapeModes.begin(), shapeModes.end(), splittedFilename[3]) != shapeModes.end()) {
+        result << "Shape=" << splittedFilename[3] << "_";
+    }
     result << "Config=(";
     auto configItem = config.begin();
     while (configItem != config.end()) {
@@ -247,11 +262,6 @@ void ReadIRTest::SetUp() {
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
         }
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>("test.xml", "test.bin");
-        manager.run_passes(function);
-        auto b = function->get_parameters();
-        auto c = 0;
     }
 
     bool hasDynamic = false;

@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/floor_mod.hpp"
+#include "openvino/reference/floor_mod.hpp"
 
 using namespace std;
 using namespace ngraph;

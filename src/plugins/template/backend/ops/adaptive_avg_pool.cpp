@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+#include "openvino/reference/adaptive_avg_pool.hpp"
 
 #include "evaluate_node.hpp"
 

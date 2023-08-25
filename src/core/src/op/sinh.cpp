@@ -7,7 +7,7 @@
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/sinh.hpp"
+#include "openvino/reference/sinh.hpp"
 
 using namespace std;
 using namespace ngraph;

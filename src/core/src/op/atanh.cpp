@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/atanh.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/atanh.hpp"
 
 using namespace std;
 using namespace ngraph;
