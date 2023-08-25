@@ -890,7 +890,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
                     if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
                         auto res = rt_info.emplace(type_info, attr);
                         if (!res.second) {
-                            IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
+                            // IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
                         }
                     } else {
                         IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
