@@ -4,7 +4,7 @@
 
 
 import numpy as np
-from utils import get_model
+from utils import get_model, get_path_to_extension_library
 
 #! [ov_api_2_0:create_core]
 import openvino as ov
@@ -106,5 +106,6 @@ assert output_tensor.data.dtype == np.int32
 #! [ov_api_2_0:get_output_tensor_v10]
 
 #! [ov_api_2_0:load_old_extension]
-core.add_extension("path_to_extension_library.so")
+path_to_extension_library = get_path_to_extension_library()
+core.add_extension(path_to_extension_library)
 #! [ov_api_2_0:load_old_extension]
