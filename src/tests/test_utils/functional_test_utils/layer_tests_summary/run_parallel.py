@@ -60,7 +60,7 @@ def parse_arguments():
     parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=0)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
-    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default=constants.SUITE_UNIT_NAME)
+    parser.add_argument("-s", "--split_unit", help=split_unit_help, type=str, required=False, default=constants.TEST_UNIT_NAME)
     parser.add_argument("-rf", "--repeat_failed", help=repeat_help, type=int, required=False, default=1)
 
     return parser.parse_args()
