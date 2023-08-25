@@ -12,7 +12,7 @@
 
 namespace ov {
 namespace reference {
-
+namespace func {
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T atanh(const T in) {
     return std::atanh(in);
@@ -29,6 +29,7 @@ T atanh(const T in) {
         return 0;
     }
 }
+}  // namespace func
 
 /**
  * @brief Reference implementation of Atanh operator.
@@ -39,7 +40,7 @@ T atanh(const T in) {
  */
 template <class T>
 void atanh(const T* arg, T* out, const size_t count) {
-    std::transform(arg, arg + count, out, &atanh<T>);
+    std::transform(arg, arg + count, out, &func::atanh<T>);
 }
 }  // namespace reference
 }  // namespace ov

@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
 
 #include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-
+namespace func {
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T sinh(const T in) {
     return std::sinh(in);
@@ -21,6 +21,7 @@ template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = 
 T sinh(const T in) {
     return std::round(std::sinh(in));
 }
+}  // namespace func
 
 /**
  * @brief Reference implementation of Sinh operator.
@@ -31,7 +32,7 @@ T sinh(const T in) {
  */
 template <class T>
 void sinh(const T* arg, T* out, size_t count) {
-    std::transform(arg, arg + count, out, &sinh<T>);
+    std::transform(arg, arg + count, out, &func::sinh<T>);
 }
 }  // namespace reference
 }  // namespace ov

@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
 
 #include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-
+namespace func {
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T atan(const T in) {
     return std::atan(in);
@@ -19,8 +19,9 @@ T atan(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T atan(const T in) {
-    return std::round(std::atan(in));
+    return static_cast<T>(std::round(std::atan(in)));
 }
+}  // namespace func
 
 /**
  * @brief Reference implementation of Atan operator.
@@ -31,7 +32,7 @@ T atan(const T in) {
  */
 template <class T>
 void atan(const T* arg, T* out, const size_t count) {
-    std::transform(arg, arg + count, out, &atan<T>);
+    std::transform(arg, arg + count, out, &func::atan<T>);
 }
 }  // namespace reference
 }  // namespace ov

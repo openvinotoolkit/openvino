@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
 
 #include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-
+namespace func {
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T asinh(const T in) {
     return std::asinh(in);
@@ -19,8 +19,9 @@ T asinh(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T asinh(const T in) {
-    return std::round(std::asinh(in));
+    return static_cast<T>(std::round(std::asinh(in)));
 }
+}  // namespace func
 
 /**
  * @brief Reference implementation of Asinh operator.
@@ -31,7 +32,7 @@ T asinh(const T in) {
  */
 template <class T>
 void asinh(const T* arg, T* out, const size_t count) {
-    std::transform(arg, arg + count, out, &asinh<T>);
+    std::transform(arg, arg + count, out, &func::asinh<T>);
 }
 }  // namespace reference
 }  // namespace ov

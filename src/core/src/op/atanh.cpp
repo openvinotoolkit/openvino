@@ -28,10 +28,10 @@ op::v3::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) 
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_Atanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Atanh>(new_args.at(0));
+    return std::make_shared<Atanh>(new_args.at(0));
 }
 
 bool op::v3::Atanh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {

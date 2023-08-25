@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
 
 #include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-
+namespace func{
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T acosh(const T in) {
     return std::acosh(in);
@@ -19,7 +19,8 @@ T acosh(const T in) {
 
 template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 T acosh(const T in) {
-    return std::round(std::acosh(in));
+    return static_cast<T>(std::round(std::acosh(in)));
+}
 }
 
 /**
@@ -31,7 +32,7 @@ T acosh(const T in) {
  */
 template <class T>
 void acosh(const T* arg, T* out, const size_t count) {
-    std::transform(arg, arg + count, out, &acosh<T>);
+    std::transform(arg, arg + count, out, &func::acosh<T>);
 }
 }  // namespace reference
 }  // namespace ov
