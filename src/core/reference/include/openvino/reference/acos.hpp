@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cmath>
 
-
 namespace ov {
 namespace reference {
 

@@ -11,7 +11,7 @@
 
 namespace ov {
 namespace reference {
-namespace func{
+namespace func {
 template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
 T cosh(const T in) {
     return std::cosh(in);
@@ -21,7 +21,7 @@ template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = 
 T cosh(const T in) {
     return std::round(std::cosh(in));
 }
-}
+}  // namespace func
 
 /**
  * @brief Reference implementation of Cosh operator.
