@@ -1,11 +1,20 @@
 # Automatic Speech Recognition Python Sample {#openvino_inference_engine_ie_bridges_python_sample_speech_sample_README}
 
+
 @sphinxdirective
 
 .. meta::
    :description: Learn how to infer an acoustic model based on Kaldi 
                  neural networks and speech feature vectors using Asynchronous 
                  Inference Request (Python) API.
+
+
+.. note::
+
+   This sample is being deprecated and will no longer be maintained after 
+   OpenVINO 2023.2 (LTS). The main reason for it is the outdated state of 
+   the sample and its extensive usage of GNA, which is not going to be 
+   supported by OpenVINO beyond 2023.2. 
 
 
 This sample demonstrates how to do a Synchronous Inference of acoustic model based on Kaldi\* neural models and speech feature vectors.
