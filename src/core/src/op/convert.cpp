@@ -52,7 +52,8 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
     }
     if (((INPUT_ET == element::u1) || (OUTPUT_ET == element::u1)) ||
         ((INPUT_ET == element::u4) || (OUTPUT_ET == element::u4)) ||
-        ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4))) {
+        ((INPUT_ET == element::i4) || (OUTPUT_ET == element::i4)) ||
+        ((INPUT_ET == element::nf4) || (OUTPUT_ET == element::nf4))) {
         runtime::reference::detail::lp_convert(arg->get_data_ptr<INPUT_ET>(),
                                                out->get_data_ptr<OUTPUT_ET>(),
                                                element_count,
@@ -91,6 +92,7 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out) {
         TYPE_OUT_CASE(f32, arg, out);
         TYPE_OUT_CASE(f64, arg, out);
         TYPE_OUT_CASE(boolean, arg, out);
+        TYPE_OUT_CASE(nf4, arg, out);
     default:
         rc = false;
         break;
@@ -117,6 +119,7 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
         NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);
+        NGRAPH_TYPE_CASE(evaluate_convert, nf4, arg, out);
     default:
         rc = false;
         break;

@@ -8,6 +8,7 @@
 
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/float16.hpp"
+#include "ngraph/type/nf4.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -86,6 +87,10 @@ void lp_convert(const TI* arg, TO* out, size_t count, element::Type_t src_type, 
             detail::set_u4(output, i, detail::get_value<uint8_t, TI>(input, i, src_type));
         } else if (dst_type == element::i4) {
             detail::set_i4(output, i, detail::get_value<int8_t, TI>(input, i, src_type));
+        } else if (dst_type == element::nf4) {
+            nf4::pack_one(output, out, i);
+        } else if (src_type == element::nf4) {
+            nf4::unpack_one(output, out, i);
         } else {
             out[i] = detail::get_value<TO, TI>(input, i, src_type);
         }
