@@ -10,7 +10,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/logical_reduction.hpp"
+#include "openvino/reference/logical_reduction.hpp"
 #include "openvino/util/log.hpp"
 
 using namespace ngraph;

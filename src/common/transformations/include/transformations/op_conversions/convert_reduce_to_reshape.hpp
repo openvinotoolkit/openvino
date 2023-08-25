@@ -6,11 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <transformations_visibility.hpp>
 #include <vector>
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
