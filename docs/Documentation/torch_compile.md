@@ -10,7 +10,7 @@ By default, Torch code runs in eager-mode, but with the use of ``torch.compile``
 1. **Graph acquisition** - the model is rewritten as blocks of subgraphs that are either:
 
    * compiled by TorchDynamo and "flattened",
-   * fall back to the eager-mode, due to unsupported Python constructs (like control-flow code).
+   * falling back to the eager-mode, due to unsupported Python constructs (like control-flow code).
 
 2. **Graph lowering** - all PyTorch operations are decomposed into their constituent kernels specific to the chosen backend.
 3. **Graph compilation** - the kernels call their corresponding low-level device-specific operations.
@@ -46,6 +46,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       Execution diagram:
 
       .. image:: _static/images/torch_compile_backend_openvino.svg
+         :scale: 50%
 
    .. tab-item:: openvino_ts
       :sync: backend-openvino-ts
@@ -60,6 +61,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       Execution diagram:
 
       .. image:: _static/images/torch_compile_backend_openvino_ts.svg
+         :scale: 50%
 
 
 Environment Variables
