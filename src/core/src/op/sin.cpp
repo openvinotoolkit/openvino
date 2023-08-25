@@ -8,7 +8,7 @@
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sin.hpp"
+#include "openvino/reference/sin.hpp"
 
 using namespace std;
 using namespace ngraph;
