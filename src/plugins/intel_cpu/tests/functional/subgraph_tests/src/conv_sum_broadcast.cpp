@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace CPUTestUtils;
 using namespace InferenceEngine;
@@ -127,6 +128,11 @@ public:
         function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
         targetDevice = ov::test::utils::DEVICE_CPU;
+
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                                  InferenceEngine::PluginConfigInternalParams::DISABLE});
+        }
     }
 
 protected:

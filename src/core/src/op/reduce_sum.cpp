@@ -12,8 +12,8 @@
 #include "ngraph/op/util/evaluate_helpers.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sum.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/sum.hpp"
 
 using namespace std;
 using namespace ngraph;

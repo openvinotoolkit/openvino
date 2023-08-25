@@ -17,8 +17,10 @@ namespace subgraph_dumper {
 
 class ICache {
 public:
+    std::string m_cache_subdir = ".";
+
     virtual void update_cache(const std::shared_ptr<ov::Model>& model,
-                              const std::string& source_model, bool extract_body = true) {};
+                              const std::string& source_model, bool extract_body = true, bool from_cache = false) {};
     virtual void serialize_cache() {};
     virtual void reset_cache() {};
 

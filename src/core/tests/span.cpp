@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/utils/span.hpp"
+#include "openvino/reference/utils/span.hpp"
 
 #include <algorithm>
 #include <array>
