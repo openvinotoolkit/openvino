@@ -4,20 +4,17 @@
 
 #include "openvino/op/detection_output.hpp"
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "openvino/op/util/attr_types.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace ov::op;
-using namespace ov::op::util;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 namespace {
-void initialize_attributes(DetectionOutputBase::AttributesBase& attrs) {
+void initialize_attributes(ov::op::util::DetectionOutputBase::AttributesBase& attrs) {
     attrs.background_label_id = 0;
     attrs.top_k = 1;
     attrs.variance_encoded_in_target = false;
@@ -34,8 +31,8 @@ void initialize_attributes(DetectionOutputBase::AttributesBase& attrs) {
     attrs.input_width = 32;
     attrs.objectness_score = 0.73f;
 }
-void is_equal_attrs(const DetectionOutputBase::AttributesBase& attrs1,
-                    const DetectionOutputBase::AttributesBase& attrs2) {
+void is_equal_attrs(const ov::op::util::DetectionOutputBase::AttributesBase& attrs1,
+                    const ov::op::util::DetectionOutputBase::AttributesBase& attrs2) {
     EXPECT_EQ(attrs1.background_label_id, attrs2.background_label_id);
     EXPECT_EQ(attrs1.top_k, attrs2.top_k);
     EXPECT_EQ(attrs1.variance_encoded_in_target, attrs2.variance_encoded_in_target);
@@ -95,9 +92,9 @@ TEST(attributes, detection_output_v8) {
     initialize_attributes(attrs);
 
     auto detection_output =
-        make_shared<v8::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
+        make_shared<op::v8::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
     NodeBuilder builder(detection_output, {box_logits, class_preds, proposals, aux_class_preds, aux_box_pred});
-    auto g_detection_output = ov::as_type_ptr<v8::DetectionOutput>(builder.create());
+    auto g_detection_output = ov::as_type_ptr<op::v8::DetectionOutput>(builder.create());
 
     const auto do_attrs = detection_output->get_attrs();
     const auto g_do_attrs = g_detection_output->get_attrs();

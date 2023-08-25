@@ -2,24 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
+#include <gtest/gtest.h>
 
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+#include "visitors/visitors.hpp"
+
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, parameter_op) {
-    NodeBuilder::get_ops().register_factory<opset1::Parameter>();
-    auto parameter = std::make_shared<op::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::Parameter>();
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{Dimension{1}, Dimension{4}});
 
     NodeBuilder builder(parameter);
-    auto g_parameter = ov::as_type_ptr<opset1::Parameter>(builder.create());
+    auto g_parameter = ov::as_type_ptr<ov::op::v0::Parameter>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

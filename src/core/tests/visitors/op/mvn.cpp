@@ -2,31 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include "ngraph/opsets/opset4.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "openvino/op/mvn.hpp"
+
+#include <gtest/gtest.h>
+
+#include "openvino/op/constant.hpp"
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, mvn_v1_op) {
-    NodeBuilder::get_ops().register_factory<opset3::MVN>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::MVN>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
 
     const auto axes = AxisSet{0, 1};
 
-    const auto op = make_shared<opset3::MVN>(data, true, false, 0.1);
+    const auto op = make_shared<ov::op::v0::MVN>(data, true, false, 0.1);
     op->set_reduction_axes(axes);
     NodeBuilder builder(op, {data});
-    const auto g_op = ov::as_type_ptr<opset3::MVN>(builder.create());
+    const auto g_op = ov::as_type_ptr<ov::op::v0::MVN>(builder.create());
     const auto expected_attr_count = 4;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -37,14 +33,14 @@ TEST(attributes, mvn_v1_op) {
 }
 
 TEST(attributes, mvn_v6_op) {
-    NodeBuilder::get_ops().register_factory<opset6::MVN>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
-    auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{2}, {2, 3});
+    NodeBuilder::get_ops().register_factory<ov::op::v6::MVN>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2, 3, 4, 5});
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
 
-    const auto op = make_shared<opset6::MVN>(data, axes, false, 0.1f, op::MVNEpsMode::INSIDE_SQRT);
+    const auto op = make_shared<ov::op::v6::MVN>(data, axes, false, 0.1f, op::MVNEpsMode::INSIDE_SQRT);
 
     NodeBuilder builder(op, {data, axes});
-    const auto g_op = ov::as_type_ptr<opset6::MVN>(builder.create());
+    const auto g_op = ov::as_type_ptr<ov::op::v6::MVN>(builder.create());
     const auto expected_attr_count = 3;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

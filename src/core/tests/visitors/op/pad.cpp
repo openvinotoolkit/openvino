@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
+#include "openvino/op/pad.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 template <class T>
 class PadAttrVisitorTest : public testing::Test {};
@@ -19,9 +19,9 @@ TYPED_TEST_SUITE_P(PadAttrVisitorTest);
 
 TYPED_TEST_P(PadAttrVisitorTest, pad_basic) {
     NodeBuilder::get_ops().register_factory<TypeParam>();
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
 
     auto pad_mode = op::PadMode::EDGE;
 
@@ -36,10 +36,10 @@ TYPED_TEST_P(PadAttrVisitorTest, pad_basic) {
 
 TYPED_TEST_P(PadAttrVisitorTest, pad_const_mode) {
     NodeBuilder::get_ops().register_factory<TypeParam>();
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pads_end = make_shared<op::Parameter>(element::i64, Shape{1});
-    auto pad_value = make_shared<op::Parameter>(element::f32, Shape{});
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pads_end = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1});
+    auto pad_value = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
 
     auto pad_mode = op::PadMode::CONSTANT;
 

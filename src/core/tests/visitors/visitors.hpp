@@ -4,19 +4,20 @@
 
 #pragma once
 
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "openvino/core/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
-#include "openvino/op/util/framework_node.hpp"
-#include "openvino/op/ops.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/op/util/variable.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
+namespace ov {
 namespace test {
 class ValueHolder {
     template <typename T>
@@ -119,10 +120,13 @@ public:
     virtual operator ov::Dimension&() {
         OPENVINO_THROW("Invalid type access");
     }
-    virtual operator std::shared_ptr<Variable>&() {
+    virtual operator std::shared_ptr<ov::op::util::Variable>&() {
         OPENVINO_THROW("Invalid type access");
     }
     virtual operator ov::op::util::FrameworkNodeAttrs&() {
+        OPENVINO_THROW("Invalid type access");
+    }
+    virtual operator ov::Tensor&() {
         OPENVINO_THROW("Invalid type access");
     }
     uint64_t get_index() {
@@ -213,27 +217,30 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                &adapter)) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             auto& data = m_values.get<HostTensorPtr>(name);
             data->read(a->get()->get_ptr(), a->get()->size());
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<
-                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<
+                       ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
+                       &adapter)) {
             a->set(m_values.get<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>(name));
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<
-                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<
+                       ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(
+                       &adapter)) {
             a->set(m_values.get<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>(name));
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             a->set(m_values.get<ov::PartialShape>(name));
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
             a->set(m_values.get<ov::Dimension>(name));
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
-            a->set(m_values.get<std::shared_ptr<Variable>>(name));
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
+            a->set(m_values.get<std::shared_ptr<ov::op::util::Variable>>(name));
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             a->set(m_values.get<ov::op::util::FrameworkNodeAttrs>(name));
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be unmarshalled");
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
@@ -283,8 +290,10 @@ public:
         adapter.set(m_values.get<std::vector<double>>(name));
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         HostTensorPtr& data = m_values.get<HostTensorPtr>(name);
         data->read(adapter.get_ptr(), adapter.size());
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
 protected:
@@ -300,28 +309,31 @@ public:
     }
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
-                &adapter)) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        if (auto a = ::ov::as_type<::ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
             HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
             data->write(a->get()->get_ptr(), a->get()->size());
             m_values.insert(name, data);
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<
-                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<
+                       ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>>>(
+                       &adapter)) {
             m_values.insert_vector(name, a->get());
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<
-                       std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(&adapter)) {
+        } else if (auto a = ov::as_type<
+                       ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>>>(
+                       &adapter)) {
             m_values.insert_vector(name, a->get());
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             m_values.insert_vector(name, a->get());
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::Dimension>>(&adapter)) {
             m_values.insert(name, a->get());
-        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
+        } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_values.insert(name, a->get());
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             m_values.insert(name, a->get());
         } else {
             OPENVINO_THROW("Attribute \"", name, "\" cannot be marshalled");
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
     // The remaining adapter methods fall back on the void adapter if not implemented
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override {
@@ -371,8 +383,8 @@ public:
         m_values.insert_vector(name, adapter.get());
     }
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        HostTensorPtr data = std::make_shared<HostTensor>(element::u8, Shape{adapter.size()});
-        data->write(adapter.get_ptr(), adapter.size());
+        ov::Tensor data(element::u8, Shape{adapter.size()});
+        std::memcpy(data.data(), adapter.get_ptr(), adapter.size());
         m_values.insert(name, data);
     }
 
@@ -414,22 +426,14 @@ public:
     AttributeVisitor& get_node_loader() {
         return *this;
     }
-    static FactoryRegistry<Node>& get_ops() {
-        static FactoryRegistry<Node> registry = [] {
-            FactoryRegistry<Node> registry;
-#define _OPENVINO_OP_REG(NAME, NAMESPACE) registry.register_factory<NAMESPACE::NAME>();
-#include "op_version_tbl.hpp"
-#undef _OPENVINO_OP_REG
-            return registry;
-        }();
-        return registry;
-    }
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    static ngraph::FactoryRegistry<Node>& get_ops();
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     Node::type_info_t m_node_type_info;
     SerializeAttributeVisitor m_serializer;
     ov::OutputVector m_inputs;
-};
+};  // namespace test
 }  // namespace test
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace ov

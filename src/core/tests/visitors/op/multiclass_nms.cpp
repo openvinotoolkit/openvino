@@ -2,28 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "ngraph/opsets/opset9.hpp"
+#include "openvino/op/multiclass_nms.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
-using ngraph::test::ValueMap;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
-    auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
-    auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
+    NodeBuilder::get_ops().register_factory<ov::op::v8::MulticlassNms>();
+    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
+    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
-    opset8::MulticlassNms::Attributes attrs;
-    attrs.sort_result_type = opset8::MulticlassNms::SortResultType::SCORE;
+    ov::op::v8::MulticlassNms::Attributes attrs;
+    attrs.sort_result_type = ov::op::v8::MulticlassNms::SortResultType::SCORE;
     attrs.sort_result_across_batch = true;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
     attrs.nms_top_k = 100;
     attrs.keep_top_k = 10;
     attrs.iou_threshold = 0.1f;
@@ -32,9 +29,9 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
     attrs.nms_eta = 0.3f;
     attrs.normalized = false;
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, attrs);
+    auto nms = make_shared<ov::op::v8::MulticlassNms>(boxes, scores, attrs);
     NodeBuilder builder(nms, {boxes, scores});
-    auto g_nms = ov::as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<ov::op::v8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -65,13 +62,13 @@ TEST(attributes, multiclass_nms_v8_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v8_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset8::MulticlassNms>();
-    auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
-    auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
+    NodeBuilder::get_ops().register_factory<ov::op::v8::MulticlassNms>();
+    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 4});
+    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1});
 
-    auto nms = make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
+    auto nms = make_shared<ov::op::v8::MulticlassNms>(boxes, scores, ov::op::v8::MulticlassNms::Attributes());
     NodeBuilder builder(nms, {boxes, scores});
-    auto g_nms = ov::as_type_ptr<opset8::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<ov::op::v8::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -91,15 +88,15 @@ TEST(attributes, multiclass_nms_v8_op_default_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
-    NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
-    auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
-    auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
+    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
+    auto roisnum = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    opset9::MulticlassNms::Attributes attrs;
-    attrs.sort_result_type = opset9::MulticlassNms::SortResultType::SCORE;
+    ov::op::v9::MulticlassNms::Attributes attrs;
+    attrs.sort_result_type = ov::op::v9::MulticlassNms::SortResultType::SCORE;
     attrs.sort_result_across_batch = true;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
     attrs.nms_top_k = 100;
     attrs.keep_top_k = 10;
     attrs.iou_threshold = 0.1f;
@@ -108,9 +105,9 @@ TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
     attrs.nms_eta = 0.3f;
     attrs.normalized = false;
 
-    auto nms = make_shared<opset9::MulticlassNms>(boxes, scores, roisnum, attrs);
+    auto nms = make_shared<ov::op::v9::MulticlassNms>(boxes, scores, roisnum, attrs);
     NodeBuilder builder(nms, {boxes, scores, roisnum});
-    auto g_nms = ov::as_type_ptr<opset9::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<ov::op::v9::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -141,14 +138,14 @@ TEST(attributes, multiclass_nms_v9_op_custom_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_default_attributes) {
-    NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
-    auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
-    auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 2});
-    auto roisnum = make_shared<op::Parameter>(element::i32, Shape{2});
+    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
+    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2});
+    auto roisnum = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
-    auto nms = make_shared<opset9::MulticlassNms>(boxes, scores, roisnum, opset9::MulticlassNms::Attributes());
+    auto nms = make_shared<ov::op::v9::MulticlassNms>(boxes, scores, roisnum, ov::op::v9::MulticlassNms::Attributes());
     NodeBuilder builder(nms, {boxes, scores, roisnum});
-    auto g_nms = ov::as_type_ptr<opset9::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<ov::op::v9::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -168,13 +165,13 @@ TEST(attributes, multiclass_nms_v9_op_default_attributes) {
 }
 
 TEST(attributes, multiclass_nms_v9_op_default_attributes2) {
-    NodeBuilder::get_ops().register_factory<opset9::MulticlassNms>();
-    auto boxes = make_shared<op::Parameter>(element::f32, Shape{3, 2, 4});
-    auto scores = make_shared<op::Parameter>(element::f32, Shape{3, 3, 2});
+    NodeBuilder::get_ops().register_factory<ov::op::v9::MulticlassNms>();
+    auto boxes = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 2, 4});
+    auto scores = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3, 3, 2});
 
-    auto nms = make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
+    auto nms = make_shared<ov::op::v9::MulticlassNms>(boxes, scores, ov::op::v9::MulticlassNms::Attributes());
     NodeBuilder builder(nms, {boxes, scores});
-    auto g_nms = ov::as_type_ptr<opset9::MulticlassNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<ov::op::v9::MulticlassNms>(builder.create());
     const auto expected_attr_count = 10;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 

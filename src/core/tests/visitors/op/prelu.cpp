@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/visitor.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/op/prelu.hpp"
+
+#include <gtest/gtest.h>
+
+#include "visitors/visitors.hpp"
 
 using namespace std;
-using namespace ngraph;
-using ngraph::test::NodeBuilder;
+using namespace ov;
+using ov::test::NodeBuilder;
 
 TEST(attributes, prelu_op) {
-    NodeBuilder::get_ops().register_factory<opset1::PRelu>();
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 2, 1, 2});
-    const auto slope = make_shared<op::Parameter>(element::f32, Shape{5});
+    NodeBuilder::get_ops().register_factory<ov::op::v0::PRelu>();
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 1, 2});
+    const auto slope = make_shared<ov::op::v0::Parameter>(element::f32, Shape{5});
 
-    const auto prelu = make_shared<opset1::PRelu>(data, slope);
+    const auto prelu = make_shared<ov::op::v0::PRelu>(data, slope);
     NodeBuilder builder(prelu, {data, slope});
-    EXPECT_NO_THROW(auto g_prelu = ov::as_type_ptr<opset1::PRelu>(builder.create()));
+    EXPECT_NO_THROW(auto g_prelu = ov::as_type_ptr<ov::op::v0::PRelu>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
