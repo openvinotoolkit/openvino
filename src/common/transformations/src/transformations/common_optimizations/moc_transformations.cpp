@@ -70,7 +70,6 @@
 #include <transformations/common_optimizations/split_squeeze_concat_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/swish_fusion.hpp>
-#include <transformations/transpose_sinking/ts_general.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
@@ -82,6 +81,7 @@
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
+#include <transformations/transpose_sinking/ts_general.hpp>
 
 #include "itt.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -160,13 +160,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
 
-/*    auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER(transpose_sinking, TransposeSinking)
+    /*    auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
+        ADD_MATCHER(transpose_sinking, TransposeSinking)
 
-    // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
-    // because it replaces pattern that may contain Transposes which must be optimized before
-    // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
-    ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)*/
+        // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
+        // because it replaces pattern that may contain Transposes which must be optimized before
+        // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
+        ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion)*/
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
     ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
