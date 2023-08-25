@@ -3,19 +3,19 @@
 //
 
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/op/convert_saturation.hpp"
-#include "snippets/itt.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/validate.hpp"
-#include "openvino/pass/manager.hpp"
-#include <ngraph/runtime/reference/autobroadcast_binop.hpp>
-#include <ngraph/runtime/reference/broadcast.hpp>
 
 #include <numeric>
+
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/validate.hpp"
+#include "openvino/reference/broadcast.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/convert_saturation.hpp"
 
 namespace {
 bool isValidRangesInputs(const std::shared_ptr<ov::opset1::FakeQuantize>& fq) {

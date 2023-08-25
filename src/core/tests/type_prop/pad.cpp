@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/pad.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
@@ -161,7 +163,7 @@ TYPED_TEST_P(PadTest, pad_pads_begin_got_negative_value) {
     const auto pads_begin = op::v0::Constant::create(element::i64, Shape{6}, {-1, -1, -2, -3, -8, -4});
     const auto pads_end = op::v0::Constant::create(element::i64, Shape{6}, {0, 2, 0, 3, 5, 4});
 
-    const auto pad = this->make_op(arg, pads_begin, pads_end, op::PadMode::REFLECT);
+    const auto pad = make_shared<TypeParam>(arg, pads_begin, pads_end, op::PadMode::REFLECT);
     EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({-1, {1, 11}, {0, -1}, {2, 8}, {0, 7}, 5}));
     EXPECT_THAT(get_shape_labels(pad->get_output_partial_shape(0)),
                 ElementsAre(ov::no_label, ov::no_label, ov::no_label, 13, ov::no_label, 15));
@@ -178,23 +180,23 @@ TYPED_TEST_P(PadTest, pad_dynamic_output_with_dynamic_rank) {
 }
 
 TYPED_TEST_P(PadTest, pad_dynamic_output_with_static_rank) {
-    auto arg = make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    auto pads_begin = make_shared<op::v0::Parameter>(element::i32, Shape{1});
-    auto pads_end = make_shared<op::v0::Parameter>(element::i32, Shape{1});
-    auto arg_pad_value = op::v0::Constant::create(element::f32, Shape{}, {0});
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto pads_begin = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    auto pads_end = make_shared<ov::op::v0::Parameter>(element::i32, Shape{1});
+    auto arg_pad_value = ov::op::v0::Constant::create(element::f32, Shape{}, {0});
 
-    auto pad = this->make_op(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
+    auto pad = make_shared<TypeParam>(arg, pads_begin, pads_end, arg_pad_value, op::PadMode::CONSTANT);
     ASSERT_EQ(pad->get_output_partial_shape(0), PartialShape::dynamic(3));
 }
 
 TYPED_TEST_P(PadTest, pad_any_dim_for_padding_reflect) {
     auto arg_shape = PartialShape{1, {23, 48}, {23, 48}, 1};
     set_shape_labels(arg_shape, 10);
-    auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
-    auto pads_begin = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
-    auto pads_end = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+    auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    auto pads_begin = make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
+    auto pads_end = make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 1, 1, 0});
 
-    auto pad = this->make_op(arg, pads_begin, pads_end, op::PadMode::REFLECT);
+    auto pad = make_shared<TypeParam>(arg, pads_begin, pads_end, op::PadMode::REFLECT);
     EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({1, {25, 50}, {25, 50}, 1}));
     EXPECT_THAT(get_shape_labels(pad->get_output_partial_shape(0)), ElementsAre(10, ov::no_label, ov::no_label, 13));
 }

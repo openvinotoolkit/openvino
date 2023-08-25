@@ -11,8 +11,8 @@
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/minimum.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/minimum.hpp"
 
 using namespace std;
 using namespace ngraph;

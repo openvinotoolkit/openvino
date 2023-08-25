@@ -7,10 +7,10 @@
 #include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/gather.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/reference/gather.hpp"
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
