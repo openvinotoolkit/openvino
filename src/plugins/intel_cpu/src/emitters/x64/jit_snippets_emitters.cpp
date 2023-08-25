@@ -29,8 +29,15 @@ inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
 }
 
-jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                      const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_container_emitter(h, isa, expr->get_node()) {}
+
+jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                             const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -92,11 +99,17 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
     }
 }
 
-KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& n) :
-    jit_container_emitter(h, isa, n),
-    reg_indexes_idx(abi_param1.getIdx()),
-    reg_const_params_idx(abi_param2.getIdx()) {
+KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : KernelEmitter(h, isa, expr->get_node()) {}
+
+KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& n)
+    : jit_container_emitter(h, isa, n),
+      reg_indexes_idx(abi_param1.getIdx()),
+      reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(n);
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
@@ -312,9 +325,15 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     h->postamble();
 }
 
+LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const ov::snippets::lowered::ExpressionPtr& expr)
+    : LoopBeginEmitter(h, isa, expr->get_node()) {}
 
-LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(n);
     if (!loop_begin)
         IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
@@ -359,8 +378,15 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
     loop_begin->begin_address = h->getCurr();
 }
 
-LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+                               const ov::snippets::lowered::ExpressionPtr& expr)
+    : LoopEndEmitter(h, isa, expr->get_node()) {}
+
+LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+                               const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(n);
     if (!loop_end)
         IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
@@ -425,18 +451,51 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-ParameterEmitter::ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const std::shared_ptr<ov::Node>& n) : NopEmitter(h, isa, n) {
+NopEmitter::NopEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : NopEmitter(h, isa, expr->get_node()) {}
+
+NopEmitter::NopEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                       const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const std::shared_ptr<ov::Node>& n) : NopEmitter(h, isa, n) {
+ParameterEmitter::ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const ov::snippets::lowered::ExpressionPtr& expr)
+    : ParameterEmitter(h, isa, expr->get_node()) {}
+
+ParameterEmitter::ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const std::shared_ptr<ov::Node>& n)
+    : NopEmitter(h, isa, n) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                           const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : ResultEmitter(h, isa, expr->get_node()) {}
+
+ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& n)
+    : NopEmitter(h, isa, n) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+}
+
+BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                           const ov::snippets::lowered::ExpressionPtr& expr)
+    : BroadcastMoveEmitter(h, isa, expr->get_node()) {}
+
+BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                           const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
         IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
             << n->get_input_element_type(0) << " and " << n->get_output_element_type(0);
@@ -471,8 +530,15 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : ScalarEmitter(h, isa, expr->get_node()) {}
+
+ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     const auto precision = n->get_output_element_type(0);
     switch (precision) {
         case element::i32: {
@@ -512,15 +578,28 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 
+MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : MemoryEmitter(h, isa, expr->get_node()) {}
 
-MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& n) : jit_emitter(h, isa, n) {
+MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
     dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
 }
 
-StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                           const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                           const ov::snippets::lowered::ExpressionPtr& expr)
+    : StoreEmitter(h, isa, expr->get_node()) {}
+
+StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                           const std::shared_ptr<ov::Node>& n)
+    : MemoryEmitter(h, isa, n) {
     if (src_prc != dst_prc)
         IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
@@ -555,8 +634,15 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                         const ov::snippets::lowered::ExpressionPtr& expr)
+    : LoadEmitter(h, isa, expr->get_node()) {}
+
+LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                         const std::shared_ptr<ov::Node>& n)
+    : MemoryEmitter(h, isa, n) {
     if (src_prc != dst_prc)
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
@@ -591,8 +677,15 @@ void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                           const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                           const ov::snippets::lowered::ExpressionPtr& expr)
+    : BroadcastLoadEmitter(h, isa, expr->get_node()) {}
+
+BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                           const std::shared_ptr<ov::Node>& n)
+    : MemoryEmitter(h, isa, n) {
     if (src_prc != dst_prc)
         IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
@@ -631,7 +724,14 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : LoadConvertEmitter(h, isa, expr->get_node()) {}
+
+LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                       const std::shared_ptr<ov::Node>& n)
     : MemoryEmitter(h, isa, n) {
     const auto load = ov::as_type_ptr<snippets::op::Load>(n);
     count = load->get_count();
@@ -664,8 +764,15 @@ void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                         const std::shared_ptr<ov::Node>& n) : MemoryEmitter(h, isa, n) {
+StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                         const ov::snippets::lowered::ExpressionPtr& expr)
+    : StoreConvertEmitter(h, isa, expr->get_node()) {}
+
+StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                         const std::shared_ptr<ov::Node>& n)
+    : MemoryEmitter(h, isa, n) {
     const auto store = ov::as_type_ptr<snippets::op::Store>(n);
     count = store->get_count();
     byte_offset = store->get_offset();
@@ -704,12 +811,20 @@ void StoreConvertEmitter::emit_data() const {
 size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
     return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
-BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& node) : jit_emitter(h, isa, node) {
+
+BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const ov::snippets::lowered::ExpressionPtr& expr)
+    : BrgemmEmitter(h, isa, expr->get_node()) {}
+
+BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                             const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n) {
     m_brgCtxs.fill(brgemmCtx());
     std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){ return nullptr; });
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
+    const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(n);
     if (brgemm_node->is_dynamic())
         IE_THROW() << "Snippets don't support code generation for dynamic Brgemm";
     const auto brgemm_copy = brgemm_node->is_with_data_repacking() ? brgemm_node->get_brgemm_copy() : nullptr;
@@ -1190,7 +1305,14 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
     (*brg_kernel)(&brgemm_p);
 }
 
-BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
+BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : BrgemmCopyBEmitter(h, isa, expr->get_node()) {}
+
+BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                       const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(n);
@@ -1442,8 +1564,14 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
     (*kernel)(&ctx);
 }
 
-HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+                               const ov::snippets::lowered::ExpressionPtr& expr) : HorizonEmitter(h, isa, expr->get_node()) {}
+
+HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+                               const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(n)) {
         m_op_type = OpType::max;
     } else if (ov::is_type<const snippets::op::HorizonSum>(n)) {
@@ -1510,8 +1638,15 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
     }
 }
 
-FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n) :
-    jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
+FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                         const ov::snippets::lowered::ExpressionPtr& expr)
+    : FillEmitter(h, isa, expr->get_node()) {}
+
+FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                         const std::shared_ptr<ov::Node>& n)
+    : jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(n);
     if (fill->get_element_type().size() != 4) {
         IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
