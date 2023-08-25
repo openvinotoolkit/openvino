@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/parameter.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST(node_input_output, input_create) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<op::v1::Add>(x, y);
 
     auto add_in_0 = add->input(0);
@@ -41,8 +41,8 @@ TEST(node_input_output, input_create) {
 }
 
 TEST(node_input_output, input_create_const) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<const op::v1::Add>(x, y);
 
     auto add_in_0 = add->input(0);
@@ -66,8 +66,8 @@ TEST(node_input_output, input_create_const) {
 }
 
 TEST(node_input_output, output_create) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<op::v1::Add>(x, y);
 
     auto add_out_0 = add->output(0);
@@ -88,8 +88,8 @@ TEST(node_input_output, output_create) {
 }
 
 TEST(node_input_output, output_create_const) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<const op::v1::Add>(x, y);
 
     auto add_out_0 = add->output(0);
@@ -105,8 +105,8 @@ TEST(node_input_output, output_create_const) {
 }
 
 TEST(node_input_output, output_rt_info) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto add = make_shared<op::v1::Add>(x, y);
     auto add_const = make_shared<const op::v1::Add>(x, y);
 
@@ -121,9 +121,9 @@ TEST(node_input_output, output_rt_info) {
 }
 
 TEST(node_input_output, input_set_argument) {
-    auto x = make_shared<op::Parameter>(element::f32, Shape{1});
-    auto y = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto z = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto x = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    auto y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+    auto z = make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
 
     auto add = make_shared<op::v1::Add>(x, y);
 

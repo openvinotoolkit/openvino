@@ -39,7 +39,7 @@ TEST(get_constant_from_source, invalidation_check) {
 }
 
 TEST(get_constant_from_source, extract_static_dim_from_dynamic_shape_check) {
-    auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::f32, ov::PartialShape{-1, 1, 128});
+    auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 128});
     auto shape = std::make_shared<ov::opset8::ShapeOf>(data);
     auto one = ov::opset8::Constant::create(ov::element::i64, {1}, {1});
     auto zero = ov::opset8::Constant::create(ov::element::i64, {1}, {0});

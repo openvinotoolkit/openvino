@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/opsets/opset1.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 #include <locale>
 #include <memory>
 #include <type_traits>
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset.hpp"
 
 using namespace std;
-using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+using namespace ov;
 
 namespace {
 string capitulate(string name) {

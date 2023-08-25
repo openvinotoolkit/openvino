@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "common_test_utils/test_tools.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/manager.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pass.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 
 std::shared_ptr<ov::Model> make_test_graph() {
     auto arg_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 2});
@@ -74,7 +78,7 @@ TEST(pass_manager, add) {
 
     auto graph = make_test_graph();
     size_t node_count = 0;
-    traverse_nodes(graph, [&](shared_ptr<Node> /* node */) {
+    ov::traverse_nodes(graph, [&](shared_ptr<Node> /* node */) {
         node_count++;
     });
     pass_manager.run_passes(graph);
@@ -82,13 +86,3 @@ TEST(pass_manager, add) {
     EXPECT_EQ(node_count, sorted.size());
     EXPECT_TRUE(validate_list(sorted));
 }
-
-namespace {
-class DummyPass : public pass::FunctionPass {
-public:
-    DummyPass() {}
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& /* f */) override {
-        return false;
-    }
-};
-}  // namespace
