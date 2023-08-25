@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/mvn.hpp"
+#include "openvino/reference/mvn.hpp"
 
 using namespace std;
 using namespace ngraph;

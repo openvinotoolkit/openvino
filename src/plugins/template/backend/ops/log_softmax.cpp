@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/log_softmax.hpp"
+#include "openvino/reference/log_softmax.hpp"
 
 #include "evaluate_node.hpp"
 
