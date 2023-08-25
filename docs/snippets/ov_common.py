@@ -4,9 +4,10 @@
 
 
 import numpy as np
+from utils import get_model
 
 #! [ov_api_2_0:create_core]
-import openvino.runtime as ov
+import openvino as ov
 core = ov.Core()
 #! [ov_api_2_0:create_core]
 

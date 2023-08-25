@@ -3,23 +3,22 @@
 #
 
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
-from openvino.runtime import Layout, Type, serialize
+from openvino import Layout, Type, serialize
+from utils import get_model
 
 
 xml_path = ''
 input_name = ''
 # ! [ov:preprocess:create]
 from openvino.preprocess import PrePostProcessor
-from openvino.runtime import Core
 
-core = Core()
-model = core.read_model(model=xml_path)
+model = get_model()
 ppp = PrePostProcessor(model)
 # ! [ov:preprocess:create]
 
 # ! [ov:preprocess:tensor]
 from openvino.preprocess import ColorFormat
-from openvino.runtime import Layout, Type
+from openvino import Layout, Type
 ppp.input(input_name).tensor() \
         .set_element_type(Type.u8) \
         .set_shape([1, 480, 640, 3]) \
@@ -133,8 +132,8 @@ print(ppp)  # Dump preprocessing steps to see what will happen
 
 # ! [ov:preprocess:custom]
 # It is possible to insert some custom operations
-import openvino.runtime.opset8 as ops
-from openvino.runtime import Output
+import openvino.runtime.opset12 as ops
+from openvino import Output
 from openvino.runtime.utils.decorators import custom_preprocess_function
 
 @custom_preprocess_function
@@ -157,8 +156,8 @@ ppp.output('result_image').tensor()\
     .set_element_type(Type.u8)
 
 # Also it is possible to insert some custom operations
-import openvino.runtime.opset8 as ops
-from openvino.runtime import Output
+import openvino.runtime.opset11 as ops
+from openvino import Output
 from openvino.runtime.utils.decorators import custom_preprocess_function
 
 @custom_preprocess_function
@@ -172,9 +171,9 @@ ppp.output("result_image").postprocess()\
 
 # ! [ov:preprocess:save_headers]
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
-from openvino.runtime import Core, Layout, Type, set_batch
+from openvino import Core, Layout, Type, set_batch
 # First method - imports
-from openvino.runtime import serialize
+from openvino import serialize
 # Second method - imports
 from openvino.runtime.passes import Manager, Serialize
 # ! [ov:preprocess:save_headers]

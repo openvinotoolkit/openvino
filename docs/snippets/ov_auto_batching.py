@@ -1,7 +1,12 @@
-from openvino.runtime import Core
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
 
-core = Core()
-model = core.read_model(model="sample.xml")
+import openvino as ov
+from utils import get_model
+
+core = ov.Core()
+model = get_model()
 
 # [compile_model]
 config = {"PERFORMANCE_HINT": "THROUGHPUT"}
