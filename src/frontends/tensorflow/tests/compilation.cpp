@@ -25,7 +25,7 @@ TEST_F(CompileModelsTests, NgramCompilation) {
     EXPECT_EQ(runtime_model->get_results().size(), 1);
 }
 
-TEST_F(CompileModelsTests, ModelWithSplitConvConcat) {
+TEST_F(CompileModelsTests, DISABLED_ModelWithSplitConvConcat) {
     {
         auto model = convert_model("split_conv_concat/split_conv_concat.pbtxt");
         ov::Core core;

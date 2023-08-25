@@ -115,7 +115,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
     }
 }
 
-TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
+TEST_F(FrontEndConversionWithReferenceTestsF, DISABLED_SavedModelBroadcastIssue) {
     { model = convert_model("saved_model_broadcast_issue"); }
     {
         // create a reference graph

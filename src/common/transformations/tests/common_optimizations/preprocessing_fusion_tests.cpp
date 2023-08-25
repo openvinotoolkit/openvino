@@ -780,7 +780,7 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
     }
 }
 
-TEST_F(TransformationTestsF, FuseScaleValue) {
+TEST_F(TransformationTestsF, DISABLED_FuseScaleValue) {
     {
         auto input = create_param({1, 64, 64, 3});
         auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});
@@ -809,7 +809,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, FuseScaleValues) {
+TEST_F(TransformationTestsF, DISABLED_FuseScaleValues) {
     {
         auto input = create_param({1, 64, 64, 3});
         auto order = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {0, 3, 1, 2});

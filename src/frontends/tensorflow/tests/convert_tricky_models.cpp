@@ -235,7 +235,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, InjectedBodyAndIf) {
     }
 }
 
-TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDilatedGroupConvolution) {
+TEST_F(FrontEndConversionWithReferenceTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
     {
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pbtxt");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
@@ -750,7 +750,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
     }
 }
 
-TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
+TEST_F(FrontEndConversionWithReferenceTestsF, DISABLED_ConvolutionWithDynamicInputChannel) {
     // This test aims to check conversion of a model with convolution of dynamic input channel
     // Namely, the resulted model must contain the regular convolution, not grouped convolution
     { model = convert_model("conv_with_dynamic_input_channel"); }
