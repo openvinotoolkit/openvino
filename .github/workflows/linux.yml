@@ -52,7 +52,7 @@ jobs:
       MODELS_PATH: ${{ github.workspace }}/testdata
       OV_TEMP: ${{ github.workspace }}/openvino_temp
       PYTHON_STATIC_ARGS: -m "not dynamic_library"
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
+      # CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
       CCACHE_MAXSIZE: 50G
     steps:
       - name: Clone OpenVINO
@@ -147,10 +147,10 @@ jobs:
       #     restore-keys: |
       #       ${{ github.job }}-linux
 
-      - name: Setup ccache
-        run: |
-          mkdir -p $CCACHE_DIR
-          echo "this is from pipeline" >> $CCACHE_DIR/testfile
+      # - name: Setup ccache
+      #   run: |
+      #     mkdir -p $CCACHE_DIR
+      #     echo "this is from pipeline" >> $CCACHE_DIR/testfile
 
       - name: Get tools versions
         run: |
