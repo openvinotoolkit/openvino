@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/gather_tree.hpp"
+#include "openvino/reference/gather_tree.hpp"
 
 #include "evaluate_node.hpp"
 

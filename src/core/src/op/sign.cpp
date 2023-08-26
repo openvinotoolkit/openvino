@@ -6,8 +6,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/reference/sign.hpp"
 
 using namespace std;
 using namespace ngraph;

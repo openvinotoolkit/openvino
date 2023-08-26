@@ -57,7 +57,7 @@ RFFTNComplexReplacer::RFFTNComplexReplacer() {
         bool dim_use_default = is_none_node(rfftn_op->input_value(2));
         bool s_use_default = is_none_node(rfftn_op->input_value(1));
         // Can be None constant, when used check s_use_default.
-        auto raw_s_input_maybe = concat_list_construct(rfftn_op->input_value(1)).get_node_shared_ptr();
+        auto raw_s_input_maybe = concat_list_construct(rfftn_op->input_value(1));
 
         // Handle dim parameter containing vector of intigers indicating dimensions to be transformed.
         std::shared_ptr<ov::Node> dim;

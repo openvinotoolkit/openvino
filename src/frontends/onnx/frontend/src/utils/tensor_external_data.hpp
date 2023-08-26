@@ -15,6 +15,7 @@ namespace detail {
 OPENVINO_SUPPRESS_DEPRECATED_START
 template <class T>
 using Buffer = std::shared_ptr<ngraph::runtime::SharedBuffer<std::shared_ptr<T>>>;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 /// \brief  Helper class used to load tensor data from external files
 class TensorExternalData {
 public:
@@ -36,7 +37,7 @@ public:
     ///             the invalid_external_data exception is thrown.
     ///
     /// \return     External binary data loaded into the SharedBuffer
-    Buffer<ov::MappedMemory> load_external_mmap_data(const std::string& model_dir) const;
+    Buffer<ov::MappedMemory> load_external_mmap_data(const std::string& model_dir, MappedMemoryHandles cache) const;
 
     /// \brief      Represets parameter of external data as string
     ///

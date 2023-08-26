@@ -41,7 +41,7 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @brief Shape of output layout
     tensor output_shape;
     /// @brief Default index
-    int32_t default_index;
+    int32_t default_index = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

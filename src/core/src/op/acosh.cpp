@@ -9,8 +9,8 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/acosh.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/acosh.hpp"
 
 ov::op::v3::Acosh::Acosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

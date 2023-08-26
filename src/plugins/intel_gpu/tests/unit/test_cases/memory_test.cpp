@@ -14,6 +14,7 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/grid_sample.hpp>
 #include <fully_connected_inst.h>
 
 using namespace cldnn;
@@ -595,6 +596,52 @@ public:
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
     }
+
+    void test_dynamic_mem_reuse_for_null_sel_impl() {
+        auto& engine = get_test_engine();
+
+        const int32_t input_f = 3;
+
+        auto input_static_layout = layout{ ov::PartialShape{ 2, input_f, 1, 2 }, data_types::f32, format::bfyx };
+        auto input_dyn_layout = layout{ ov::PartialShape{ 2, input_f, ov::Dimension(), 2 }, data_types::f32, format::bfyx };
+        auto input_data1 = engine.allocate_memory(input_static_layout);
+        auto fc_weights_data = engine.allocate_memory({ ov::PartialShape{ 2, input_f, 1, 1 }, data_types::f32, format::bfyx});
+
+        set_values(input_data1, { 0.5f, -2.0f, -0.5f, -0.5f, 2.0f, 0.5f,
+                                -0.5f, 2.0f, 0.5f, -0.5f, 2.0f, 0.5f });
+        set_values(fc_weights_data, { 1.5f, 1.0f, 0.5f,
+                                -1.0f, 0.0f, 0.5f});
+
+        GridSampleOp::Attributes attributes(false, GridSampleOp::InterpolationMode::NEAREST, GridSampleOp::PaddingMode::ZEROS);
+
+        cldnn::topology topology{
+            input_layout("input", input_static_layout),
+            input_layout("input_dyn", input_dyn_layout),
+            activation("relu1", input_info("input"), activation_func::relu),
+            eltwise("elt1", { input_info("input"), input_info("relu1") }, eltwise_mode::prod),
+            activation("relu2", input_info("elt1"), activation_func::sqrt),
+            // The 'grid_sample' layer should be dynamic, not 'shape agnostic kernel' and user of 'elt1'. This is a key condition of this test.
+            grid_sample("grid_sample", { input_info("elt1"), input_info("input_dyn") }, attributes),
+            data("fc_weights", fc_weights_data),
+            fully_connected("fc", input_info("grid_sample"), "fc_weights")
+        };
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        {
+            network.set_input_data("input", input_data1);
+            network.set_input_data("input_dyn", input_data1);
+
+            auto outputs = network.execute();
+
+            // Should be false for memory-reuse
+            ASSERT_NE(std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu1"))->output_memory_ptr()->buffer_ptr(),
+                      std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
+        }
+    }
 };
 
 TEST_F(memory_pool, basic_non_padded_relu_pipe) {
@@ -639,6 +686,10 @@ TEST_F(memory_pool, add_mem_dep_test) {
 
 TEST_F(memory_pool, dynamic_mem_reuse) {
     this->test_dynamic_mem_reuse();
+}
+
+TEST_F(memory_pool, dynamic_mem_reuse_for_null_sel_impl) {
+    this->test_dynamic_mem_reuse_for_null_sel_impl();
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

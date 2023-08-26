@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/nop_elimination.hpp"
+
 #include <functional>
 #include <memory>
-#include <ngraph/log.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/util.hpp>
 #include <numeric>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -36,8 +31,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/util.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -66,8 +66,10 @@ static bool simplify_gather(shared_ptr<Node> node) {
             if (!constant_indices)
                 return false;
             // case_3: if input_shape is (1,3,5,5) and axis = 0, indices = 0, then gather is just a Squeeze
+            const auto constant_indices_size = constant_indices->get_output_shape(0).size();
             const auto const_indices = constant_indices->cast_vector<int64_t>();
-            if (data.get_shape()[axis] == 1 && const_indices.size() == 1 && const_indices[0] == 0) {
+            if (data.get_shape()[axis] == 1 && (constant_indices_size == 0 || constant_indices_size == 1) &&
+                const_indices[0] == 0) {
                 auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather->input_value(0), gather->input_value(2));
                 squeeze->set_friendly_name(gather->get_friendly_name());
                 ov::copy_runtime_info(gather, squeeze);
@@ -267,8 +269,8 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
     // eliminate redundant squeeze->unsqueeze
     if (squeeze) {
         const auto& data_shape = squeeze->input_value(0).get_partial_shape();
-        if (ngraph::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
-                                      unsqueeze->input_value(1).get_node_shared_ptr())) {
+        if (ov::compare_constants(squeeze->input_value(1).get_node_shared_ptr(),
+                                  unsqueeze->input_value(1).get_node_shared_ptr())) {
             return replace_output_update_name(unsqueeze->output(0), squeeze->input_value(0));
         }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
@@ -474,8 +476,8 @@ pass::EliminateSqueeze::EliminateSqueeze() {
             } else {
                 data_shape = input->input(0).get_partial_shape();
             }
-            if (ngraph::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
-                                          squeeze->input_value(1).get_node_shared_ptr())) {
+            if (ov::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
+                                      squeeze->input_value(1).get_node_shared_ptr())) {
                 return replace_output_update_name(squeeze->output(0), unsqueeze->input_value(0));
             }
             if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {

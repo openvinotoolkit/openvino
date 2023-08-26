@@ -588,7 +588,8 @@ bool primitive_inst::update_impl() {
             o.data_padding.set_dynamic_pad(tensor(0));
         }
 
-        auto& cache = get_network().get_program()->get_implementations_cache();
+        const auto& prog = get_network().get_program();
+        auto& cache = prog->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
             cached_impl = cache.get(updated_params_no_dyn_pad);
@@ -604,7 +605,7 @@ bool primitive_inst::update_impl() {
         if (!cached_impl) {
             if (_dynamic_impl) {
                 if (use_async_compilation()) {
-                    auto& compilation_context = get_network().get_program()->get_compilation_context();
+                    auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
                         if (compilation_context.is_stopped())
                             return;
@@ -637,7 +638,7 @@ bool primitive_inst::update_impl() {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                 _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
-                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto& kernels_cache = prog->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
                     _impl->set_kernels(std::move(kernels));
                     cache.add(updated_params_no_dyn_pad, _impl->clone());
@@ -1228,6 +1229,9 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
+            if (user->is_dynamic()) {
+                return true;
+            }
             if (user_requesting_mem_reuse_false(*user)) {
                 return true;
             }
@@ -1503,13 +1507,18 @@ bool primitive_inst::is_valid_fusion() const {
     return true;
 }
 
-void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode) {
     instrumentation::perf_counter_key key {
             _network.get_input_layouts(),
             _impl_params->input_layouts,
             _impl_params->output_layouts,
             get_implementation_name(),
             stage,
+#ifdef GPU_DEBUG_CONFIG
+            per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+            0,
+#endif
             cache_hit
     };
 

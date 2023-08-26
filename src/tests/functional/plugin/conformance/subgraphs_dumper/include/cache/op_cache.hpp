@@ -16,7 +16,7 @@ namespace subgraph_dumper {
 class OpCache : public ICache {
 public:
     void update_cache(const std::shared_ptr<ov::Model>& model,
-                      const std::string& model_path, bool extract_body) override;
+                      const std::string& model_path, bool extract_body, bool from_cache = false) override;
     void serialize_cache() override;
 
     static std::shared_ptr<OpCache> get() {
@@ -32,6 +32,7 @@ public:
     }
 
     void reset_cache() override {
+        m_ops_cache.clear();
         reset();
     };
 
@@ -46,9 +47,10 @@ protected:
             { "convolutions", ConvolutionsMatcher::Ptr(new ConvolutionsMatcher) },
         };
         m_manager.set_matchers(matchers);
+        m_cache_subdir = "operation";
     }
 
-    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path, size_t model_op_cnt = 1);
+    void update_cache(const std::shared_ptr<ov::Node>& node, const std::string& model_path, size_t model_op_cnt = 1, bool from_cache = false);
     bool serialize_op(const std::pair<std::shared_ptr<ov::Node>, MetaInfo>& op_info);
     std::string get_rel_serilization_dir(const std::shared_ptr<ov::Node>& node);
 };
