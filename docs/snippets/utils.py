@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import tempfile
 import numpy as np
 from sys import platform
 
@@ -10,6 +11,7 @@ import openvino.runtime.opset12 as ops
 
 import ngraph as ng
 from ngraph.impl import Function
+import openvino.inference_engine as ie
 
 
 def get_dynamic_model():
@@ -77,3 +79,4 @@ def get_path_to_model(is_old_api=False):
 def get_temp_dir():
     temp_dir = tempfile.TemporaryDirectory()
     return temp_dir
+
