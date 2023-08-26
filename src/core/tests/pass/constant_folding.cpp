@@ -2,31 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/pass/constant_folding.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
-#include <transformations/utils/utils.hpp>
+#include <gmock/gmock.h>
 
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset5.hpp"
-#include "ngraph/pass/manager.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/loop.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
-static std::shared_ptr<op::Constant> get_result_constant(std::shared_ptr<Function> f, size_t pos = 0) {
-    return ov::as_type_ptr<op::Constant>(f->get_results().at(pos)->input_value(0).get_node_shared_ptr());
+static std::shared_ptr<op::v0::Constant> get_result_constant(std::shared_ptr<Model> m, size_t pos = 0) {
+    return ov::as_type_ptr<op::v0::Constant>(m->get_results().at(pos)->input_value(0).get_node_shared_ptr());
 }
 
 template <typename T>
-static std::vector<T> get_result_constant_data(std::shared_ptr<Function> f, size_t pos) {
-    auto new_const = get_result_constant(f, pos);
+static std::vector<T> get_result_constant_data(std::shared_ptr<Model> m, size_t pos) {
+    auto new_const = get_result_constant(m, pos);
     return new_const->cast_vector<T>();
 }
 
@@ -112,19 +110,19 @@ TEST(constant_folding, acosh) {
     for (float f : values_in) {
         expected.push_back(std::acosh(f));
     }
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant = make_shared<op::v0::Constant>(element::f32, shape_in, values_in);
     constant->set_friendly_name("constant");
-    auto acosh = make_shared<op::Acosh>(constant);
+    auto acosh = make_shared<op::v3::Acosh>(constant);
     acosh->set_friendly_name("test");
-    auto f = make_shared<Function>(acosh, ParameterVector{});
+    auto m = make_shared<Model>(acosh, ParameterVector{});
 
-    run_constant_folding(f);
+    run_constant_folding(m);
 
-    EXPECT_EQ(count_ops_of_type<op::Acosh>(f), 0);
-    EXPECT_EQ(count_ops_of_type<op::Constant>(f), 1);
-    ASSERT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(count_ops_of_type<op::v3::Acosh>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
 
-    auto new_const = get_result_constant(f);
+    auto new_const = get_result_constant(m);
     EXPECT_TRUE(new_const);
 
     check_names(new_const, {"constant", "test"});
@@ -141,19 +139,19 @@ TEST(constant_folding, asinh) {
     for (float f : values_in) {
         expected.push_back(std::asinh(f));
     }
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant = make_shared<op::v0::Constant>(element::f32, shape_in, values_in);
     constant->set_friendly_name("constant");
-    auto asinh = make_shared<op::Asinh>(constant);
+    auto asinh = make_shared<op::v3::Asinh>(constant);
     asinh->set_friendly_name("test");
-    auto f = make_shared<Function>(asinh, ParameterVector{});
+    auto m = make_shared<Model>(asinh, ParameterVector{});
 
-    run_constant_folding(f);
+    run_constant_folding(m);
 
-    EXPECT_EQ(count_ops_of_type<op::Asinh>(f), 0);
-    EXPECT_EQ(count_ops_of_type<op::Constant>(f), 1);
-    ASSERT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(count_ops_of_type<op::v3::Asinh>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
 
-    auto new_const = get_result_constant(f);
+    auto new_const = get_result_constant(m);
     EXPECT_TRUE(new_const);
     check_names(new_const, {"constant", "test"});
 
@@ -169,19 +167,19 @@ TEST(constant_folding, atanh) {
     for (float f : values_in) {
         expected.push_back(std::atanh(f));
     }
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant = make_shared<op::v0::Constant>(element::f32, shape_in, values_in);
     constant->set_friendly_name("constant");
-    auto atanh = make_shared<op::Atanh>(constant);
+    auto atanh = make_shared<op::v3::Atanh>(constant);
     atanh->set_friendly_name("test");
-    auto f = make_shared<Function>(atanh, ParameterVector{});
+    auto m = make_shared<Model>(atanh, ParameterVector{});
 
-    run_constant_folding(f);
+    run_constant_folding(m);
 
-    EXPECT_EQ(count_ops_of_type<op::Atanh>(f), 0);
-    EXPECT_EQ(count_ops_of_type<op::Constant>(f), 1);
-    ASSERT_EQ(f->get_results().size(), 1);
+    EXPECT_EQ(count_ops_of_type<op::v3::Atanh>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
 
-    auto new_const = get_result_constant(f);
+    auto new_const = get_result_constant(m);
     EXPECT_TRUE(new_const);
     check_names(new_const, {"constant", "test"});
 
@@ -195,21 +193,21 @@ TEST(constant_folding, constant_squeeze) {
     Shape axes_shape{1};
 
     vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7};
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant = make_shared<op::v0::Constant>(element::f32, shape_in, values_in);
     constant->set_friendly_name("constant");
     vector<int64_t> values_axes{2};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
-    auto squeeze = make_shared<op::Squeeze>(constant, constant_axes);
+    auto squeeze = make_shared<op::v0::Squeeze>(constant, constant_axes);
     squeeze->set_friendly_name("test");
-    auto f = make_shared<Function>(squeeze, ParameterVector{});
+    auto m = make_shared<Model>(squeeze, ParameterVector{});
 
-    run_constant_folding(f);
+    run_constant_folding(m);
 
-    ASSERT_EQ(count_ops_of_type<op::Squeeze>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(m), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
 
-    auto new_const = get_result_constant(f);
+    auto new_const = get_result_constant(m);
     EXPECT_TRUE(new_const);
     check_names(new_const, {"constant", "constant_axes", "test"});
     ASSERT_EQ(new_const->get_shape(), shape_out);
@@ -224,19 +222,19 @@ TEST(constant_folding, constant_unsqueeze) {
     Shape axes_shape{2};
 
     vector<float> values_in{0, 1, 2, 3, 4, 5, 6, 7};
-    auto constant = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant = make_shared<ov::op::v0::Constant>(element::f32, shape_in, values_in);
     constant->set_friendly_name("constant");
     vector<int64_t> values_axes{2, 3};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(constant, constant_axes);
     unsqueeze->set_friendly_name("test");
-    auto f = make_shared<Function>(unsqueeze, ParameterVector{});
+    auto f = make_shared<Model>(unsqueeze, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -249,22 +247,22 @@ TEST(constant_folding, constant_unsqueeze) {
 
 TEST(constant_folding, constant_broadcast_v1) {
     vector<int32_t> values_in{0, 1};
-    auto constant_in = make_shared<op::Constant>(element::i32, Shape{2}, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, values_in);
     constant_in->set_friendly_name("constant_in");
     vector<int64_t> shape_in{2, 4};
-    auto constant_shape = make_shared<op::Constant>(element::i64, Shape{2}, shape_in);
+    auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, shape_in);
     constant_shape->set_friendly_name("constant_shape");
     vector<int64_t> axes_in{0};
-    auto constant_axes = make_shared<op::Constant>(element::i64, Shape{1}, axes_in);
+    auto constant_axes = make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, axes_in);
     constant_axes->set_friendly_name("constant_axes");
     auto broadcast_v1 = make_shared<op::v1::Broadcast>(constant_in, constant_shape, constant_axes);
     broadcast_v1->set_friendly_name("test");
-    auto f = make_shared<Function>(broadcast_v1, ParameterVector{});
+    auto f = make_shared<Model>(broadcast_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -277,19 +275,19 @@ TEST(constant_folding, constant_broadcast_v1) {
 
 TEST(constant_folding, constant_broadcast_v1_with_target_shape) {
     vector<int32_t> values_in{1};
-    auto constant_in = make_shared<op::Constant>(element::i32, Shape{1, 1, 1, 1}, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::i32, Shape{1, 1, 1, 1}, values_in);
     constant_in->set_friendly_name("constant_in");
     vector<int64_t> shape_in{1, 3, 1, 1};
-    auto target_shape = make_shared<op::Constant>(element::i64, Shape{4}, shape_in);
+    auto target_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, shape_in);
     target_shape->set_friendly_name("target_shape");
     auto broadcast_v1 = make_shared<op::v1::Broadcast>(constant_in, target_shape);
     broadcast_v1->set_friendly_name("test");
-    auto f = make_shared<Function>(broadcast_v1, ParameterVector{});
+    auto f = make_shared<Model>(broadcast_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -302,19 +300,19 @@ TEST(constant_folding, constant_broadcast_v1_with_target_shape) {
 
 TEST(constant_folding, constant_broadcast_v1_numpy) {
     vector<int32_t> values_in{0, 1};
-    auto constant_in = make_shared<op::Constant>(element::i32, Shape{2}, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, values_in);
     constant_in->set_friendly_name("constant_in");
     vector<int64_t> shape_in{4, 2};
-    auto constant_shape = make_shared<op::Constant>(element::i64, Shape{2}, shape_in);
+    auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, Shape{2}, shape_in);
     constant_shape->set_friendly_name("constant_shape");
     auto broadcast_v1 = make_shared<op::v1::Broadcast>(constant_in, constant_shape);
     broadcast_v1->set_friendly_name("test");
-    auto f = make_shared<Function>(broadcast_v1, ParameterVector{});
+    auto f = make_shared<Model>(broadcast_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -337,39 +335,40 @@ TEST(constant_folding, constant_unary_binary) {
     vector<char> values_i{0, 1};
     vector<int8_t> values_j{-3, 5};
     vector<uint8_t> values_k{3, 5};
-    auto a = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_a);
+    auto a = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 2}, values_a);
     a->set_friendly_name("a");
-    auto b = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_b);
+    auto b = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 2}, values_b);
     b->set_friendly_name("b");
-    auto c = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_c);
+    auto c = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 2}, values_c);
     c->set_friendly_name("c");
-    auto d = make_shared<op::Constant>(element::i32, Shape{2, 2}, values_d);
+    auto d = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 2}, values_d);
     d->set_friendly_name("d");
-    auto e = make_shared<op::Constant>(element::i32, Shape{2}, values_e);
+    auto e = make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, values_e);
     e->set_friendly_name("e");
-    auto f = make_shared<op::Constant>(element::i32, Shape{2}, values_f);
+    auto f = make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, values_f);
     f->set_friendly_name("f");
-    auto g = make_shared<op::Constant>(element::i32, Shape{2}, values_g);
+    auto g = make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, values_g);
     g->set_friendly_name("g");
-    auto h = make_shared<op::Constant>(element::boolean, Shape{2, 2}, values_h);
+    auto h = make_shared<ov::op::v0::Constant>(element::boolean, Shape{2, 2}, values_h);
     h->set_friendly_name("h");
-    auto i = make_shared<op::Constant>(element::boolean, Shape{2}, values_i);
+    auto i = make_shared<ov::op::v0::Constant>(element::boolean, Shape{2}, values_i);
     i->set_friendly_name("i");
-    auto j = make_shared<op::Constant>(element::i8, Shape{2}, values_j);
+    auto j = make_shared<ov::op::v0::Constant>(element::i8, Shape{2}, values_j);
     j->set_friendly_name("j");
-    auto k = make_shared<op::Constant>(element::u8, Shape{2}, values_k);
+    auto k = make_shared<ov::op::v0::Constant>(element::u8, Shape{2}, values_k);
     k->set_friendly_name("k");
-    auto doubles = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
+    auto doubles = make_shared<ov::op::v0::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 9.0});
     doubles->set_friendly_name("doubles");
-    auto doubles2 = make_shared<op::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 1.0});
+    auto doubles2 = make_shared<ov::op::v0::Constant>(element::f64, Shape{2}, std::vector<double>{4.0, 1.0});
     doubles2->set_friendly_name("doubles2");
-    auto shorts = make_shared<op::Constant>(element::i16, Shape{3}, std::vector<int16_t>{14, -3, -3});
+    auto shorts = make_shared<ov::op::v0::Constant>(element::i16, Shape{3}, std::vector<int16_t>{14, -3, -3});
     shorts->set_friendly_name("shorts");
-    auto shorts2 = make_shared<op::Constant>(element::i16, Shape{1}, std::vector<int16_t>{-3});
+    auto shorts2 = make_shared<ov::op::v0::Constant>(element::i16, Shape{1}, std::vector<int16_t>{-3});
     shorts2->set_friendly_name("shorts2");
-    auto unsigned_shorts = make_shared<op::Constant>(element::u16, Shape{3}, std::vector<uint16_t>{14, 300, 14});
+    auto unsigned_shorts =
+        make_shared<ov::op::v0::Constant>(element::u16, Shape{3}, std::vector<uint16_t>{14, 300, 14});
     unsigned_shorts->set_friendly_name("unsigned_shorts");
-    auto unsigned_shorts2 = make_shared<op::Constant>(element::u16, Shape{1}, std::vector<uint16_t>{300});
+    auto unsigned_shorts2 = make_shared<ov::op::v0::Constant>(element::u16, Shape{1}, std::vector<uint16_t>{300});
     unsigned_shorts2->set_friendly_name("unsigned_shorts2");
 
     auto add = make_shared<op::v1::Add>(a, b);
@@ -386,11 +385,11 @@ TEST(constant_folding, constant_unary_binary) {
     min->set_friendly_name("min");
     auto max = make_shared<op::v1::Maximum>(a, c);
     max->set_friendly_name("max");
-    auto absn = make_shared<op::Abs>(c);
+    auto absn = make_shared<op::v0::Abs>(c);
     absn->set_friendly_name("absn");
-    auto neg = make_shared<op::Negative>(c);
+    auto neg = make_shared<op::v0::Negative>(c);
     neg->set_friendly_name("neg");
-    auto sqrt = make_shared<op::Sqrt>(d);
+    auto sqrt = make_shared<op::v0::Sqrt>(d);
     sqrt->set_friendly_name("sqrt");
     auto add_autob_numpy = make_shared<op::v1::Add>(a, e, op::AutoBroadcastType::NUMPY);
     add_autob_numpy->set_friendly_name("add_autob_numpy");
@@ -420,9 +419,9 @@ TEST(constant_folding, constant_unary_binary) {
     less_eq_autob_numpy->set_friendly_name("less_eq_autob_numpy");
     auto logical_or_autob_numpy = make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
     logical_or_autob_numpy->set_friendly_name("logical_or_autob_numpy");
-    auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
+    auto logical_xor_autob_numpy = make_shared<op::v0::Xor>(h, i, op::AutoBroadcastType::NUMPY);
     logical_xor_autob_numpy->set_friendly_name("logical_xor_autob_numpy");
-    auto doubles_sqrt = make_shared<op::Sqrt>(doubles);
+    auto doubles_sqrt = make_shared<op::v0::Sqrt>(doubles);
     doubles_sqrt->set_friendly_name("doubles_sqrt");
     auto sub_int8 = make_shared<op::v1::Subtract>(j, j);
     sub_int8->set_friendly_name("sub_int8");
@@ -435,42 +434,42 @@ TEST(constant_folding, constant_unary_binary) {
     auto equal_unsigned_shorts =
         make_shared<op::v1::Equal>(unsigned_shorts, unsigned_shorts2, op::AutoBroadcastType::NUMPY);
     equal_unsigned_shorts->set_friendly_name("equal_unsigned_shorts");
-    auto neg_sqrt = make_shared<op::Sqrt>(c);
+    auto neg_sqrt = make_shared<op::v0::Sqrt>(c);
     neg_sqrt->set_friendly_name("neg_sqrt");
 
-    auto func = make_shared<Function>(NodeVector{add,
-                                                 sub,
-                                                 mul,
-                                                 divn,
-                                                 pow,
-                                                 min,
-                                                 max,
-                                                 absn,
-                                                 neg,
-                                                 sqrt,
-                                                 add_autob_numpy,
-                                                 sub_autob_numpy,
-                                                 mul_autob_numpy,
-                                                 div_autob_numpy,
-                                                 pow_autob_numpy,
-                                                 min_autob_numpy,
-                                                 max_autob_numpy,
-                                                 equal_autob_numpy,
-                                                 not_equal_autob_numpy,
-                                                 greater_autob_numpy,
-                                                 greater_eq_autob_numpy,
-                                                 less_autob_numpy,
-                                                 less_eq_autob_numpy,
-                                                 logical_or_autob_numpy,
-                                                 logical_xor_autob_numpy,
-                                                 doubles_sqrt,
-                                                 sub_int8,
-                                                 sub_uint8,
-                                                 equal_doubles,
-                                                 equal_shorts,
-                                                 equal_unsigned_shorts},
-                                      ParameterVector{});
-    auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
+    auto func = make_shared<Model>(NodeVector{add,
+                                              sub,
+                                              mul,
+                                              divn,
+                                              pow,
+                                              min,
+                                              max,
+                                              absn,
+                                              neg,
+                                              sqrt,
+                                              add_autob_numpy,
+                                              sub_autob_numpy,
+                                              mul_autob_numpy,
+                                              div_autob_numpy,
+                                              pow_autob_numpy,
+                                              min_autob_numpy,
+                                              max_autob_numpy,
+                                              equal_autob_numpy,
+                                              not_equal_autob_numpy,
+                                              greater_autob_numpy,
+                                              greater_eq_autob_numpy,
+                                              less_autob_numpy,
+                                              less_eq_autob_numpy,
+                                              logical_or_autob_numpy,
+                                              logical_xor_autob_numpy,
+                                              doubles_sqrt,
+                                              sub_int8,
+                                              sub_uint8,
+                                              equal_doubles,
+                                              equal_shorts,
+                                              equal_unsigned_shorts},
+                                   ParameterVector{});
+    auto func_error = make_shared<Model>(NodeVector{neg_sqrt}, ParameterVector{});
 
     run_constant_folding(func);
 
@@ -578,16 +577,16 @@ TEST(constant_folding, constant_unary_binary) {
 
 template <element::Type_t from, element::Type_t to, typename T, typename U>
 static void test_const_convert(const vector<T>& values_in, const vector<U>& values_expected) {
-    auto constant = op::Constant::create(from, Shape{values_in.size()}, values_in);
+    auto constant = ov::op::v0::Constant::create(from, Shape{values_in.size()}, values_in);
     constant->set_friendly_name("constant");
-    auto convert = make_shared<op::Convert>(constant, to);
+    auto convert = make_shared<op::v0::Convert>(constant, to);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Convert>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -659,16 +658,16 @@ TEST(constant_folding, const_convert) {
 TEST(constant_folding, shape_of_v0) {
     Shape input_shape{3, 4, 0, 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     param->set_friendly_name("param");
     auto shape_of = make_shared<op::v0::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -682,16 +681,16 @@ TEST(constant_folding, shape_of_v0) {
 TEST(constant_folding, shape_of_v3) {
     Shape input_shape{3, 4, 0, 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     param->set_friendly_name("param");
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -705,16 +704,16 @@ TEST(constant_folding, shape_of_v3) {
 TEST(constant_folding, shape_of_i32_v3) {
     Shape input_shape{3, 4, 0, 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     param->set_friendly_name("param");
     auto shape_of = make_shared<op::v3::ShapeOf>(param, element::i32);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -728,10 +727,10 @@ TEST(constant_folding, shape_of_i32_v3) {
 TEST(constant_folding, shape_of_dynamic_v0) {
     PartialShape input_shape{3, 4, Dimension::dynamic(), 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v0::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
@@ -745,10 +744,10 @@ TEST(constant_folding, shape_of_dynamic_v0) {
 TEST(constant_folding, shape_of_dynamic_v3) {
     PartialShape input_shape{3, 4, Dimension::dynamic(), 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
@@ -762,10 +761,10 @@ TEST(constant_folding, shape_of_dynamic_v3) {
 TEST(constant_folding, shape_of_dynamic_i32_v3) {
     PartialShape input_shape{3, 4, Dimension::dynamic(), 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v3::ShapeOf>(param, element::i32);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
@@ -780,10 +779,10 @@ TEST(constant_folding, shape_of_dynamic_i32_v3) {
 TEST(constant_folding, shape_of_dynamic_double_folding_v0) {
     PartialShape input_shape{3, 4, Dimension::dynamic(), 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v0::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
@@ -797,10 +796,10 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v0) {
 TEST(constant_folding, shape_of_dynamic_double_folding_v3) {
     PartialShape input_shape{3, 4, Dimension::dynamic(), 22, 608, 909, 3};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
@@ -816,15 +815,15 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v3) {
 TEST(constant_folding, shape_of_rank_dynamic_v0) {
     PartialShape input_shape{PartialShape::dynamic()};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v0::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 0);
 
     auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
     ASSERT_EQ(result_shape_of, shape_of);
@@ -834,15 +833,15 @@ TEST(constant_folding, shape_of_rank_dynamic_v0) {
 TEST(constant_folding, shape_of_rank_dynamic_v3) {
     PartialShape input_shape{PartialShape::dynamic()};
 
-    auto param = make_shared<op::Parameter>(element::boolean, input_shape);
+    auto param = make_shared<ov::op::v0::Parameter>(element::boolean, input_shape);
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
     shape_of->set_friendly_name("test");
-    auto f = make_shared<Function>(shape_of, ParameterVector{param});
+    auto f = make_shared<Model>(shape_of, ParameterVector{param});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 0);
 
     auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
     ASSERT_EQ(result_shape_of, shape_of);
@@ -853,18 +852,18 @@ void const_reverse(const element::Type& axes_elem_type) {
     Shape input_shape{3, 3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
-    auto axes = op::Constant::create(axes_elem_type, {1}, {1});
+    auto axes = ov::op::v0::Constant::create(axes_elem_type, {1}, {1});
     axes->set_friendly_name("axes");
     auto convert = make_shared<op::v1::Reverse>(constant, axes, op::v1::Reverse::Mode::INDEX);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Reverse>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -893,20 +892,20 @@ TEST(constant_folding, const_reduceprod) {
     Shape output_shape{3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceProd>(constant, constant_axes);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceProd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -925,20 +924,20 @@ TEST(constant_folding, const_reduceprod_keepdims) {
     Shape output_shape{3, 1};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceProd>(constant, constant_axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceProd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -957,19 +956,19 @@ TEST(constant_folding, const_reducesum) {
     Shape output_shape{3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceSum>(constant, constant_axes);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceSum>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -988,20 +987,20 @@ TEST(constant_folding, const_reducesum_keepdims) {
     Shape output_shape{3, 1};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceSum>(constant, constant_axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceSum>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1020,20 +1019,20 @@ TEST(constant_folding, const_reducemax) {
     Shape output_shape{3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMax>(constant, constant_axes);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMax>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1052,20 +1051,20 @@ TEST(constant_folding, const_reducemax_keepdims) {
     Shape output_shape{3, 1};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMax>(constant, constant_axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMax>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1084,20 +1083,20 @@ TEST(constant_folding, const_reducemin) {
     Shape output_shape{3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMin>(constant, constant_axes);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMin>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1116,20 +1115,20 @@ TEST(constant_folding, const_reducemin_keepdims) {
     Shape output_shape{3, 1};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMin>(constant, constant_axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMin>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1148,20 +1147,20 @@ TEST(constant_folding, const_reducemean) {
     Shape output_shape{3};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMean>(constant, constant_axes);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMean>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1180,20 +1179,20 @@ TEST(constant_folding, const_reducemean_keepdims) {
     Shape output_shape{3, 1};
 
     vector<int32_t> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    auto constant = op::Constant::create(element::i32, input_shape, values_in);
+    auto constant = ov::op::v0::Constant::create(element::i32, input_shape, values_in);
     constant->set_friendly_name("constant");
     Shape axes_shape{1};
     vector<int32_t> values_axes{1};
-    auto constant_axes = op::Constant::create(element::i64, axes_shape, values_axes);
+    auto constant_axes = ov::op::v0::Constant::create(element::i64, axes_shape, values_axes);
     constant_axes->set_friendly_name("constant_axes");
     auto convert = make_shared<op::v1::ReduceMean>(constant, constant_axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceMean>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1211,18 +1210,18 @@ TEST(constant_folding, const_reduce_logical_and__no_keepdims) {
     const Shape input_shape{3, 3};
 
     const vector<char> values_in{0, 1, 1, 0, 1, 0, 1, 1, 1};
-    const auto data = op::Constant::create(element::boolean, input_shape, values_in);
+    const auto data = ov::op::v0::Constant::create(element::boolean, input_shape, values_in);
     data->set_friendly_name("data");
-    const auto axes = op::Constant::create(element::i64, {1}, {1});
+    const auto axes = ov::op::v0::Constant::create(element::i64, {1}, {1});
     axes->set_friendly_name("axes");
     const auto convert = make_shared<op::v1::ReduceLogicalAnd>(data, axes, false);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceLogicalAnd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1242,18 +1241,18 @@ TEST(constant_folding, const_reduce_logical_and__keepdims) {
     const Shape input_shape{3, 3};
 
     const vector<char> values_in{0, 1, 1, 0, 1, 0, 1, 1, 1};
-    const auto data = op::Constant::create(element::boolean, input_shape, values_in);
+    const auto data = ov::op::v0::Constant::create(element::boolean, input_shape, values_in);
     data->set_friendly_name("data");
-    const auto axes = op::Constant::create(element::i64, {1}, {1});
+    const auto axes = ov::op::v0::Constant::create(element::i64, {1}, {1});
     axes->set_friendly_name("axes");
     const auto convert = make_shared<op::v1::ReduceLogicalAnd>(data, axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceLogicalAnd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1275,18 +1274,18 @@ TEST(constant_folding, const_reduce_logical_and__keepdims_3d) {
     const Shape input_shape{2, 2, 2};
 
     const vector<char> values_in{1, 1, 0, 0, 1, 0, 0, 1};
-    const auto data = op::Constant::create(element::boolean, input_shape, values_in);
+    const auto data = ov::op::v0::Constant::create(element::boolean, input_shape, values_in);
     data->set_friendly_name("data");
-    const auto axes = op::Constant::create(element::i64, {2}, {0, 2});
+    const auto axes = ov::op::v0::Constant::create(element::i64, {2}, {0, 2});
     axes->set_friendly_name("axes");
     const auto convert = make_shared<op::v1::ReduceLogicalAnd>(data, axes, true);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceLogicalAnd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1306,18 +1305,18 @@ TEST(constant_folding, const_reduce_logical_or__no_keepdims) {
     const Shape input_shape{3, 3};
 
     const vector<char> values_in{1, 0, 0, 1, 0, 1, 0, 0, 0};
-    const auto data = op::Constant::create(element::boolean, input_shape, values_in);
+    const auto data = ov::op::v0::Constant::create(element::boolean, input_shape, values_in);
     data->set_friendly_name("data");
-    const auto axes = op::Constant::create(element::i64, {1}, {1});
+    const auto axes = ov::op::v0::Constant::create(element::i64, {1}, {1});
     axes->set_friendly_name("axes");
     const auto convert = make_shared<op::v1::ReduceLogicalOr>(data, axes, false);
     convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
+    auto f = make_shared<Model>(convert, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::ReduceLogicalAnd>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1334,18 +1333,18 @@ TEST(constant_folding, const_reduce_logical_or__no_keepdims) {
 }
 
 TEST(constant_folding, const_concat) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 1}, vector<int32_t>{7, 8});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 1}, vector<int32_t>{7, 8});
     constant1->set_friendly_name("constant1");
-    auto concat = make_shared<op::Concat>(NodeVector{constant0, constant1}, 1);
+    auto concat = make_shared<op::v0::Concat>(NodeVector{constant0, constant1}, 1);
     concat->set_friendly_name("test");
-    auto f = make_shared<Function>(concat, ParameterVector{});
+    auto f = make_shared<Model>(concat, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1358,18 +1357,18 @@ TEST(constant_folding, const_concat) {
 }
 
 TEST(constant_folding, const_concat_3d_single_elem) {
-    auto constant_1 = op::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{1});
+    auto constant_1 = ov::op::v0::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{1});
     constant_1->set_friendly_name("constant_1");
-    auto constant_2 = op::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{2});
+    auto constant_2 = ov::op::v0::Constant::create(element::i32, Shape{1, 1, 1}, vector<int32_t>{2});
     constant_2->set_friendly_name("constant_2");
-    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2}, 0);
+    auto concat = make_shared<op::v0::Concat>(NodeVector{constant_1, constant_2}, 0);
     concat->set_friendly_name("test");
-    auto f = make_shared<Function>(concat, ParameterVector{});
+    auto f = make_shared<Model>(concat, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
 
@@ -1383,20 +1382,20 @@ TEST(constant_folding, const_concat_3d_single_elem) {
 }
 
 TEST(constant_folding, const_concat_axis_2) {
-    auto constant_1 = op::Constant::create(element::i32, Shape{3, 1, 2}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant_1 = ov::op::v0::Constant::create(element::i32, Shape{3, 1, 2}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant_1->set_friendly_name("constant_1");
-    auto constant_2 = op::Constant::create(element::i32,
-                                           Shape{3, 1, 4},
-                                           vector<int32_t>{7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18});
+    auto constant_2 = ov::op::v0::Constant::create(element::i32,
+                                                   Shape{3, 1, 4},
+                                                   vector<int32_t>{7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18});
     constant_2->set_friendly_name("constant_2");
-    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2}, 2);
+    auto concat = make_shared<op::v0::Concat>(NodeVector{constant_1, constant_2}, 2);
     concat->set_friendly_name("test");
-    auto f = make_shared<Function>(concat, ParameterVector{});
+    auto f = make_shared<Model>(concat, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
 
@@ -1410,21 +1409,23 @@ TEST(constant_folding, const_concat_axis_2) {
 }
 
 TEST(constant_folding, const_concat_axis_1_bool_type) {
-    auto constant_1 = op::Constant::create(element::boolean, Shape{1, 1, 2}, vector<int32_t>{true, true});
+    auto constant_1 = ov::op::v0::Constant::create(element::boolean, Shape{1, 1, 2}, vector<int32_t>{true, true});
     constant_1->set_friendly_name("constant_1");
-    auto constant_2 = op::Constant::create(element::boolean, Shape{1, 2, 2}, vector<char>{true, false, true, false});
+    auto constant_2 =
+        ov::op::v0::Constant::create(element::boolean, Shape{1, 2, 2}, vector<char>{true, false, true, false});
     constant_2->set_friendly_name("constant_2");
-    auto constant_3 =
-        op::Constant::create(element::boolean, Shape{1, 3, 2}, vector<char>{true, false, true, false, true, false});
+    auto constant_3 = ov::op::v0::Constant::create(element::boolean,
+                                                   Shape{1, 3, 2},
+                                                   vector<char>{true, false, true, false, true, false});
     constant_3->set_friendly_name("constant_3");
-    auto concat = make_shared<op::Concat>(NodeVector{constant_1, constant_2, constant_3}, 1);
+    auto concat = make_shared<op::v0::Concat>(NodeVector{constant_1, constant_2, constant_3}, 1);
     concat->set_friendly_name("test");
-    auto f = make_shared<Function>(concat, ParameterVector{});
+    auto f = make_shared<Model>(concat, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
 
@@ -1438,16 +1439,16 @@ TEST(constant_folding, const_concat_axis_1_bool_type) {
 }
 
 TEST(constant_folding, const_logical_not) {
-    auto constant = op::Constant::create(element::boolean, Shape{2, 3}, vector<char>{0, 1, 0, 0, 1, 1});
+    auto constant = ov::op::v0::Constant::create(element::boolean, Shape{2, 3}, vector<char>{0, 1, 0, 0, 1, 1});
     constant->set_friendly_name("constant");
     auto logical_not = make_shared<op::v1::LogicalNot>(constant);
     logical_not->set_friendly_name("test");
-    auto f = make_shared<Function>(logical_not, ParameterVector{});
+    auto f = make_shared<Model>(logical_not, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::LogicalNot>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1460,18 +1461,18 @@ TEST(constant_folding, const_logical_not) {
 }
 
 TEST(constant_folding, const_equal) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 2, 3, 5, 6});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 2, 3, 5, 6});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::Equal>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Equal>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1484,18 +1485,18 @@ TEST(constant_folding, const_equal) {
 }
 
 TEST(constant_folding, const_not_equal) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 2, 3, 5, 6});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 2, 3, 5, 6});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::NotEqual>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::NotEqual>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1508,18 +1509,18 @@ TEST(constant_folding, const_not_equal) {
 }
 
 TEST(constant_folding, const_greater) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::Greater>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Greater>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1532,18 +1533,18 @@ TEST(constant_folding, const_greater) {
 }
 
 TEST(constant_folding, const_greater_eq) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::GreaterEqual>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::GreaterEqual>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1556,18 +1557,18 @@ TEST(constant_folding, const_greater_eq) {
 }
 
 TEST(constant_folding, const_less) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::Less>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Less>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1580,18 +1581,18 @@ TEST(constant_folding, const_less) {
 }
 
 TEST(constant_folding, const_less_eq) {
-    auto constant0 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
+    auto constant0 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{1, 2, 3, 4, 5, 6});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
+    auto constant1 = ov::op::v0::Constant::create(element::i32, Shape{2, 3}, vector<int32_t>{2, 2, 2, 5, 5, 5});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::LessEqual>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::LessEqual>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1604,18 +1605,18 @@ TEST(constant_folding, const_less_eq) {
 }
 
 TEST(constant_folding, const_or) {
-    auto constant0 = op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
+    auto constant0 = ov::op::v0::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
+    auto constant1 = ov::op::v0::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
     constant1->set_friendly_name("constant1");
     auto eq = make_shared<op::v1::LogicalOr>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::LogicalOr>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1628,18 +1629,18 @@ TEST(constant_folding, const_or) {
 }
 
 TEST(constant_folding, const_xor) {
-    auto constant0 = op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
+    auto constant0 = ov::op::v0::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
     constant0->set_friendly_name("constant0");
-    auto constant1 = op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
+    auto constant1 = ov::op::v0::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
     constant1->set_friendly_name("constant1");
-    auto eq = make_shared<op::Xor>(constant0, constant1);
+    auto eq = make_shared<op::v0::Xor>(constant0, constant1);
     eq->set_friendly_name("test");
-    auto f = make_shared<Function>(eq, ParameterVector{});
+    auto f = make_shared<Model>(eq, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Xor>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Xor>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1653,16 +1654,16 @@ TEST(constant_folding, const_xor) {
 
 TEST(constant_folding, const_ceiling) {
     auto constant =
-        op::Constant::create(element::f32, Shape{2, 3}, vector<float>{0.0f, 0.1f, -0.1f, -2.5f, 2.5f, 3.0f});
+        ov::op::v0::Constant::create(element::f32, Shape{2, 3}, vector<float>{0.0f, 0.1f, -0.1f, -2.5f, 2.5f, 3.0f});
     constant->set_friendly_name("constant");
-    auto ceil = make_shared<op::Ceiling>(constant);
+    auto ceil = make_shared<op::v0::Ceiling>(constant);
     ceil->set_friendly_name("test");
-    auto f = make_shared<Function>(ceil, ParameterVector{});
+    auto f = make_shared<Model>(ceil, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Ceiling>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Ceiling>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1676,16 +1677,16 @@ TEST(constant_folding, const_ceiling) {
 
 TEST(constant_folding, const_floor) {
     auto constant =
-        op::Constant::create(element::f32, Shape{2, 3}, vector<float>{0.0f, 0.1f, -0.1f, -2.5f, 2.5f, 3.0f});
+        ov::op::v0::Constant::create(element::f32, Shape{2, 3}, vector<float>{0.0f, 0.1f, -0.1f, -2.5f, 2.5f, 3.0f});
     constant->set_friendly_name("constant");
-    auto floor = make_shared<op::Floor>(constant);
+    auto floor = make_shared<op::v0::Floor>(constant);
     floor->set_friendly_name("test");
-    auto f = make_shared<Function>(floor, ParameterVector{});
+    auto f = make_shared<Model>(floor, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Floor>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Floor>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1699,22 +1700,22 @@ TEST(constant_folding, const_floor) {
 
 TEST(constant_folding, const_gather_v1) {
     auto constant_data =
-        op::Constant::create(element::f32,
-                             Shape{2, 5},
-                             vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        ov::op::v0::Constant::create(element::f32,
+                                     Shape{2, 5},
+                                     vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     constant_data->set_friendly_name("constant_data");
-    auto constant_indices = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+    auto constant_indices = ov::op::v0::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     constant_indices->set_friendly_name("constant_indices");
-    auto constant_axis = op::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
+    auto constant_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
     constant_axis->set_friendly_name("constant_axis");
     auto gather = make_shared<op::v1::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
+    auto f = make_shared<Model>(gather, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1728,22 +1729,22 @@ TEST(constant_folding, const_gather_v1) {
 
 TEST(constant_folding, const_gather_v1_scalar) {
     auto constant_data =
-        op::Constant::create(element::f32,
-                             Shape{2, 5},
-                             vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        ov::op::v0::Constant::create(element::f32,
+                                     Shape{2, 5},
+                                     vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     constant_data->set_friendly_name("constant_data");
-    auto constant_indices = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+    auto constant_indices = ov::op::v0::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     constant_indices->set_friendly_name("constant_indices");
-    auto constant_axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
+    auto constant_axis = ov::op::v0::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
     constant_axis->set_friendly_name("constant_axis");
     auto gather = make_shared<op::v1::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
+    auto f = make_shared<Model>(gather, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1756,29 +1757,29 @@ TEST(constant_folding, const_gather_v1_scalar) {
 }
 
 TEST(constant_folding, const_gather_v1_subgraph) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const float b_value = 3.21f;
-    const auto B_const = op::Constant::create(element::f32, {1}, {b_value});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto B_const = ov::op::v0::Constant::create(element::f32, {1}, {b_value});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
     axis_const->set_friendly_name("axis_const");
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B_const, C}, axis);
+    const auto concat = make_shared<op::v0::Concat>(NodeVector{A, B_const, C}, axis);
     concat->set_friendly_name("concat");
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     indices_const->set_friendly_name("indices_const");
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1789,29 +1790,29 @@ TEST(constant_folding, const_gather_v1_subgraph) {
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_neg_axis) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const float b_value = 1.23f;
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C_const = op::Constant::create(element::f32, {1}, {b_value});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C_const = ov::op::v0::Constant::create(element::f32, {1}, {b_value});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
     axis_const->set_friendly_name("axis_const");
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C_const}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C_const}, axis);
     concat->set_friendly_name("concat");
 
     const vector<int64_t> indices{-1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     indices_const->set_friendly_name("indices_const");
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, B});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1822,145 +1823,145 @@ TEST(constant_folding, const_gather_v1_subgraph_neg_axis) {
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_no_constant_input) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_no_constant_input_scalar) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_skip_if_non_zero_axis) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
     const int64_t axis = 1;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_skip_if_non_single_indices) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{0, 1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_skip_if_concat_output_shape_dynamic) {
-    const auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v1_subgraph_skip_if_not_single_input) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{2});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v1::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v1::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v7) {
     auto constant_data =
-        op::Constant::create(element::f32,
-                             Shape{2, 5},
-                             vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        ov::op::v0::Constant::create(element::f32,
+                                     Shape{2, 5},
+                                     vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     constant_data->set_friendly_name("constant_data");
-    auto constant_indices = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+    auto constant_indices = ov::op::v0::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     constant_indices->set_friendly_name("constant_indices");
-    auto constant_axis = op::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
+    auto constant_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, vector<int64_t>{1});
     constant_axis->set_friendly_name("constant_axis");
     auto gather = make_shared<op::v7::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
+    auto f = make_shared<Model>(gather, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -1974,22 +1975,22 @@ TEST(constant_folding, const_gather_v7) {
 
 TEST(constant_folding, const_gather_v7_scalar) {
     auto constant_data =
-        op::Constant::create(element::f32,
-                             Shape{2, 5},
-                             vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
+        ov::op::v0::Constant::create(element::f32,
+                                     Shape{2, 5},
+                                     vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
     constant_data->set_friendly_name("constant_data");
-    auto constant_indices = op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
+    auto constant_indices = ov::op::v0::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
     constant_indices->set_friendly_name("constant_indices");
-    auto constant_axis = op::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
+    auto constant_axis = ov::op::v0::Constant::create(element::i64, Shape{}, vector<int64_t>{1});
     constant_axis->set_friendly_name("constant_axis");
     auto gather = make_shared<op::v7::Gather>(constant_data, constant_indices, constant_axis);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
+    auto f = make_shared<Model>(gather, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2002,29 +2003,29 @@ TEST(constant_folding, const_gather_v7_scalar) {
 }
 
 TEST(constant_folding, const_gather_v7_subgraph) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const float b_value = 3.21f;
-    const auto B_const = op::Constant::create(element::f32, {1}, {b_value});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto B_const = ov::op::v0::Constant::create(element::f32, {1}, {b_value});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
     axis_const->set_friendly_name("axis_const");
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B_const, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B_const, C}, axis);
     concat->set_friendly_name("concat");
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     indices_const->set_friendly_name("indices_const");
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2035,29 +2036,29 @@ TEST(constant_folding, const_gather_v7_subgraph) {
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_neg_axis) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const float b_value = 1.23f;
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C_const = op::Constant::create(element::f32, {1}, {b_value});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C_const = ov::op::v0::Constant::create(element::f32, {1}, {b_value});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
     axis_const->set_friendly_name("axis_const");
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C_const}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C_const}, axis);
     concat->set_friendly_name("concat");
 
     const vector<int64_t> indices{-1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     indices_const->set_friendly_name("indices_const");
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, B});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2068,124 +2069,124 @@ TEST(constant_folding, const_gather_v7_subgraph_neg_axis) {
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_no_constant_input) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
     gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_no_constant_input_scalar) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_skip_if_non_zero_axis) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{2, 2});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
     const int64_t axis = 1;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_skip_if_non_single_indices) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{0, 1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_skip_if_concat_output_shape_dynamic) {
-    const auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
 TEST(constant_folding, const_gather_v7_subgraph_skip_if_not_single_input) {
-    const auto A = make_shared<op::Parameter>(element::f32, Shape{2});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1});
-    const auto C = make_shared<op::Parameter>(element::f32, Shape{1});
+    const auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
+    const auto B = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
+    const auto C = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
     const int64_t axis = 0;
-    const auto axis_const = op::Constant::create(element::i64, {}, {axis});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, {}, {axis});
 
-    const auto concat = make_shared<op::Concat>(NodeVector{A, B, C}, axis);
+    const auto concat = make_shared<ov::op::v0::Concat>(NodeVector{A, B, C}, axis);
 
     const vector<int64_t> indices{1};
-    const auto indices_const = op::Constant::create(element::i64, {indices.size()}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, {indices.size()}, indices);
     const auto gather = make_shared<op::v7::Gather>(concat, indices_const, axis_const);
-    auto f = make_shared<Function>(gather, ParameterVector{A, B, C});
+    auto f = make_shared<Model>(gather, ParameterVector{A, B, C});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Concat>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Concat>(f), 1);
     ASSERT_EQ(count_ops_of_type<op::v7::Gather>(f), 1);
 }
 
@@ -2193,13 +2194,13 @@ TEST(constant_folding, const_strided_slice) {
     Shape shape_in{16};
 
     vector<int> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto constant = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     constant->set_friendly_name("constant");
-    auto begin = op::Constant::create(element::i64, {1}, {2});
+    auto begin = ov::op::v0::Constant::create(element::i64, {1}, {2});
     begin->set_friendly_name("begin");
-    auto end = op::Constant::create(element::i64, {1}, {15});
+    auto end = ov::op::v0::Constant::create(element::i64, {1}, {15});
     end->set_friendly_name("end");
-    auto stride = op::Constant::create(element::i64, {1}, {3});
+    auto stride = ov::op::v0::Constant::create(element::i64, {1}, {3});
     stride->set_friendly_name("stride");
     auto slice = make_shared<op::v1::StridedSlice>(constant,
                                                    begin,
@@ -2209,12 +2210,12 @@ TEST(constant_folding, const_strided_slice) {
                                                    std::vector<int64_t>{0});
     slice->set_friendly_name("test");
 
-    auto f = make_shared<Function>(slice, ParameterVector{});
+    auto f = make_shared<Model>(slice, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2227,22 +2228,22 @@ TEST(constant_folding, const_strided_slice) {
 
 TEST(constant_folding, strided_slice_ignored_dynamic_begin_end_values_from_shape_of) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ov::op::v0::ShapeOf>(p_begin);
     shape_of_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ov::op::v0::ShapeOf>(p_end);
     shape_of_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2258,7 +2259,7 @@ TEST(constant_folding, strided_slice_ignored_dynamic_begin_end_values_from_shape
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 1);
 
     const auto new_const = get_result_constant(model);
     ASSERT_TRUE(new_const);
@@ -2271,22 +2272,22 @@ TEST(constant_folding, strided_slice_ignored_dynamic_begin_end_values_from_shape
 
 TEST(constant_folding, strided_slice_all_ignore_mask_set_for_non_parameter_begin_end) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{{2, 5}, -1, 10, 1, {0, 200}};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ov::op::v0::ShapeOf>(p_begin);
     shape_of_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{-1, 1, {2, 3}, 0, 0};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ov::op::v0::ShapeOf>(p_end);
     shape_of_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2302,7 +2303,7 @@ TEST(constant_folding, strided_slice_all_ignore_mask_set_for_non_parameter_begin
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 1);
 
     const auto new_const = get_result_constant(model);
     ASSERT_TRUE(new_const);
@@ -2315,20 +2316,20 @@ TEST(constant_folding, strided_slice_all_ignore_mask_set_for_non_parameter_begin
 
 TEST(constant_folding, strided_slice_all_ignore_mask_set_for_parameter_begin_end) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{{1, 5}};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
     p_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{5};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
     p_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2344,7 +2345,7 @@ TEST(constant_folding, strided_slice_all_ignore_mask_set_for_parameter_begin_end
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 1);
 
     const auto new_const = get_result_constant(model);
     ASSERT_TRUE(new_const);
@@ -2357,20 +2358,20 @@ TEST(constant_folding, strided_slice_all_ignore_mask_set_for_parameter_begin_end
 
 TEST(constant_folding, strided_slice_not_all_ignore_mask_set_for_parameter_begin_end) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape::dynamic();
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
     p_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{5};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
     p_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 2, 2});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2386,27 +2387,27 @@ TEST(constant_folding, strided_slice_not_all_ignore_mask_set_for_parameter_begin
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 2);
 }
 
 TEST(constant_folding, strided_slice_not_ignored_dynamic_begin_from_shape_of) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ov::op::v0::ShapeOf>(p_begin);
     shape_of_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ov::op::v0::ShapeOf>(p_end);
     shape_of_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2422,27 +2423,27 @@ TEST(constant_folding, strided_slice_not_ignored_dynamic_begin_from_shape_of) {
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 2);
 }
 
 TEST(constant_folding, strided_slice_can_be_folded_but_is_blocked_by_shape_of_which_got_folding_disabled) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ov::op::v0::ShapeOf>(p_begin);
     shape_of_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ov::op::v0::ShapeOf>(p_end);
     shape_of_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2462,27 +2463,27 @@ TEST(constant_folding, strided_slice_can_be_folded_but_is_blocked_by_shape_of_wh
     pass_manager.run_passes(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 2);
 }
 
 TEST(constant_folding, strided_slice_is_foldable_but_got_set_disable_constant_fold) {
     const auto constant =
-        make_shared<op::Constant>(element::i32,
-                                  Shape{1, 1, 2, 4, 2},
-                                  std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+        make_shared<ov::op::v0::Constant>(element::i32,
+                                          Shape{1, 1, 2, 4, 2},
+                                          std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
     constant->set_friendly_name("constant");
 
     const auto begin_shape = PartialShape{0, -1, 0, 0, 0};
-    const auto p_begin = std::make_shared<op::Parameter>(element::i64, begin_shape);
-    const auto shape_of_begin = std::make_shared<op::ShapeOf>(p_begin);
+    const auto p_begin = std::make_shared<ov::op::v0::Parameter>(element::i64, begin_shape);
+    const auto shape_of_begin = std::make_shared<ov::op::v0::ShapeOf>(p_begin);
     shape_of_begin->set_friendly_name("begin");
 
     const auto end_shape = PartialShape{-1, 512, 2, 2, 16};
-    const auto p_end = std::make_shared<op::Parameter>(element::i64, end_shape);
-    const auto shape_of_end = std::make_shared<op::ShapeOf>(p_end);
+    const auto p_end = std::make_shared<ov::op::v0::Parameter>(element::i64, end_shape);
+    const auto shape_of_end = std::make_shared<ov::op::v0::ShapeOf>(p_end);
     shape_of_end->set_friendly_name("end");
 
-    const auto stride = op::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
+    const auto stride = ov::op::v0::Constant::create(element::i64, {5}, {1, 1, 1, 1, 1});
     stride->set_friendly_name("stride");
 
     const auto slice = make_shared<op::v1::StridedSlice>(constant,
@@ -2500,7 +2501,7 @@ TEST(constant_folding, strided_slice_is_foldable_but_got_set_disable_constant_fo
     run_constant_folding(model);
 
     ASSERT_EQ(count_ops_of_type<op::v1::StridedSlice>(model), 1);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(model), 2);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(model), 2);
 }
 
 TEST(constant_folding, constant_dyn_reshape) {
@@ -2510,18 +2511,18 @@ TEST(constant_folding, constant_dyn_reshape) {
     Shape shape_shape{3};
     vector<int64_t> values_shape{2, 4, 1};
 
-    auto constant_in = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::f32, shape_in, values_in);
     constant_in->set_friendly_name("constant_in");
-    auto constant_shape = make_shared<op::Constant>(element::i64, shape_shape, values_shape);
+    auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, shape_shape, values_shape);
     constant_shape->set_friendly_name("constant_shape");
     auto dyn_reshape = make_shared<op::v1::Reshape>(constant_in, constant_shape, false);
     dyn_reshape->set_friendly_name("test");
-    auto f = make_shared<Function>(dyn_reshape, ParameterVector{});
+    auto f = make_shared<Model>(dyn_reshape, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2543,22 +2544,22 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant) {
     vector<int64_t> values_shape_a{1, 3, 0};
     vector<int64_t> values_shape_b{1, 1, 1};
 
-    auto constant_in = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::f32, shape_in, values_in);
     constant_in->set_friendly_name("constant_in");
-    auto constant_shape_a = make_shared<op::Constant>(element::i64, shape_shape, values_shape_a);
+    auto constant_shape_a = make_shared<ov::op::v0::Constant>(element::i64, shape_shape, values_shape_a);
     constant_shape_a->set_friendly_name("constant_shape_a");
-    auto constant_shape_b = make_shared<op::Constant>(element::i64, shape_shape, values_shape_b);
+    auto constant_shape_b = make_shared<ov::op::v0::Constant>(element::i64, shape_shape, values_shape_b);
     constant_shape_b->set_friendly_name("constant_shape_b");
     auto add = std::make_shared<op::v1::Add>(constant_shape_a, constant_shape_b);
     add->set_friendly_name("add");
     auto dyn_reshape = make_shared<op::v1::Reshape>(constant_in, add, false);
     dyn_reshape->set_friendly_name("test");
-    auto f = make_shared<Function>(dyn_reshape, ParameterVector{});
+    auto f = make_shared<Model>(dyn_reshape, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2569,18 +2570,18 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant) {
 }
 
 TEST(constant_folding, const_reshape_no_data_copy) {
-    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto const_reshape = op::Constant::create(element::i64, Shape{2}, {2, 32});
+    auto const_data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = ov::op::v0::Constant::create(element::i64, Shape{2}, {2, 32});
     auto reshape = std::make_shared<op::v1::Reshape>(const_data, const_reshape, false);
-    auto consumer1 = std::make_shared<op::Relu>(reshape);
-    auto consumer2 = std::make_shared<op::Relu>(reshape);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
+    auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2589,18 +2590,18 @@ TEST(constant_folding, const_reshape_no_data_copy) {
 }
 
 TEST(constant_folding, const_squeeze_no_data_copy) {
-    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto const_reshape = op::Constant::create(element::i64, Shape{1}, {0});
+    auto const_data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
     auto reshape = std::make_shared<op::v0::Squeeze>(const_data, const_reshape);
-    auto consumer1 = std::make_shared<op::Relu>(reshape);
-    auto consumer2 = std::make_shared<op::Relu>(reshape);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
+    auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2609,18 +2610,18 @@ TEST(constant_folding, const_squeeze_no_data_copy) {
 }
 
 TEST(constant_folding, const_unsqueeze_no_data_copy) {
-    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto const_reshape = op::Constant::create(element::i64, Shape{1}, {0});
+    auto const_data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_reshape = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
     auto reshape = std::make_shared<op::v0::Unsqueeze>(const_data, const_reshape);
-    auto consumer1 = std::make_shared<op::Relu>(reshape);
-    auto consumer2 = std::make_shared<op::Relu>(reshape);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(reshape);
+    auto consumer2 = std::make_shared<ov::op::v0::Relu>(reshape);
 
-    auto f = std::make_shared<Function>(NodeVector{consumer1, consumer2}, ParameterVector{});
+    auto f = std::make_shared<Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
 
     run_constant_folding(f);
 
-    auto const1 = std::dynamic_pointer_cast<op::Constant>(consumer1->input_value(0).get_node_shared_ptr());
-    auto const2 = std::dynamic_pointer_cast<op::Constant>(consumer2->input_value(0).get_node_shared_ptr());
+    auto const1 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer1->input_value(0).get_node_shared_ptr());
+    auto const2 = std::dynamic_pointer_cast<ov::op::v0::Constant>(consumer2->input_value(0).get_node_shared_ptr());
 
     ASSERT_TRUE(const1);
     ASSERT_TRUE(const2);
@@ -2635,18 +2636,18 @@ TEST(constant_folding, constant_transpose) {
     Shape shape_perm{2};
     vector<int64_t> values_perm{1, 0};
 
-    auto constant_in = make_shared<op::Constant>(element::f64, shape_in, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::f64, shape_in, values_in);
     constant_in->set_friendly_name("constant_in");
-    auto constant_perm = make_shared<op::Constant>(element::i64, shape_perm, values_perm);
+    auto constant_perm = make_shared<ov::op::v0::Constant>(element::i64, shape_perm, values_perm);
     constant_perm->set_friendly_name("constant_perm");
-    auto transpose = make_shared<op::Transpose>(constant_in, constant_perm);
+    auto transpose = make_shared<ov::op::v1::Transpose>(constant_in, constant_perm);
     transpose->set_friendly_name("test");
-    auto f = make_shared<Function>(transpose, ParameterVector{});
+    auto f = make_shared<Model>(transpose, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Transpose>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v1::Transpose>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2663,20 +2664,20 @@ void range_test(T start, T stop, T step, const vector<T>& values_expected) {
     vector<T> values_stop{stop};
     vector<T> values_step{step};
 
-    auto constant_start = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_start);
+    auto constant_start = make_shared<ov::op::v0::Constant>(ov::element::from<T>(), Shape{}, values_start);
     constant_start->set_friendly_name("constant_start");
-    auto constant_stop = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_stop);
+    auto constant_stop = make_shared<ov::op::v0::Constant>(ov::element::from<T>(), Shape{}, values_stop);
     constant_stop->set_friendly_name("constant_stop");
-    auto constant_step = make_shared<op::Constant>(ov::element::from<T>(), Shape{}, values_step);
+    auto constant_step = make_shared<ov::op::v0::Constant>(ov::element::from<T>(), Shape{}, values_step);
     constant_step->set_friendly_name("constant_step");
-    auto range = make_shared<op::Range>(constant_start, constant_stop, constant_step);
+    auto range = make_shared<ov::op::v0::Range>(constant_start, constant_stop, constant_step);
     range->set_friendly_name("test");
-    auto f = make_shared<Function>(range, ParameterVector{});
+    auto f = make_shared<Model>(range, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Range>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Range>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2705,20 +2706,20 @@ TEST(constant_folding, constant_v1_select) {
     vector<int64_t> values_t{1, 2, 3, 4};
     vector<int64_t> values_f{11, 12, 13, 14, 15, 16, 17, 18};
 
-    auto constant_selection = make_shared<op::Constant>(element::boolean, Shape{4}, values_selection);
+    auto constant_selection = make_shared<ov::op::v0::Constant>(element::boolean, Shape{4}, values_selection);
     constant_selection->set_friendly_name("constant_selection");
-    auto constant_t = make_shared<op::Constant>(element::i64, Shape{4}, values_t);
+    auto constant_t = make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, values_t);
     constant_t->set_friendly_name("constant_t");
-    auto constant_f = make_shared<op::Constant>(element::i64, Shape{2, 4}, values_f);
+    auto constant_f = make_shared<ov::op::v0::Constant>(element::i64, Shape{2, 4}, values_f);
     constant_f->set_friendly_name("constant_f");
     auto select = make_shared<op::v1::Select>(constant_selection, constant_t, constant_f);
     select->set_friendly_name("test");
-    auto f = make_shared<Function>(select, ParameterVector{});
+    auto f = make_shared<Model>(select, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Select>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -2731,17 +2732,17 @@ TEST(constant_folding, constant_v1_select) {
 
 TEST(constant_folding, constant_v1_split) {
     vector<float> data{.1f, .2f, .3f, .4f, .5f, .6f};
-    const auto const_data = op::Constant::create(element::f32, Shape{data.size()}, data);
-    const auto const_axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto const_data = ov::op::v0::Constant::create(element::f32, Shape{data.size()}, data);
+    const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     const auto num_splits = 3;
 
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
-    auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Split>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), num_splits);
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2760,17 +2761,17 @@ TEST(constant_folding, constant_v1_split) {
 
 TEST(constant_folding, constant_v1_split_specialized) {
     vector<float> data{.1f, .2f, .3f, .4f, .5f, .6f};
-    const auto const_data = op::Constant::create(element::f32, Shape{data.size()}, data);
-    const auto const_axis = op::Constant::create(element::i64, Shape{}, {0});
+    const auto const_data = ov::op::v0::Constant::create(element::f32, Shape{data.size()}, data);
+    const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     const auto num_splits = 3;
 
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
-    auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Split>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), num_splits);
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2796,20 +2797,20 @@ TEST(constant_folding, constant_v1_split_axis_1_4_splits) {
 
                          48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63};
 
-    const auto const_data = op::Constant::create(element::i64, Shape{4, 4, 4}, data);
+    const auto const_data = ov::op::v0::Constant::create(element::i64, Shape{4, 4, 4}, data);
     const_data->set_friendly_name("const_data");
-    const auto const_axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     const_axis->set_friendly_name("const_axis");
     const auto num_splits = 4;
 
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
     split_v1->set_friendly_name("test");
-    auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Split>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), num_splits);
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2843,17 +2844,17 @@ TEST(constant_folding, constant_v1_split_axis_1_2_splits) {
 
                          48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63};
 
-    const auto const_data = op::Constant::create(element::i64, Shape{4, 4, 4}, data);
-    const auto const_axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto const_data = ov::op::v0::Constant::create(element::i64, Shape{4, 4, 4}, data);
+    const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     const auto num_splits = 2;
 
     auto split_v1 = make_shared<op::v1::Split>(const_data, const_axis, num_splits);
-    auto f = make_shared<Function>(split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Split>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), num_splits);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), num_splits);
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2879,18 +2880,19 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_2_splits) {
 
                          48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63};
 
-    const auto const_data = op::Constant::create(element::i64, Shape{4, 4, 4}, data);
-    const auto const_axis = op::Constant::create(element::i16, Shape{}, {1});
+    const auto const_data = ov::op::v0::Constant::create(element::i64, Shape{4, 4, 4}, data);
+    const auto const_axis = ov::op::v0::Constant::create(element::i16, Shape{}, {1});
     vector<int64_t> values_lengths{3, 1};
-    auto constant_lengths = make_shared<op::Constant>(element::i64, Shape{values_lengths.size()}, values_lengths);
+    auto constant_lengths =
+        make_shared<ov::op::v0::Constant>(element::i64, Shape{values_lengths.size()}, values_lengths);
 
     auto variadic_split_v1 = make_shared<op::v1::VariadicSplit>(const_data, const_axis, constant_lengths);
-    auto f = make_shared<Function>(variadic_split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(variadic_split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::VariadicSplit>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), values_lengths.size());
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), values_lengths.size());
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2915,18 +2917,19 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length) {
 
                          48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63};
 
-    const auto const_data = op::Constant::create(element::i64, Shape{4, 4, 4}, data);
-    const auto const_axis = op::Constant::create(element::i32, Shape{}, {1});
+    const auto const_data = ov::op::v0::Constant::create(element::i64, Shape{4, 4, 4}, data);
+    const auto const_axis = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
     vector<int64_t> values_lengths{1, 1, -1};
-    auto constant_lengths = make_shared<op::Constant>(element::i64, Shape{values_lengths.size()}, values_lengths);
+    auto constant_lengths =
+        make_shared<ov::op::v0::Constant>(element::i64, Shape{values_lengths.size()}, values_lengths);
 
     auto variadic_split_v1 = make_shared<op::v1::VariadicSplit>(const_data, const_axis, constant_lengths);
-    auto f = make_shared<Function>(variadic_split_v1->outputs(), ParameterVector{});
+    auto f = make_shared<Model>(variadic_split_v1->outputs(), ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::VariadicSplit>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), values_lengths.size());
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), values_lengths.size());
 
     auto res1 = get_result_constant(f);
     auto res2 = get_result_constant(f, 1);
@@ -2950,19 +2953,19 @@ TEST(constant_folding, constant_v1_one_hot) {
     const float on_value = 1.123f;
     const float off_value = 0.321f;
 
-    const auto indices_const = op::Constant::create(element::i64, Shape{3}, indices);
-    const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::f32, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::f32, Shape{}, {off_value});
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, Shape{3}, indices);
+    const auto depth_const = ov::op::v0::Constant::create(element::i64, Shape{}, {3});
+    const auto on_const = ov::op::v0::Constant::create(element::f32, Shape{}, {on_value});
+    const auto off_const = ov::op::v0::Constant::create(element::f32, Shape{}, {off_value});
     int64_t axis = 1;
 
     auto one_hot_v1 = make_shared<op::v1::OneHot>(indices_const, depth_const, on_const, off_const, axis);
-    auto f = make_shared<Function>(one_hot_v1, ParameterVector{});
+    auto f = make_shared<Model>(one_hot_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::OneHot>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto res = get_result_constant(f);
     ASSERT_TRUE(res);
@@ -2978,19 +2981,19 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes) {
     const int32_t on_value = 4;
     const int32_t off_value = 1;
 
-    const auto indices_const = op::Constant::create(element::i64, Shape{4}, indices);
-    const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
-    const auto on_const = op::Constant::create(element::i32, Shape{}, {on_value});
-    const auto off_const = op::Constant::create(element::i32, Shape{}, {off_value});
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, Shape{4}, indices);
+    const auto depth_const = ov::op::v0::Constant::create(element::i64, Shape{}, {3});
+    const auto on_const = ov::op::v0::Constant::create(element::i32, Shape{}, {on_value});
+    const auto off_const = ov::op::v0::Constant::create(element::i32, Shape{}, {off_value});
     int64_t axis = -1;
 
     auto one_hot_v1 = make_shared<op::v1::OneHot>(indices_const, depth_const, on_const, off_const, axis);
-    auto f = make_shared<Function>(one_hot_v1, ParameterVector{});
+    auto f = make_shared<Model>(one_hot_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::OneHot>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto res = get_result_constant(f);
     ASSERT_TRUE(res);
@@ -3016,24 +3019,24 @@ TEST(constant_folding, constant_v1_one_hot_negative_axes_2) {
     auto on_value = true;
     auto off_value = false;
 
-    const auto indices_const = op::Constant::create(element::i64, Shape{2, 2}, indices);
+    const auto indices_const = ov::op::v0::Constant::create(element::i64, Shape{2, 2}, indices);
     indices_const->set_friendly_name("indices_const");
-    const auto depth_const = op::Constant::create(element::i64, Shape{}, {3});
+    const auto depth_const = ov::op::v0::Constant::create(element::i64, Shape{}, {3});
     depth_const->set_friendly_name("depth_const");
-    const auto on_const = op::Constant::create(element::boolean, Shape{}, {on_value});
+    const auto on_const = ov::op::v0::Constant::create(element::boolean, Shape{}, {on_value});
     on_const->set_friendly_name("on_const");
-    const auto off_const = op::Constant::create(element::boolean, Shape{}, {off_value});
+    const auto off_const = ov::op::v0::Constant::create(element::boolean, Shape{}, {off_value});
     off_const->set_friendly_name("off_const");
     int64_t axis = -1;
 
     auto one_hot_v1 = make_shared<op::v1::OneHot>(indices_const, depth_const, on_const, off_const, axis);
     one_hot_v1->set_friendly_name("test");
-    auto f = make_shared<Function>(one_hot_v1, ParameterVector{});
+    auto f = make_shared<Model>(one_hot_v1, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::OneHot>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto res = get_result_constant(f);
     ASSERT_TRUE(res);
@@ -3061,19 +3064,19 @@ TEST(constant_folding, constant_tile_1d) {
     Shape shape_out{4};
 
     vector<int> values_in{0, 1};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{2};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3090,19 +3093,19 @@ TEST(constant_folding, constant_tile_3d_small_data_rank) {
     Shape shape_out{2, 2, 4};
 
     vector<int> values_in{0, 1};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{2, 2, 2};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3119,19 +3122,19 @@ TEST(constant_folding, constant_tile_3d_few_repeats) {
     Shape shape_out{2, 2, 3};
 
     vector<int> values_in{1, 2, 3, 4, 5, 6};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{2, 1};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3148,19 +3151,19 @@ TEST(constant_folding, constant_tile_1d_0_repeats) {
     Shape shape_out{};
 
     vector<int> values_in{0, 1};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{0};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3177,19 +3180,19 @@ TEST(constant_folding, constant_tile_2d_0_repeats) {
     Shape shape_out{};
 
     vector<int> values_in{0, 1, 2, 3};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{0, 0};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3206,19 +3209,19 @@ TEST(constant_folding, constant_tile_0_rank_data) {
     Shape shape_out{4};
 
     vector<int> values_in{1};
-    auto data = make_shared<op::Constant>(element::i32, shape_in, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, shape_in, values_in);
     data->set_friendly_name("data");
     vector<int> values_repeats{4};
-    auto repeats = make_shared<op::Constant>(element::i64, shape_repeats, values_repeats);
+    auto repeats = make_shared<ov::op::v0::Constant>(element::i64, shape_repeats, values_repeats);
     repeats->set_friendly_name("repeats");
     auto tile = make_shared<op::v0::Tile>(data, repeats);
     tile->set_friendly_name("test");
-    auto f = make_shared<Function>(tile, ParameterVector{});
+    auto f = make_shared<Model>(tile, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tile>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3230,18 +3233,18 @@ TEST(constant_folding, constant_tile_0_rank_data) {
 }
 
 TEST(constant_folding, constant_non_zero_0D) {
-    auto data = op::Constant::create(element::i32, Shape{}, {1});
+    auto data = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
     data->set_friendly_name("data");
     auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     // Fold into constant with shape of {1, 1} for scalar input with
     // non-zero value
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3255,16 +3258,16 @@ TEST(constant_folding, constant_non_zero_0D) {
 
 TEST(constant_folding, constant_non_zero_1D) {
     vector<int> values_in{0, 1, 0, 1};
-    auto data = make_shared<op::Constant>(element::i32, Shape{4}, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, Shape{4}, values_in);
     data->set_friendly_name("data");
     auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3278,16 +3281,16 @@ TEST(constant_folding, constant_non_zero_1D) {
 
 TEST(constant_folding, constant_non_zero_int32_output_type) {
     vector<int> values_in{0, 1, 0, 1};
-    auto data = make_shared<op::Constant>(element::i32, Shape{4}, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, Shape{4}, values_in);
     data->set_friendly_name("data");
     auto non_zero = make_shared<op::v3::NonZero>(data, element::i32);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3302,16 +3305,16 @@ TEST(constant_folding, constant_non_zero_int32_output_type) {
 
 TEST(constant_folding, constant_non_zero_1D_all_indices) {
     const vector<float> values_in{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-    const auto data = make_shared<op::Constant>(element::f32, Shape{values_in.size()}, values_in);
+    const auto data = make_shared<ov::op::v0::Constant>(element::f32, Shape{values_in.size()}, values_in);
     data->set_friendly_name("data");
     const auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3325,16 +3328,16 @@ TEST(constant_folding, constant_non_zero_1D_all_indices) {
 
 TEST(constant_folding, constant_non_zero_2D) {
     vector<int> values_in{1, 0, 0, 0, 1, 0, 1, 1, 0};
-    auto data = make_shared<op::Constant>(element::i32, Shape{3, 3}, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, Shape{3, 3}, values_in);
     data->set_friendly_name("data");
     auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3348,16 +3351,16 @@ TEST(constant_folding, constant_non_zero_2D) {
 
 TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices) {
     const vector<int8_t> values_in{1, 1, 1, 1, 1, 1, 1, 1, 1};
-    const auto data = make_shared<op::Constant>(element::i8, Shape{3, 3}, values_in);
+    const auto data = make_shared<ov::op::v0::Constant>(element::i8, Shape{3, 3}, values_in);
     data->set_friendly_name("data");
     const auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3371,17 +3374,17 @@ TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices) {
 
 TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros) {
     const vector<uint8_t> values_in{0, 0, 0, 0, 0, 0};
-    const auto data = make_shared<op::Constant>(element::u8, Shape{2, 3}, values_in);
+    const auto data = make_shared<ov::op::v0::Constant>(element::u8, Shape{2, 3}, values_in);
     data->set_friendly_name("data");
     const auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     // fold into Constant with shape of {0}
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3391,16 +3394,16 @@ TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros) {
 
 TEST(constant_folding, constant_non_zero_3D) {
     vector<int> values_in{1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0};
-    auto data = make_shared<op::Constant>(element::i32, Shape{2, 3, 3}, values_in);
+    auto data = make_shared<ov::op::v0::Constant>(element::i32, Shape{2, 3, 3}, values_in);
     data->set_friendly_name("data");
     auto non_zero = make_shared<op::v3::NonZero>(data);
     non_zero->set_friendly_name("test");
-    auto f = make_shared<Function>(non_zero, ParameterVector{});
+    auto f = make_shared<Model>(non_zero, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::NonZero>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     const auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3418,24 +3421,25 @@ TEST(constant_folding, constant_scatter_elements_update_basic) {
     const Shape indices_shape{2, 3};
 
     const auto data_const =
-        op::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
+        ov::op::v0::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
     data_const->set_friendly_name("data_const");
-    const auto indices_const = op::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
+    const auto indices_const = ov::op::v0::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
     indices_const->set_friendly_name("indices_const");
-    const auto updates_const = op::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
+    const auto updates_const =
+        ov::op::v0::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
     updates_const->set_friendly_name("updates_const");
-    const auto axis_const = op::Constant::create(element::i64, Shape{}, {0});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
     axis_const->set_friendly_name("axis_const");
 
     auto scatter_elem_updt =
         make_shared<op::v3::ScatterElementsUpdate>(data_const, indices_const, updates_const, axis_const);
     scatter_elem_updt->set_friendly_name("test");
-    auto f = make_shared<Function>(scatter_elem_updt, ParameterVector{});
+    auto f = make_shared<Model>(scatter_elem_updt, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
@@ -3450,19 +3454,20 @@ TEST(constant_folding, constant_scatter_elements_update_negative_axis) {
     const Shape indices_shape{2, 3};
 
     const auto data_const =
-        op::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
-    const auto indices_const = op::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
-    const auto updates_const = op::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
-    const auto axis_const = op::Constant::create(element::i64, Shape{}, {-1});
+        ov::op::v0::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
+    const auto indices_const = ov::op::v0::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
+    const auto updates_const =
+        ov::op::v0::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{}, {-1});
 
     auto scatter_elem_updt =
         make_shared<op::v3::ScatterElementsUpdate>(data_const, indices_const, updates_const, axis_const);
-    auto f = make_shared<Function>(scatter_elem_updt, ParameterVector{});
+    auto f = make_shared<Model>(scatter_elem_updt, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
@@ -3476,19 +3481,20 @@ TEST(constant_folding, constant_scatter_elements_update_1d_axis) {
     const Shape indices_shape{2, 3};
 
     const auto data_const =
-        op::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
-    const auto indices_const = op::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
-    const auto updates_const = op::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
-    const auto axis_const = op::Constant::create(element::i64, Shape{1}, {0});
+        ov::op::v0::Constant::create(element::f32, data_shape, std::vector<float>(shape_size(data_shape), 0.f));
+    const auto indices_const = ov::op::v0::Constant::create(element::i32, indices_shape, {1, 0, 2, 0, 2, 1});
+    const auto updates_const =
+        ov::op::v0::Constant::create(element::f32, indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
 
     auto scatter_elem_updt =
         make_shared<op::v3::ScatterElementsUpdate>(data_const, indices_const, updates_const, axis_const);
-    auto f = make_shared<Function>(scatter_elem_updt, ParameterVector{});
+    auto f = make_shared<Model>(scatter_elem_updt, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
@@ -3502,20 +3508,21 @@ TEST(constant_folding, constant_scatter_elements_update_3d_i16) {
     const Shape indices_shape{2, 2, 3};
 
     const auto data_const =
-        op::Constant::create(element::i16, data_shape, std::vector<int16_t>(shape_size(data_shape), 0));
-    const auto indices_const = op::Constant::create(element::i16, indices_shape, {1, 0, 2, 0, 2, 1, 2, 2, 2, 0, 1, 0});
+        ov::op::v0::Constant::create(element::i16, data_shape, std::vector<int16_t>(shape_size(data_shape), 0));
+    const auto indices_const =
+        ov::op::v0::Constant::create(element::i16, indices_shape, {1, 0, 2, 0, 2, 1, 2, 2, 2, 0, 1, 0});
     const auto updates_const =
-        op::Constant::create(element::i16, indices_shape, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    const auto axis_const = op::Constant::create(element::i64, Shape{}, {1});
+        ov::op::v0::Constant::create(element::i16, indices_shape, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
 
     auto scatter_elem_updt =
         make_shared<op::v3::ScatterElementsUpdate>(data_const, indices_const, updates_const, axis_const);
-    auto f = make_shared<Function>(scatter_elem_updt, ParameterVector{});
+    auto f = make_shared<Model>(scatter_elem_updt, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
@@ -3529,19 +3536,19 @@ TEST(constant_folding, constant_scatter_elements_update_one_elem) {
     const Shape indices_shape{1, 1, 1};
     const auto input_data = std::vector<int32_t>(shape_size(data_shape), 0);
 
-    const auto data_const = op::Constant::create(element::i32, data_shape, input_data);
-    const auto indices_const = op::Constant::create(element::i32, indices_shape, {1});
-    const auto updates_const = op::Constant::create(element::i32, indices_shape, {2});
-    const auto axis_const = op::Constant::create(element::i64, Shape{}, {0});
+    const auto data_const = ov::op::v0::Constant::create(element::i32, data_shape, input_data);
+    const auto indices_const = ov::op::v0::Constant::create(element::i32, indices_shape, {1});
+    const auto updates_const = ov::op::v0::Constant::create(element::i32, indices_shape, {2});
+    const auto axis_const = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
 
     auto scatter_elem_updt =
         make_shared<op::v3::ScatterElementsUpdate>(data_const, indices_const, updates_const, axis_const);
-    auto f = make_shared<Function>(scatter_elem_updt, ParameterVector{});
+    auto f = make_shared<Model>(scatter_elem_updt, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto result_node = get_result_constant(f);
     ASSERT_TRUE(result_node);
@@ -3557,18 +3564,18 @@ void test_constant_folding_reshape_v1(Shape& shape_in,
                                       Shape shape_shape,
                                       vector<int32_t> values_shape,
                                       bool zero_flag = false) {
-    auto constant_in = make_shared<op::Constant>(element::f32, shape_in, values_in);
+    auto constant_in = make_shared<ov::op::v0::Constant>(element::f32, shape_in, values_in);
     constant_in->set_friendly_name("constant_in");
-    auto constant_shape = make_shared<op::Constant>(element::i64, shape_shape, values_shape);
+    auto constant_shape = make_shared<ov::op::v0::Constant>(element::i64, shape_shape, values_shape);
     constant_shape->set_friendly_name("constant_shape");
     auto dyn_reshape = make_shared<op::v1::Reshape>(constant_in, constant_shape, zero_flag);
     dyn_reshape->set_friendly_name("test");
-    auto f = make_shared<Function>(dyn_reshape, ParameterVector{});
+    auto f = make_shared<Model>(dyn_reshape, ParameterVector{});
 
     run_constant_folding(f);
 
     ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
     auto new_const = get_result_constant(f);
     ASSERT_TRUE(new_const);
@@ -3605,27 +3612,27 @@ TEST(constant_folding, constant_dyn_reshape_v1_pattern_with_zero_dims) {
 }
 
 TEST(constant_folding, disable_constant_folding) {
-    auto data = std::make_shared<op::Parameter>(element::f16, Shape{1, 3, 22, 22});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f16, Shape{1, 3, 22, 22});
 
     // In this test case following sub-graph will be consumed by Interpolate, so during shape inference Interpolate
     // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
     // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
     // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
     auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
-    auto convert = std::make_shared<opset5::Convert>(gather, element::f16);
-    auto divide_constant = op::Constant::create(element::f16, Shape{1}, {0.5});
-    auto divide = std::make_shared<opset5::Divide>(convert, divide_constant);
-    auto convert_after = std::make_shared<opset5::Convert>(divide, element::i32);
+    auto convert = std::make_shared<op::v0::Convert>(gather, element::f16);
+    auto divide_constant = ov::op::v0::Constant::create(element::f16, Shape{1}, {0.5});
+    auto divide = std::make_shared<op::v1::Divide>(convert, divide_constant);
+    auto convert_after = std::make_shared<op::v0::Convert>(divide, element::i32);
 
-    opset1::Interpolate::Attributes interp_attr;
+    op::v0::Interpolate::Attributes interp_attr;
     interp_attr.antialias = false;
     interp_attr.axes = {2, 3};
     interp_attr.mode = "nearest";
     interp_attr.pads_begin = {0, 0, 0, 0};
     interp_attr.pads_end = {0, 0, 0, 0};
 
-    auto interpolate = std::make_shared<opset1::Interpolate>(data, convert_after, interp_attr);
-    auto f = std::make_shared<Function>(NodeVector{interpolate}, ParameterVector{data});
+    auto interpolate = std::make_shared<op::v0::Interpolate>(data, convert_after, interp_attr);
+    auto f = std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{data});
 
     ov::disable_constant_folding(convert);
 
@@ -3638,7 +3645,7 @@ TEST(constant_folding, disable_constant_folding) {
     run_constant_folding(f);
 
     // After we enabled CF the sub-graph will be folded to Constant
-    ASSERT_TRUE(ov::is_type<op::Constant>(interpolate->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(interpolate->get_input_node_shared_ptr(1)));
 
     // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
     for (auto node : f->get_ordered_ops()) {
@@ -3649,12 +3656,12 @@ TEST(constant_folding, disable_constant_folding) {
 TEST(constant_folding, disable_constant_folding_simple) {
     // This test case checks the behaviour of CF pass when output values are not precalculated
     // so CF triggers another branch where it goes through nodes and trying to fold one by one.
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
-    auto reshape = std::make_shared<opset5::Reshape>(op::Constant::create(element::f32, Shape{3}, {1, 2, 3}),
-                                                     op::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto reshape = std::make_shared<op::v1::Reshape>(ov::op::v0::Constant::create(element::f32, Shape{3}, {1, 2, 3}),
+                                                     ov::op::v0::Constant::create(element::i64, Shape{3}, {3, 1, 1}),
                                                      true);
-    auto divide = std::make_shared<opset5::Divide>(data, reshape);
-    auto f = std::make_shared<Function>(NodeVector{divide}, ParameterVector{data});
+    auto divide = std::make_shared<op::v1::Divide>(data, reshape);
+    auto f = std::make_shared<Model>(NodeVector{divide}, ParameterVector{data});
 
     ov::disable_constant_folding(reshape);
 
@@ -3668,7 +3675,7 @@ TEST(constant_folding, disable_constant_folding_simple) {
     run_constant_folding(f);
 
     // After we enabled CF the sub-graph will be folded to Constant
-    ASSERT_TRUE(ov::is_type<op::Constant>(divide->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(divide->get_input_node_shared_ptr(1)));
 
     // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
     for (auto node : f->get_ordered_ops()) {
@@ -3677,12 +3684,12 @@ TEST(constant_folding, disable_constant_folding_simple) {
 }
 
 TEST(constant_folding, disable_constant_folding_check) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
-    auto shapeof1 = std::make_shared<opset5::ShapeOf>(data);
-    auto reshape1 = std::make_shared<opset5::Reshape>(data, shapeof1, true);
-    auto shapeof2 = std::make_shared<opset5::ShapeOf>(reshape1);
-    auto reshape2 = std::make_shared<opset5::Reshape>(reshape1, shapeof2, true);
-    auto f = std::make_shared<Function>(NodeVector{reshape2}, ParameterVector{data});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof1 = std::make_shared<op::v0::ShapeOf>(data);
+    auto reshape1 = std::make_shared<op::v1::Reshape>(data, shapeof1, true);
+    auto shapeof2 = std::make_shared<op::v0::ShapeOf>(reshape1);
+    auto reshape2 = std::make_shared<op::v1::Reshape>(reshape1, shapeof2, true);
+    auto f = std::make_shared<Model>(NodeVector{reshape2}, ParameterVector{data});
 
     ov::disable_constant_folding(shapeof1);
 
@@ -3700,26 +3707,26 @@ TEST(constant_folding, disable_constant_folding_check) {
     ASSERT_TRUE(shapeof2->get_rt_info().count("can_be_folded"));
     ASSERT_TRUE(shapeof2->get_rt_info().at("can_be_folded").as<bool>());
 
-    ASSERT_TRUE(ov::is_type<op::Constant>(reshape2->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(reshape2->get_input_node_shared_ptr(1)));
 }
 
 TEST(constant_folding, constant_loop) {
-    auto X = make_shared<opset5::Constant>(element::f32, Shape{2, 1, 3}, std::vector<int64_t>{0, 1, 2, 3, 4, 5});
-    auto Y = make_shared<opset5::Constant>(element::f32, Shape{1, 1, 3}, std::vector<int64_t>{1, 2, 3});
+    auto X = make_shared<op::v0::Constant>(element::f32, Shape{2, 1, 3}, std::vector<int64_t>{0, 1, 2, 3, 4, 5});
+    auto Y = make_shared<op::v0::Constant>(element::f32, Shape{1, 1, 3}, std::vector<int64_t>{1, 2, 3});
 
     // Body parameters
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto Xi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition = std::make_shared<op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-    auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 2);
-    auto exec_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    auto trip_count = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 2);
+    auto exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, true);
     // Body
-    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
-    auto body = make_shared<ngraph::Function>(OutputVector{body_condition, sum}, ParameterVector{Xi, Yi});
-    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    auto sum = make_shared<ov::op::v1::Add>(Xi, Yi);
+    auto body = make_shared<ov::Model>(OutputVector{body_condition, sum}, ParameterVector{Xi, Yi});
+    auto loop = make_shared<op::v5::Loop>(trip_count, exec_condition);
     loop->set_function(body);
-    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+    loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
     loop->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
     loop->set_invariant_input(Yi, Y);
@@ -3727,24 +3734,24 @@ TEST(constant_folding, constant_loop) {
     auto out0 = loop->get_iter_value(sum, -1);
     auto out1 = loop->get_concatenated_slices(sum, 0, 1, 1, -1, 0);
 
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
+    auto result0 = make_shared<op::v0::Result>(out0);
+    auto result1 = make_shared<op::v0::Result>(out1);
 
     auto results = ResultVector{result0, result1};
-    auto f = make_shared<Function>(results, ParameterVector{});
+    auto f = make_shared<Model>(results, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<ngraph::opset5::Loop>(f), 0);
-    ASSERT_EQ(count_ops_of_type<ngraph::opset5::Constant>(f), 2);
+    ASSERT_EQ(count_ops_of_type<ov::op::v5::Loop>(f), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 2);
 
     auto result_node_0 = get_result_constant(f);
     auto result_node_1 = get_result_constant(f, 1);
     ASSERT_TRUE(result_node_0);
     ASSERT_TRUE(result_node_1);
 
-    const ngraph::Shape shape_0{1, 1, 3};
-    const ngraph::Shape shape_1{2, 1, 3};
+    const ov::Shape shape_0{1, 1, 3};
+    const ov::Shape shape_1{2, 1, 3};
 
     ASSERT_EQ(shape_0, result_node_0->get_output_shape(0));
     ASSERT_EQ(shape_1, result_node_1->get_output_shape(0));
@@ -3755,9 +3762,9 @@ TEST(constant_folding, constant_loop) {
 }
 
 TEST(constant_folding, disable_constant_folding_for_shapeof) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 3, 22, 22});
-    auto shapeof = std::make_shared<opset5::ShapeOf>(data);
-    auto reshape = std::make_shared<opset5::Reshape>(data, shapeof, true);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 22, 22});
+    auto shapeof = std::make_shared<op::v3::ShapeOf>(data);
+    auto reshape = std::make_shared<op::v1::Reshape>(data, shapeof, true);
     auto model = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{data});
 
     ov::disable_constant_folding(shapeof);
@@ -3768,12 +3775,12 @@ TEST(constant_folding, disable_constant_folding_for_shapeof) {
 }
 
 TEST(constant_folding, disable_constant_folding_for_squeeze_unsqueeze) {
-    auto const_data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto const_axes = op::Constant::create(element::i64, Shape{1}, {0});
+    auto const_data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto const_axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
     auto squeeze = std::make_shared<op::v0::Squeeze>(const_data, const_axes);
     auto unsqueeze = make_shared<op::v0::Unsqueeze>(const_data, const_axes);
-    auto consumer1 = std::make_shared<op::Relu>(squeeze);
-    auto consumer2 = std::make_shared<op::Relu>(unsqueeze);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(squeeze);
+    auto consumer2 = std::make_shared<ov::op::v0::Relu>(unsqueeze);
 
     auto model = std::make_shared<ov::Model>(NodeVector{consumer1, consumer2}, ParameterVector{});
 
@@ -3782,15 +3789,15 @@ TEST(constant_folding, disable_constant_folding_for_squeeze_unsqueeze) {
 
     run_constant_folding(model);
 
-    ASSERT_EQ(count_ops_of_type<op::Squeeze>(model), 1);
-    ASSERT_EQ(count_ops_of_type<op::Unsqueeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(model), 1);
+    ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(model), 1);
 }
 
 TEST(constant_folding, disable_constant_folding_for_convert_like) {
-    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = ov::op::v0::Constant::create(element::i64, Shape{1, 64}, {1});
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
-    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
     auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
 
@@ -3802,10 +3809,10 @@ TEST(constant_folding, disable_constant_folding_for_convert_like) {
 }
 
 TEST(constant_folding, fold_convert_like_node) {
-    auto data = op::Constant::create(element::f32, Shape{1, 64}, {1});
-    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto data = ov::op::v0::Constant::create(element::f32, Shape{1, 64}, {1});
+    auto like = ov::op::v0::Constant::create(element::i64, Shape{1, 64}, {1});
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
-    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
     auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{});
 
@@ -3815,10 +3822,10 @@ TEST(constant_folding, fold_convert_like_node) {
 }
 
 TEST(constant_folding, fold_convert_like_but_node_is_not_foldable) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{1, 64});
-    auto like = op::Constant::create(element::i64, Shape{1, 64}, {1});
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 64});
+    auto like = ov::op::v0::Constant::create(element::i64, Shape{1, 64}, {1});
     auto convert_like = std::make_shared<op::v1::ConvertLike>(data, like);
-    auto consumer1 = std::make_shared<op::Relu>(convert_like);
+    auto consumer1 = std::make_shared<ov::op::v0::Relu>(convert_like);
 
     auto model = std::make_shared<ov::Model>(NodeVector{consumer1}, ParameterVector{data});
 
@@ -3848,8 +3855,8 @@ TEST(constant_folding, evaluate_on_tensor_vector) {
     vector<int> values_a{1, 2, 3, 4};
     vector<int> values_b{1, 2, 3, 4};
     auto data_shape = Shape{2, 2};
-    auto a = make_shared<op::Constant>(element::i32, data_shape, values_a);
-    auto b = make_shared<op::Constant>(element::i32, data_shape, values_b);
+    auto a = make_shared<ov::op::v0::Constant>(element::i32, data_shape, values_a);
+    auto b = make_shared<ov::op::v0::Constant>(element::i32, data_shape, values_b);
 
     auto mock = std::make_shared<::testing::StrictMock<MockAddOp>>(a, b);
     EXPECT_CALL(*mock, evaluate).Times(1);
@@ -3866,43 +3873,43 @@ TEST(constant_folding, evaluate_on_tensor_vector) {
 }
 
 TEST(constant_folding, gather_with_dynamic_shapes_in_data_input) {
-    auto in_0 = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{30});
+    auto in_0 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{30});
 
     // dynamic input to Gather
-    auto in_1 = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
+    auto in_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
     in_1->set_friendly_name("in_1");
-    auto shape_of = std::make_shared<ov::opset11::ShapeOf>(in_1);
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(in_1);
     shape_of->set_friendly_name("shape_of");
-    auto indices = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
     indices->set_friendly_name("indices");
-    auto axis = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
+    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
     axis->set_friendly_name("axis");
-    auto gather = std::make_shared<ov::opset11::Gather>(shape_of, indices, axis);
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of, indices, axis);
     gather->set_friendly_name("test");
-    auto in_2 = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{10});
+    auto in_2 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{10});
     in_2->set_friendly_name("in_2");
-    auto in_3 = std::make_shared<ov::opset11::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+    auto in_3 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
     in_3->set_friendly_name("in_3");
-    auto strided_slice = std::make_shared<ov::opset11::StridedSlice>(in_0,
-                                                                     gather,
-                                                                     in_2,
-                                                                     in_3,
-                                                                     std::vector<int64_t>{0, 0},
-                                                                     std::vector<int64_t>{0, 0},
-                                                                     std::vector<int64_t>{0, 0},
-                                                                     std::vector<int64_t>{0, 1});
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(in_0,
+                                                                gather,
+                                                                in_2,
+                                                                in_3,
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 0},
+                                                                std::vector<int64_t>{0, 1});
     strided_slice->set_friendly_name("strided_slice");
-    auto res = std::make_shared<ov::opset11::Result>(strided_slice);
+    auto res = std::make_shared<ov::op::v0::Result>(strided_slice);
     res->set_friendly_name("result");
 
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_0, in_1});
 
     run_constant_folding(model);
 
-    ASSERT_EQ(count_ops_of_type<ov::opset11::Gather>(model), 0);
-    ASSERT_EQ(count_ops_of_type<ov::opset11::StridedSlice>(model), 1);
+    ASSERT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), 0);
+    ASSERT_EQ(count_ops_of_type<ov::op::v1::StridedSlice>(model), 1);
 
-    auto new_const = dynamic_pointer_cast<ov::opset11::Constant>(strided_slice->input_value(1).get_node_shared_ptr());
+    auto new_const = dynamic_pointer_cast<ov::op::v0::Constant>(strided_slice->input_value(1).get_node_shared_ptr());
     EXPECT_NE(new_const, nullptr);
 
     check_names(new_const, {"shape_of", "indices", "axis", "test"});
