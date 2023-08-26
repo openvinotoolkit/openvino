@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+import tempfile
 import numpy as np
 from sys import platform
 
@@ -10,6 +11,7 @@ import openvino.runtime.opset12 as ops
 
 import ngraph as ng
 from ngraph.impl import Function
+import openvino.inference_engine as ie
 
 
 def get_dynamic_model():
@@ -51,3 +53,16 @@ def get_path_to_extension_library():
     else:
         library_path="libopenvino_template_extension.so"
     return library_path
+
+
+def get_path_to_model(is_old_api=False):
+    path_to_xml = tempfile.NamedTemporaryFile(suffix="_model.xml").name
+    if is_old_api:
+        func = get_ngraph_model(input_dtype=np.int64)
+        caps = ng.Function.to_capsule(func)
+        net = ie.IENetwork(caps)
+        net.serialize(path_to_xml)
+    else:
+        model = get_model()
+        ov.serialize(model, path_to_xml)
+    return path_to_xml
