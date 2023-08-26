@@ -5,7 +5,7 @@
 import openvino.runtime as ov
 
 #! [py_frontend_extension_ThresholdedReLU_header]
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset12 as ops
 from openvino.frontend import ConversionExtension
 #! [py_frontend_extension_ThresholdedReLU_header]
 

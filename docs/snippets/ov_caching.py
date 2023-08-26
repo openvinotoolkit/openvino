@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from openvino.runtime import Core
+from utils import get_path_to_model, get_temp_dir
+import openvino as ov
 
 device_name = 'GNA'
-xml_path = '/tmp/myModel.xml'
+xml_path = get_path_to_model()
+path_to_cash_dir = get_temp_dir()
 # ! [ov:caching:part0]
-core = Core()
-core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
+core = ov.Core()
+core.set_property({'CACHE_DIR': path_to_cash_dir})
 model = core.read_model(model=xml_path)
 compiled_model = core.compile_model(model=model, device_name=device_name)
 # ! [ov:caching:part0]
@@ -16,16 +18,16 @@ compiled_model = core.compile_model(model=model, device_name=device_name)
 assert compiled_model
 
 # ! [ov:caching:part1]
-core = Core()
-compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
+core = ov.Core()
+compiled_model = core.compile_model(model=xml_path, device_name=device_name)
 # ! [ov:caching:part1]
 
 assert compiled_model
 
 # ! [ov:caching:part2]
-core = Core()
-core.set_property({'CACHE_DIR': '/path/to/cache/dir'})
-compiled_model = core.compile_model(model_path=xml_path, device_name=device_name)
+core = ov.Core()
+core.set_property({'CACHE_DIR': path_to_cash_dir})
+compiled_model = core.compile_model(model=xml_path, device_name=device_name)
 # ! [ov:caching:part2]
 
 assert compiled_model

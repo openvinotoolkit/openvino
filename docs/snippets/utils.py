@@ -66,3 +66,8 @@ def get_path_to_model(is_old_api=False):
         model = get_model()
         ov.serialize(model, path_to_xml)
     return path_to_xml
+
+
+def get_temp_dir():
+    temp_dir = tempfile.TemporaryDirectory()
+    return temp_dir
