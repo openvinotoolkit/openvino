@@ -15,7 +15,7 @@ Napi::Function InferRequestWrap::GetClassConstructor(Napi::Env env) {
                        {
                            InstanceMethod("setTensor", &InferRequestWrap::set_tensor),
                            InstanceMethod("setInputTensor", &InferRequestWrap::set_input_tensor),
-                           InstanceMethod("setOuputTensor", &InferRequestWrap::set_output_tensor),
+                           InstanceMethod("setOutputTensor", &InferRequestWrap::set_output_tensor),
                            InstanceMethod("getTensor", &InferRequestWrap::get_tensor),
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
@@ -53,7 +53,7 @@ Napi::Value InferRequestWrap::set_tensor(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "InferRequest.setTensor() invalid argument.");
     }
     std::string name = info[0].ToString();
-    auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+    auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
     auto t = tensorWrap->get_tensor();
 
     _infer_request.set_tensor(name, t);
@@ -65,9 +65,9 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_input_tensor(t);
-    } else if (info.Length() == 2 && !info[0].IsNumber()) {  // Add check info[1]
+    } else if (info.Length() == 2 && info[0].IsNumber()) {  // Add check info[1]
         auto idx = info[0].ToNumber().Int32Value();
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_input_tensor(idx, t);
     } else {
@@ -81,9 +81,9 @@ Napi::Value InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) 
         auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_output_tensor(t);
-    } else if (info.Length() == 2 && !info[0].IsNumber()) {  // Add check info[1]
+    } else if (info.Length() == 2 && info[0].IsNumber()) {  // Add check info[1]
         auto idx = info[0].ToNumber().Int32Value();
-        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
+        auto tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[1].ToObject());
         auto t = tensorWrap->get_tensor();
         _infer_request.set_output_tensor(idx, t);
     } else {
@@ -111,7 +111,7 @@ Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
     ov::Tensor tensor;
     if (info.Length() == 0) {
         tensor = _infer_request.get_input_tensor();
-    } else if (info.Length() == 1 && !info[0].IsNumber()) {  // Add check info[1]
+    } else if (info.Length() == 1 && info[0].IsNumber()) {  // Add check info[1]
         auto idx = info[0].ToNumber().Int32Value();
         tensor = _infer_request.get_input_tensor(idx);
     } else {
@@ -124,7 +124,7 @@ Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) 
     ov::Tensor tensor;
     if (info.Length() == 0) {
         tensor = _infer_request.get_output_tensor();
-    } else if (info.Length() == 1 && !info[0].IsNumber()) {  // Add check info[1]
+    } else if (info.Length() == 1 && info[0].IsNumber()) {  // Add check info[1]
         auto idx = info[0].ToNumber().Int32Value();
         tensor = _infer_request.get_output_tensor(idx);
     } else {
