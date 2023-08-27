@@ -20,22 +20,22 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class FuseConvertTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     };
@@ -114,19 +114,19 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {1.f},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
-                DequantizationOperations::Subtract({1.f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32),
+                DequantizationOperations::Subtract({1.f}, ov::element::f32).setConstantPrecision(ov::element::f32),
                 {0.45f}
             },
             {}
@@ -137,20 +137,20 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
                 {},
                 {},
-                DequantizationOperations::Multiply({0.45f}, ngraph::element::f32).setConstantPrecision(ngraph::element::f32)
+                DequantizationOperations::Multiply({0.45f}, ov::element::f32).setConstantPrecision(ov::element::f32)
             },
             {}
         }
@@ -160,13 +160,13 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
         false,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}},
+            ov::element::f32,
+            {{ ov::element::i32 }, {}, {3.f}},
             {}
         },
         {
-            ngraph::element::f32,
-            {{ ngraph::element::i32 }, {}, {3.f}},
+            ov::element::f32,
+            {{ ov::element::i32 }, {}, {3.f}},
             {}
         }
     },
@@ -198,12 +198,12 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {}},
+            ov::element::u8,
+            {{ov::element::f32}, {}, {}},
             { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {},
             { 256, {}, {0.f}, {0.1f}, {0.f}, {0.1f}, ov::element::f32}
         }
@@ -213,16 +213,16 @@ const std::vector<FuseConvertTransformationTestValues> testValuesWithConstant = 
         true,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {1.f},
                 {0.45f}
             },
             {}
         },
         {
-            ngraph::element::f32,
+            ov::element::f32,
             {
                 {},
                 {1.f},
