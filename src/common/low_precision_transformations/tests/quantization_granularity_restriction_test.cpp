@@ -18,8 +18,8 @@
 #include "lpt_ngraph_functions/convolution_function.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class OperationQuantizationRestrictionTestValues {
 public:
@@ -51,11 +51,11 @@ public:
             std::vector<float>({ 1.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } });
 
-        ngraph::pass::Manager manager;
-        const auto quantizationRestrictions = std::vector<low_precision::QuantizationGranularityRestriction>({
+        ov::pass::Manager manager;
+        const auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
             explicitly ?
-                low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(testValues.restrictions, false) :
-                low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(ports)
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(testValues.restrictions, false) :
+                ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ngraph::opset1::Convolution>(ports)
         });
         manager.register_pass<ngraph::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
         manager.run_passes(actualFunction);
@@ -89,10 +89,10 @@ const std::vector<OperationQuantizationRestrictionTestValues> testValues = {
         {}
     },
     {
-        {{0, QuantizationGranularityAttribute::Granularity::PerTensor}}
+        {{0, ngraph::QuantizationGranularityAttribute::Granularity::PerTensor}}
     },
     {
-        {{0, QuantizationGranularityAttribute::Granularity::PerTensor}, {1, QuantizationGranularityAttribute::Granularity::PerChannel}}
+        {{0, ngraph::QuantizationGranularityAttribute::Granularity::PerTensor}, {1, ngraph::QuantizationGranularityAttribute::Granularity::PerChannel}}
     }
 };
 

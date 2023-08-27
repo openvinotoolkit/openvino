@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyInputs) {
         loop->set_invariant_input(ai, a_add);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
         manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyInputs) {
         loop->set_invariant_input(ai, const_input);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
     }
 }
 
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
         loop->set_invariant_input(ci, c_add);
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b, c});
 
         manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
@@ -95,7 +95,7 @@ TEST_F(TransformationTestsF, FoldLoopManyEmptyInputs) {
         loop->set_invariant_input(ci, std::make_shared<Constant>(c_add->get_element_type(), c_add->get_shape()));
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{b});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{b});
     }
 }
 
@@ -117,7 +117,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
         loop->set_function(body);
         loop->set_merged_input(xi, x_add, concat);
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{x_init});
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{x_init});
 
         manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
@@ -129,7 +129,7 @@ TEST_F(TransformationTestsF, FoldLoopEmptyMergedInputs) {
         auto x_add_const = std::make_shared<Constant>(x_add->get_element_type(), x_add->get_shape());
         loop->set_merged_input(xi, x_add_const, concat);
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
-        function_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
     }
 }
 
@@ -150,7 +150,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipEmptyConstants) {
     loop->set_invariant_input(ai, a);
 
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-    function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{});
 
     manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
@@ -173,7 +173,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipDynamicInputs) {
     loop->set_invariant_input(ai, a_add);
 
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-    function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
+    model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
     manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
@@ -196,7 +196,7 @@ TEST_F(TransformationTestsF, FoldLoopSkipNonEmptyInputs) {
     loop->set_invariant_input(ai, a_add);
 
     auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
-    function = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
+    model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a});
 
     manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
 }
@@ -227,7 +227,7 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         if_op->set_input(X_add, nullptr, Xe);
         if_op->set_input(Z, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Z});
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Z});
 
         manager.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
     }
@@ -242,6 +242,6 @@ TEST_F(TransformationTestsF, FoldIfManyEmptyInputs) {
         const auto Z_folded = std::make_shared<Constant>(Z->get_element_type(), Z->get_shape());
         if_op->set_input(Z_folded, Zt, Ze);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        function_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{});
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{});
     }
 }

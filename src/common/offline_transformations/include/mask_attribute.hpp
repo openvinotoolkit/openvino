@@ -20,7 +20,7 @@
 
 #include "openvino/util/log.hpp"
 
-namespace ngraph {
+namespace ov {
 
 /**
  * @ingroup ie_runtime_attr_api
@@ -191,10 +191,7 @@ public:
        param: split_start
        param: split_end
     */
-    void copy_and_slice_mask_from(const ngraph::Mask* const mask,
-                                  int64_t axis,
-                                  uint64_t split_start,
-                                  uint64_t split_end) {
+    void copy_and_slice_mask_from(const Mask* const mask, int64_t axis, uint64_t split_start, uint64_t split_end) {
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
@@ -312,4 +309,4 @@ Mask::Ptr getInitMask(const Output<Node>& output);
 void setInitMask(Output<Node> output, const Mask::Ptr& mask);
 #endif
 
-}  // namespace ngraph
+}  // namespace ov

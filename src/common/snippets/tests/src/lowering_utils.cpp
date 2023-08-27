@@ -62,22 +62,22 @@ void LoweringTests::SetUp() {
 }
 
 void LoweringTests::TearDown() {
-    ASSERT_TRUE(function);
-    auto cloned_function = function->clone();
-    if (!function_ref) {
-        function_ref = cloned_function;
+    ASSERT_TRUE(model);
+    auto cloned_model = model->clone();
+    if (!model_ref) {
+        model_ref = cloned_model;
     }
-    manager.run_passes(function);
-        ASSERT_NO_THROW(check_rt_info(function));
+    manager.run_passes(model);
+        ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-        auto res = acc_comparator.compare(function, cloned_function);
+        auto res = acc_comparator.compare(model, cloned_model);
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
-    auto res = comparator.compare(function, function_ref);
+    auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 

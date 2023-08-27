@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
@@ -18,7 +18,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
-
+using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, AutoBatch_LabelPropagation_Transpose) {

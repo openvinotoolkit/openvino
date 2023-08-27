@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -14,7 +14,7 @@
 #include "ngraph/pass/visualize_tree.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 using namespace std;
 
 TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_1) {
@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_1) {
                                                   squeeze_node,
                                                   opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_1) {
         auto gather =
             make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model_ref = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
     }
 }
 
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_2) {
         auto gather =
             make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
@@ -133,7 +133,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_2) {
         auto gather =
             make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model_ref = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
     }
 }
 
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_with_onnx_slice
         auto gather =
             make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     }
@@ -183,7 +183,7 @@ TEST_F(TransformationTestsF, test_convert_to_unsigned_nms_gather_with_onnx_slice
         auto gather =
             make_shared<opset8::Gather>(reshape_node, convert, opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-        function_ref = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+        model_ref = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
     }
 }
 
@@ -197,7 +197,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
                                               opset8::Constant::create(element::i32, Shape{1}, {2}),
                                               opset8::Constant::create(element::i32, Shape{1}, {0}));
 
-    shared_ptr<Function> f = make_shared<Function>(NodeVector{gather}, ParameterVector{boxes, scores});
+    shared_ptr<Model> f = make_shared<Model>(NodeVector{gather}, ParameterVector{boxes, scores});
 
     pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();

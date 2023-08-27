@@ -16,7 +16,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
-
+using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {

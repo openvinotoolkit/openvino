@@ -20,8 +20,8 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph::pass;
-using namespace ngraph;
+using namespace ov::pass;
+using namespace ov;
 
 class AssignTransformationTestValues {
 public:
@@ -60,7 +60,7 @@ public:
         const element::Type precisionBeforeDequantization = std::get<2>(GetParam());
         const size_t opsetVersion = std::get<3>(GetParam());
         const AssignTransformationTestValues testValues = std::get<4>(GetParam());
-        const std::vector<ngraph::element::Type> defaultPrecisions = low_precision::precision_set::int8_int16_int32_support;
+        const std::vector<ov::element::Type> defaultPrecisions = ngraph::pass::low_precision::precision_set::int8_int16_int32_support;
         const auto params = TestTransformationParams(testValues.params)
             .setDefaultPrecisions(defaultPrecisions);
 
@@ -73,7 +73,7 @@ public:
             testValues.actual.constantValue,
             testValues.actual.dequantization);
 
-        SimpleLowPrecisionTransformer transformer({}, {}, { ngraph::element::f32, defaultPrecisions });
+        SimpleLowPrecisionTransformer transformer({}, {}, { ov::element::f32, defaultPrecisions });
         transformer.add<ngraph::pass::low_precision::AssignAndReadValueTransformation, ov::op::v6::Assign>(actualFunction, params);
         transformer.transform(actualFunction);
 
@@ -141,13 +141,13 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {0},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {0},
             {{}, {}, {}},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         true
     },
@@ -157,13 +157,13 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {0},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {0},
             {{}, {}, {}},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         false
     },
@@ -173,12 +173,12 @@ const std::vector<AssignTransformationTestValues> testValues = {
         // ActualValues
         {
             {5},
-            {{ngraph::element::f32}, {}, {3.f}}
+            {{ov::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             {5},
-            {{ngraph::element::f32}, {}, {3.f}},
+            {{ov::element::f32}, {}, {3.f}},
             {}
         },
         false

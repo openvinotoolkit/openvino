@@ -11,11 +11,11 @@
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
@@ -26,16 +26,16 @@ using namespace testing;
 using namespace InferenceEngine;
 
 TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
-    std::shared_ptr<ngraph::Function> f;
+    std::shared_ptr<ov::Model> f;
     {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
-        auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
-        auto prelu = std::make_shared<ngraph::opset1::PRelu>(param1, param2);
+        auto param1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{2, 2});
+        auto param2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{2, 2});
+        auto prelu = std::make_shared<ov::opset1::PRelu>(param1, param2);
         prelu->set_friendly_name("prelu");
         auto result = std::make_shared<ngraph::op::Result>(prelu);
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
-        ngraph::pass::Manager manager;
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{result}, ov::ParameterVector{param1, param2});
+        ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
@@ -52,22 +52,22 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
-    std::shared_ptr<ngraph::Function> f;
+    std::shared_ptr<ov::Model> f;
     {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-        auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1});
+        auto param1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+        auto param2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 3, 1, 1});
         auto convolution = std::make_shared<ngraph::op::ConvolutionIE>(param1,
                                                                        param2,
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::element::f32);
+                                                                       ov::Strides{1, 1},
+                                                                       ov::Strides{1, 1},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::CoordinateDiff{0, 0},
+                                                                       ov::element::f32);
         convolution->set_friendly_name("convolution");
         auto result = std::make_shared<ngraph::op::Result>(convolution);
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
-        ngraph::pass::Manager manager;
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{result}, ov::ParameterVector{param1, param2});
+        ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
@@ -81,40 +81,40 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
-    ngraph::NodeVector should_converted_to_ie = {
-        std::make_shared<ngraph::opset4::Convolution>(),
-        std::make_shared<ngraph::opset4::GatherTree>(),
-        std::make_shared<ngraph::opset4::GroupConvolution>(),
-        std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
-        std::make_shared<ngraph::opset4::GRUCell>(),
+    ov::NodeVector should_converted_to_ie = {
+        std::make_shared<ov::opset4::Convolution>(),
+        std::make_shared<ov::opset4::GatherTree>(),
+        std::make_shared<ov::opset4::GroupConvolution>(),
+        std::make_shared<ov::opset4::GroupConvolutionBackpropData>(),
+        std::make_shared<ov::opset4::GRUCell>(),
         // std::make_shared<ngraph::op::v5::GRUSequence>(), todo: enable after GRUSequence support
-        std::make_shared<ngraph::opset4::HardSigmoid>(),
-        std::make_shared<ngraph::opset4::LRN>(),
-        std::make_shared<ngraph::opset4::LSTMCell>(),
+        std::make_shared<ov::opset4::HardSigmoid>(),
+        std::make_shared<ov::opset4::LRN>(),
+        std::make_shared<ov::opset4::LSTMCell>(),
         // std::make_shared<ngraph::op::v5::LSTMSequence>(), todo: enable after LSTMSequence support
-        std::make_shared<ngraph::opset4::NonMaxSuppression>(),
-        std::make_shared<ngraph::opset4::NormalizeL2>(),
-        std::make_shared<ngraph::opset4::RNNCell>(),
+        std::make_shared<ov::opset4::NonMaxSuppression>(),
+        std::make_shared<ov::opset4::NormalizeL2>(),
+        std::make_shared<ov::opset4::RNNCell>(),
         // std::make_shared<ngraph::op::v5::RNNSequence>(), todo: enable after RNNSequence support
-        std::make_shared<ngraph::opset4::OneHot>(),
-        std::make_shared<ngraph::opset4::Pad>(),
-        std::make_shared<ngraph::opset4::PriorBoxClustered>(),
-        std::make_shared<ngraph::opset4::PriorBox>(),
-        std::make_shared<ngraph::opset4::Proposal>(),
-        std::make_shared<ngraph::opset4::Selu>(),
-        std::make_shared<ngraph::opset4::Swish>(),
+        std::make_shared<ov::opset4::OneHot>(),
+        std::make_shared<ov::opset4::Pad>(),
+        std::make_shared<ov::opset4::PriorBoxClustered>(),
+        std::make_shared<ov::opset4::PriorBox>(),
+        std::make_shared<ov::opset4::Proposal>(),
+        std::make_shared<ov::opset4::Selu>(),
+        std::make_shared<ov::opset4::Swish>(),
     };
 
     // create simple ngraph function Parameter -> Result
-    std::shared_ptr<ngraph::Function> f;
-    auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{});
-    auto res = std::make_shared<ngraph::opset4::Result>(param);
-    f = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{param});
+    std::shared_ptr<ov::Model> f;
+    auto param = std::make_shared<ov::opset4::Parameter>(ov::element::f32, ov::Shape{});
+    auto res = std::make_shared<ov::opset4::Result>(param);
+    f = std::make_shared<ov::Model>(ngraph::ResultVector{res}, ov::ParameterVector{param});
     InferenceEngine::CNNNetwork nGraphImpl(f);
 
     for (const auto& ngraph_node : should_converted_to_ie) {
         // add node without inputs to the ngraph function
-        ngraph_node->set_output_type(0, ngraph::element::f32, ngraph::Shape{});
+        ngraph_node->set_output_type(0, ov::element::f32, ov::Shape{});
         res->input(0).replace_source_output(ngraph_node->output(0));
 
         EXPECT_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true),
@@ -154,44 +154,44 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
-    std::shared_ptr<ngraph::Function> f;
+    std::shared_ptr<ov::Model> f;
     {
-        auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
-        ngraph::Shape const_shape = {};
+        auto param = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 22, 22});
+        ov::Shape const_shape = {};
         std::vector<int64_t> val = {5};
-        auto k = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, const_shape, val);
-        auto topK = std::make_shared<ngraph::opset4::TopK>(param,
-                                                           k,
-                                                           2,
-                                                           ngraph::opset4::TopK::Mode::MAX,
-                                                           ngraph::opset4::TopK::SortType::SORT_VALUES);
+        auto k = std::make_shared<ov::opset4::Constant>(ov::element::i64, const_shape, val);
+        auto topK = std::make_shared<ov::opset4::TopK>(param,
+                                                       k,
+                                                       2,
+                                                       ov::opset4::TopK::Mode::MAX,
+                                                       ov::opset4::TopK::SortType::SORT_VALUES);
         topK->set_friendly_name("topK");
         auto result = std::make_shared<ngraph::op::Result>(topK->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
-        ngraph::pass::Manager manager;
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{result}, ov::ParameterVector{param});
+        ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
 
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::CommonOptimizations>();
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
 
     static const precisions_map convert_precision_map{
-        {ngraph::element::i64, ngraph::element::i32},
-        {ngraph::element::u64, ngraph::element::i32},
-        {ngraph::element::u16, ngraph::element::i32},
-        {ngraph::element::u32, ngraph::element::i32},
-        {ngraph::element::f16, ngraph::element::f32},
-        {ngraph::element::boolean, ngraph::element::u8},
+        {ov::element::i64, ov::element::i32},
+        {ov::element::u64, ov::element::i32},
+        {ov::element::u16, ov::element::i32},
+        {ov::element::u32, ov::element::i32},
+        {ov::element::f16, ov::element::f32},
+        {ov::element::boolean, ov::element::u8},
     };
 
     manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_map);
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::i64, ngraph::element::i32}});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32}});
 
     manager.run_passes(f);
 
@@ -213,18 +213,18 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
-    std::shared_ptr<ngraph::Function> f;
+    std::shared_ptr<ov::Model> f;
     {
-        auto param = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto param = std::make_shared<ov::opset4::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         param->set_friendly_name("param");
-        auto relu = std::make_shared<ngraph::opset4::Relu>(param);
+        auto relu = std::make_shared<ov::opset4::Relu>(param);
         relu->set_friendly_name("relu");
-        auto non_zero = std::make_shared<ngraph::opset4::NonZero>(relu);
+        auto non_zero = std::make_shared<ov::opset4::NonZero>(relu);
         non_zero->set_friendly_name("non_zero");
         auto result = std::make_shared<ngraph::op::Result>(non_zero->output(0));
         result->set_friendly_name("result");
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{result}, ov::ParameterVector{param});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -242,21 +242,21 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesAllInternal) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
-        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+        auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
+        auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         end->set_friendly_name(begin->get_name());
-        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                 begin,
-                                                                 end,
-                                                                 stride,
-                                                                 std::vector<int64_t>{1, 1},
-                                                                 std::vector<int64_t>{1, 1});
+        auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
+        auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::NodeVector{ss}, ov::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -267,21 +267,21 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesAllInternal) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult1) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
-        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+        auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
+        auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         end->set_friendly_name(begin->get_name());
-        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                 begin,
-                                                                 end,
-                                                                 stride,
-                                                                 std::vector<int64_t>{1, 1},
-                                                                 std::vector<int64_t>{1, 1});
+        auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
+        auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::NodeVector{ss, begin}, ov::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -292,23 +292,23 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult1) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult2) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+        auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         begin->set_friendly_name("const");
-        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         end->set_friendly_name("const");
-        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
+        auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
         stride->set_friendly_name("const");
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                 begin,
-                                                                 end,
-                                                                 stride,
-                                                                 std::vector<int64_t>{1, 1},
-                                                                 std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::NodeVector{ss, begin}, ov::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -319,27 +319,26 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult2) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult3) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+        auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         begin->set_friendly_name("const");
-        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         end->set_friendly_name("const");
-        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
+        auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
         stride->set_friendly_name("const");
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                 begin,
-                                                                 end,
-                                                                 stride,
-                                                                 std::vector<int64_t>{1, 1},
-                                                                 std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
         ss->set_friendly_name("node");
         auto squeeze =
-            std::make_shared<ngraph::opset1::Squeeze>(ss,
-                                                      ngraph::opset1::Constant::create(ngraph::element::i64, {1}, {0}));
+            std::make_shared<ov::opset1::Squeeze>(ss, ov::opset1::Constant::create(ov::element::i64, {1}, {0}));
         squeeze->set_friendly_name("node");
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze, begin}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::NodeVector{squeeze, begin}, ov::ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -353,44 +352,44 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult3) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-        auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+        auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         begin->set_friendly_name("const");
-        auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
+        auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
         end->set_friendly_name("const");
-        auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                                 begin,
-                                                                 end,
-                                                                 stride,
-                                                                 std::vector<int64_t>{1, 1},
-                                                                 std::vector<int64_t>{1, 1});
+        auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
+        auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin, end}, ngraph::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::NodeVector{ss, begin, end}, ov::ParameterVector{input});
     }
 
     ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
-    auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
+    std::shared_ptr<ov::Model> f(nullptr);
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
     input->set_friendly_name("param");
-    auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
-    auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
-    auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-    auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
-                                                             begin,
-                                                             end,
-                                                             stride,
-                                                             std::vector<int64_t>{1, 1},
-                                                             std::vector<int64_t>{1, 1});
-    auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
-    auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss, input2}, 0);
+    auto begin = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
+    auto end = ov::opset1::Constant::create(ov::element::i64, {2}, {0, 0});
+    auto stride = ov::opset1::Constant::create(ov::element::i64, {2}, {1, 1});
+    auto ss = std::make_shared<ov::opset1::StridedSlice>(input,
+                                                         begin,
+                                                         end,
+                                                         stride,
+                                                         std::vector<int64_t>{1, 1},
+                                                         std::vector<int64_t>{1, 1});
+    auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3});
+    auto concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{ss, input2}, 0);
 
-    f = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input, input2});
+    f = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input, input2});
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
@@ -403,32 +402,31 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        auto constReadVal = ov::opset5::Constant::create(ov::element::f32, {1, 37632}, {0});
         constReadVal->set_friendly_name("const");
-        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
+        auto readVal = std::make_shared<ov::opset5::ReadValue>(constReadVal, "buffer_1");
         readVal->set_friendly_name("readVal_Buf1");
 
-        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
+        auto constVarSplit1 = ov::opset5::Constant::create(ov::element::i64, {}, {1});
         constVarSplit1->set_friendly_name("varSplitConst1");
-        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        auto constVarSplit2 = ov::opset5::Constant::create(ov::element::i64, {2}, {5376, 32256});
         constVarSplit2->set_friendly_name("varSplitConst2");
 
-        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+        auto varSplit = std::make_shared<ov::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
 
-        auto param1 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(0), param1}, 1);
-        auto result = std::make_shared<ngraph::opset5::Result>(varConcat);
+        auto param1 = std::make_shared<ov::opset5::Parameter>(ov::element::f32, ov::Shape{1, 5376});
+        auto varConcat = std::make_shared<ov::opset5::Concat>(ov::OutputVector{varSplit->output(0), param1}, 1);
+        auto result = std::make_shared<ov::opset5::Result>(varConcat);
 
-        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 =
-            std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto param2 = std::make_shared<ov::opset5::Parameter>(ov::element::f32, ov::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ov::opset5::Concat>(ov::OutputVector{varSplit->output(1), param2}, 1);
 
-        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::SinkVector{assign},
-                                               ngraph::ParameterVector{param1, param2});
+        auto assign = std::make_shared<ov::opset5::Assign>(varConcat2, "buffer_1");
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{result},
+                                        ngraph::SinkVector{assign},
+                                        ov::ParameterVector{param1, param2});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -444,28 +442,27 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        auto constReadVal = ov::opset5::Constant::create(ov::element::f32, {1, 37632}, {0});
         constReadVal->set_friendly_name("const");
-        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
+        auto readVal = std::make_shared<ov::opset5::ReadValue>(constReadVal, "buffer_1");
         readVal->set_friendly_name("readVal_Buf1");
 
-        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
+        auto constVarSplit1 = ov::opset5::Constant::create(ov::element::i64, {}, {1});
         constVarSplit1->set_friendly_name("varSplitConst1");
-        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        auto constVarSplit2 = ov::opset5::Constant::create(ov::element::i64, {2}, {5376, 32256});
         constVarSplit2->set_friendly_name("varSplitConst2");
 
-        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+        auto varSplit = std::make_shared<ov::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
 
-        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 =
-            std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto param2 = std::make_shared<ov::opset5::Parameter>(ov::element::f32, ov::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ov::opset5::Concat>(ov::OutputVector{varSplit->output(1), param2}, 1);
 
-        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{},
-                                               ngraph::SinkVector{assign},
-                                               ngraph::ParameterVector{param2});
+        auto assign = std::make_shared<ov::opset5::Assign>(varConcat2, "buffer_1");
+        f = std::make_shared<ov::Model>(ngraph::ResultVector{},
+                                        ngraph::SinkVector{assign},
+                                        ov::ParameterVector{param2});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);

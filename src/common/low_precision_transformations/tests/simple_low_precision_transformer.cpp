@@ -15,7 +15,7 @@
 #include <string>
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
@@ -26,7 +26,7 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     auto passConfig = get_pass_config();
 
     // TODO: use one pass manager
-    markup = std::make_shared<ngraph::pass::Manager>(passConfig);
+    markup = std::make_shared<ov::pass::Manager>(passConfig);
     markup->register_pass<ngraph::pass::low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionRestrictions,
                                                                          params.defaultPrecisions);
@@ -37,20 +37,20 @@ SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     markup->register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     markup->register_pass<ngraph::pass::low_precision::MarkupBias>();
 
-    common = std::make_shared<ngraph::pass::Manager>(passConfig);
-    commonGraphRewrite = common->register_pass<ngraph::pass::GraphRewrite>();
-    cleanup = common->register_pass<ngraph::pass::GraphRewrite>();
+    common = std::make_shared<ov::pass::Manager>(passConfig);
+    commonGraphRewrite = common->register_pass<ov::pass::GraphRewrite>();
+    cleanup = common->register_pass<ov::pass::GraphRewrite>();
 }
 
-void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ngraph::Function>& function) {
-    run_on_model(function);
+void SimpleLowPrecisionTransformer::transform(std::shared_ptr<ov::Model>& model) {
+    run_on_model(model);
 }
 
-bool SimpleLowPrecisionTransformer::run_on_model(const std::shared_ptr<ngraph::Function>& function) {
+bool SimpleLowPrecisionTransformer::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ngraph::pass::low_precision::TypeRelaxedReplacer pass;
-    pass.run_on_model(function);
+    pass.run_on_model(model);
 
-    markup->run_passes(function);
-    common->run_passes(function);
+    markup->run_passes(model);
+    common->run_passes(model);
     return true;
 }

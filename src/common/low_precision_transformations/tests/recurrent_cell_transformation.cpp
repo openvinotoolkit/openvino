@@ -26,8 +26,8 @@
 #include <ngraph/opsets/opset5.hpp>
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 namespace {
@@ -46,7 +46,7 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize_R;
     ngraph::builder::subgraph::DequantizationOperations::Convert convert_R;
     ngraph::builder::subgraph::DequantizationOperations dequantization_R;
-    ngraph::element::Type precisionAfterOperation;
+    ov::element::Type precisionAfterOperation;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
@@ -81,15 +81,15 @@ inline std::ostream& operator<<(std::ostream& out, const RecurrentCellTransforma
     return out << "_" << values.actual << "_" << values.result;
 }
 
-typedef std::tuple<ngraph::element::Type, std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>, RecurrentCellTransformationTestValues>
+typedef std::tuple<ov::element::Type, std::vector<ngraph::PartialShape>, std::vector<ov::Shape>, RecurrentCellTransformationTestValues>
     RecurrentCellTransformationParams;
 
 class RecurrentCellTransformation : public LayerTransformation, public testing::WithParamInterface<RecurrentCellTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
         const std::vector<ngraph::PartialShape> activations_shapes = std::get<1>(GetParam());
-        const std::vector<ngraph::Shape> weights_shapes = std::get<2>(GetParam());
+        const std::vector<ov::Shape> weights_shapes = std::get<2>(GetParam());
         RecurrentCellTransformationTestValues testValues = std::get<3>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
@@ -160,9 +160,9 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
         const std::vector<ngraph::PartialShape> activations_shapes = std::get<1>(obj.param);
-        const std::vector<ngraph::Shape> weights_shapes = std::get<2>(obj.param);
+        const std::vector<ov::Shape> weights_shapes = std::get<2>(obj.param);
         const RecurrentCellTransformationTestValues testValues = std::get<3>(obj.param);
 
         std::ostringstream result;
@@ -180,15 +180,15 @@ TEST_P(RecurrentCellTransformation, CompareFunctions) {
     ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32,
+    // ov::element::f16
 };
 
 namespace testValues2 {
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 1, 16}, {1, 1, 128}, {1, 1, 128}}};
 
-const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
+const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
 
 const std::vector<RecurrentCellTransformationTestValues> testValues = {
     // LSTM Sequence
@@ -197,7 +197,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
              {element::f32},
              {},
@@ -205,7 +205,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
              {element::f32},
              {},
@@ -223,7 +223,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
          {
              {element::f32},
              {},
@@ -231,7 +231,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
          {
              {element::f32},
              {},
@@ -270,7 +270,7 @@ INSTANTIATE_TEST_SUITE_P(
 namespace testValues3 {
 const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 2, 3}, {1, 1, 3}, {}}};
 
-const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
+const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
 
 const std::vector<RecurrentCellTransformationTestValues> testValues = {
     // GRU
@@ -279,7 +279,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
              {element::f32},
              {},
@@ -287,7 +287,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
              {element::f32},
              {},
@@ -305,7 +305,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
          {
              {element::f32},
              {},
@@ -313,7 +313,7 @@ const std::vector<RecurrentCellTransformationTestValues> testValues = {
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
          {
              {element::f32},
              {},

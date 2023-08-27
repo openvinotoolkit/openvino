@@ -19,23 +19,23 @@
 #include "lpt_ngraph_functions/common/constant.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 class ReduceTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type inputPrecision;
+        ov::element::Type inputPrecision;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type preicsionAfterOperation;
+        ov::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 

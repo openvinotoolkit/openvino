@@ -9,7 +9,7 @@
 #include <low_precision/network_helper.hpp>
 #include "ngraph_functions/builders.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_U8_to_U8) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 299, 299});
@@ -17,7 +17,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_U8_to_U8) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{2.55f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
@@ -33,7 +33,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_65535_to_U8) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{2.55f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 65535);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_TRUE(precisionDetails.empty());
@@ -45,7 +45,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqI8_I8_to_I8) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{1.27f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails =
         ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
@@ -62,7 +62,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_I8_to_U8zp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{1.27f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
@@ -78,7 +78,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqI8_U8_to_I8zp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{2.55f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
@@ -94,7 +94,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqU8_I8zp_to_U8zp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{0.882119000f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::u8});
     ASSERT_EQ(element::u8, precisionDetails.precision);
@@ -110,7 +110,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqI8_U8zp_to_I8zp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{0.882119000f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {element::i8});
     ASSERT_EQ(element::i8, precisionDetails.precision);
@@ -126,7 +126,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqNone_I8zp_to_undefzp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{0.882119000f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);
@@ -142,7 +142,7 @@ TEST(smoke_LPT_LayerTransformation, getDataPrecision_reqNone_U8zp_to_undefzp) {
     const auto high = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{0.882119000f});
     const auto fakeQuantize = std::make_shared<ov::op::v0::FakeQuantize>(input, low, high, low, high, 256);
 
-    auto const dequantization = pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
+    auto const dequantization = ngraph::pass::low_precision::QuantizationDetails::getDetails(fakeQuantize);
 
     auto const precisionDetails = ngraph::pass::low_precision::LayerTransformation::getDataPrecision(fakeQuantize, dequantization, {});
     ASSERT_EQ(element::undefined, precisionDetails.precision);

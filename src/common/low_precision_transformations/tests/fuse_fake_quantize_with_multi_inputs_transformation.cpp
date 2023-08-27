@@ -24,27 +24,27 @@
 namespace {
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
         std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
-        ngraph::element::Type precisionFakeQuantizeOnData;
+        ov::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     };
 
     class Expected {
     public:
         std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
-        ngraph::element::Type precisionFakeQuantizeOnData;
+        ov::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
-    ngraph::Shape inputShape;
+    ov::Shape inputShape;
     TestTransformationParams params;
     Actual actual;
     Expected expected;

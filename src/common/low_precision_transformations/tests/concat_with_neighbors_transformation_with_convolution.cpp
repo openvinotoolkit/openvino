@@ -20,8 +20,8 @@
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 
 namespace {
@@ -48,9 +48,9 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize1;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize2;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize3;
-    ngraph::element::Type precisionBeforeOp;
+    ov::element::Type precisionBeforeOp;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::element::Type precisionAfterOp;
+    ov::element::Type precisionAfterOp;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter1;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
 };
@@ -77,8 +77,8 @@ inline std::ostream& operator<<(std::ostream& out, const ConcatWithNeighborsWith
 }
 
 typedef std::tuple <
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     ConcatWithNeighborsWithConvolutionTestValues
 > ConcatWithNeighborsWithConvolutionParams;
 
@@ -87,8 +87,8 @@ class ConcatWithNeighborsWithConvolutionTransformation :
     public testing::WithParamInterface<ConcatWithNeighborsWithConvolutionParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ov::element::Type precision = std::get<0>(GetParam());
+        const ov::Shape shape = std::get<1>(GetParam());
         ConcatWithNeighborsWithConvolutionTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::PrecisionPropagationFunction::getOriginalWithNeighbors(
@@ -106,8 +106,8 @@ public:
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
             ngraph::pass::low_precision::PrecisionsRestriction::create<ov::opset1::Convolution>({
-                {{0}, {ngraph::element::u8}},
-                {{1}, {ngraph::element::i8}}
+                {{0}, {ov::element::u8}},
+                {{1}, {ov::element::i8}}
             })
         });
 
@@ -138,8 +138,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatWithNeighborsWithConvolutionParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
+        const ov::element::Type precision = std::get<0>(obj.param);
+        const ov::Shape shape = std::get<1>(obj.param);
         const ConcatWithNeighborsWithConvolutionTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -160,29 +160,29 @@ TEST_P(ConcatWithNeighborsWithConvolutionTransformation, CompareFunctions) {
     auto actualFakeQuantizes = LayerTransformation::get<ov::op::v0::FakeQuantize>(actualFunction);
     ASSERT_EQ(3ul, actualFakeQuantizes.size()) << "unexpected FakeQuantize operations count " << actualFakeQuantizes.size();
 
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "PrecisionsAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ngraph::PrecisionsAttribute>(actualFakeQuantizes)) <<
+        "ngraph::PrecisionsAttribute shared values are not the same";
 
     auto actualConcatOperations = LayerTransformation::get<ov::opset1::Concat>(actualFunction);
     ASSERT_EQ(2ul, actualConcatOperations.size()) << "unexpected concat operations";
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
-    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
+    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<ngraph::QuantizationAlignmentAttribute>(actualConcatOperations[0]).empty());
+    ASSERT_FALSE(ngraph::pass::low_precision::getAttribute<ngraph::QuantizationAlignmentAttribute>(actualConcatOperations[1]).empty());
 
     actualConcatOperations.insert(actualConcatOperations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<IntervalsAlignmentAttribute>(actualConcatOperations)) <<
-        "IntervalsAlignmentAttribute shared values are not the same";
+    ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ngraph::IntervalsAlignmentAttribute>(actualConcatOperations)) <<
+        "ngraph::IntervalsAlignmentAttribute shared values are not the same";
 
     auto convolutions = LayerTransformation::get<ov::opset1::Convolution>(actualFunction);
     ASSERT_EQ(1ul, convolutions.size()) << "unexpected convolution operations";
     ASSERT_EQ(2ul, convolutions[0]->input(0).get_rt_info().size()) <<
         "unexpected input 0 attributes count: LowPrecision::PerTensorQuantization & LowPrecision::Precisions";
     ASSERT_EQ(1ul, convolutions[0]->input(1).get_rt_info().size()) << "unexpected input 1 attributes count";
-    auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<PrecisionsAttribute>();
+    auto& a1 = convolutions[0]->input(1).get_rt_info().begin()->second.as<ngraph::PrecisionsAttribute>();
     ASSERT_EQ(element::i8, a1.value().front());
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+const std::vector<ov::element::Type> precisions = {
+    ov::element::f32
 };
 
 const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
@@ -191,33 +191,33 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
         LayerTransformation::createParamsI8I8(),
         false,
         {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f} },
+            { 256ul, ov::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-1.28f / 3.f}, {1.27f / 3.f} },
             {},
             {},
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
+            { 256ul, ov::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
             {},
             {},
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
             {},
             {}
         },
         {
             {
-                256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                256ul, ov::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f}, element::u8,
+                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
-                256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                256ul, ov::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f}, element::u8,
+                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
             {
-                256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
-                { IntervalsAlignmentAttribute(IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
+                256ul, ov::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, element::u8,
+                { ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 1.27f}, 256ul) }
             },
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
+            ov::element::u8,
+            { ov::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
             { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
         }
     },
@@ -226,34 +226,34 @@ const std::vector<ConcatWithNeighborsWithConvolutionTestValues> testValues = {
         LayerTransformation::createParamsI8I8(),
         false,
         {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-128.f}, {127.f} },
-            { ngraph::element::i8 },
+            { 256ul, ov::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {-128.f}, {127.f} },
+            { ov::element::i8 },
             {
                 { element::f32 },
                 {},
                 { 0.003333333333333f }
             },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
+            { 256ul, ov::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {-1.28f / 2.f}, {1.27f / 2.f} },
             {},
             {},
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+            { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
             {},
             {}
         },
         {
-            { 256ul, ngraph::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f} },
-            { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
-            ngraph::element::u8,
+            { 256ul, ov::Shape({}), {-1.28f / 3.f}, {1.27f / 3.f}, {0.f}, {255.f} },
+            { 256ul, ov::Shape({}), {-1.28f / 2.f}, {1.27f / 2.f}, {64.f}, {192.f} },
+            { 256ul, ov::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f} },
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
+            ov::element::u8,
+            { ov::element::f32, {128.f}, {{ 0.00333333f, 0.00333333f, 0.00333333f, 0.01f, 0.01f, 0.01f }} },
             { {}, {}, {{ 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f, 0.0001f }} }
         }
     }
 };
 
-const std::vector<ngraph::Shape> shapes = {
+const std::vector<ov::Shape> shapes = {
     { 1, 3, 9, 9 },
     { 4, 3, 9, 9 }
 };

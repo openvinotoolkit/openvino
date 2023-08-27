@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/common_optimizations/divide_fusion.hpp>
@@ -15,21 +15,21 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
+using namespace ov;
 using namespace testing;
 
 TEST(TransformationTests, DivideFusion) {
-    std::shared_ptr<ngraph::Function> f, f_ref;
+    std::shared_ptr<ov::Model> f, f_ref;
     {
-        auto data1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto pow_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1});
-        auto pow = std::make_shared<ngraph::opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1});
+        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
+        f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
 
-        ngraph::pass::Manager m;
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
@@ -37,11 +37,11 @@ TEST(TransformationTests, DivideFusion) {
     }
 
     {
-        auto data1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data1, data2);
+        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto divide = std::make_shared<opset1::Divide>(data1, data2);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data1, data2});
+        f_ref = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{data1, data2});
     }
 
     const auto res = FunctionsComparator::with_default()
@@ -52,17 +52,17 @@ TEST(TransformationTests, DivideFusion) {
 }
 
 TEST(TransformationTests, DivideFusionNegative) {
-    std::shared_ptr<ngraph::Function> f, f_ref;
+    std::shared_ptr<ov::Model> f, f_ref;
     {
-        auto data1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto pow_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1.01});
-        auto pow = std::make_shared<ngraph::opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1.01});
+        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
+        f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
 
-        ngraph::pass::Manager m;
+        pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::DivideFusion>();
         m.run_passes(f);
@@ -70,13 +70,13 @@ TEST(TransformationTests, DivideFusionNegative) {
     }
 
     {
-        auto data1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto data2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto pow_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1.01});
-        auto pow = std::make_shared<ngraph::opset1::Power>(data2, pow_constant);
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data1, pow);
+        auto data1 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
+        auto pow_constant = opset1::Constant::create(element::f32, Shape{1}, {-1.01});
+        auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
+        auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data1, data2});
+        f_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
     }
 
     const auto res = FunctionsComparator::with_default()

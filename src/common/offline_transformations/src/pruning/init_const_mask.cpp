@@ -24,7 +24,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
         const auto& shape = const_node->get_shape();
         const auto& values = const_node->cast_vector<double>();
 
-        auto mask = std::make_shared<Mask>(shape);
+        auto mask = std::make_shared<ov::Mask>(shape);
 
         for (const auto& dim : dims) {
             if (dim >= shape.size()) {

@@ -10,7 +10,7 @@
 using namespace ::testing;
 using namespace std;
 
-using namespace ngraph;
+using namespace ov;
 using namespace ngraph::pass::low_precision;
 
 class EltwiseTransformationIsBroadcastedTests : public ::testing::Test {

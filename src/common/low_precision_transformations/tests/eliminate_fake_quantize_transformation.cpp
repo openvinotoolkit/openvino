@@ -18,21 +18,21 @@
 namespace {
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 class TransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBefore;
+        ov::element::Type precisionBefore;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBefore;
+        ov::element::Type precisionBefore;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOperations2;
@@ -98,7 +98,7 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareFunctions) {
 const std::vector<TransformationTestValues> testValues = {
     {
         {1, 3, 16, 16},
-        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
@@ -113,7 +113,7 @@ const std::vector<TransformationTestValues> testValues = {
     },
     {
         {1, 3, 16, 16},
-        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
@@ -128,7 +128,7 @@ const std::vector<TransformationTestValues> testValues = {
     },
     {
         {1, 3, 16, 16},
-        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
@@ -143,7 +143,7 @@ const std::vector<TransformationTestValues> testValues = {
     },
     {
         {1, 3, 16, 16},
-        TestTransformationParams(true, {ngraph::element::u8}, {ngraph::element::i8}),
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
             element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
