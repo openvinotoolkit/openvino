@@ -16,7 +16,6 @@
 #include "lpt_ngraph_functions/pad_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-
 namespace {
 using namespace testing;
 using namespace ov;
@@ -106,8 +105,9 @@ public:
             toString(testValues.params) << "_" <<
             inputShape << "_" << pads.first << "_" << pads.second << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantization << "_" <<
-            testValues.expected.dequantizationBefore;
+            testValues.actual.dequantization << "_expected_dequantizationBefore_" <<
+            testValues.expected.dequantizationBefore << "_expected_dequantizationAfter_" <<
+            testValues.expected.dequantizationAfter;
 
         return result.str();
     }
@@ -129,8 +129,21 @@ const std::vector<ov::PartialShape> inputShapes = {
 
 const std::vector<std::pair<std::vector<int64_t>, std::vector<int64_t>>> padsBySpatialDimensions = {
     {{0, 0, 2, 1}, {0, 0, 1, 2}},
-    {{0, 0, -1, -1}, {0, 0, -1, -1}}
+    {{0, 0, -2, -1}, {0, 0, -1, -2}}
 };
+
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsPositiveBySpatialDimensions = {
+    {0, 0, 2, 1}, {0, 0, 1, 2}
+};
+
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsNegativeBySpatialDimensions = {
+    {0, 0, -2, -1}, {0, 0, -1, -2}
+};
+
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsMixedBySpatialDimensions = {
+    {0, 0, 2, -1}, {0, 0, -1, 2}
+};
+
 
 // test-cases with common logic for all modes
 // (per-tensor & per-channel quantizations without subtracts, pads by spatial dimensions)
@@ -354,6 +367,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // dequantization with subtract and "CONSTANT" mode, also dequantization and padding by the same dimension
 namespace testCasesForConstantMode {
+namespace positive {
 const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -393,8 +407,24 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
             ov::element::f32,
             {{}, {}, {}}
         }
-    },
-    {
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsPositiveBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
+    PadTransformation::getTestCaseName);
+} // namespace positive
+
+namespace negative {
+    const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
+        {
         LayerTransformation::createParamsU8I8(),
         {
             ov::element::u8,
@@ -404,21 +434,52 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
             ov::element::u8,
             {{}, {}, {}},
             ov::element::u8,
-            {{ov::element::f32}, {}, {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}}
+            {{ov::element::f32}, {}, {{3.f, 4.f, 5.f}, ov::element::f32, {1, 1, 3, 1}}}
         }
-    }
-};
+        }
+    };
 
-INSTANTIATE_TEST_SUITE_P(
+    INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(padsBySpatialDimensions),
+        ::testing::Values(padsNegativeBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
+}
+
+namespace mixed {
+    const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
+        {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 7, 1}}}
+        }
+        }
+    };
+
+    INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsMixedBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
+    PadTransformation::getTestCaseName);
+}
+
 } // namespace testCasesForConstantMode
 
 // dequantization with "CONSTANT" mode (non zero value) and non unique pad dimension: dequantization isn't propagated
@@ -478,9 +539,9 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testCasesForConstantModeWithNonZeroValues
 
 namespace testCasesForConstantModeAndUniquePadDimension {
-const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsByUniqueDimension = {
-    {0, 0, 2, 0},
-    {0, 0, 1, 0}
+namespace positive {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsPositiveByUniqueDimension = {
+    {0, 0, 2, 0}, {0, 0, 1, 0}
 };
 
 const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
@@ -504,7 +565,8 @@ const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
                 {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f, 2.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}
             }
         }
-    },
+    }
+    ,
     {
         LayerTransformation::createParamsI8I8(),
         {
@@ -533,11 +595,117 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsByUniqueDimension),
+        ::testing::Values(padsPositiveByUniqueDimension),
         ::testing::Values(ngraph::op::PadMode::CONSTANT),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForConstantMode)),
     PadTransformation::getTestCaseName);
+} // namespace positive
+
+namespace negative {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsNegativeByUniqueDimension = {
+    {0, 0, -2, 0}, {0, 0, -1, 0}
+};
+
+const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{64.f, 64.f, 64.f, 32.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{64.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 3, 1}},
+                {{3.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 3, 1}}
+            }
+        }
+    }
+    ,
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {64.f},
+                {3.f}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {64.f},
+                {3.f}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsNegativeByUniqueDimension),
+        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
+    PadTransformation::getTestCaseName);
+} // namespace negative
+
+namespace mixed {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsMixedByUniqueDimension = {
+    {0, 0, 2, 0}, {0, 0, -1, 0}
+};
+
+const std::vector<PadTransformationTestValues> testValuesForConstantMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{64.f, 64.f, 64.f, 32.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{3.f, 3.f, 3.f, 2.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{0.f, 0.f, 64.f, 64.f, 64.f, 32.f, 32.f}, ngraph::element::f32, {1, 1, 7, 1}},
+                {{1.f, 1.f, 3.f, 3.f, 3.f, 2.f, 2.f}, ngraph::element::f32, {1, 1, 7, 1}}
+            }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsMixedByUniqueDimension),
+        ::testing::Values(ngraph::op::PadMode::CONSTANT),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForConstantMode)),
+    PadTransformation::getTestCaseName);
+} // namespace mixed
+
 } // namespace testCasesForConstantModeAndUniquePadDimension
 
 namespace testCasesForNonZeroConstantModeAndUniquePadDimension {
@@ -603,7 +771,7 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation::getTestCaseName);
 } // namespace testCasesForNonZeroConstantModeAndUniquePadDimension
 
-namespace testCasesForEdgeMode {
+namespace testCasesForEdgeModePostitive {
 const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -633,12 +801,86 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(padsBySpatialDimensions),
+        ::testing::Values(padsPositiveBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::EDGE),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForEdgeMode)),
     PadTransformation::getTestCaseName);
-} // namespace testCasesForEdgeMode
+} // namespace testCasesForEdgeModePostitive
+
+namespace testCasesForEdgeModeNegative {
+const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 3, 1}},
+                {{3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 3, 1}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsNegativeBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::EDGE),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForEdgeMode)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForEdgeModeNegative
+
+namespace testCasesForEdgeModeMixed {
+const std::vector<PadTransformationTestValues> testValuesForEdgeMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 7, 1}},
+                {{1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 7, 1}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsMixedBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::EDGE),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForEdgeMode)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForEdgeModeMixed
 
 namespace testCasesForReflectMode {
 const std::vector<PadTransformationTestValues> testValuesForReflectMode = {
@@ -677,7 +919,8 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation::getTestCaseName);
 } // namespace testCasesForReflectMode
 
-namespace testCasesForSymetricMode {
+
+namespace testCasesForSymetricModePositive {
 const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
     {
         LayerTransformation::createParamsI8I8(),
@@ -689,6 +932,7 @@ const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
                 {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ov::element::f32, {1, 1, 6, 1}}
             }
         },
+
         {
             ov::element::i8,
             {{}, {}, {}},
@@ -707,12 +951,88 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(padsBySpatialDimensions),
+        ::testing::Values(padsPositiveBySpatialDimensions),
         ::testing::Values(ngraph::op::PadMode::SYMMETRIC),
         ::testing::Values(0.f),
         ::testing::ValuesIn(testValuesForSymetricMode)),
     PadTransformation::getTestCaseName);
-} // namespace testCasesForSymetricMode
+} // namespace testCasesForSymetricModePositive
+
+namespace testCasesForSymetricModeNegative {
+const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 3, 1}},
+                {{3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 3, 1}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsNegativeBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::SYMMETRIC),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForSymetricMode)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForSymetricModeNegative
+
+namespace testCasesForSymetricModeMixed {
+const std::vector<PadTransformationTestValues> testValuesForSymetricMode = {
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}},
+                {{1.f, 2.f, 3.f, 4.f, 5.f, 6.f}, ngraph::element::f32, {1, 1, 6, 1}}
+            }
+        },
+
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 7, 1}},
+                {{2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 5.f}, ngraph::element::f32, {1, 1, 7, 1}}
+            }
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsMixedBySpatialDimensions),
+        ::testing::Values(ngraph::op::PadMode::SYMMETRIC),
+        ::testing::Values(0.f),
+        ::testing::ValuesIn(testValuesForSymetricMode)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForSymetricModeMixed
 
 namespace testCasesWithDynamicRank {
 const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
