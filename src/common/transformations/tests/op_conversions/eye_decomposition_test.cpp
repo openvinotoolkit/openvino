@@ -13,7 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
-
+using namespace ov;
 using namespace testing;
 
 /** Helper to get access EyeDecomposition protected methods. */

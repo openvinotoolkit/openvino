@@ -22,7 +22,7 @@ static std::string vec_to_str(const std::vector<T> m) {
     return out.str();
 }
 
-static bool not_empty_mask(ngraph::Mask::Ptr mask) {
+static bool not_empty_mask(ov::Mask::Ptr mask) {
     return mask && !mask->all_dims_are_empty();
 }
 
@@ -53,7 +53,7 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     return input_elems != output_elems;
 }
 
-static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::Mask::Ptr mask) {
+static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ov::Mask::Ptr mask) {
     const auto shape = reshape->input_value(1);
     const auto consumers = shape.get_node()->get_output_target_inputs(0);
     if (shape.get_node()->outputs().size() != 1 || consumers.size() != 1) {
@@ -119,7 +119,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
 
     // adjust split_lengths by size of the set for axis in mask
     for (size_t i = 0; i < split->get_output_size(); i++) {
-        auto mask = ngraph::getMask(split->output(i));
+        auto mask = ov::getMask(split->output(i));
         if (!mask)
             return false;
         auto set_size = mask->at(axis).size();
@@ -165,7 +165,7 @@ static std::shared_ptr<ngraph::Node> handle_split(const std::shared_ptr<ngraph::
 
     // create split_lengths array
     for (size_t i = 0; i < split->get_output_size(); i++) {
-        auto mask = ngraph::getMask(split->output(i));
+        auto mask = ov::getMask(split->output(i));
         if (!mask)
             return nullptr;
         auto set_size = mask->at(axis).size();
