@@ -24,13 +24,11 @@ public:
     static int64_t allocate(const lowered::LinearIR& linear_ir);
 
 private:
-    using BufferSystem = std::vector<ExpressionPtr>;
     using BufferCluster = std::set<ExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
 
-    static BufferSystem create_buffer_system(const lowered::LinearIR& linear_ir);
-    static size_t init_default(const BufferSystem& buffer_system);
-    static BufferClusters init_clusters(const BufferSystem& buffer_system);
+    static size_t init_default(const lowered::LinearIR& linear_ir);
+    static BufferClusters init_clusters(const lowered::LinearIR& linear_ir);
     static std::vector<MemorySolver::Box> init_boxes(const BufferClusters& buffer_clusters);
     static void set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset);
 
