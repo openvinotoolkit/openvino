@@ -25,6 +25,7 @@ on:
   # cancel-in-progress: true
   # empty commit 1
   # empty commit 2
+  # empty commit 3
 jobs:
   Build:
     defaults:
