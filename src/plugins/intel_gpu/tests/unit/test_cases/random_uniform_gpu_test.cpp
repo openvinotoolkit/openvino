@@ -18,8 +18,7 @@ using namespace ::tests;
  */
 template<typename T>
 struct RandomUniformParams {
-    tensor output_tensor;
-    format f;
+    ov::Shape output_shape;
     T min_val;
     T max_val;
     uint64_t global_seed;
@@ -36,20 +35,20 @@ public:
         RandomUniformParams<T> params = testing::TestWithParam<RandomUniformParams<T> >::GetParam();
         auto &engine = get_test_engine();
 
+        auto format = format::get_default_format(params.output_shape.size());
         auto shape = engine.allocate_memory(
-                {data_type, params.f, {1, 1, static_cast<int32_t >(params.output_tensor.sizes().size()), 1}});
+                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, data_type, format});
         auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
         auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
 
-        set_values(shape, params.output_tensor.sizes());
+        set_values(shape, params.output_shape);
         set_values(min_val, {params.min_val});
         set_values(max_val, {params.max_val});
 
         topology topology;
         topology.add(
                 random_uniform("random_uniform", { input_info("shape"), input_info("min_val"), input_info("max_val") }, data_type, params.global_seed,
-                               params.op_seed, params.output_tensor,
-                               params.f));
+                               params.op_seed, params.output_shape));
         topology.add(input_layout("shape", shape->get_layout()));
         topology.add(input_layout("min_val", min_val->get_layout()));
         topology.add(input_layout("max_val", max_val->get_layout()));
@@ -78,11 +77,11 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<RandomUniformParams<T> > &param) {
         std::stringstream buf;
-        buf << " output tensor" << param.param.output_tensor.to_string()
-            << " min_value " << param.param.min_val
-            << " max_value " << param.param.max_val
-            << " global_seed " << param.param.global_seed
-            << " op_seed " << param.param.op_seed;
+        buf << "output_tensor_" << param.param.output_shape
+            << "_min_value_" << param.param.min_val
+            << "_max_value_" << param.param.max_val
+            << "_global_seed_" << param.param.global_seed
+            << "_op_seed_" << param.param.op_seed;
         return buf.str();
     }
 
@@ -91,11 +90,11 @@ struct PrintToStringParamName {
 template<>
 std::string PrintToStringParamName::operator()(const testing::TestParamInfo<RandomUniformParams<half_t> > &param) {
     std::stringstream buf;
-    buf << " output tensor" << param.param.output_tensor.to_string()
-        << " min_value " << static_cast<float>(param.param.min_val)
-        << " max_value " << static_cast<float>(param.param.max_val)
-        << " global_seed " << param.param.global_seed
-        << " op_seed " << param.param.op_seed;
+    buf << "output_tensor_" << param.param.output_shape
+        << "_min_value_" << static_cast<float>(param.param.min_val)
+        << "_max_value_" << static_cast<float>(param.param.max_val)
+        << "_global_seed_" << param.param.global_seed
+        << "_op_seed_" << param.param.op_seed;
     return buf.str();
 }
 
@@ -124,7 +123,7 @@ TEST_P(random_uniform_gpu_test_f16, random_f16) {
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int32,
                          random_uniform_gpu_test_i32,
                          ::testing::Values(
-                                 RandomUniformParams<int32_t>{tensor(1, 1, 2, 3), format::bfyx, 50, 100, 80, 100,
+                                 RandomUniformParams<int32_t>{ov::Shape{1, 1, 3, 2}, 50, 100, 80, 100,
                                                               std::vector<int32_t>{
                                                                       65, 70, 56,
                                                                       59, 82, 92
@@ -135,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int32,
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int64,
                          random_uniform_gpu_test_i64,
                          ::testing::Values(
-                                 RandomUniformParams<int64_t>{tensor(1, 1, 5, 4, 3), format::bfzyx, -2600, 3700, 755,
+                                 RandomUniformParams<int64_t>{ov::Shape{1, 1, 3, 4, 5}, -2600, 3700, 755,
                                                               951,
                                                               {
                                                                       2116L, -1581L, 2559L, -339L, -1660L, 519L, 90L,
@@ -151,11 +150,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_int64,
                          ),
                          PrintToStringParamName());
 
-
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
                          random_uniform_gpu_test_f32,
                          ::testing::Values(
-                                 RandomUniformParams<float>{tensor(1, 1, 3, 3), format::bfyx, 0.0, 1.0, 150, 10,
+                                 RandomUniformParams<float>{ov::Shape{1, 1, 3, 3}, 0.0, 1.0, 150, 10,
+                                                            {
+                                                                    0.7011236, 0.30539632, 0.93931055,
+                                                                    0.9456035, 0.11694777, 0.50770056,
+                                                                    0.5197197, 0.22727466, 0.991374
+                                                            }
+                                 },
+                                 RandomUniformParams<float>{ov::Shape{3, 3}, 0.0, 1.0, 150, 10,
                                                             {
                                                                     0.7011236, 0.30539632, 0.93931055,
                                                                     0.9456035, 0.11694777, 0.50770056,
@@ -165,11 +170,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f32,
                          ),
                          PrintToStringParamName());
 
-
 INSTANTIATE_TEST_SUITE_P(smoke_random_uniform_f16,
                          random_uniform_gpu_test_f16,
                          ::testing::Values(
-                                 RandomUniformParams<half_t>{tensor(1, 1, 3, 2, 4), format::bfzyx, half_t(-1.5),
+                                 RandomUniformParams<half_t>{ov::Shape{1, 1, 4, 2, 3}, half_t(-1.5),
                                                              half_t(-1.0), 150, 10,
                                                              {half_t(-1.19726562), half_t(-1.09667969),
                                                               half_t(-1.08398438), half_t(-1.30859375),

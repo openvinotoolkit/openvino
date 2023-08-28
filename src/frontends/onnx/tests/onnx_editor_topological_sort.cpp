@@ -5,9 +5,9 @@
 #include <algorithm>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "editor.hpp"
-#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "onnx_test_util.hpp"
@@ -38,6 +38,16 @@ OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
                                                 "onnx/model_editor/topological_sort/completely_unsorted_2.onnx"})};
     ASSERT_NO_THROW(editor.get_function());
 }
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
+    ONNXModelEditor editor{ov::util::string_to_wstring(
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(),
+                             SERIALIZED_ZOO,
+                             "onnx/model_editor/topological_sort/completely_unsorted_2.onnx"}))};
+    ASSERT_NO_THROW(editor.get_function());
+}
+#endif
 
 OPENVINO_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
     const std::string rel_path_to_model = "onnx/model_editor/topological_sort/add_abc_const_node_unsorted.onnx";

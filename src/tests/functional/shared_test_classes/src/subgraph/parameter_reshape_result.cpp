@@ -30,7 +30,7 @@ void ParamReshapeResult::SetUp() {
     configuration.insert(additional_config.begin(), additional_config.end());
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
 
     auto shape = inputShape;
     shape[shape.size() - 2] *= 2;

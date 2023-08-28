@@ -10,7 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/hsigmoid.hpp"
+#include "openvino/reference/hsigmoid.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -195,7 +195,10 @@ protected:
 
         init_input_shapes({ inShapes });
 
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, shape));
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
 
         if (attrs.num_classes == -1) {

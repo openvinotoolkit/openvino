@@ -12,9 +12,9 @@
 #include <ngraph/ops.hpp>
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/depth_to_space.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/reference/depth_to_space.hpp"
 
 using namespace ngraph;
 

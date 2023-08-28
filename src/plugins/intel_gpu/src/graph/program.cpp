@@ -124,9 +124,9 @@ static void adjust_num_cores(ov::threading::IStreamsExecutor::Config& config) {
     config._streams = std::min(config._streams, num_cores);
 }
 
-static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags) {
+static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
         case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
@@ -155,7 +155,7 @@ program::program(engine& engine_ref,
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal),
       is_body_program(is_body_program) {
@@ -181,7 +181,7 @@ program::program(engine& engine_ref,
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
-      _task_executor(task_executor),
+      _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
     _config.apply_user_properties(_engine.get_device_info());
@@ -191,10 +191,11 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
-program::program(engine& engine)
+program::program(engine& engine,
+        const ExecutionConfig& config)
     : _engine(engine),
       _stream(_engine.create_stream({})),
-      _config(),
+      _config(config),
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
@@ -214,7 +215,7 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
 
     _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
-                                                            "Task executor config for CompilationContext in GPU plugin"));
+                                                       "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
 
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
@@ -543,11 +544,24 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (optimize_data) {
-        apply_opt_pass<prepare_primitive_fusing_through>();
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+#ifdef GPU_DEBUG_CONFIG
+        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
+#else
+        {
+#endif
+            apply_opt_pass<prepare_primitive_fusing_through>();
+        }
 
         apply_opt_pass<pre_replace_deconv>(lo);
 
-        apply_opt_pass<prepare_primitive_fusing>(lo);
+#ifdef GPU_DEBUG_CONFIG
+        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
+#else
+        {
+#endif
+            apply_opt_pass<prepare_primitive_fusing>(lo);
+        }
 
         apply_opt_pass<select_preferred_formats>(lo);
 
@@ -578,6 +592,10 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
+    // Currently, 'gemm-softmax' case is applied for clamping
+    apply_opt_pass<clamp_fp16_output>();
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
@@ -822,7 +840,7 @@ void program::add_intermediate(std::shared_ptr<primitive> prim,
                                size_t prev_idx,
                                bool connect_int_node_with_old_dep,
                                bool move_usrs_of_prev_to_node) {
-    add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
+    add_intermediate(get_or_create(std::move(prim)), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,

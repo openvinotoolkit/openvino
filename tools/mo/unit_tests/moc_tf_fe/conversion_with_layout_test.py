@@ -68,7 +68,7 @@ class TestConversionWithBatchAndLayout(unittest.TestCase):
         *[
             (
                     "model_with_convolution_dynamic_rank.pbtxt", 7, "x(n???),kernel(????)",
-                    {"x": PartialShape([7, Dimension.dynamic(), Dimension.dynamic(), Dimension.dynamic()]),
+                    {"x": PartialShape([7, Dimension.dynamic(), Dimension.dynamic(), 3]),
                      "kernel": PartialShape([2, 2, 3, 1])},
             ),
             (

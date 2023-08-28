@@ -363,13 +363,3 @@ private:
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
-
-
-// vpu repo uses CommonTestUtils::
-// so we need to add these names to CommonTestUtils namespace
-namespace CommonTestUtils {
-using ov::test::utils::fileExists;
-using ov::test::utils::removeFilesWithExt;
-using ov::test::utils::removeFile;
-using ov::test::utils::removeDir;
-} // namespace CommonTestUtils

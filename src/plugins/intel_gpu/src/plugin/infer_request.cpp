@@ -1034,7 +1034,7 @@ Blob::Ptr InferRequest::reinterpret_device_blob(Blob::Ptr data, const TensorDesc
     auto dt = DataTypeFromPrecision(new_desc.getPrecision());
     ov::PartialShape shape(new_desc.getDims());
 
-    auto l = cldnn::layout(shape, dt, format);
+    auto l = cldnn::layout(std::move(shape), dt, format);
 
     auto remote_blob = data->as<gpu::ClBlob>();
     if (!remote_blob)

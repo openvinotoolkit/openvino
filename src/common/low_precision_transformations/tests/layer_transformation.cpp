@@ -9,7 +9,7 @@
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph::pass;
+using namespace ov::pass;
 
 TestTransformationParams::TestTransformationParams(
     bool updatePrecisions,
@@ -18,7 +18,7 @@ TestTransformationParams::TestTransformationParams(
     bool supportAsymmetricQuantization,
     element::Type deqPrecision,
     bool deconvolutionSpecificChannelsRatio,
-    const std::vector<ngraph::element::Type> defaultPrecisions) :
+    const std::vector<ov::element::Type> defaultPrecisions) :
     updatePrecisions(updatePrecisions),
     precisionsOnActivations(precisionsOnActivations),
     precisionsOnWeights(precisionsOnWeights),
@@ -66,23 +66,23 @@ TestTransformationParams& TestTransformationParams::setDefaultPrecisions(const s
 }
 
 TestTransformationParams LayerTransformation::createParamsU8U8() {
-    return TestTransformationParams(true, { ngraph::element::u8 }, { ngraph::element::u8 });
+    return TestTransformationParams(true, { ov::element::u8 }, { ov::element::u8 });
 }
 
 TestTransformationParams LayerTransformation::createParamsU8I8() {
-    return TestTransformationParams(true, { ngraph::element::u8 }, { ngraph::element::i8 });
+    return TestTransformationParams(true, { ov::element::u8 }, { ov::element::i8 });
 }
 
 TestTransformationParams LayerTransformation::createParamsI8I8() {
-    return TestTransformationParams(true, { ngraph::element::i8 }, { ngraph::element::i8 });
+    return TestTransformationParams(true, { ov::element::i8 }, { ov::element::i8 });
 }
 
 TestTransformationParams LayerTransformation::createParamsU8I8AndI8() {
-    return TestTransformationParams(true, { ngraph::element::u8, ngraph::element::i8 }, { ngraph::element::i8 });
+    return TestTransformationParams(true, { ov::element::u8, ov::element::i8 }, { ov::element::i8 });
 }
 
-pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
-    return low_precision::LayerTransformation::Params(
+ngraph::pass::low_precision::LayerTransformation::Params TestTransformationParams::toParams(const TestTransformationParams& params) {
+    return ngraph::pass::low_precision::LayerTransformation::Params(
         params.updatePrecisions,
         params.deqPrecision,
         params.defaultPrecisions);
@@ -100,7 +100,7 @@ std::string LayerTransformation::toString(const TestTransformationParams& params
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(
-    const ngraph::element::Type& type,
+    const ov::element::Type& type,
     const ngraph::PartialShape& shape,
     const TestTransformationParams& params) {
     std::ostringstream result;
@@ -157,8 +157,8 @@ ngraph::builder::subgraph::DequantizationOperations LayerTransformation::toDequa
     return ngraph::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
 }
 
-bool LayerTransformation::allNamesAreUnique(const std::shared_ptr<ngraph::Function>& function) {
-    const auto& ops = function->get_ops();
+bool LayerTransformation::allNamesAreUnique(const std::shared_ptr<ov::Model>& model) {
+    const auto& ops = model->get_ops();
     std::set<std::string> opNames;
     for (const auto& op : ops) {
         auto it = opNames.find(op->get_friendly_name());
