@@ -85,7 +85,10 @@ public:
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         init_input_shapes(inputShapes);
-        auto input_params = ngraph::builder::makeDynamicParams(ov::element::f32, inputDynamicShapes);
+        ov::ParameterVector input_params;
+        for (auto&& shape : inputDynamicShapes) {
+            input_params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
         auto zero = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
         auto one = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
         auto shapeof = std::make_shared<ov::op::v3::ShapeOf>(input_params[0], ov::element::i32);
