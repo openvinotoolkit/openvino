@@ -33,9 +33,7 @@ private:
 }  // namespace ov
 
 TransformationTestsF::TransformationTestsF()
-    : model(function),
-      model_ref(function_ref),
-      comparator(FunctionsComparator::no_default()) {
+    :  comparator(FunctionsComparator::no_default()) {
     m_unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
@@ -50,36 +48,36 @@ TransformationTestsF::TransformationTestsF()
 void TransformationTestsF::SetUp() {
     manager.register_pass<ov::pass::InitUniqueNames>(m_unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(function_ref);
+    manager.register_pass<ov::pass::CopyTensorNamesToRefModel>(model_ref);
 }
 
 void TransformationTestsF::TearDown() {
-    OPENVINO_ASSERT(function != nullptr, "Test Model is not initialized.");
+    OPENVINO_ASSERT(model != nullptr, "Test Model is not initialized.");
 
     std::shared_ptr<ov::Model> cloned_function;
     auto acc_enabled = comparator.should_compare(FunctionsComparator::ACCURACY);
-    if (!function_ref) {
-        cloned_function = function->clone();
-        function_ref = cloned_function;
+    if (!model_ref) {
+        cloned_function = model->clone();
+        model_ref = cloned_function;
     } else if (acc_enabled) {
-        cloned_function = function->clone();
+        cloned_function = model->clone();
     }
     manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
-    manager.run_passes(function);
+    manager.run_passes(model);
 
     if (!m_disable_rt_info_check) {
-        ASSERT_NO_THROW(check_rt_info(function));
+        ASSERT_NO_THROW(check_rt_info(model));
     }
 
     if (acc_enabled) {
         OPENVINO_ASSERT(cloned_function != nullptr, "Accuracy cannot be checked. Cloned Model is not initialized.");
         auto acc_comparator = FunctionsComparator::no_default();
         acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-        auto res = acc_comparator.compare(function, cloned_function);
+        auto res = acc_comparator.compare(model, cloned_function);
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
-    auto res = comparator.compare(function, function_ref);
+    auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }
 

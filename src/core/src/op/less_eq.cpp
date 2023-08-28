@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/less_eq.hpp"
+#include "openvino/reference/less_eq.hpp"
 
 using namespace std;
 using namespace ngraph;
