@@ -45,7 +45,11 @@ enum InnerBodyType {
     /**
      * Inner body with nested condition case
      */
-    Type05 = 5
+    Type05 = 5,
+    /**
+     * Inner body with single constant with zero dimensions
+     */
+    Type06 = 6
 };
 
 public:
@@ -251,6 +255,22 @@ protected:
     }
 };
 
+class InnerBodyType06 : public InnerBodyGenerator {
+protected:
+    std::shared_ptr<ngraph::Function> generate(ov::PartialShape& input_shape, ngraph::element::Type prc) override {
+        auto constant   = ngraph::opset9::Constant::create(prc, ov::Shape(input_shape.rank().get_length(), 0), {2.0f});
+        constant->set_friendly_name("body1_constant");
+        auto result     = std::make_shared<ngraph::opset1::Result>(constant);
+        auto o_layout = result->get_layout();
+        result->set_friendly_name("body1_result");
+        auto body       = std::make_shared<ngraph::Function>(
+            ngraph::OutputVector {result},
+            ngraph::ParameterVector{},
+            "constant_only");
+        return body;
+    }
+};
+
 static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGenerator::InnerBodyType type) {
     std::shared_ptr<InnerBodyGenerator> generator_ptr;
     switch (type) {
@@ -273,6 +293,10 @@ static std::shared_ptr<InnerBodyGenerator> get_inner_body_generator(InnerBodyGen
         case InnerBodyGenerator::InnerBodyType::Type05:
         {
             return std::make_shared<InnerBodyType05>();
+        }
+        case InnerBodyGenerator::InnerBodyType::Type06:
+        {
+            return std::make_shared<InnerBodyType06>();
         }
         default:
         {
@@ -392,6 +416,11 @@ static std::ostream& operator<<(std::ostream& os, const InnerBodyGenerator::Inne
         case InnerBodyGenerator::InnerBodyType::Type05:
         {
             os << "Type05";
+            break;
+        }
+        case InnerBodyGenerator::InnerBodyType::Type06:
+        {
+            os << "Type06";
             break;
         }
         default:
@@ -656,6 +685,10 @@ const std::vector<InnerBodyTypeParams> innerBodyTypes_f32 = {
     {
         InnerBodyGenerator::InnerBodyType::Type02,
         InnerBodyGenerator::InnerBodyType::Type03
+    },
+    {
+        InnerBodyGenerator::InnerBodyType::Type02,
+        InnerBodyGenerator::InnerBodyType::Type06
     }
 };
 
@@ -667,6 +700,10 @@ const std::vector<InnerBodyTypeParams> innerBodyTypes_f16 = {
     {
         InnerBodyGenerator::InnerBodyType::Type02,
         InnerBodyGenerator::InnerBodyType::Type05
+    },
+    {
+        InnerBodyGenerator::InnerBodyType::Type02,
+        InnerBodyGenerator::InnerBodyType::Type06
     }
 };
 
