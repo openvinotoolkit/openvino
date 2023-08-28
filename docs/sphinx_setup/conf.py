@@ -20,6 +20,7 @@ from sphinx.ext.autodoc import ClassDocumenter
 
 
 sys.path.insert(0, os.path.abspath('doxyrest-sphinx'))
+sys.path.insert(0, os.path.dirname(__file__))
 
 # -- Project information -----------------------------------------------------
 
@@ -193,7 +194,7 @@ def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
 
 def replace_design_tabs_script(app, exception):
-    shutil.copy("../../../docs/_static/design-tabs.js","../_build/_static/design-tabs.js")
+    shutil.copy("../../../docs/sphinx_setup/_static/design-tabs.js","../_build/_static/design-tabs.js")
 
 
 def setup(app):
