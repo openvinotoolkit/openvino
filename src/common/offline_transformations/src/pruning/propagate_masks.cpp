@@ -94,7 +94,7 @@ public:
                 return false;
             }
 
-            Mask* a_mask_row = nullptr;
+            ov::Mask* a_mask_row = nullptr;
             if (a_mask)
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
@@ -111,7 +111,7 @@ public:
             const auto b_inner_dim = (transpose_b) ? shape_b.size() - 1 : shape_b.size() - 2;
             const auto b_outer_dim = (transpose_b) ? shape_b.size() - 2 : shape_b.size() - 1;
 
-            auto matmul_mask = std::make_shared<Mask>(matmul_range);
+            auto matmul_mask = std::make_shared<ov::Mask>(matmul_range);
             auto matmul_mask_row = matmul_mask.get();
             const auto matmul_cols_dim = matmul_range - 1;
             const auto matmul_rows_dim = matmul_range - 2;
@@ -120,8 +120,8 @@ public:
             if (a_mask) {
                 bool init = true;
                 a_mask->add_callback(
-                    [=](Mask::Ptr cur_mask) -> bool {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                    [=](ov::Mask::Ptr cur_mask) -> bool {
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask_reversed(matmul_mask_row);
                         result_mask->at(a_inner_dim) = b_mask_row->at(b_inner_dim);
                         result_mask->at(a_outer_dim) = matmul_mask_row->at(matmul_rows_dim);
@@ -130,8 +130,8 @@ public:
                     },
                     matmul_mask);
                 matmul_mask->add_callback(
-                    [=](Mask::Ptr cur_mask) mutable -> bool {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                    [=](ov::Mask::Ptr cur_mask) mutable -> bool {
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask(cur_mask.get());
                         result_mask->copy_value_from_mask_reversed(a_mask_row);
                         if (init) {
@@ -150,8 +150,8 @@ public:
             }
             // connect b with matmul mask
             b_mask->add_callback(
-                [=](Mask::Ptr cur_mask) -> bool {
-                    auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                [=](ov::Mask::Ptr cur_mask) -> bool {
+                    auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                     result_mask->copy_value_from_mask_reversed(matmul_mask_row);
                     if (a_mask_row)
                         result_mask->at(b_inner_dim) = a_mask_row->at(a_inner_dim);
@@ -163,9 +163,9 @@ public:
                 },
                 matmul_mask);
             matmul_mask->add_callback(
-                [=](Mask::Ptr cur_mask) -> bool {
+                [=](ov::Mask::Ptr cur_mask) -> bool {
                     if (a_mask_row) {
-                        auto result_mask = std::make_shared<Mask>(cur_mask->size());
+                        auto result_mask = std::make_shared<ov::Mask>(cur_mask->size());
                         result_mask->copy_value_from_mask(cur_mask.get());
                         result_mask->copy_value_from_mask_reversed(b_mask_row);
                         result_mask->at(matmul_rows_dim) = cur_mask->at(matmul_rows_dim);
@@ -224,14 +224,14 @@ public:
             auto weights_mask_row = weights_mask.get();
 
             // Create output mask that describes which channel dimensions will be removed
-            auto conv_mask = std::make_shared<Mask>(m_weights.get_shape().size());
+            auto conv_mask = std::make_shared<ov::Mask>(m_weights.get_shape().size());
             auto conv_mask_row = conv_mask.get();
             auto input_mask = getMask(m_input);
-            Mask* input_mask_row = nullptr;
+            ov::Mask* input_mask_row = nullptr;
             if (input_mask)
                 input_mask_row = input_mask.get();
 
-            const auto conv_mask_callback = [input_mask_row, weights_mask_row](Mask::Ptr cur_mask) -> bool {
+            const auto conv_mask_callback = [input_mask_row, weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(1 /*input data channel*/) = weights_mask_row->at(0 /* weights output channel dim*/);
                 if (input_mask_row && input_mask_row->at(1) != weights_mask_row->at(1))
                     cur_mask->initialize_dependencies();
@@ -243,7 +243,7 @@ public:
                 // so we update weights mask to be aligned with input shape.
                 conv_mask->add_callback(conv_mask_callback, input_mask);
                 input_mask->add_callback(
-                    [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                    [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                         cur_mask->at(1) = weights_mask_row->at(1);
                         return true;
                     },
@@ -252,7 +252,7 @@ public:
 
             conv_mask->add_callback(conv_mask_callback, weights_mask);
             weights_mask->add_callback(
-                [input_mask_row, conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = conv_mask_row->at(1);
                     if (input_mask_row)
                         cur_mask->at(1) = input_mask_row->at(1);
@@ -308,7 +308,7 @@ public:
             if (!weights_mask) {
                 // Setting mask only if weights are constant
                 if (ngraph::is_type<opset10::Constant>(m_output.get_node_shared_ptr())) {
-                    weights_mask = std::make_shared<Mask>(weights_shape.size());
+                    weights_mask = std::make_shared<ov::Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
                     OPENVINO_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
@@ -318,32 +318,32 @@ public:
             }
             auto weights_mask_row = weights_mask.get();
 
-            auto conv_mask = std::make_shared<Mask>(input_shape.rank().get_length());
+            auto conv_mask = std::make_shared<ov::Mask>(input_shape.rank().get_length());
             auto conv_mask_row = conv_mask.get();
 
             conv_mask->add_callback(
-                [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*input data channel*/) = input_mask_row->at(1 /*output data channel*/);
                     return true;
                 },
                 input_mask);
 
             input_mask->add_callback(
-                [conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*output data channel*/) = conv_mask_row->at(1 /*input data channel*/);
                     return true;
                 },
                 conv_mask);
 
             conv_mask->add_callback(
-                [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(1 /*input data channel*/) = weights_mask_row->at(0 /*weights output channel dim*/);
                     return true;
                 },
                 weights_mask);
 
             weights_mask->add_callback(
-                [conv_mask_row](Mask::Ptr cur_mask) -> bool {
+                [conv_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0 /*weights output channel dim*/) = conv_mask_row->at(1 /*output data channel*/);
                     return true;
                 },
@@ -407,20 +407,20 @@ public:
                 return false;
             }
             auto input_mask_row = input_mask.get();
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
 
             auto output_mask_row = output_mask.get();
 
             // Depthwise Convolution pruned only by input channels (== groups) ->
             // Propagating mask from Group (0) dim in Reshape input to Group (0) dim in Reshape output and back
             input_mask->add_callback(
-                [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = output_mask_row->at(0);
                     return true;
                 },
                 output_mask);
             output_mask->add_callback(
-                [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->at(0) = input_mask_row->at(0);
                     return true;
                 },
@@ -574,18 +574,18 @@ public:
                     OPENVINO_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                     return false;
                 }
-                weights_mask = std::make_shared<Mask>(m_weights.get_partial_shape().rank().get_length());
+                weights_mask = std::make_shared<ov::Mask>(m_weights.get_partial_shape().rank().get_length());
                 setMask(m_weights, weights_mask);
             }
 
             auto input_mask_row = input_mask.get();
             auto weights_mask_row = weights_mask.get();
             // Merging masks from two inputs
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [=](Mask::Ptr cur_mask) -> bool {
-                Mask::Ptr result_mask;
+            auto out_mask_callback = [=](ov::Mask::Ptr cur_mask) -> bool {
+                ov::Mask::Ptr result_mask;
                 if (union_eltwise_type) {
                     result_mask = input_mask_row->union_masks_reversed(weights_mask_row);
                 } else {
@@ -598,19 +598,19 @@ public:
             output_mask->add_callback(out_mask_callback, input_mask);
 
             input_mask->add_callback(
-                [weights_mask_row, input_shape_mask](Mask::Ptr cur_mask) -> bool {
+                [weights_mask_row, input_shape_mask](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed_masked(weights_mask_row, input_shape_mask);
                     return true;
                 },
                 weights_mask);
             input_mask->add_callback(
-                [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed(output_mask_row);
                     return true;
                 },
                 output_mask);
             weights_mask->add_callback(
-                [input_mask_row, weights_shape_mask](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, weights_shape_mask](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->copy_value_from_mask_reversed_masked(input_mask_row, weights_shape_mask);
                     for (const auto dim : weights_shape_mask)
                         cur_mask->at(dim).clear();
@@ -673,16 +673,16 @@ public:
             auto input_mask_row = input_mask.get();
 
             // Propagate input mask to output mask and in the opposite direction
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
             // Output mask is equal to input mask
-            auto output_mask_callback = [input_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto output_mask_callback = [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask(input_mask_row);
                 return true;
             };
 
-            auto input_mask_callback = [output_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto input_mask_callback = [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->copy_value_from_mask(output_mask_row);
                 return true;
             };
@@ -729,17 +729,17 @@ public:
                 }
             }
 
-            auto fq_params_mask_callback = [input_mask_row](Mask::Ptr cur_mask) -> bool {
+            auto fq_params_mask_callback = [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                 cur_mask->at(1 /* fq params have same shapes as input */) =
                     input_mask_row->at(1 /* channel dim in data */);
                 return true;
             };
 
             for (const auto& fq_param : fq_params_nodes) {
-                auto mask = std::make_shared<Mask>(fq_param->get_shape().size());
+                auto mask = std::make_shared<ov::Mask>(fq_param->get_shape().size());
                 mask->add_callback(fq_params_mask_callback, input_mask);
                 input_mask->add_callback(
-                    [mask](Mask::Ptr cur_mask) -> bool {
+                    [mask](ov::Mask::Ptr cur_mask) -> bool {
                         return true;
                     },
                     mask);
@@ -770,12 +770,12 @@ public:
             auto axis = concat_ptr->get_concatenation_axis();
 
             auto inputs = concat_ptr->inputs();
-            std::map<int64_t, Mask::Ptr> input_masks;
-            std::map<int64_t, Mask*> input_masks_row;
+            std::map<int64_t, ov::Mask::Ptr> input_masks;
+            std::map<int64_t, ov::Mask*> input_masks_row;
             std::vector<int64_t> input_sizes;
 
             size_t first_input_idx = 0;
-            Mask::Ptr first_input_mask;
+            ov::Mask::Ptr first_input_mask;
             bool first_initialized = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 auto input = inputs[i];
@@ -797,10 +797,10 @@ public:
                 return false;
             }
 
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
 
-            auto out_mask_callback = [input_masks_row, input_sizes, axis](Mask::Ptr cur_mask) -> bool {
+            auto out_mask_callback = [input_masks_row, input_sizes, axis](ov::Mask::Ptr cur_mask) -> bool {
                 int64_t cur_size = 0;
                 cur_mask->at(axis).clear();
 
@@ -816,7 +816,8 @@ public:
             };
 
             auto create_input_mask_callback_for_idx = [output_mask_row, input_sizes, axis](size_t input_idx) {
-                auto input_mask_callback = [output_mask_row, input_sizes, axis, input_idx](Mask::Ptr cur_mask) -> bool {
+                auto input_mask_callback =
+                    [output_mask_row, input_sizes, axis, input_idx](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clean_dim_values();
                     uint64_t min_val = 0;
                     for (size_t i = 0; i < input_idx; i++) {
@@ -839,7 +840,7 @@ public:
                     auto input_mask = input_masks.at(i);
                     input_mask->add_callback(create_input_mask_callback_for_idx(i), first_input_mask);
                     first_input_mask->add_callback(
-                        [](Mask::Ptr cur_mask) -> bool {
+                        [](ov::Mask::Ptr cur_mask) -> bool {
                             return true;
                         },
                         input_mask);
@@ -914,7 +915,7 @@ public:
 
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
-                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+                auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
                 const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
                 OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
@@ -922,13 +923,13 @@ public:
                 auto input_mask_row = input_mask.get();
                 auto output_mask_row = output_mask.get();
                 input_mask->add_callback(
-                    [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                    [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                         cur_mask->copy_value_from_mask(output_mask_row);
                         return true;
                     },
                     output_mask);
                 output_mask->add_callback(
-                    [input_mask_row, reduce_dims](Mask::Ptr cur_mask) -> bool {
+                    [input_mask_row, reduce_dims](ov::Mask::Ptr cur_mask) -> bool {
                         // Propagate masks through dimension only if this dimension isn't reduced
                         for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                             if (std::find(reduce_dims.begin(), reduce_dims.end(), dim) == reduce_dims.end())
@@ -1150,8 +1151,8 @@ public:
             // Check reshape operation reshape only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 enum ReshapeType { default_, extend, shrink } configuration(ReshapeType::default_);
-                auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
-                auto weights_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length(), true);
+                auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
+                auto weights_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
                 const auto input_shape = m_input.get_shape();
                 const auto output_shape = m_output.get_node()->output(0).get_shape();
@@ -1190,7 +1191,7 @@ public:
                     // from 0 to k dimensions.
                     // Example: [a, b, c, 3, 2] -> [a, b, c, 2, 3]
                     input_mask->add_callback(
-                        [weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
@@ -1200,7 +1201,7 @@ public:
                         },
                         weights_mask);
                     weights_mask->add_callback(
-                        [input_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [input_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             // Propagate masks down through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), input_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
@@ -1212,7 +1213,7 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t dim = 0; dim < cur_mask->size(); ++dim)
                                 if (dim < not_reshaped_dims)
                                     cur_mask->at(dim) = weights_mask_row->at(dim);
@@ -1223,7 +1224,7 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [output_mask_row, not_reshaped_dims](Mask::Ptr cur_mask) -> bool {
+                        [output_mask_row, not_reshaped_dims](ov::Mask::Ptr cur_mask) -> bool {
                             // Propagate masks up through dimension only if this dimension isn't reshaped
                             for (size_t dim = 0; dim < std::min(cur_mask->size(), output_mask_row->size()); ++dim)
                                 if (dim < not_reshaped_dims)
@@ -1243,7 +1244,7 @@ public:
                     const auto dims_attrs = collect_dims_attrs(dims_map, output_shape);
                     const auto dims_shape = map_reshaped_shapes(output_shape, dims_map);
                     input_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 cur_mask->at(in_dim).clear();
                                 for (const auto out_dim : dims_map[in_dim]) {
@@ -1262,7 +1263,7 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t in_dim = 0; in_dim < dims_map.size(); ++in_dim) {
                                 const auto map = map_channels(input_mask_row->at(in_dim),
                                                               dims_map[in_dim],
@@ -1278,14 +1279,14 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(weights_mask_row);
                             return true;
                         },
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(output_mask_row);
                             return true;
                         },
@@ -1300,7 +1301,7 @@ public:
                     const auto dims_attrs = collect_dims_attrs(dims_map, input_shape);
                     const auto dims_shape = map_reshaped_shapes(input_shape, dims_map);
                     input_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(weights_mask_row->at(out_dim),
                                                               dims_map[out_dim],
@@ -1316,7 +1317,7 @@ public:
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 cur_mask->at(out_dim).clear();
                                 for (const auto in_dim : dims_map[out_dim]) {
@@ -1335,14 +1336,14 @@ public:
                         input_mask);
 
                     output_mask->add_callback(
-                        [weights_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [weights_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(weights_mask_row);
                             return true;
                         },
                         weights_mask);
 
                     weights_mask->add_callback(
-                        [=](Mask::Ptr cur_mask) -> bool {
+                        [=](ov::Mask::Ptr cur_mask) -> bool {
                             for (size_t out_dim = 0; out_dim < dims_map.size(); ++out_dim) {
                                 const auto map = map_channels(output_mask_row->at(out_dim),
                                                               dims_map[out_dim],
@@ -1410,12 +1411,12 @@ public:
                 // Dim should be valid because of transpose operation input_order input restrictions
                 backward_order.push_back(dim);
             }
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             const auto input_mask_row = input_mask.get();
             const auto output_mask_row = output_mask.get();
 
             output_mask->add_callback(
-                [input_mask_row, forward_order](Mask::Ptr cur_mask) -> bool {
+                [input_mask_row, forward_order](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
                     for (const auto dim : forward_order)
                         cur_mask->push_back(input_mask_row->at(dim));
@@ -1423,7 +1424,7 @@ public:
                 },
                 input_mask);
             input_mask->add_callback(
-                [output_mask_row, backward_order](Mask::Ptr cur_mask) -> bool {
+                [output_mask_row, backward_order](ov::Mask::Ptr cur_mask) -> bool {
                     cur_mask->clear();
                     for (const auto dim : backward_order)
                         cur_mask->push_back(output_mask_row->at(dim));
@@ -1442,21 +1443,21 @@ public:
     }
 };
 
-static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr input_mask,
-                                                          const int64_t axis,
-                                                          const uint64_t split_start,
-                                                          const uint64_t split_end) {
-    auto output_mask = std::make_shared<ngraph::Mask>();
+static ov::Mask::Ptr create_connect_split_output_mask(ov::Mask::Ptr input_mask,
+                                                      const int64_t axis,
+                                                      const uint64_t split_start,
+                                                      const uint64_t split_end) {
+    auto output_mask = std::make_shared<ov::Mask>();
     auto input_mask_raw = input_mask.get();
     output_mask->add_callback(
-        [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+        [input_mask_raw, axis, split_start, split_end](ov::Mask::Ptr cur_mask) -> bool {
             cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
             return true;
         },
         input_mask);
     auto output_mask_raw = output_mask.get();
     input_mask->add_callback(
-        [output_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+        [output_mask_raw, axis, split_start, split_end](ov::Mask::Ptr cur_mask) -> bool {
             auto& dim_mask = cur_mask->at(axis);
             auto it = dim_mask.lower_bound(split_start);
             while (it != dim_mask.end() && *it < split_end) {
@@ -1491,7 +1492,7 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
             const auto& input = pattern_map.at(input_pattern);
-            const auto input_mask = ngraph::getMask(input);
+            const auto input_mask = ov::getMask(input);
             auto split = pattern_map.at(split_pattern).get_node();
             auto split_lengths_const =
                 as_type<ngraph::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
@@ -1529,11 +1530,11 @@ public:
 
             uint64_t split_start = 0;
             uint64_t split_end = 0;
-            std::vector<ngraph::Mask::Ptr> output_masks;
+            std::vector<ov::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 split_end += split_lengths[i];
                 output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
-                ngraph::setMask(split->output(i), output_masks[i]);
+                ov::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
             }
             for (const auto& output_mask : output_masks) {
@@ -1557,7 +1558,7 @@ public:
             const auto& pattern_map = m.get_pattern_value_map();
             auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
             const auto& input = pattern_map.at(input_pattern);
-            const auto input_mask = ngraph::getMask(input);
+            const auto input_mask = ov::getMask(input);
 
             if (!axis_node)
                 return false;
@@ -1579,10 +1580,10 @@ public:
             uint64_t split_start = 0;
             auto split_step = split_dim / num_splits;
             uint64_t split_end = split_step;
-            std::vector<ngraph::Mask::Ptr> output_masks;
+            std::vector<ov::Mask::Ptr> output_masks;
             for (size_t i = 0; i < split->get_output_size(); i++) {
                 output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
-                ngraph::setMask(split->output(i), output_masks[i]);
+                ov::setMask(split->output(i), output_masks[i]);
                 split_start = split_end;
                 split_end += split_step;
             }
@@ -1606,14 +1607,14 @@ public:
             const auto& m_output = pattern_map.at(any_node);
             const auto& node = m.get_match_root();
 
-            auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
+            auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
             auto output_mask_row = output_mask.get();
             bool any_input_with_masks = false;
             for (const auto& input : node->input_values()) {
                 if (auto input_mask = getMask(input)) {
                     auto input_mask_row = input_mask.get();
                     input_mask->add_callback(
-                        [output_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [output_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->clean_dim_values();
                             if (!output_mask_row->all_dims_are_empty())
                                 cur_mask->initialize_dependencies();
@@ -1621,7 +1622,7 @@ public:
                         },
                         output_mask);
                     output_mask->add_callback(
-                        [input_mask_row](Mask::Ptr cur_mask) -> bool {
+                        [input_mask_row](ov::Mask::Ptr cur_mask) -> bool {
                             cur_mask->copy_value_from_mask(input_mask_row);
                             return true;
                         },
