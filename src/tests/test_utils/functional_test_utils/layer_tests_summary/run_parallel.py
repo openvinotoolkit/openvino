@@ -410,7 +410,7 @@ class TestParallelRunner:
                 test_pattern = f'"{test_pattern}":'
 
             if test_time == -1:
-                tasks_crashed.append({test_time, test_pattern})
+                tasks_crashed.append((test_time, test_pattern))
             else:
                 while len(tasks_not_full) > 0:
                     t_time, t_pattern = tasks_not_full[0]
