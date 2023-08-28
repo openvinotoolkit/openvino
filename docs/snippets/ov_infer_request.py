@@ -1,12 +1,14 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from utils import get_model
+
 #! [import]
-import openvino.runtime as ov
+import openvino as ov
 #! [import]
 
 core = ov.Core()
-model = core.read_model("model.xml")
+model = get_model()
 compiled_model = core.compile_model(model, "AUTO")
 
 #! [create_infer_request]
@@ -30,10 +32,12 @@ infer_request.wait_for(10)
 #! [wait_for]
 
 #! [set_callback]
-def callback(request, userdata):
+def callback(request, _):
     request.start_async()
 
-infer_request.set_callback(callback)
+callbacks_info = {}
+callbacks_info["finished"] = 0
+infer_request.set_callback(callback, callbacks_info)
 #! [set_callback]
 
 #! [cancel]
@@ -47,16 +51,16 @@ output_tensor = infer_request.get_output_tensor()
 
 #! [get_set_index_tensor]
 input_tensor = infer_request.get_input_tensor(0)
-output_tensor = infer_request.get_output_tensor(1)
+output_tensor = infer_request.get_output_tensor(0)
 #! [get_set_index_tensor]
 
 #! [get_set_name_tensor]
-input_tensor = infer_request.get_tensor("input_name")
-output_tensor = infer_request.get_tensor("output_name")
+input_tensor = infer_request.get_tensor("data")
+output_tensor = infer_request.get_tensor("res")
 #! [get_set_name_tensor]
 
 #! [get_set_tensor]
-tensor1 = infer_request.get_tensor("tensor_name1")
+tensor1 = infer_request.get_tensor("res")
 tensor2 = ov.Tensor()
 infer_request.set_tensor("tensor_name2", tensor2)
 #! [get_set_tensor]
