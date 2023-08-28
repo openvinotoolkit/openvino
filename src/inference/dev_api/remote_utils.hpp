@@ -20,7 +20,7 @@ class INFERENCE_ENGINE_API_CLASS(TensorHolder) {
 public:
     TensorHolder(ov::SoPtr<ov::ITensor> tensor) : _tensor(tensor) {}
 
-    ov::SoPtr<ov::ITensor> get_tensor() const {
+    const ov::SoPtr<ov::ITensor>& get_tensor() const {
         return _tensor;
     }
 
