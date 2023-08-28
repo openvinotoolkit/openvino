@@ -114,7 +114,7 @@ protected:
         uni_vmovdqu(b, a);                   // b = a
         uni_vmovdqu(c, a);                   // c = a
         uni_vpand(b, b, mantissa_mask);      // b = a & 00000000011111111111111111111111
-        uni_vpcmpeqd(b, b, zero);            // if (a == 0) b = 1 else b = 0
+        uni_vpcmpeqd(b, b, zero);            // if (b == 0) b = 1 else b = 0
         uni_vpand(c, c, exponent_mask);      // c = a & 01111111100000000000000000000000
         uni_vpcmpeqd(c, c, zero);            // if (c == 0) c = 1 else c = 0
         uni_vtestps(b, c);                   // if ((!b & c) == 0) CF = 1 else CF = 0
