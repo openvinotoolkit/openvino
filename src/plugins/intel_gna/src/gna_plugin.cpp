@@ -545,7 +545,7 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
         outputs_.at(portName).set_precision(numBytesPerElem);
         outputs_.at(portName).scale_factor =
             quantized != nullptr ? quantized->_dst_quant.GetScale() : kScaleFactorDefault;
-        outputs_.at(portName).num_elements = numElem;
+        //outputs_.at(portName).num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
         gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, &outputs_.at(portName).ptrs.front(), outputPtr);
@@ -560,7 +560,7 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
     if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
         initOutput(irLayerAvatar->dnnComponent.orientation_out,
                    irLayerAvatar->dnnComponent.num_bytes_per_output,
-                   irLayerAvatar->dnnComponent.num_rows_out * irLayerAvatar->dnnComponent.num_columns_out,
+                   irLayerAvatar->dnnComponent.num_rows_out,
                    &irLayerAvatar->dnnComponent.ptr_outputs);
         return true;
     }
