@@ -160,7 +160,7 @@ class TestComplexParams(CommonMOConvertTest):
         self._test(temp_dir, test_params, ref_params)
 
     @staticmethod
-    def create_onnx_model_with_coma_in_names(temp_dir):
+    def create_onnx_model_with_comma_in_names(temp_dir):
         import onnx
         from onnx import helper
         from onnx import TensorProto
@@ -200,7 +200,7 @@ class TestComplexParams(CommonMOConvertTest):
         return model_path
 
     @staticmethod
-    def create_ref_graph_with_coma_in_names():
+    def create_ref_graph_with_comma_in_names():
         from openvino.runtime.opset12 import relu, concat
         from openvino.runtime.op import Parameter
         import openvino as ov
@@ -258,10 +258,10 @@ class TestComplexParams(CommonMOConvertTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_ovc_convert_model_with_coma_in_names(self, ie_device, precision, ir_version,
+    def test_ovc_convert_model_with_comma_in_names(self, ie_device, precision, ir_version,
                                                   temp_dir, use_new_frontend, use_old_api):
-        onnx_net_path = self.create_onnx_model_with_coma_in_names(temp_dir)
-        ref_model = self.create_ref_graph_with_coma_in_names()
+        onnx_net_path = self.create_onnx_model_with_comma_in_names(temp_dir)
+        ref_model = self.create_ref_graph_with_comma_in_names()
         test_params = {'input_model': onnx_net_path, 'output': 'relu_1,relu_2'}
 
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
