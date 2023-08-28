@@ -29,7 +29,7 @@ void apply_dims_from_sizes(const util::FFTBase* op,
         const bool propagate_labels = !labels.empty();
         size_t num_of_axes = axes.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
-            if (!((*output_bounds)[i] == minus_one_bound)) {
+            if ((*output_bounds)[i] != minus_one_bound) {
                 output_shape[(axes)[i]] = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
                 if (propagate_labels) {
                     DimensionTracker::set_label(output_shape[(axes)[i]], labels[i]);
@@ -54,7 +54,7 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     if (const auto output_dim_vals = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
         size_t num_of_axes = axes.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
-            if (!((*output_dim_vals)[i] == dim::inf_bound)) {
+            if ((*output_dim_vals)[i] != dim::inf_bound) {
                 output_shape[(axes)[i]] = DimType((*output_dim_vals)[i]);
             }
         }
