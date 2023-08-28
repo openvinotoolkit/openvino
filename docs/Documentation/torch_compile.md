@@ -49,6 +49,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
          :width: 992px
          :height: 720px
          :scale: 70%
+         :align: center
 
    .. tab-item:: openvino_ts
       :sync: backend-openvino-ts
@@ -66,6 +67,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
          :width: 1088px
          :height: 720px
          :scale: 60%
+         :align: center
 
 
 Environment Variables
