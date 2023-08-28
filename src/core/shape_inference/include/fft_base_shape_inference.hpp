@@ -75,8 +75,7 @@ std::vector<TRShape> shape_infer(const util::FFTBase* op,
 
     util::fft_common_validation::shape_validation(op,
                                                   input_shapes,
-                                                  *axes,
-                                                  static_cast<bool>(axes),
+                                                  axes,
                                                   util::fft_common_validation::FFTKind::ComplexInput);
 
     output_shape = input_shape;
