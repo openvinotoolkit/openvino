@@ -16,23 +16,16 @@ describe('InferRequest', () => {
 
   const inferRequest = compiledModel.createInferRequest();
 
-  const tensorData = Float32Array.from({ length: 3072 }, () => Math.random());
-  const tensorData2 = Float32Array.from({ length: 3072 }, () => Math.random());
-  assert.notDeepStrictEqual(tensorData, tensorData2);
+  const tensorData = Float32Array.from({ length: 3072 }, () => Math.floor(Math.random() * 3072));
   const tensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 3, 32, 32]),
     tensorData,
   );
-  const tensor2 = new ov.Tensor(
-    ov.element.f32,
-    Int32Array.from([1, 3, 32, 32]),
-    tensorData2,
-  );
   const res_tensor = new ov.Tensor(
     ov.element.f32,
     Int32Array.from([1, 10]),
-    Float32Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+    tensorData.slice(-10),
   );
 
   const tensorLike = [[tensor],
@@ -84,36 +77,27 @@ describe('InferRequest', () => {
 
   it('Test setTensor(string, tensor)', () => {
     inferRequest.setTensor('fc_out', res_tensor);
-    const t1 = inferRequest.getTensor('fc_out');
-    assert.deepStrictEqual(res_tensor.data[0], t1.data[0]);
+    const res2 = inferRequest.getTensor('fc_out');
+    assert.deepStrictEqual(res_tensor.data[0], res2.data[0]);
   });
 
-  it('Test getInputTensor(idx)', () => {
-    inferRequest.setInputTensor(tensor2);
-    const t2 = inferRequest.getInputTensor(0);
-    assert(Math.abs(tensor2.data[0] - t2.data[0]) < 0.0001);
-  });
-
-  it('Test getTensor(string)', () => {
-    inferRequest.setInputTensor(tensor);
-    const t1 = inferRequest.getTensor('data');
-    assert.deepStrictEqual(tensor.data[0], t1.data[0]);
-  });
-
-  it('Test getTensor(Output)', () => {
-    inferRequest.setInputTensor(tensor2);
-    const input = inferRequest.getCompiledModel().input();
-    const t2 = inferRequest.getTensor(input);
-    assert(Math.abs(tensor2.data[0] - t2.data[0]) < 0.0001);
-  });
-
-  it('Test getOutputTensor(idx?)', () => {
+  it('Test of getters', () => {
     const ir = compiledModel.createInferRequest();
-    ir.setInputTensor(tensor2);
+    ir.setInputTensor(tensor);
+
+    const t1 = ir.getInputTensor(0);
+    const t2 = ir.getTensor('data');
+    const input = ir.getCompiledModel().input();
+    const t3 = ir.getTensor(input);
+
+    assert.deepStrictEqual(tensor.data[0], t1.data[0]);
+    assert.deepStrictEqual(tensor.data[0], t2.data[0]);
+    assert.deepStrictEqual(tensor.data[0], t3.data[0]);
+
     ir.infer();
     const res1 = ir.getOutputTensor();
     const res2 = ir.getOutputTensor(0);
-    assert(Math.abs(res2.data[0] - res1.data[0]) < 0.0001);
+    assert.deepStrictEqual(res1.data[0], res2.data[0]);
   });
 
   it('Test getCompiledModel()', () => {
