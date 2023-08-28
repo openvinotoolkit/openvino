@@ -495,7 +495,8 @@ void collect_legacy_tensor_names(const std::shared_ptr<ov::Model>& model, std::v
         for (const auto& out : op->outputs()) {
             if (ov::as_type_ptr<opset8::Result>(op)) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(out.get_node_shared_ptr()->get_input_tensor(0));
+                auto tensor_name =
+                    ov::descriptor::get_ov_tensor_legacy_name(out.get_node_shared_ptr()->get_input_tensor(0));
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 if (!tensor_name.empty())
                     holder.emplace_back(tensor_name);
