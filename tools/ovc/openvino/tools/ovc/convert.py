@@ -71,7 +71,7 @@ def convert_model(
             One or more comma-separated model outputs to be preserved in the converted model. Other outputs are removed.
             If `output` parameter is not specified then all outputs from the original model are preserved.
             Do not add :0 to the names for TensorFlow. The order of outputs in the converted model is the same as
-            the order of specified names. Example: output="out_1", or output=["out_1", "out_2"]).
+            the order of specified names. Example: output="out_1", or output=["out_1", "out_2"].
             For PaddlePaddle model represented as a Python object, you can specify outputs as a PaddlePaddle Python
             objects or a list of such objects.
         :param example_input:
