@@ -12,7 +12,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
+using namespace ov;
 using namespace testing;
 
 namespace {
@@ -55,32 +55,32 @@ std::shared_ptr<ov::Model> create_v1_model(const ov::op::PadMode pad_mode, const
 
 TEST_F(TransformationTestsF, ConvertPad12ToPad1) {
     manager.register_pass<ov::pass::ConvertPad12ToPad1>();
-    function = create_v12_model(ov::op::PadMode::CONSTANT);
-    function_ref = create_v1_model(ov::op::PadMode::CONSTANT, 0);
+    model = create_v12_model(ov::op::PadMode::CONSTANT);
+    model_ref = create_v1_model(ov::op::PadMode::CONSTANT, 0);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertPad12ToPad1_explicit_pad_value) {
     manager.register_pass<ov::pass::ConvertPad12ToPad1>();
-    function = create_v12_model(ov::op::PadMode::CONSTANT, 5);
-    function_ref = create_v1_model(ov::op::PadMode::CONSTANT, 5);
+    model = create_v12_model(ov::op::PadMode::CONSTANT, 5);
+    model_ref = create_v1_model(ov::op::PadMode::CONSTANT, 5);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertPad12ToPad1_symmetric) {
     manager.register_pass<ov::pass::ConvertPad12ToPad1>();
-    function = create_v12_model(ov::op::PadMode::SYMMETRIC);
-    function_ref = create_v1_model(ov::op::PadMode::SYMMETRIC, 0);
+    model = create_v12_model(ov::op::PadMode::SYMMETRIC);
+    model_ref = create_v1_model(ov::op::PadMode::SYMMETRIC, 0);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertPad12ToPad1_symmetric_explicit_pad_value) {
     manager.register_pass<ov::pass::ConvertPad12ToPad1>();
-    function = create_v12_model(ov::op::PadMode::SYMMETRIC, 5);
-    function_ref = create_v1_model(ov::op::PadMode::SYMMETRIC, 5);
+    model = create_v12_model(ov::op::PadMode::SYMMETRIC, 5);
+    model_ref = create_v1_model(ov::op::PadMode::SYMMETRIC, 5);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

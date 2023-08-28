@@ -16,8 +16,8 @@
 
 namespace {
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 typedef std::tuple<bool,    // isConvert
                    bool,    // isSubtract

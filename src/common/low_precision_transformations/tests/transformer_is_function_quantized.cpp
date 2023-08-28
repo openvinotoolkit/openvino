@@ -20,15 +20,15 @@
 #include "simple_low_precision_transformer.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace ngraph::pass;
+using namespace ov;
+using namespace ov::pass;
 
 namespace {
 
 class TestValues {
 public:
-    builder::subgraph::FakeQuantizeOnData fqOnData;
-    builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ngraph:: builder::subgraph::FakeQuantizeOnData fqOnData;
+    ngraph:: builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const TestValues& testValue) {
