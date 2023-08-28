@@ -7,6 +7,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -19,13 +20,15 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     subgraph::EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
+    bool enforceSnippets;
+    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = obj.param;
 
     std::ostringstream result;
     result << subgraph::EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<subgraph::EltwiseTestParams>(
                                                               basicParamsSet, 0));
     result << CPUTestsBase::getTestCaseName(cpuParams);
     result << CpuTestWithFusing::getTestCaseName(fusingParams);
+        result << "_enforceSnippets=" << enforceSnippets;
 
     return result.str();
 }
@@ -78,7 +81,8 @@ void EltwiseLayerCPUTest::SetUp() {
     subgraph::EltwiseTestParams basicParamsSet;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
+    bool enforceSnippets;
+    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = this->GetParam();
     std::vector<InputShape> shapes;
     ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
@@ -126,11 +130,19 @@ void EltwiseLayerCPUTest::SetUp() {
     }
 #endif
 
-    auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
+        if (enforceSnippets) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
+        } else {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
+                              InferenceEngine::PluginConfigInternalParams::DISABLE});
+        }
+    ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.front())};
     std::shared_ptr<ngraph::Node> secondaryInput;
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        secondaryInput = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.back()}).front();
-        parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        auto param = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes.back());
+        secondaryInput = param;
+        parameters.push_back(param);
     } else {
         auto pShape = inputDynamicShapes.back();
         ngraph::Shape shape;
@@ -423,6 +435,11 @@ const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant() {
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
     };
     return cpuParams_5D_1D_constant;
+}
+
+const std::vector<bool>& enforceSnippets() {
+    static const std::vector<bool> enforceSnippets = { false, true };
+    return enforceSnippets;
 }
 
 } // namespace Eltwise

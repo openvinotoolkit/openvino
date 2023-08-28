@@ -19,7 +19,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/variadic_split.hpp"
-
+using namespace ov;
 using namespace testing;
 
 std::shared_ptr<ov::Model> get_then_body() {
@@ -181,24 +181,21 @@ TEST(TransformationTests, UnrollNestedIfThenBody) {
 }
 
 TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3});
-        auto X = std::make_shared<ov::op::v1::VariadicSplit>(
-            data,
-            ov::op::v0::Constant::create(ngraph::element::i32, {1}, {0}),
-            ov::op::v0::Constant::create(ngraph::element::i32, {2}, {1, 2}));
-        auto cond = std::make_shared<ov::op::v0::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
+        auto X = std::make_shared<ov::op::v1::VariadicSplit>(data,
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {2}, {1, 2}));
+        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<ov::op::v8::If>(cond);
-        auto Xt = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto Xt = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
         auto then_op_result = std::make_shared<ov::op::v0::Result>(Xt);
-        auto then_body =
-            std::make_shared<ngraph::Function>(ngraph::OutputVector{then_op_result}, ngraph::ParameterVector{Xt});
+        auto then_body = std::make_shared<ov::Model>(OutputVector{then_op_result}, ParameterVector{Xt});
 
-        auto Xe = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{2});
+        auto Xe = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});
         auto else_op_result = std::make_shared<ov::op::v0::Result>(Xe);
-        auto else_body =
-            std::make_shared<ngraph::Function>(ngraph::OutputVector{else_op_result}, ngraph::ParameterVector{Xe});
+        auto else_body = std::make_shared<ov::Model>(OutputVector{else_op_result}, ParameterVector{Xe});
 
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
@@ -206,7 +203,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         if_op->set_output(then_op_result, else_op_result);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{data});
+        f = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -217,13 +214,12 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
     }
 
     {
-        auto data = std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ngraph::Shape{3});
-        auto X = std::make_shared<ov::op::v1::VariadicSplit>(
-            data,
-            ov::op::v0::Constant::create(ngraph::element::i32, {1}, {0}),
-            ov::op::v0::Constant::create(ngraph::element::i32, {2}, {1, 2}));
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{3});
+        auto X = std::make_shared<ov::op::v1::VariadicSplit>(data,
+                                                             ov::op::v0::Constant::create(element::i32, {1}, {0}),
+                                                             ov::op::v0::Constant::create(element::i32, {2}, {1, 2}));
         auto if_result = std::make_shared<ov::op::v0::Result>(X->output(1));
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{data});
+        f_ref = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
