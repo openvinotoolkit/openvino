@@ -79,8 +79,6 @@ protected:
         std::tie(inputShapes, netType, targetDevice, additionalConfig) = basicParamsSet;
 
         init_input_shapes(inputShapes);
-        const auto inShapeDeconv = inputDynamicShapes[0];
-        const auto inShapeEReduce = inputDynamicShapes[1];
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {
