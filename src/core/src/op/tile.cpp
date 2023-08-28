@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/tile.hpp"
 
 using namespace std;
 using namespace ngraph;

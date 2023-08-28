@@ -16,8 +16,8 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/asin.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/asin.hpp"
 
 using namespace std;
 using namespace ngraph;

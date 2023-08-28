@@ -19,24 +19,24 @@
 #include "lpt_ngraph_functions/depth_to_space_function.hpp"
 
 namespace {
-using namespace ngraph::pass;
+using namespace ov::pass;
 using namespace ngraph::builder::subgraph;
 using namespace ngraph::opset1;
-using namespace ngraph;
+using namespace ov;
 
 class DepthToSpaceTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ov::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        ngraph::element::Type precisionAfterOperation;
+        ov::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -65,7 +65,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
+        transform.add<ngraph::pass::low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(
@@ -119,14 +119,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
     // blockSize = 2
@@ -135,20 +135,20 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {ov::element::f32},
+                {{0.32f}, ov::element::f32, {}, false, 1, ov::element::u8, true},
                 {0.45f}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
-                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {ov::element::f32},
+                {{0.32f}, ov::element::f32, {}, false, 1, ov::element::u8, true},
                 {0.45f}
             }
         }
@@ -159,21 +159,21 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.5f, 0.6f, 0.77f}},
                 {{0.1f, 0.55f, 0.3f, 0.8f}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.5f, 0.6f, 0.77f}},
                 {{0.1f, 0.55f, 0.3f, 0.8f}}
             },
-            ngraph::element::f32,
+            ov::element::f32,
             { {}, {}, {}}
         }
     },
@@ -183,19 +183,19 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.32f, 0.32f, 0.32f}},
                 {{0.1f, 0.1f, 0.1f, 0.1f}}
             }
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             {
-                {ngraph::element::f32},
+                {ov::element::f32},
                 {{0.32f, 0.32f, 0.32f, 0.32f}},
                 {{0.1f, 0.1f, 0.1f, 0.1f}}
             }
@@ -207,13 +207,13 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}},
-            ngraph::element::u8,
+            ov::element::u8,
             { {}, {}, {}}
         }
     },
@@ -241,14 +241,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         3,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
     // DEPTH_FIRST
@@ -257,14 +257,14 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         3,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
+            ov::element::u8,
             {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         }
     },
 };
@@ -289,13 +289,13 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
         2,
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}}
         },
         {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}},
-            ngraph::element::f32,
+            ov::element::u8,
+            {{ov::element::f32}, {0.32f}, {0.45f}},
+            ov::element::f32,
             {}
         }
     },
