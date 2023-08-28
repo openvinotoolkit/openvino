@@ -17,6 +17,8 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(deconvolution)
 
 layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
+           "Output data type forcing is not supported for deconvolution_node!");
     auto desc = impl_param.typed_desc<deconvolution>();
 
     auto input_layout = impl_param.get_input_layout();

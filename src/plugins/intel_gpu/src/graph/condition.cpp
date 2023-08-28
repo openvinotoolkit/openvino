@@ -54,6 +54,7 @@ static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& o
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
 layout condition_inst::calc_output_layout(condition_node const& /* node */, kernel_impl_params const& impl_param) {
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for condition_node!");
     OPENVINO_ASSERT(impl_param.get_input_layout(0).count() == 1, "layout of compare_data of condition should be {1,1,1,1}");
 
     OPENVINO_ASSERT(impl_param.inner_progs.size() == 2, "If(Condition) contains incorrect number of inner programs ", impl_param.inner_progs.size());
