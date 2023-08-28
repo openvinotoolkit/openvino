@@ -13,9 +13,9 @@
 #include <map>
 
 #include "interpolate_pil.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "transpose.hpp"
 
 namespace ov {

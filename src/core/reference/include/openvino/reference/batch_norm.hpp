@@ -7,8 +7,8 @@
 #include <cmath>
 #include <vector>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {

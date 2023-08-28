@@ -3,12 +3,12 @@
 //
 
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pruning.hpp"
 
 ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,

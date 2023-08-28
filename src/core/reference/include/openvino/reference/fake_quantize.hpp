@@ -12,10 +12,10 @@
 #include <vector>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {

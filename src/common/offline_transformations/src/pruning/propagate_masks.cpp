@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
 #include <ngraph/op/gelu.hpp>
 #include <ngraph/op/max_pool.hpp>
@@ -18,6 +17,7 @@
 #include <openvino/op/util/pad_base.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
 

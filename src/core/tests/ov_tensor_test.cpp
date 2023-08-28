@@ -12,11 +12,11 @@
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -550,7 +550,7 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                             ),
                                             ::testing::Values(
                                                               TestParams {
-                                                                  ov::Shape{1, 3, 4, 8}, {}, 
+                                                                  ov::Shape{1, 3, 4, 8}, {},
                                                                   {0}, {}
                                                               },
                                                               TestParams {
@@ -566,15 +566,15 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                                   ov::Shape{3, 2, 2}, ov::Strides{128, 24, 8}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{}, {}, 
+                                                                  ov::Shape{}, {},
                                                                   {}, {}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{1}, {}, 
+                                                                  ov::Shape{1}, {},
                                                                   {}, {}
                                                               },
                                                               TestParams {
-                                                                  ov::Shape{}, {}, 
+                                                                  ov::Shape{}, {},
                                                                   {1}, {}
                                                               }
                                            )));

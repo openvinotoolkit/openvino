@@ -8,7 +8,7 @@
 #include <cassert>
 #include <numeric>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "utils/span.hpp"
 
 namespace ov {

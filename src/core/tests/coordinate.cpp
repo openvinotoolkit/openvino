@@ -11,7 +11,7 @@
 #include "common_test_utils/ndarray.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 using namespace std;
 using namespace ov;

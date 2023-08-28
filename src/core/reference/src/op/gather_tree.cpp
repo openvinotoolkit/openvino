@@ -10,8 +10,8 @@
 #include <numeric>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 using namespace ov;
 

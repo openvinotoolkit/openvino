@@ -8,9 +8,9 @@
 #include <numeric>
 #include <utility>
 
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/shape_util.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {

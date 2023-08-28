@@ -8,7 +8,7 @@
 #include <limits>
 #include <vector>
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 namespace ov {
 namespace reference {
 template <typename TF, typename TI, typename TCI, typename TSL>

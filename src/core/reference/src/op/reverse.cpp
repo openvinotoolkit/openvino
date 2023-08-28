@@ -9,7 +9,7 @@
 #include <iterator>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 using namespace ngraph;
 

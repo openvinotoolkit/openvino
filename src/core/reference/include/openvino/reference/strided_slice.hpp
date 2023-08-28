@@ -7,12 +7,12 @@
 #include <cmath>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "openvino/reference/reverse.hpp"
 #include "openvino/reference/slice.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {

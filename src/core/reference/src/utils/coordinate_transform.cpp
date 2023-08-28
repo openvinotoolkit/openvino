@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -13,11 +13,11 @@
 
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "ngraph/coordinate_index.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 
 using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START

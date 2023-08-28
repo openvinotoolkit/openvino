@@ -7,8 +7,8 @@
 #include <cstring>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 namespace ov {
 namespace reference {

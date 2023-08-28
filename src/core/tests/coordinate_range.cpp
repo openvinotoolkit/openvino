@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
 
 #include <algorithm>
 #include <numeric>

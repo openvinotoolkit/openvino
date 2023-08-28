@@ -8,8 +8,8 @@
 #include <numeric>
 
 #include "ngraph/check.hpp"
-#include "ngraph/coordinate_range.hpp"
-#include "ngraph/coordinate_transform.hpp"
+#include "openvino/reference/utils/coordinate_range.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {

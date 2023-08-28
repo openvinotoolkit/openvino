@@ -7,7 +7,6 @@
 #include <inference_engine.hpp>
 #include <mask_attribute.hpp>
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
 #include <ngraph/pass/serialize.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <openvino/core/model.hpp>
@@ -23,6 +22,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/opsets/opset12.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"

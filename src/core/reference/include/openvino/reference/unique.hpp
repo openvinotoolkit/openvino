@@ -5,9 +5,9 @@
 #pragma once
 
 #include "gather.hpp"
-#include "ngraph/coordinate_index.hpp"
-#include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
 namespace reference {
