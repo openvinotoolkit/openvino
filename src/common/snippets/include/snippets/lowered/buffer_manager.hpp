@@ -27,12 +27,21 @@ private:
     using BufferCluster = std::set<ExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
 
-    static size_t init_default(const lowered::LinearIR& linear_ir);
+    static size_t init_default_buffers(const lowered::LinearIR& linear_ir);
     static BufferClusters init_clusters(const lowered::LinearIR& linear_ir);
+    static BufferClusters init_default_clusters(const lowered::LinearIR& linear_ir);
+    static BufferClusters init_inplace_clusters(const lowered::LinearIR& linear_ir);
     static std::vector<MemorySolver::Box> init_boxes(const BufferClusters& buffer_clusters);
     static void set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset);
 
-    constexpr static bool m_enable_optimizations = true;
+    enum OptimizationsBit : unsigned {
+        DefaultBit = 1lu << 0,          // No optimizations
+        MemorySolverBit = 1u << 1,      // MemorySolver using
+        InPlaceOneLevelBit = 1u << 2,   // InPlace mechanism on the same level using
+        InPlaceMultiLevelBit = 1u << 3, // InPlace mechanism on the different level using
+    };
+
+    constexpr static unsigned m_mode = OptimizationsBit::InPlaceOneLevelBit;
     constexpr static int64_t m_alignment = 32; // 32 bytes
 };
 

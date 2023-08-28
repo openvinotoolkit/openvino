@@ -19,31 +19,33 @@ namespace lowered {
 
 int64_t BufferManager::allocate(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferManager::allocate")
+    auto scratchpad_size = init_default_buffers(linear_ir);
+    if (m_mode & OptimizationsBit::DefaultBit) {
+        return scratchpad_size;
+    }
+
     int64_t order = 0;
     for (const auto& expr : linear_ir) {
         ov::snippets::pass::SetTopologicalOrder(expr->get_node(), order++);
     }
 
-    auto scratchpad_size = init_default(linear_ir);
-    if (m_enable_optimizations) {
-        const auto buffer_clusters = init_clusters(linear_ir);
-        const auto boxes = init_boxes(buffer_clusters);
+    const auto buffer_clusters = init_clusters(linear_ir);
+    const auto boxes = init_boxes(buffer_clusters);
 
-        MemorySolver staticMemSolver(boxes);
-        scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * m_alignment;  // alignment in byte
+    MemorySolver staticMemSolver(boxes);
+    scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * m_alignment;  // alignment in byte
 
-        // Set offsets for Buffers
-        for (auto& box : boxes) {
-            for (auto& buffer : buffer_clusters[box.id]) {
-                int64_t offset = staticMemSolver.getOffset(box.id);
-                set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
-            }
+    // Set offsets for Buffers
+    for (auto& box : boxes) {
+        for (auto& buffer : buffer_clusters[box.id]) {
+            int64_t offset = staticMemSolver.getOffset(box.id);
+            set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
         }
     }
     return scratchpad_size;
 }
 
-size_t BufferManager::init_default(const lowered::LinearIR& linear_ir) {
+size_t BufferManager::init_default_buffers(const lowered::LinearIR& linear_ir) {
     size_t buffer_id = 0;
     size_t buffer_offset = 0;
     for (const auto& expr : linear_ir) {
@@ -60,6 +62,21 @@ size_t BufferManager::init_default(const lowered::LinearIR& linear_ir) {
 }
 
 BufferManager::BufferClusters BufferManager::init_clusters(const lowered::LinearIR& linear_ir) {
+    return m_mode & InPlaceOneLevelBit || m_mode & InPlaceMultiLevelBit ? init_inplace_clusters(linear_ir)
+                                                                        : init_default_clusters(linear_ir);
+}
+
+BufferManager::BufferClusters BufferManager::init_default_clusters(const lowered::LinearIR& linear_ir) {
+    BufferClusters buffer_clusters;
+    for (const auto& expr : linear_ir) {
+        if (ov::is_type<op::Buffer>(expr->get_node())) {
+            buffer_clusters.push_back({expr});
+        }
+    }
+    return buffer_clusters;
+}
+
+BufferManager::BufferClusters BufferManager::init_inplace_clusters(const lowered::LinearIR& linear_ir) {
     BufferClusters buffer_clusters;
     auto find_cluster = [&buffer_clusters](const ExpressionPtr& target) {
         for (auto it = buffer_clusters.begin(); it != buffer_clusters.end(); ++it) {
