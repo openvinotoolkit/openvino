@@ -52,7 +52,7 @@ CPU plugin supports the following data types as inference precision of internal 
 - Floating-point data types:
 
   - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16``(Intel® x86-64)
+  - ``bf16`` (Intel® x86-64)
 - Integer data types:
 
   - ``i32`` (Intel® x86-64, Arm®)
@@ -90,9 +90,16 @@ CPU plugin supports the following floating-point data types as inference precisi
 
 - ``f32`` (Intel® x86-64, Arm®)
 - ``bf16`` (Intel® x86-64)
+- ``f16`` (Arm®, experimental feature)
 
-The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16`` OpenVINO IR the plugin internally converts 
+The default floating-point precision of a CPU primitive is ``f32``. By default to support the ``f16`` OpenVINO IR the plugin internally converts 
 all the ``f16`` values to ``f32`` and all the calculations are performed using the native precision of ``f32``.
+On platforms that natively support ``float16`` calculations, the ``float16`` type is used if inferece precision is explicitly set to ``f16`` (see the `Inference Precision Hint <#inference-precision-hint>`__).
+
+.. note:: 
+   
+   ``f16`` inference does not guarantee full accuracy reproducibility and is not used by default.
+
 On platforms that natively support ``bfloat16`` calculations (have the ``AVX512_BF16`` or ``AMX`` extension), the ``bf16`` type is automatically used instead
 of ``f32`` to achieve better performance (see the `Execution Mode Hint <#execution-mode-hint>`__).
 Thus, no special steps are required to run a ``bf16`` model. For more details about the ``bfloat16`` format, see 
@@ -180,6 +187,8 @@ To enable the simulation, the ``ov::hint::inference_precision`` has to be explic
    especially for models that were not trained using the ``bfloat16`` data type. If the ``bf16`` inference accuracy is not acceptable, 
    it is recommended to switch to the ``f32`` precision. Also, the performance/accuracy balance can be managed using the ``ov::hint::execution_mode`` hint,
    see the `Execution Mode Hint <#execution-mode-hint>`__.
+
+To infer the model in ``f16`` precision instead of ``f32`` on targets with native ``f16`` support, set the ``ov::hint::inference_precision`` to ``ov::element::f16``.
 
 Execution Mode Hint
 -----------------------------------------------------------
