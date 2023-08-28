@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/bucketize.hpp"
+#include "openvino/reference/bucketize.hpp"
 
 #include "evaluate_node.hpp"
 

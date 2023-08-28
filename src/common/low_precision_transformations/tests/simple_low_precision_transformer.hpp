@@ -26,15 +26,15 @@ public:
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
     }
     template <class T, class Operation>
-    void add(const std::shared_ptr<ngraph::Function> function, const TestTransformationParams& params) {
+    void add(const std::shared_ptr<ov::Model> function, const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
     }
 
-    void transform(std::shared_ptr<ngraph::Function>& function);
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    void transform(std::shared_ptr<ov::Model>& model);
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    std::shared_ptr<ngraph::pass::Manager> markup;
-    std::shared_ptr<ngraph::pass::Manager> common;
-    std::shared_ptr<ngraph::pass::GraphRewrite> commonGraphRewrite;
-    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup;
+    std::shared_ptr<ov::pass::Manager> markup;
+    std::shared_ptr<ov::pass::Manager> common;
+    std::shared_ptr<ov::pass::GraphRewrite> commonGraphRewrite;
+    std::shared_ptr<ov::pass::GraphRewrite> cleanup;
 };

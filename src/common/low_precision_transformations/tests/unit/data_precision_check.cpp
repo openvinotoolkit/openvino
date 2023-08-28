@@ -9,7 +9,7 @@
 #include <low_precision/network_helper.hpp>
 #include "ngraph_functions/builders.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 TEST(smoke_LPT_DataPrecision, check) {
     using namespace ngraph::pass::low_precision;
