@@ -59,7 +59,6 @@ infer_request = executable.create_infer_request()
 #! [set_input_tensor]
 # For first inference call, prepare an input tensor with 1x128 shape and run inference request
 input_data1 = np.ones(shape=[1,128])
-print("OLOLO",model.input(0))
 infer_request.infer({"Parameter_319": input_data1})
 
 # Get resulting outputs
