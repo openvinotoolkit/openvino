@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
@@ -17,7 +17,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, ReluFakeQuantizeFusion) {
     Shape data_shape{1, 3, 14, 14};
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ReluFakeQuantizeFusion) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low, input_high, output_low, output_high, 11);
-        function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::ReluFakeQuantizeFusion>();
     }
     {
@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, ReluFakeQuantizeFusion) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        function_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
     }
 }
 
@@ -53,7 +53,7 @@ TEST_F(TransformationTestsF, ReluFakeQuantizeFusionNegativeInputLow) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low, input_high, output_low, output_high, 11);
-        function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::ReluFakeQuantizeFusion>();
     }
     {
@@ -64,6 +64,6 @@ TEST_F(TransformationTestsF, ReluFakeQuantizeFusionNegativeInputLow) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low, input_high, output_low, output_high, 11);
-        function_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
     }
 }

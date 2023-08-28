@@ -5,20 +5,20 @@
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+using namespace ov;
+
 TEST(SmartReshapeTests, MimickingSBS) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {6, -1}),
-            true);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 3, 4});
+        auto reshape =
+            std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {6, -1}), true);
+        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -33,14 +33,12 @@ TEST(SmartReshapeTests, MimickingSBS) {
 }
 
 TEST(SmartReshapeTests, MimickingSBS_1) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, -1}),
-            true);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 3, 4});
+        auto reshape =
+            std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {1, -1}), true);
+        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
@@ -55,14 +53,12 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
 }
 
 TEST(SmartReshapeTests, MimickingSBS_2) {
-    std::shared_ptr<ngraph::Function> f(nullptr);
+    std::shared_ptr<ov::Model> f(nullptr);
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2, 3, 4});
-        auto reshape = std::make_shared<ngraph::opset5::Reshape>(
-            input,
-            ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {12, -1}),
-            true);
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
+        auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2, 3, 4});
+        auto reshape =
+            std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {12, -1}), true);
+        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
     }
 
     InferenceEngine::CNNNetwork network(f);
