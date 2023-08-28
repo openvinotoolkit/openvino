@@ -115,8 +115,8 @@ Support for Automatic1111 Stable Diffusion WebUI
 Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion 
 based image generation. It allows users to create realistic and creative images from text prompts. 
 Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO 
-``torch.compile`` capability. Detailed instructions can be find
-`here. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
+``torch.compile`` capability. Detailed instructions are available in 
+`Stable Diffusion WebUI repository. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
 
 
 Architecture
