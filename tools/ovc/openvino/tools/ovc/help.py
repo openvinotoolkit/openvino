@@ -30,7 +30,7 @@ def get_convert_model_help_specifics():
             {'description':
                 'The name of the output operation of the model or list of names. For TensorFlow*, '
                 'do not add :0 to this name. The order of outputs in converted model is the '
-                'same as order of specified operation names. Outputs should be separated with coma (spaces are ignored): '
+                'same as order of specified operation names. Outputs should be separated with comma (spaces are ignored): '
                 'Example 1: ovc ... output="out_1, out_2". '
                 'Example 2: ovc ... output="x,y,z" equivalent to ovc ... output="x, y, z".'},
         'extension':
