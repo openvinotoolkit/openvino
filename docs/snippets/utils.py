@@ -24,6 +24,7 @@ def get_model(input_shape = None, input_dtype=np.float32) -> ov.Model:
         input_shape = [1, 3, 32, 32]
     param = ops.parameter(input_shape, input_dtype, name="data")
     relu = ops.relu(param, name="relu")
+    relu.output(0).get_tensor().set_names({"res"})
     model = ov.Model([relu], [param], "test_model")
 
     assert model is not None

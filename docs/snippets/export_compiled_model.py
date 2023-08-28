@@ -2,12 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from utils import get_path_to_model
+
 device = "CPU"
+model_path = get_path_to_model()
+properties = {}
 
 #! [export_compiled_model]
 
 import openvino as ov
 
-ov.Core().compile_model(device, modelPath, properties).export_model(compiled_blob)
+core = ov.Core()
 
+compiled_model = core.compile_model(model_path, device, properties)
+output_stream = compiled_model.export_model()
 #! [export_compiled_model]
