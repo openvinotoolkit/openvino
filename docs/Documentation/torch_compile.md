@@ -38,7 +38,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       .. code-block:: console
 
-         import torch
+         import openvino.torch 
          from openvino.frontend.pytorch.torchdynamo import backend
          ...
          model = torch.compile(model, backend='openvino')
@@ -48,14 +48,14 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       .. image:: _static/images/torch_compile_backend_openvino.svg
          :width: 992px
          :height: 720px
-         :scale: 60%
+         :scale: 70%
 
    .. tab-item:: openvino_ts
       :sync: backend-openvino-ts
 
       .. code-block:: console
 
-         import torch
+         import openvino.torch
          from openvino.frontend.pytorch.torchdynamo import backend
          ...
          model = torch.compile(model, backend='openvino_ts')
@@ -79,7 +79,45 @@ Environment Variables
   By default, this variable is set to ``False``. Setting it to ``True`` enables caching.
 * **OPENVINO_TORCH_CACHE_DIR**: enables defining a custom directory for the model files (if model caching set to ``True``).
   By default, the OpenVINO IR is saved in a the ``cache`` sub-directory, created in the application's root directory. 
-  
+
+Windows support
+++++++++++++++++++++++++++
+
+Currently, PyTorch does not support ``torch.compile`` feature on Windows officially. However it can be accessed by running
+the below instructions:
+
+1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
+2. Update the file at <python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py
+3. Find the function called ``check_if_dynamo_supported()``:
+
+   .. code-block:: console
+
+      def check_if_dynamo_supported():
+          if sys.platform == "win32":
+              raise RuntimeError("Windows not yet supported for torch.compile")
+          if sys.version_info >= (3, 11):
+              raise RuntimeError("Python 3.11+ not yet supported for torch.compile")
+
+4. Put in comments the first two lines in this function, so it looks like this:
+
+   .. code-block:: console
+
+      def check_if_dynamo_supported():
+       #if sys.platform == "win32":
+       #    raise RuntimeError("Windows not yet supported for torch.compile")
+       if sys.version_info >= (3, 11):
+           `raise RuntimeError("Python 3.11+ not yet supported for torch.compile")
+
+
+Support for Automatic1111 Stable Diffusion WebUI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Automatic1111 Stable Diffusion WebUI is an open-source repository that hosts a browser-based interface for the Stable Diffusion 
+based image generation. It allows users to create realistic and creative images from text prompts. 
+Stable Diffusion WebUI is supported on Intel CPUs, Intel integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO 
+``torch.compile`` capability. Detailed instructions can be found 
+`here. <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__
+
 
 Architecture
 #################
