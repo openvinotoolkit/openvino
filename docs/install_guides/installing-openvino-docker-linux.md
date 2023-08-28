@@ -26,15 +26,18 @@ You can get started easily with pre-built and published docker images, which are
 
    OpenVINO development environment in a docker container is also available in `notebook repository <https://github.com/openvinotoolkit/openvino_notebooks>`__ . It can be deployed in `OpenShift RedHat OpenData Science (RHODS) <https://github.com/openvinotoolkit/operator/blob/main/docs/notebook_in_rhods.md>`__
 
-You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__ or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ , which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. 
+You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__ or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__ , which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs. Docker CI repository includes guides on how to how to `get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ and how to use `OpenVINO™ Toolkit containers with GPU accelerators. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 
-Details on how to get started can be found `here <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__. To start using them, the following conditions must be met:
+
+To start using Dockerfiles the following conditions must be met:
 
 - Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl-install>`)
 - Installed docker engine or compatible container engine
 - Permissions to run containers (sudo or docker group membership)
 
-OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>`__ distributions are identical, so the documentation applies to both. If you want to learn how to use OpenVINO™ Toolkit containers with GPU accelerators, check this `guide. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
+.. note::
+
+   OpenVINO's `Docker <https://docs.docker.com/>`__ and `Bare Metal <https://docs.openvino.ai/2023.0/ovms_docs_deploying_server.html#doxid-ovms-docs-deploying-server>`__ distributions are identical, so the documentation applies to both. 
 
 .. note:: 
 
