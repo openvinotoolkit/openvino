@@ -8,8 +8,6 @@
 #include "itt.hpp"
 #include "openvino/reference/sinh.hpp"
 
-using namespace std;
-
 namespace ov {
 namespace op {
 namespace sinh {
@@ -35,14 +33,17 @@ bool Sinh::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-shared_ptr<Node> Sinh::clone_with_new_inputs(const OutputVector& new_args) const {
+std::shared_ptr<Node> Sinh::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Sinh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Sinh>(new_args.at(0));
+    return std::make_shared<Sinh>(new_args.at(0));
 }
 
 bool Sinh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Sinh_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
     using namespace ov::element;
     return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<sinh::Evaluate>(inputs[0].get_element_type(),
                                                                          inputs[0],

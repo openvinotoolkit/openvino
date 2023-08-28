@@ -36,6 +36,9 @@ std::shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& n
 
 bool op::v3::Atanh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_Atanh_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
     using namespace ov::element;
     return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<atanh::Evaluate>(inputs[0].get_element_type(),
                                                                           inputs[0],

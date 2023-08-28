@@ -37,6 +37,9 @@ std::shared_ptr<ov::Node> ov::op::v3::Acosh::clone_with_new_inputs(const OutputV
 
 bool ov::op::v3::Acosh::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_Acosh_evaluate);
+    OPENVINO_ASSERT(inputs.size() == 1 && outputs.size() == 1);
+    outputs[0].set_shape(inputs[0].get_shape());
+
     using namespace ov::element;
     return IfTypeOf<i32, i64, u32, u64, f16, f32>::apply<acosh::Evaluate>(inputs[0].get_element_type(),
                                                                           inputs[0],
