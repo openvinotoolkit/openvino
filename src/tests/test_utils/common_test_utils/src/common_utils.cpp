@@ -71,7 +71,7 @@ size_t getVmRSSInKB() {
 #else
 
 /// Parses number from provided string
-static int parseLine(std::string line) {
+static size_t parseLine(std::string line) {
     std::string res = "";
     for (auto c : line)
         if (isdigit(c))
@@ -79,7 +79,7 @@ static int parseLine(std::string line) {
     if (res.empty())
         // If number wasn't found return -1
         return -1;
-    return std::stoi(res);
+    return std::stoul(res);
 }
 
 size_t getSystemDataByName(char* name) {
