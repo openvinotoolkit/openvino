@@ -14,6 +14,9 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "ie_common.h"
+#include "transformations/utils/utils.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -144,35 +147,7 @@ ProgramBuilder::ProgramBuilder(InferenceEngine::CNNNetwork& network, cldnn::engi
         OPENVINO_THROW("Function pointer inside CNNNetwork is nullptr");
     }
 
-    // locate global custom kernel config
-    // and auto-load kernels from it
-#ifdef _WIN32
-    CHAR mpath[MAX_PATH + 1];
-    HMODULE nModule;
-    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)CustomLayer::LoadFromFile,
-        &nModule);
-    GetModuleFileName(nModule, mpath, sizeof(mpath));
-#elif __linux__
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
-    const char* mpath = dl_info.dli_fname;
-#else
-#error "Intel GPU plugin: unknown target system"
-#endif
-    std::string configFile(mpath);
-    std::size_t dir_split_pos = configFile.find_last_of("/\\");
-    std::string config_path;
-
-    if (dir_split_pos != std::string::npos) {
-        // path contains directory
-        config_path = configFile.substr(0, dir_split_pos);
-    }
-    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
-
-    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
-    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+    LoadCustomLayers();
 
     auto ops = func->get_ordered_ops();
 
@@ -318,6 +293,106 @@ ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& con
         m_networkOutputs = *outputs;
 }
 
+ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::engine& engine,
+                                const ExecutionConfig& config,
+                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
+    : m_curBatch(-1)
+    , m_config(config)
+    , m_engine(engine)
+    , queryMode(false)
+    , m_task_executor(task_executor) {
+    if (m_task_executor == nullptr)
+        m_task_executor = cldnn::program::make_task_executor(m_config);
+
+    std::shared_ptr<ov::Model> ngraph_function(model);
+    // Check ngraph function pointer
+    if (!ngraph_function) {
+        OPENVINO_THROW("ov::Model pointer is nullptr");
+    }
+
+    // Set input / output for Parameter and Result in cldnn
+    InferenceEngine::InputsDataMap networkInputs = {};
+    InferenceEngine::OutputsDataMap networkOutputs = {};
+
+    auto create_data_for_result = [&](const ngraph::Output<ngraph::Node>& output,
+                                        const std::string& outName,
+                                        InferenceEngine::DataPtr& ptr) {
+        auto shape = output.get_partial_shape();
+        SizeVector dims(1, 0);
+        if (shape.rank().is_static()) {
+            dims.resize(shape.size(), 0);
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (shape[i].get_max_length() != -1)  // dimension has an estimation
+                    dims[i] = shape[i].get_max_length();
+            }
+        }
+        auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+        const auto rankLayout = rank < 0 ? InferenceEngine::Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
+        const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
+        ptr.reset(new InferenceEngine::Data(outName, {precision, dims, rankLayout}));
+    };
+
+    {
+        // Set networkOutputs
+        for (const auto& result : ngraph_function->get_results()) {
+            auto out_node = result->input_value(0);
+            auto outName = ov::op::util::create_ie_output_name(out_node);
+            DataPtr data;
+            create_data_for_result(out_node, outName, data);
+            networkOutputs[outName] = data;
+        }
+
+        // Set networkInputs
+        for (const auto& parameter : ngraph_function->get_parameters()) {
+            const auto& outName = parameter->get_friendly_name();
+            DataPtr data;
+            create_data_for_result(parameter, outName, data);
+            InferenceEngine::InputInfo::Ptr info(new InputInfo());
+            info->setInputData(data);
+            networkInputs[outName] = info;
+        }
+    }
+
+    // Load customLayers
+    LoadCustomLayers();
+
+    // Build program
+    auto ops = ngraph_function->get_ordered_ops();
+    m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false, true));
+}
+
+void ProgramBuilder::LoadCustomLayers() {
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#else
+#error "Intel GPU plugin: unknown target system"
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+}
+
 int ProgramBuilder::GetMaxBatchSizeForSingleProgram() {
     auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     if (max_dynamic_batch > 1) {
@@ -362,6 +437,11 @@ void ProgramBuilder::CleanupBuild() {
     //  So, added malloc_trim for linux build until we figure out a better solution.
     malloc_trim(0);
     #endif
+}
+
+std::shared_ptr<cldnn::program> ProgramBuilder::CreateInnerProgram(const std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) {
+    ProgramBuilder prog(model, get_engine(), config, get_task_executor());
+    return prog.GetCompiledProgram();
 }
 
 std::shared_ptr<cldnn::program> ProgramBuilder::BuildProgram(const std::vector<std::shared_ptr<ov::Node>>& ops,

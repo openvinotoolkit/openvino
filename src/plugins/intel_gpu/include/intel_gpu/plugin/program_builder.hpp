@@ -124,6 +124,8 @@ public:
                          std::map<std::string, ov::PartialShape>& shapes,
                          std::map<std::string, std::pair<int64_t, int64_t>>& batch_dim);
 
+    std::shared_ptr<cldnn::program> CreateInnerProgram(const std::shared_ptr<ov::Model>& model, const ExecutionConfig& config);
+
     // Profiling utils
     void init_profile_info(const cldnn::primitive& prim);
 
@@ -193,6 +195,10 @@ private:
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     void ChangeInputBatch(int batch);
+    void LoadCustomLayers();
+
+    ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::engine& engine, const ExecutionConfig& config,
+            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ngraph::Node>& node, CustomLayerPtr customLayer);
