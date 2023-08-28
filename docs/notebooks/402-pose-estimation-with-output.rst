@@ -11,10 +11,12 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__. Final part
 of this notebook shows live inference results from a webcam.
 Additionally, you can also upload a video file.
 
-   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a server, the webcam will not
    work. However, you can still do inference on a video in the final
-   step. 
+   step.
 
 **Table of contents**:
 
@@ -73,7 +75,10 @@ selected model.
 If you want to download another model, replace the name of the model and
 precision in the code below.
 
-   **NOTE**: This may require a different pose decoder.
+.. note::
+
+   This may require a different pose decoder.
+
 
 .. code:: ipython3
 
@@ -421,11 +426,14 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering, set
 ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
+.. note::
+
+   To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    server (for example, Binder), the webcam will not work. Popup mode
    may not work if you run this notebook on a remote computer (for
    example, Binder).
+
 
 Run the pose estimation:
 

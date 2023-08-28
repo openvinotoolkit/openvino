@@ -593,7 +593,9 @@ Finally, measure the inference performance of OpenVINO ``FP32`` and
 `Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 in OpenVINO.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+.. note::
+
+   The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -601,6 +603,7 @@ in OpenVINO.
    CPU for one minute. Change ``CPU`` to ``GPU`` to benchmark on GPU.
    Run ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 .. code:: ipython3
 

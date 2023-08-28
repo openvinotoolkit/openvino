@@ -20,10 +20,12 @@ downsized to 64×64 colored images. The tutorial will demonstrate that
 only a tiny part of the dataset is needed for the post-training
 quantization, not demanding the fine-tuning of the model.
 
-   **NOTE**: This notebook requires that a C++ compiler is accessible on
+.. note::
+
+   This notebook requires that a C++ compiler is accessible on
    the default binary search path of the OS you are running the
-   notebook. 
-   
+   notebook.
+
 
 **Table of contents**:
 
@@ -355,8 +357,7 @@ Create and load original uncompressed model `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-ResNet-50 from the ```torchivision``
-repository <https://github.com/pytorch/vision>`__ is pre-trained on
+ResNet-50 from the `torchivision repository <https://github.com/pytorch/vision>`__ is pre-trained on
 ImageNet with more prediction classes than Tiny ImageNet, so the model
 is adjusted by swapping the last FC layer to one with fewer output
 values.
@@ -672,13 +673,16 @@ Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-   **NOTE**: This notebook runs benchmark_app for 15 seconds to give a
+.. note::
+
+   This notebook runs benchmark_app for 15 seconds to give a
    quick indication of performance. For more accurate performance, it is
    recommended to run benchmark_app in a terminal/command prompt after
    closing other applications. Run ``benchmark_app -m model.xml -d CPU``
    to benchmark async inference on CPU for one minute. Change CPU to GPU
    to benchmark on GPU. Run ``benchmark_app --help`` to see an overview
    of all command-line options.
+
 
 .. code:: ipython3
 

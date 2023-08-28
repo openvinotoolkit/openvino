@@ -536,9 +536,8 @@ https://docs.openvino.ai/2023.0/openvino_docs_optimization_guide_dldt_optimizati
 References `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
- 1. Convolutional 2D Knowledge Graph
-Embeddings, Tim Dettmers et al. (https://arxiv.org/abs/1707.01476) 2.
-Model implementation: https://github.com/TimDettmers/ConvE
+1. Convolutional 2D Knowledge Graph Embeddings, Tim Dettmers et al. (https://arxiv.org/abs/1707.01476)
+2. Model implementation: https://github.com/TimDettmers/ConvE
 
 The ConvE model implementation used in this notebook is licensed under
 the MIT License. The license is displayed below: MIT License

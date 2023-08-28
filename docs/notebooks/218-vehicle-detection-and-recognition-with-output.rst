@@ -70,7 +70,9 @@ model is already downloaded. The selected model comes from the public
 directory, which means it must be converted into OpenVINO Intermediate
 Representation (OpenVINO IR).
 
-   **Note**: To change the model, replace the name of the model in the
+.. note::
+
+   To change the model, replace the name of the model in the
    code below, for example to ``"vehicle-detection-0201"`` or
    ``"vehicle-detection-0202"``. Keep in mind that they support
    different image input sizes in detection. Also, you can change the
@@ -80,6 +82,7 @@ Representation (OpenVINO IR).
    the precision, you need to modify the precision value in ``"FP32"``,
    ``"FP16"``, and ``"FP16-INT8"``. A different type has a different
    model size and a precision value.
+
 
 .. code:: ipython3
 

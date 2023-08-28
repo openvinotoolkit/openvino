@@ -44,7 +44,7 @@ pp. 2777-2784, doi: 10.1109/ICPR.2018.8545760.
 - `Superresolution on full input image <#superresolution-on-full-input-image>`__
 
   - `Compute patches <#compute-patches>`__
-  - `Do Inference <#do-inference>`__
+  - `Do Inference <#do-the-inference>`__
   - `Save superresolution image and the bicubic image <#save-superresolution-image-and-the-bicubic-image>`__
 
 Preparation `⇑ <#top>`__
@@ -260,9 +260,12 @@ Load and Show the Input Image `⇑ <#top>`__
 ###############################################################################################################################
 
 
-   **NOTE**: For the best results, use raw images (like ``TIFF``,
+.. note::
+
+   For the best results, use raw images (like ``TIFF``,
    ``BMP`` or ``PNG``). Compressed images (like ``JPEG``) may appear
    distorted after processing with the super resolution model.
+
 
 .. code:: ipython3
 
@@ -493,9 +496,12 @@ This may take a while. For the video, the superresolution and bicubic
 image are resized by a factor of 2 to improve processing speed. This
 gives an indication of the superresolution effect. The video is saved as
 an ``.avi`` file. You can click on the link to download the video, or
-open it directly from the ``output/`` directory, and play it locally. >
-Note: If you run the example in Google Colab, download video files using
-the ``Files`` tool.
+open it directly from the ``output/`` directory, and play it locally. 
+
+.. note::
+
+   If you run the example in Google Colab, download video files using the ``Files`` tool.
+
 
 .. code:: ipython3
 
@@ -611,6 +617,8 @@ Compute patches `⇑ <#top>`__
 
     The output image will have a width of 11280 and a height of 7280
 
+
+.. _do-the-inference:
 
 Do Inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

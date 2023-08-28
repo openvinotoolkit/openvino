@@ -132,7 +132,7 @@ Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#top>`__
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
 more examples supported formats reading via Frontend API, please look
-this `tutorial <../002-openvino-api>`__.
+this `tutorial <002-openvino-api-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -224,13 +224,15 @@ Estimate Model Performance `⇑ <#top>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
 
+.. note::
 
-   **NOTE**: For more accurate performance, it is recommended to run
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
    benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
    all command-line options.
+
 
 .. code:: ipython3
 

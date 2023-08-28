@@ -359,8 +359,7 @@ level to ``CRITICAL`` to ignore warnings that are irrelevant for this
 demo. For information about setting the parameters, see this
 `page <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 
-**Convert ONNX Model to OpenVINO IR with**\ `Model Conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+**Convert ONNX Model to OpenVINO IR with** `Model Conversion Python API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
 
 .. code:: ipython3
 

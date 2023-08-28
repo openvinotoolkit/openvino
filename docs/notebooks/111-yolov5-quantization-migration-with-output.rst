@@ -87,10 +87,7 @@ Download the YOLOv5 model `⇑ <#top>`__
 .. parsed-literal::
 
     Download Ultralytics Yolov5 project source:
-
-
-
-``git clone https://github.com/ultralytics/yolov5.git -b v7.0``
+    ``git clone https://github.com/ultralytics/yolov5.git -b v7.0``
 
 
 Conversion of the YOLOv5 model to OpenVINO `⇑ <#top>`__

@@ -13,15 +13,18 @@ including being able to use more data, employ more training, and has
 less restrictive filtering of the dataset. All of these features give us
 promising results for selecting a wide range of input text prompts!
 
-**Note:** This is a shorter version of the
-`236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
-notebook for demo purposes and to get started quickly. This version does
-not have the full implementation of the helper utilities needed to
-convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
-``OVStableDiffusionPipeline`` within the notebook directly. If you would
-like to see the full implementation of stable diffusion for text to
-image, please visit
-`236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
+.. note::
+
+   This is a shorter version of the
+   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__
+   notebook for demo purposes and to get started quickly. This version does
+   not have the full implementation of the helper utilities needed to
+   convert the models from PyTorch to ONNX to OpenVINO, and the OpenVINO
+   ``OVStableDiffusionPipeline`` within the notebook directly. If you would
+   like to see the full implementation of stable diffusion for text to
+   image, please visit
+   `236-stable-diffusion-v2-text-to-image <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-text-to-image.ipynb>`__.
+
 
 **Table of contents**:
 

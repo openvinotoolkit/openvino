@@ -64,7 +64,9 @@ Prerequisites `⇑ <#top>`__
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
 
-   **Note**: The original model (for example, ``stable-diffusion-v1-4``)
+.. note::
+
+   The original model (for example, ``stable-diffusion-v1-4``)
    requires you to accept the model license before downloading or using
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
@@ -75,6 +77,7 @@ not, you do not have to do anything. Just run the notebook.**
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
    You can login on Hugging Face Hub in notebook environment, using
    following code:
+
 
 .. code:: python
 
@@ -870,8 +873,11 @@ Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
 latent state initialization and number of steps.
 
-   **Note**: Consider increasing ``steps`` to get more precise results.
+.. note::
+
+   Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
+
 
 .. code:: ipython3
 

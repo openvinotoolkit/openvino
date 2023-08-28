@@ -1011,17 +1011,17 @@ directories and files which were created during the download process.
 Concluding notes
 ~~~~~~~~~~~~~~~~
 
-   1. The code for this tutorial is adapted from the `VI-Depth
-      repository <https://github.com/isl-org/VI-Depth>`__.
-   2. Users may choose to download the original and raw datasets from
-      the `VOID
-      dataset <https://github.com/alexklwong/void-dataset/>`__.
-   3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
-      works on a slightly older version of released model assets from
-      its `MiDaS sibling
-      repository <https://github.com/isl-org/MiDaS>`__. However, the new
-      releases beginning from
-      `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
-      directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
-      assets thereby rendering the **major pre-processing and model
-      compilation step irrelevant**.
+1. The code for this tutorial is adapted from the `VI-Depth
+   repository <https://github.com/isl-org/VI-Depth>`__.
+2. Users may choose to download the original and raw datasets from
+   the `VOID
+   dataset <https://github.com/alexklwong/void-dataset/>`__.
+3. The `isl-org/VI-Depth <https://github.com/isl-org/VI-Depth>`__
+   works on a slightly older version of released model assets from
+   its `MiDaS sibling
+   repository <https://github.com/isl-org/MiDaS>`__. However, the new
+   releases beginning from
+   `v3.1 <https://github.com/isl-org/MiDaS/releases/tag/v3_1>`__
+   directly have OpenVINO™ ``.xml`` and ``.bin`` model files as their
+   assets thereby rendering the **major pre-processing and model
+   compilation step irrelevant**.

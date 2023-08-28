@@ -534,12 +534,15 @@ using a front-facing camera. Some web browsers, especially Mozilla
 Firefox, may cause flickering. If you experience flickering,
 set \ ``use_popup=True``.
 
-   **NOTE**: To use this notebook with a webcam, you need to run the
+.. note::
+
+   To use this notebook with a webcam, you need to run the
    notebook on a computer with a webcam. If you run the notebook on a
    remote server (for example, in Binder or Google Colab service), the
    webcam will not work. By default, the lower cell will run model
    inference on a video file. If you want to try to live inference on
    your webcam set ``WEBCAM_INFERENCE = True``
+
 
 .. code:: ipython3
 

@@ -223,7 +223,7 @@ respectively
 Loading the Model `⇑ <#top>`__
 ###############################################################################################################################
 
- Load the model in OpenVINO Runtime with
+Load the model in OpenVINO Runtime with
 ``ie.read_model`` and compile it for the specified device with
 ``ie.compile_model``.
 

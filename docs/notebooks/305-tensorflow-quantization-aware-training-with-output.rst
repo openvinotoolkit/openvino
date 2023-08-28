@@ -41,10 +41,13 @@ Import NNCF and all auxiliary packages from your Python code. Set a name for the
 size, used batch size, and the learning rate. Also, define paths where
 Frozen Graph and OpenVINO IR versions of the models will be stored.
 
-   **NOTE**: All NNCF logging messages below ERROR level (INFO and
+.. note::
+
+   All NNCF logging messages below ERROR level (INFO and
    WARNING) are disabled to simplify the tutorial. For production use,
    it is recommended to enable logging by removing
    ``set_log_level(logging.ERROR)``.
+
 
 .. code:: ipython3
 
@@ -261,9 +264,12 @@ Pre-train a Floating-Point Model `⇑ <#top>`__
 Using NNCF for model compression assumes that the user has a pre-trained
 model and a training pipeline.
 
-   **NOTE** For the sake of simplicity of the tutorial, it is
+.. note::
+
+   For the sake of simplicity of the tutorial, it is
    recommended to skip ``FP32`` model training and load the weights that
    are provided.
+
 
 .. code:: ipython3
 
@@ -471,7 +477,9 @@ Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
 throughput (frames per second) values.
 
-   **NOTE**: This notebook runs ``benchmark_app`` for 15 seconds to give
+.. note::
+
+   This notebook runs ``benchmark_app`` for 15 seconds to give
    a quick indication of performance. For more accurate performance, it
    is recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications. Run
@@ -479,6 +487,7 @@ throughput (frames per second) values.
    CPU for one minute. Change CPU to GPU to benchmark on GPU. Run
    ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 .. code:: ipython3
 

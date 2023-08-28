@@ -324,12 +324,15 @@ models, using `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 - an inference performance measurement tool in OpenVINO.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    benchmark_app in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change CPU to GPU to benchmark
    on GPU. Run ``benchmark_app --help`` to see an overview of all
    command-line options.
+
 
 .. code:: ipython3
 

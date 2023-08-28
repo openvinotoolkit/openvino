@@ -1265,9 +1265,11 @@ Configure Inference Pipeline `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-Configuration steps: 1. Load models on device 2. Configure tokenizer and
-scheduler 3. Create instance of ``OVStableDiffusionInpaintingPipeline``
-class
+Configuration steps:
+
+1. Load models on device.
+2. Configure tokenizer and scheduler.
+3. Create instance of ``OVStableDiffusionInpaintingPipeline`` class.
 
 .. code:: ipython3
 

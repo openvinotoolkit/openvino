@@ -38,7 +38,7 @@ information, refer to the
 - `Text Recognition <#text-recognition>`__
 
   - `Load Text Recognition Model <#load-text-recognition-model>`__
-  - `Do Inference <#do-inference>`__
+  - `Do Inference <#do-the-inference>`__
 
 - `Show Results <#show-results>`__
 
@@ -535,6 +535,9 @@ Load Text Recognition Model `⇑ <#top>`__
     
     # Get the height and width of the input layer.
     _, _, H, W = recognition_input_layer.shape
+
+
+.. _do-the-inference:
 
 Do Inference `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

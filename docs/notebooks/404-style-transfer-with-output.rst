@@ -397,10 +397,13 @@ starting at 0. Set ``flip=True`` when using a front-facing camera. Some
 web browsers, especially Mozilla Firefox, may cause flickering. If you
 experience flickering, set ``use_popup=True``.
 
-   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run it on a server, you will not be
    able to access the webcam. However, you can still perform inference
    on a video file in the final step.
+
 
 .. code:: ipython3
 

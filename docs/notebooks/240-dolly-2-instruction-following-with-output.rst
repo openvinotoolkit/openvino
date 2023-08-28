@@ -427,8 +427,8 @@ Helpers for output parsing `⇑ <#top>`__
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-Model was retrained to finish generation using special token ``### End``
-the code below find its id for using it as generation stop-criteria.
+Model was retrained to finish generation using special token ``### End``.
+The code below find its id for using it as generation stop-criteria.
 
 .. code:: ipython3
 
