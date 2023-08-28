@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/lstm_cell.hpp"
+#include "openvino/reference/lstm_cell.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>

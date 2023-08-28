@@ -16,9 +16,9 @@
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/shape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/pad.hpp"
 
 using namespace std;
 using namespace ngraph;
