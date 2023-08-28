@@ -24,7 +24,7 @@ static inline void reduce_logical_and(const char* arg,
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 
-    ngraph::CoordinateTransformBasic input_transform(in_shape);
+    CoordinateTransformBasic input_transform(in_shape);
     for (const Coordinate& input_coord : input_transform) {
         const Coordinate output_coord = ngraph::reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 
@@ -44,7 +44,7 @@ static inline void reduce_logical_or(const char* arg, char* out, const Shape& in
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 
-    ngraph::CoordinateTransformBasic input_transform(in_shape);
+    CoordinateTransformBasic input_transform(in_shape);
     for (const Coordinate& input_coord : input_transform) {
         const Coordinate output_coord = ngraph::reduce(input_coord, reduction_axes, false);
 

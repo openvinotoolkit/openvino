@@ -74,7 +74,7 @@ void lrn(const T* arg,
         axes_map[axis_coord] = true;
     }
 
-    ngraph::CoordinateTransform input_transform(arg_shape);
+    CoordinateTransform input_transform(arg_shape);
     for (const Coordinate& in_coord : input_transform) {
         // area determined by in_coord local neighborhood
         for (size_t i = 0; i < axes_map.size(); i++) {

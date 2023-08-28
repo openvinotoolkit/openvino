@@ -10,7 +10,7 @@
 
 #include "openvino/reference/utils/coordinate_index.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace coordinates {
 namespace impl {
 namespace {
@@ -171,4 +171,4 @@ bool ReverseRange::increment() {
 }  // namespace impl
 
 }  // namespace coordinates
-}  // namespace ngraph
+}  // namespace ov

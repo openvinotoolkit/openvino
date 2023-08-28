@@ -182,8 +182,8 @@ static void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform input_transform(input_shape);
-    ngraph::CoordinateTransform padded_transform(padded_input_shape);
+    ov::CoordinateTransform input_transform(input_shape);
+    ov::CoordinateTransform padded_transform(padded_input_shape);
 
     for (const ngraph::Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;

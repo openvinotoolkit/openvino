@@ -68,8 +68,8 @@ void scatter_elem_update(const DataType* input_data,
     // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
     // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
 
-    ngraph::CoordinateTransformBasic indices_transform{indices_shape};
-    ngraph::CoordinateTransformBasic data_transform{data_shape};
+    CoordinateTransformBasic indices_transform{indices_shape};
+    CoordinateTransformBasic data_transform{data_shape};
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 
@@ -190,8 +190,8 @@ void scatter_elem_update_with_reduction(const DataType* input_data,
                                         const Shape& indices_shape,
                                         const Reduction reduction_type,
                                         const bool use_init_val) {
-    ngraph::CoordinateTransformBasic indices_transform{indices_shape};
-    ngraph::CoordinateTransformBasic data_transform{data_shape};
+    CoordinateTransformBasic indices_transform{indices_shape};
+    CoordinateTransformBasic data_transform{data_shape};
     const auto indices_strides = row_major_strides(indices_shape);
     const auto data_strides = row_major_strides(data_shape);
 

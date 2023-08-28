@@ -22,7 +22,7 @@ void reduce_l1(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduc
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 
-    ngraph::CoordinateTransformBasic input_transform(in_shape);
+    CoordinateTransformBasic input_transform(in_shape);
     for (const Coordinate& input_coord : input_transform) {
         const Coordinate output_coord = ngraph::reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
 

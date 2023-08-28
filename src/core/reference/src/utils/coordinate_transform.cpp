@@ -19,7 +19,7 @@
 #include "ngraph/util.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 
-using namespace ngraph;
+using namespace ov;
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace {

@@ -22,8 +22,8 @@ void softmax(const T* arg, T* out, const Shape& shape, const AxisSet& axes) {
 
     max(arg, temp_ptr, shape, axes);
 
-    ngraph::CoordinateTransform transform(shape);
-    ngraph::CoordinateTransform temp_transform(temp_shape);
+    CoordinateTransform transform(shape);
+    CoordinateTransform temp_transform(temp_shape);
     for (const Coordinate& coord : transform) {
         Coordinate temp_coord = ngraph::reduce(coord, axes, true);
         out[transform.index(coord)] =

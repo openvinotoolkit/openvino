@@ -22,7 +22,7 @@ void max_pool(const T* arg,
               const Shape& padding_above) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     // At the outermost level we will walk over every output coordinate O.
-    ngraph::CoordinateTransform output_transform(out_shape);
+    CoordinateTransform output_transform(out_shape);
 
     for (const Coordinate& out_coord : output_transform) {
         // Our output coordinate O will have the form:
@@ -84,13 +84,13 @@ void max_pool(const T* arg,
             input_batch_transform_source_axis_order[i] = i;
         }
 
-        ngraph::CoordinateTransform input_batch_transform(arg_shape,
-                                                          input_batch_transform_start,
-                                                          input_batch_transform_end,
-                                                          input_batch_transform_source_strides,
-                                                          input_batch_transform_source_axis_order,
-                                                          input_batch_transform_padding_below,
-                                                          input_batch_transform_padding_above);
+        CoordinateTransform input_batch_transform(arg_shape,
+                                                  input_batch_transform_start,
+                                                  input_batch_transform_end,
+                                                  input_batch_transform_source_strides,
+                                                  input_batch_transform_source_axis_order,
+                                                  input_batch_transform_padding_below,
+                                                  input_batch_transform_padding_above);
 
         // As we go, we compute the maximum value:
         //

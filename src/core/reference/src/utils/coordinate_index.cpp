@@ -4,10 +4,7 @@
 
 #include "openvino/reference/utils/coordinate_index.hpp"
 
-#include "ngraph/coordinate.hpp"
-#include "ngraph/shape.hpp"
-
-namespace ngraph {
+namespace ov {
 std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
     if (c.size() < s.size()) {
         throw std::domain_error("Coordinate rank is less than shape rank.");
@@ -25,4 +22,4 @@ std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
 
     return index;
 }
-}  // namespace ngraph
+}  // namespace ov

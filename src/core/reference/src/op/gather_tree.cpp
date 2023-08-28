@@ -74,7 +74,7 @@ void reference::gather_tree(const char* step_ids,
     }
 
     const auto in_strides = row_major_strides(step_ids_shape);
-    ngraph::CoordinateTransformBasic cordinate_transform(step_ids_shape);
+    CoordinateTransformBasic cordinate_transform(step_ids_shape);
 
     for (const auto& coord : cordinate_transform) {
         const auto out_idx = std::inner_product(coord.begin(), coord.end(), in_strides.begin(), uint64_t(0));

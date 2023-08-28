@@ -102,7 +102,6 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
                                                       const Shape& data_shape,
                                                       std::unique_ptr<int64_t> axis,
                                                       const bool sorted) {
-    using ngraph::CoordinateIterator;
     using std::begin;
     using std::end;
 
@@ -137,8 +136,8 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             auto elem_coord_rhs = *it;
             elem_coord_rhs.insert(elem_coord_rhs.cbegin() + axisVal, rhs.idx);
 
-            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord_lhs, data_shape);
-            const auto rhs_elem_idx = ngraph::coordinate_index(elem_coord_rhs, data_shape);
+            const auto lhs_elem_idx = coordinate_index(elem_coord_lhs, data_shape);
+            const auto rhs_elem_idx = coordinate_index(elem_coord_rhs, data_shape);
 
             if (*(data + lhs_elem_idx) < *(data + rhs_elem_idx)) {
                 return true;
@@ -175,7 +174,7 @@ UniqueElements<Index_t, Count_t> find_unique_elements(const Data_t* data,
             // needs to be injected manually.
             auto elem_coord = *it;
             elem_coord.insert(elem_coord.cbegin() + axisVal, slice_with_lower_idx.idx);
-            const auto lhs_elem_idx = ngraph::coordinate_index(elem_coord, data_shape);
+            const auto lhs_elem_idx = coordinate_index(elem_coord, data_shape);
             const auto rhs_elem_idx = lhs_elem_idx + slices_offset;
             if (*(data + lhs_elem_idx) != *(data + rhs_elem_idx)) {
                 return false;

@@ -18,7 +18,7 @@ using namespace ov;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(coordinate, shape0d) {
-    auto ct = ngraph::CoordinateTransform({});
+    auto ct = ov::CoordinateTransform({});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 1);
     auto it = ct.begin();
     EXPECT_EQ(*it++, ov::Coordinate({}));
@@ -26,7 +26,7 @@ TEST(coordinate, shape0d) {
 }
 
 TEST(coordinate, shape1d) {
-    auto ct = ngraph::CoordinateTransform({3});
+    auto ct = ov::CoordinateTransform({3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 3);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0}));
@@ -36,7 +36,7 @@ TEST(coordinate, shape1d) {
 }
 
 TEST(coordinate, shape2d) {
-    auto ct = ngraph::CoordinateTransform({2, 3});
+    auto ct = ov::CoordinateTransform({2, 3});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 6);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0, 0}));
@@ -49,7 +49,7 @@ TEST(coordinate, shape2d) {
 }
 
 TEST(coordinate, shape3d) {
-    auto ct = ngraph::CoordinateTransform({2, 3, 4});
+    auto ct = ov::CoordinateTransform({2, 3, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();
     EXPECT_EQ(*it++, Coordinate({0, 0, 0}));
@@ -80,7 +80,7 @@ TEST(coordinate, shape3d) {
 }
 
 TEST(coordinate, zero_sized_axis) {
-    auto ct = ngraph::CoordinateTransform({2, 0, 4});
+    auto ct = ov::CoordinateTransform({2, 0, 4});
     ASSERT_EQ(shape_size(ct.get_target_shape()), 0);
     auto it = ct.begin();
     EXPECT_TRUE(it == ct.end());
@@ -97,14 +97,14 @@ TEST(coordinate, corner) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = ngraph::CoordinateTransform(source_shape,
-                                          source_start_corner,
-                                          source_end_corner,
-                                          source_strides,
-                                          source_axis_order,
-                                          target_padding_below,
-                                          target_padding_above,
-                                          source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 9);
     auto it = ct.begin();
@@ -131,14 +131,14 @@ TEST(coordinate, strides) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = ngraph::CoordinateTransform(source_shape,
-                                          source_start_corner,
-                                          source_end_corner,
-                                          source_strides,
-                                          source_axis_order,
-                                          target_padding_below,
-                                          target_padding_above,
-                                          source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 20);
     auto it = ct.begin();
@@ -175,14 +175,14 @@ TEST(coordinate, axis_order) {
     CoordinateDiff target_padding_above = CoordinateDiff(source_shape.size(), 0);
     Strides source_dilation_strides = Strides(source_shape.size(), 1);
 
-    auto ct = ngraph::CoordinateTransform(source_shape,
-                                          source_start_corner,
-                                          source_end_corner,
-                                          source_strides,
-                                          source_axis_order,
-                                          target_padding_below,
-                                          target_padding_above,
-                                          source_dilation_strides);
+    auto ct = ov::CoordinateTransform(source_shape,
+                                      source_start_corner,
+                                      source_end_corner,
+                                      source_strides,
+                                      source_axis_order,
+                                      target_padding_below,
+                                      target_padding_above,
+                                      source_dilation_strides);
 
     ASSERT_EQ(shape_size(ct.get_target_shape()), 24);
     auto it = ct.begin();

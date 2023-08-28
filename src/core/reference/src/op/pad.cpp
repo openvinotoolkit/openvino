@@ -50,13 +50,13 @@ struct PadBase {
     void run() const {
         check_inputs();
 
-        ngraph::CoordinateTransformBasic out_coordinate(out_shape);
+        CoordinateTransformBasic out_coordinate(out_shape);
         char* out_data = out;
         for (const auto& out_coord : out_coordinate) {
             const auto in_coord = transform_to_input_data_coord(out_coord);
 
             if (in_coord) {
-                const auto in_index = ngraph::coordinate_index(*in_coord, data_shape);
+                const auto in_index = coordinate_index(*in_coord, data_shape);
                 const auto in_data = data + in_index * elem_size;
                 std::copy(in_data, in_data + elem_size, out_data);
             } else {

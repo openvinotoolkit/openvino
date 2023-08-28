@@ -1016,14 +1016,14 @@ struct ChannelsMap {
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
 NGRAPH_SUPPRESS_DEPRECATED_START
-static ngraph::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
-                                                    const size_t unsquized_shape_dim,
-                                                    const size_t channel) {
+static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
+                                                const size_t unsquized_shape_dim,
+                                                const size_t channel) {
     auto begin = ov::Coordinate(unsquized_shape.size(), 0);
     auto end = ov::Coordinate(unsquized_shape);
     begin[unsquized_shape_dim] = channel;
     end[unsquized_shape_dim] = channel + 1;
-    ngraph::CoordinateTransform iter(unsquized_shape, begin, end);
+    ov::CoordinateTransform iter(unsquized_shape, begin, end);
     return iter;
 }
 NGRAPH_SUPPRESS_DEPRECATED_END

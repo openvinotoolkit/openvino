@@ -27,13 +27,13 @@ void avg_pool_backprop(const T* delta,
                        const Shape& padding_above,
                        bool include_padding_in_avg_computation) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform out_transform(out_shape);
+    CoordinateTransform out_transform(out_shape);
 
     for (const Coordinate& out_coord : out_transform) {
         out[out_transform.index(out_coord)] = 0;
     }
 
-    ngraph::CoordinateTransform delta_transform(delta_shape);
+    CoordinateTransform delta_transform(delta_shape);
 
     for (const Coordinate& delta_coord : delta_transform) {
         size_t img_index = delta_coord[0];
@@ -67,13 +67,13 @@ void avg_pool_backprop(const T* delta,
         }
         std::iota(begin(source_window_transform_source_axis_order), end(source_window_transform_source_axis_order), 0);
 
-        ngraph::CoordinateTransform source_window_transform(out_shape,
-                                                            source_window_transform_start,
-                                                            source_window_transform_end,
-                                                            source_window_transform_source_strides,
-                                                            source_window_transform_source_axis_order,
-                                                            source_window_transform_padding_below,
-                                                            source_window_transform_padding_above);
+        CoordinateTransform source_window_transform(out_shape,
+                                                    source_window_transform_start,
+                                                    source_window_transform_end,
+                                                    source_window_transform_source_strides,
+                                                    source_window_transform_source_axis_order,
+                                                    source_window_transform_padding_below,
+                                                    source_window_transform_padding_above);
 
         size_t num_elements_in_window = 0;
 
@@ -108,7 +108,7 @@ void avg_pool(const T* arg,
     auto old_mode = std::fegetround();
     std::fesetround(FE_TONEAREST);
     // At the outermost level we will walk over every output coordinate O.
-    ngraph::CoordinateTransform output_transform(out_shape);
+    CoordinateTransform output_transform(out_shape);
 
     for (const Coordinate& out_coord : output_transform) {
         // Our output coordinate O will have the form:
@@ -170,13 +170,13 @@ void avg_pool(const T* arg,
             input_batch_transform_source_axis_order[i] = i;
         }
 
-        ngraph::CoordinateTransform input_batch_transform(arg_shape,
-                                                          input_batch_transform_start,
-                                                          input_batch_transform_end,
-                                                          input_batch_transform_source_strides,
-                                                          input_batch_transform_source_axis_order,
-                                                          input_batch_transform_padding_below,
-                                                          input_batch_transform_padding_above);
+        CoordinateTransform input_batch_transform(arg_shape,
+                                                  input_batch_transform_start,
+                                                  input_batch_transform_end,
+                                                  input_batch_transform_source_strides,
+                                                  input_batch_transform_source_axis_order,
+                                                  input_batch_transform_padding_below,
+                                                  input_batch_transform_padding_above);
 
         // As we go, we compute the sum value:
         //

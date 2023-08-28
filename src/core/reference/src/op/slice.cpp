@@ -65,15 +65,15 @@ void slice(const char* arg,
            const Shape& out_shape,
            size_t elem_size) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    const ngraph::CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
+    const CoordinateTransform input_transform(arg_shape, lower_bounds, upper_bounds, strides);
 
-    const ngraph::CoordinateTransform output_transform(out_shape);
+    const CoordinateTransform output_transform(out_shape);
 
     NGRAPH_CHECK(shape_size(input_transform.get_target_shape()) == shape_size(output_transform.get_target_shape()));
 
     auto dst_mem = out;
 
-    for (const auto& range : ngraph::coordinates::slice(arg_shape, lower_bounds, upper_bounds, strides)) {
+    for (const auto& range : coordinates::slice(arg_shape, lower_bounds, upper_bounds, strides)) {
         auto src_index = range.begin_index;
         for (size_t i = 0; i < range.element_number; src_index += range.step, ++i) {
             const auto src_mem = arg + src_index * elem_size;

@@ -123,8 +123,8 @@ InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_lin
     std::vector<int64_t> r(num_of_axes);
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform output_transform(m_out_shape);
-    ngraph::CoordinateTransform input_transform(m_input_data_shape);
+    CoordinateTransform output_transform(m_out_shape);
+    CoordinateTransform input_transform(m_input_data_shape);
 
     std::vector<std::size_t> vector_for_indeces(num_of_axes);
     float prod_a = 1;

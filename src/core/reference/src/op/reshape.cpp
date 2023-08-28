@@ -40,7 +40,7 @@ void reshape(const char* arg,
     char* output = out;
     const char* const output_end = out + shape_size(out_shape) * elem_size;
     const auto axis_strides = reorder(row_major_strides(in_shape), in_axis_order);
-    for (const auto& coordinate : ngraph::CoordinateTransformBasic(reorder(in_shape, in_axis_order))) {
+    for (const auto& coordinate : CoordinateTransformBasic(reorder(in_shape, in_axis_order))) {
         if (output >= output_end) {
             break;
         }

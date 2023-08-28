@@ -34,9 +34,9 @@ void roi_align(const T* feature_maps,
     auto num_rois = rois_shape[0];
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform feature_maps_transform(feature_maps_shape);
-    ngraph::CoordinateTransform rois_transform(rois_shape);
-    ngraph::CoordinateTransform out_transform(out_shape);
+    CoordinateTransform feature_maps_transform(feature_maps_shape);
+    CoordinateTransform rois_transform(rois_shape);
+    CoordinateTransform out_transform(out_shape);
 
     bool aligned = false;
     T offset_src = static_cast<T>(0);

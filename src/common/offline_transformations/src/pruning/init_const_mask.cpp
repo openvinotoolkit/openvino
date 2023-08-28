@@ -43,7 +43,7 @@ ngraph::pass::InitConstMask::InitConstMask(const ngraph::AxisSet& dims,
 
                 bool skip_dim_value = false;
                 NGRAPH_SUPPRESS_DEPRECATED_START
-                CoordinateTransform iter(shape, begin, end);
+                ov::CoordinateTransform iter(shape, begin, end);
                 for (const Coordinate& coord : iter) {
                     if (!condition(values.at(iter.index(coord)))) {
                         skip_dim_value = true;

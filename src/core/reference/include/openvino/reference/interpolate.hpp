@@ -363,8 +363,8 @@ void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
     auto info = helper.get_info_for_linear_mode();
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform output_transform(m_out_shape);
-    ngraph::CoordinateTransform input_transform(m_input_data_shape);
+    CoordinateTransform output_transform(m_out_shape);
+    CoordinateTransform input_transform(m_input_data_shape);
 
     for (const Coordinate& output_coord : output_transform) {
         auto icoords_data = helper.get_icoords(output_coord);
@@ -372,7 +372,7 @@ void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
         float summa = 0.0f;
         float wsum = 0.0f;
 
-        ngraph::CoordinateTransform indices{info.shape_for_indeces};
+        CoordinateTransform indices{info.shape_for_indeces};
         for (const auto& index : indices) {
             auto inner_result = helper.inner_calculation(output_coord, icoords_data, info, index);
             if (!inner_result.condition) {
@@ -533,8 +533,8 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
     size_t num_of_axes = m_axes.size();
 
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform output_transform(m_out_shape);
-    ngraph::CoordinateTransform input_transform(m_input_data_shape);
+    CoordinateTransform output_transform(m_out_shape);
+    CoordinateTransform input_transform(m_input_data_shape);
     Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
 
     for (const Coordinate& output_coord : output_transform) {
@@ -551,7 +551,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
         }
 
         float summa = 0.0f;
-        ngraph::CoordinateTransform indices{indices_shape};
+        CoordinateTransform indices{indices_shape};
 
         for (const Coordinate& idx : indices) {
             auto coords_for_sum = output_coord;
@@ -678,8 +678,8 @@ void InterpolateEval<T>::multidim_pil_func(const T* input_data, T* out, const in
 template <typename T>
 void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform output_transform(m_out_shape);
-    ngraph::CoordinateTransform input_transform(m_input_data_shape);
+    CoordinateTransform output_transform(m_out_shape);
+    CoordinateTransform input_transform(m_input_data_shape);
 
     for (const Coordinate& output_coord : output_transform) {
         auto input_coord = helper.get_input_coords_for_nearest_mode(output_coord);
@@ -695,8 +695,8 @@ inline void pad_input_data(const uint8_t* data_ptr,
                            const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    ngraph::CoordinateTransform input_transform(input_shape);
-    ngraph::CoordinateTransform padded_transform(padded_input_shape);
+    CoordinateTransform input_transform(input_shape);
+    CoordinateTransform padded_transform(padded_input_shape);
 
     for (const Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;

@@ -28,7 +28,7 @@ void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
 
-    ngraph::CoordinateTransformBasic input_transform(in_shape);
+    CoordinateTransformBasic input_transform(in_shape);
     std::map<size_t, int> index_to_count_map;
 
     for (const Coordinate& input_coord : input_transform) {

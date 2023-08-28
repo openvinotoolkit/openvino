@@ -19,8 +19,8 @@ void quantize(const REAL* input,
               const Shape& scale_zero_point_shape,
               const AxisSet& axes,
               op::Quantize::RoundMode round_mode) {
-    ngraph::CoordinateTransform input_transform(input_shape);
-    ngraph::CoordinateTransform scale_zero_point_transform(scale_zero_point_shape);
+    CoordinateTransform input_transform(input_shape);
+    CoordinateTransform scale_zero_point_transform(scale_zero_point_shape);
 
     for (const Coordinate& input_coord : input_transform) {
         Coordinate scale_zero_point_coord = project(input_coord, axes);
