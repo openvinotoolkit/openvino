@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import openvino.runtime as ov
+import openvino as ov
 
 #! [py_frontend_extension_ThresholdedReLU_header]
 import openvino.runtime.opset12 as ops
@@ -17,10 +17,14 @@ from openvino.frontend import ConversionExtension
 # Not implemented
 #! [add_frontend_extension]
 
+from utils import get_path_to_extension_library
+
+path_to_extension_lib = get_path_to_extension_library()
+
 #! [add_extension_lib]
 core = ov.Core()
 # Load extensions library to ov.Core
-core.add_extension("libopenvino_template_extension.so")
+core.add_extension(path_to_extension_lib)
 #! [add_extension_lib]
 
 #! [py_frontend_extension_MyRelu]

@@ -20,9 +20,9 @@ def get_dynamic_model():
 def get_model(input_shape = None, input_dtype=np.float32) -> ov.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    param = ops.parameter(input_shape, input_dtype, name="data")
+    param = ops.parameter(input_shape, input_dtype, name="input")
     relu = ops.relu(param, name="relu")
-    relu.output(0).get_tensor().set_names({"res"})
+    relu.output(0).get_tensor().set_names({"result"})
     model = ov.Model([relu], [param], "test_model")
 
     assert model is not None
@@ -43,6 +43,13 @@ def get_ngraph_model(input_shape = None, input_dtype=np.float32):
 def get_image(shape = (1, 3, 32, 32), dtype = "float32"):
     np.random.seed(42)
     return np.random.rand(*shape).astype(dtype)
+
+
+def get_path_to_image():
+    path_to_img = tempfile.NamedTemporaryFile(suffix="_image.bmp").name
+    import cv2 as cv
+    cv.imread(path_to_img, get_image())
+    return path_to_img
 
 
 def get_path_to_extension_library():

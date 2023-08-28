@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from utils import get_model
+from utils import get_model, get_image
 
 #! [import]
 import openvino as ov
@@ -54,21 +54,18 @@ input_tensor = infer_request.get_input_tensor(0)
 output_tensor = infer_request.get_output_tensor(0)
 #! [get_set_index_tensor]
 
-#! [get_set_name_tensor]
-input_tensor = infer_request.get_tensor("data")
-output_tensor = infer_request.get_tensor("res")
-#! [get_set_name_tensor]
+data = get_image()
 
 #! [get_set_tensor]
 tensor1 = infer_request.get_tensor("res")
-tensor2 = ov.Tensor()
-infer_request.set_tensor("tensor_name2", tensor2)
+tensor2 = ov.Tensor(data)
+infer_request.set_tensor("data", tensor2)
 #! [get_set_tensor]
 
 #! [get_set_tensor_by_port]
 input_port = model.input(0)
-output_port = model.input("tensor_name")
-input_tensor = ov.Tensor()
+output_port = model.input("data")
+input_tensor = ov.Tensor(data)
 infer_request.set_tensor(input_port, input_tensor)
 output_tensor = infer_request.get_tensor(output_port)
 #! [get_set_tensor_by_port]
@@ -84,15 +81,15 @@ infer_request2.set_input_tensor(0, output)
 #! [roi_tensor]
 # input_tensor points to input of a previous network and
 # cropROI contains coordinates of output bounding box **/
-input_tensor = ov.Tensor(type=ov.Type.f32, shape=ov.Shape([1, 3, 20, 20]))
+input_tensor = ov.Tensor(type=ov.Type.f32, shape=ov.Shape([1, 3, 100, 100]))
 begin = [0, 0, 0, 0]
-end = [1, 2, 3, 3]
+end = [1, 3, 32, 32]
 # ...
 
 # roi_tensor uses shared memory of input_tensor and describes cropROI
 # according to its coordinates **/
 roi_tensor = ov.Tensor(input_tensor, begin, end)
-infer_request2.set_tensor("input_name", roi_tensor)
+infer_request2.set_tensor("data", roi_tensor)
 #! [roi_tensor]
 
 #! [remote_tensor]

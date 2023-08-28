@@ -4,6 +4,7 @@
 import numpy as np
 import openvino as ov
 
+from utils import get_path_to_model, get_path_to_image, get_image
 
 #! [properties_example]
 import openvino.runtime.opset11 as ops
@@ -156,6 +157,10 @@ unpacked_data = unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 
+xml_path = get_path_to_model()
+path_to_image = get_path_to_image()
+
+
 #! [releasing_gil]
 import openvino as ov
 import cv2 as cv
@@ -175,9 +180,9 @@ def prepare_data(input, image_path):
     input_data.append(image)
 
 core = ov.Core()
-model = core.read_model("model.xml")
+model = core.read_model(xml_path)
 # Create thread with prepare_data function as target and start it
-thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
+thread = Thread(target=prepare_data, args=[model.input(), path_to_image])
 thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,
