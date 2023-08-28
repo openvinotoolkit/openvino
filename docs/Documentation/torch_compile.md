@@ -87,7 +87,7 @@ Currently, PyTorch does not support ``torch.compile`` feature on Windows officia
 the below instructions:
 
 1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
-2. Update the file at <python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py
+2. Update the file at ``<python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py``
 3. Find the function called ``check_if_dynamo_supported()``:
 
    .. code-block:: console
