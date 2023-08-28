@@ -44,8 +44,8 @@ model = ppp.build()
 # ! [ov:preprocess:build]
 
 # ! [ov:preprocess:input_index]
-#ppp.input(1) # Gets 2nd input in a model
-#ppp.output(2) # Gets output with index=2 (3rd one) in a model
+ppp.input(1) # Gets 2nd input in a model
+ppp.output(2) # Gets output with index=2 (3rd one) in a model
 # ! [ov:preprocess:input_index]
 
 
