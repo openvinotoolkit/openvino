@@ -14,6 +14,7 @@
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "condition_inst.h"
+#include "strided_slice_inst.h"
 #include <sstream>
 
 #include "gemm_inst.h"
@@ -1698,7 +1699,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else {
             expected = node.get_output_layout().format;
         }
-    } else if (node.is_type<reshape>()) {
+    } else if (node.is_type<reshape>() || node.is_type<strided_slice>()) {
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());
