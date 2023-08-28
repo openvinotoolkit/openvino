@@ -12,6 +12,7 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/reference/copy.hpp"
 #include "squeeze_shape_inference.hpp"
 

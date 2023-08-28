@@ -16,7 +16,6 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const EmbeddingSegmentsSum* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    // const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     const auto input_size = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op, input_size >= 4 && input_size <= 6);
