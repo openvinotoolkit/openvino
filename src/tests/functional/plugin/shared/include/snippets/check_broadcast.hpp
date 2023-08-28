@@ -12,7 +12,7 @@ namespace snippets {
 
 class CheckBroadcastTestCaseParams {
 public:
-    std::pair<ov::PartialShape, ov::PartialShape> input_shapes;
+    std::pair<InputShape, InputShape> input_shapes;
     ov::op::AutoBroadcastSpec broadcast;
     size_t num_nodes;
     size_t num_subgraphs;

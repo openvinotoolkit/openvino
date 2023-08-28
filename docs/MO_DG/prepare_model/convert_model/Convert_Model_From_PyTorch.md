@@ -33,8 +33,8 @@ Following PyTorch model formats are supported:
 
 Converting certain PyTorch models may require model tracing, which needs ``input_shape`` or ``example_input`` parameters to be set.
 
-``example_input`` is used as example input for model tracing.
-``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
+* ``example_input`` is used as example input for model tracing.
+* ``input_shape`` is used for constructing a float zero-filled torch.Tensor for model tracing.
 
 Example of using ``example_input``:
 
@@ -55,6 +55,10 @@ Example of using ``example_input``:
 * ``np.ndarray``
 * ``list`` or ``tuple`` with tensors (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
 * ``dictionary`` where key is the input name, value is the tensor (``openvino.runtime.Tensor`` / ``torch.Tensor`` / ``np.ndarray``)
+
+.. important::
+
+   The ``convert_model()`` method returns ``ov.Model`` that you can optimize, compile, or save to a file for subsequent use.
 
 Exporting a PyTorch Model to ONNX Format
 ########################################

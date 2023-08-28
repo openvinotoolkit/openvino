@@ -4,15 +4,14 @@
 
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -26,7 +25,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
     // Fuse if const is a scalar
-    if (ngraph::is_scalar(const_shape)) {
+    if (ov::is_scalar(const_shape)) {
         return std::make_shared<ov::op::v1::Multiply>(weights, mul_const);
     }
 

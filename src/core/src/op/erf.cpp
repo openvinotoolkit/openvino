@@ -7,8 +7,8 @@
 #include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/reference/erf.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -5,19 +5,19 @@
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matrix_nms.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
-    auto nms = ngraph::pattern::wrap_type<ov::op::v8::MatrixNms>();
+    auto nms = ov::pass::pattern::wrap_type<ov::op::v8::MatrixNms>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto nms = std::dynamic_pointer_cast<ov::op::v8::MatrixNms>(m.get_match_root());
@@ -31,7 +31,7 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         }
 
         const auto new_args = nms->input_values();
-        // vector of new nGraph operations
+        // vector of new openvino operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
@@ -57,11 +57,11 @@ ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool forc
         }
 
         nms_new->set_friendly_name(nms->get_friendly_name());
-        ngraph::copy_runtime_info(nms, new_ops);
-        ngraph::replace_node(nms, {output_0, output_1, output_2});
+        ov::copy_runtime_info(nms, new_ops);
+        ov::replace_node(nms, {output_0, output_1, output_2});
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

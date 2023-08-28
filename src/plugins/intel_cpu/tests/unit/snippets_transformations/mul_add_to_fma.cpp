@@ -122,7 +122,7 @@ protected:
         size_t add_input_idx;
         std::tie(inputShapes[0], inputShapes[1], inputShapes[2], master_shape, add_input_idx) = this->GetParam();
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
-        snippets_function = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
+        snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
         cpu_manager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
@@ -131,15 +131,15 @@ protected:
         generator = std::make_shared<DummyGenerator>(target_machine);
     }
 
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
     std::shared_ptr<ov::snippets::Generator> generator;
     ov::pass::Manager cpu_manager;
 };
 
 TEST_P(MulAddToFMATests, MulAddToFMATests) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape, {}, {}, cpu_manager, {}, generator);
+    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(), master_shape, {}, {}, cpu_manager, {}, generator);
     model = subgraph->body_ptr();
-    model_ref = snippets_function->getLowered();
+    model_ref = snippets_model->getLowered();
 }
 
 namespace MulAddToFMATestsInstantiation {

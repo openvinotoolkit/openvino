@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/logical_not.hpp"
+
+#include <gtest/gtest.h>
+
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 using LogicalNotTestParam = std::tuple<element::Type, PartialShape>;
@@ -23,7 +25,7 @@ const auto dynamic_shapes = Values(PartialShape{Dimension::dynamic(), Dimension:
                                    PartialShape::dynamic());
 }  // namespace
 
-class LogicalNotTest : public TypePropOpTest<op::v1::LogicalNot>, public WithParamInterface<LogicalNotTestParam> {
+class LogicalNotTest : public TypePropOpTest<ov::op::v1::LogicalNot>, public WithParamInterface<LogicalNotTestParam> {
 protected:
     void SetUp() override {
         std::tie(exp_type, exp_shape) = GetParam();
@@ -43,7 +45,7 @@ INSTANTIATE_TEST_SUITE_P(type_prop_dynamic_static_rank,
                          PrintToStringParamName());
 
 TEST_P(LogicalNotTest, propagate_dimensions) {
-    const auto input = std::make_shared<op::Parameter>(exp_type, exp_shape);
+    const auto input = std::make_shared<ov::op::v0::Parameter>(exp_type, exp_shape);
     const auto op = make_op(input);
 
     EXPECT_EQ(op->get_element_type(), exp_type);
@@ -57,7 +59,7 @@ TEST_P(LogicalNotTest, propagate_labels) {
     }
     const auto exp_labels = get_shape_labels(exp_shape);
 
-    const auto input = std::make_shared<op::Parameter>(exp_type, exp_shape);
+    const auto input = std::make_shared<ov::op::v0::Parameter>(exp_type, exp_shape);
     const auto op = make_op(input);
 
     EXPECT_EQ(get_shape_labels(op->get_output_partial_shape(0)), exp_labels);
@@ -65,7 +67,7 @@ TEST_P(LogicalNotTest, propagate_labels) {
 
 TEST_P(LogicalNotTest, default_ctor) {
     const auto op = std::make_shared<op::v1::LogicalNot>();
-    const auto input = std::make_shared<op::Parameter>(exp_type, exp_shape);
+    const auto input = std::make_shared<ov::op::v0::Parameter>(exp_type, exp_shape);
 
     op->set_argument(0, input);
     op->validate_and_infer_types();

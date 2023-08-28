@@ -5,7 +5,7 @@
 // clang-format off
 #include "evaluates_map.hpp"
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp"
+#include "openvino/reference/experimental_detectron_roi_feature_extractor.hpp"
 // clang-format on
 
 namespace experimental_roi_feature {
