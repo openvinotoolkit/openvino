@@ -134,7 +134,7 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           key: ${{ github.job }}-windows
           restore-keys: |
             ${{ github.job }}-windows

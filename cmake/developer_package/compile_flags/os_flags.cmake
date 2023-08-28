@@ -379,9 +379,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4275)
 
     # Enable __FILE__ trim, use path with forward and backward slash as directory separator
-    add_compile_options(
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
-        "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OpenVINO_SOURCE_DIR}/>")
+    if(NOT DEFINED ENV{GITHUB_ACTIONS})
+        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>")
+    endif()
 
     #
     # Debug information flags, by default CMake adds /Zi option
