@@ -55,16 +55,17 @@ output_tensor = infer_request.get_output_tensor(0)
 #! [get_set_index_tensor]
 
 data = get_image()
+input_tensor_name = "input"
 
 #! [get_set_tensor]
-tensor1 = infer_request.get_tensor("res")
+tensor1 = infer_request.get_tensor("result")
 tensor2 = ov.Tensor(data)
-infer_request.set_tensor("data", tensor2)
+infer_request.set_tensor(input_tensor_name, tensor2)
 #! [get_set_tensor]
 
 #! [get_set_tensor_by_port]
 input_port = model.input(0)
-output_port = model.input("data")
+output_port = model.input(input_tensor_name)
 input_tensor = ov.Tensor(data)
 infer_request.set_tensor(input_port, input_tensor)
 output_tensor = infer_request.get_tensor(output_port)
@@ -89,7 +90,7 @@ end = [1, 3, 32, 32]
 # roi_tensor uses shared memory of input_tensor and describes cropROI
 # according to its coordinates **/
 roi_tensor = ov.Tensor(input_tensor, begin, end)
-infer_request2.set_tensor("data", roi_tensor)
+infer_request2.set_tensor(input_tensor_name, roi_tensor)
 #! [roi_tensor]
 
 #! [remote_tensor]
