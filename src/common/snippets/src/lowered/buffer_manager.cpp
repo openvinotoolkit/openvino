@@ -17,69 +17,72 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-BufferManager::BufferManager(const lowered::LinearIR& linear_ir) {
-    // Initialize edges and nodes
-    init_clusters(linear_ir);
-}
-
-int64_t BufferManager::allocate() {
-    initialization();
+int64_t BufferManager::allocate(const lowered::LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferManager::allocate")
+    const auto buffer_system = create_buffer_system(linear_ir);
+    auto scratchpad_size = init_default(buffer_system);
 
     if (m_enable_optimizations) {
-        // Initialize boxes for MemorySolver
-        init_boxes();
+        const auto buffer_clusters = init_clusters(buffer_system);
+        const auto boxes = init_boxes(buffer_clusters);
 
         MemorySolver staticMemSolver(boxes);
-        m_scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * alignment;
+        scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * m_alignment;  // alignment in byte
 
-        // Set offsets for Buffers (edges)
+        // Set offsets for Buffers
         for (auto& box : boxes) {
             for (auto& buffer : buffer_clusters[box.id]) {
                 int64_t offset = staticMemSolver.getOffset(box.id);
-                set_buffer_offset(buffer, offset * alignment);  // alignment in byte
+                set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
             }
         }
     }
-
-    return m_scratchpad_size;
+    return scratchpad_size;
 }
 
-void BufferManager::initialization() {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferManager::initialization")
-
-    size_t buffer_id = 0;
-    size_t buffer_offset = 0;
-
-    for (const auto& cluster : buffer_clusters) {
-        for (const auto& buffer_expr : cluster) {
-            const auto node = buffer_expr->get_node();
-            const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(node);
-            if (!buffer)
-                continue;
-
-            const auto byte_size = buffer->get_byte_size();
-            set_buffer_offset(buffer_expr, buffer_offset);
-            buffer->set_id(buffer_id);
-
-            buffer_offset += byte_size;
-            buffer_id++;
-        }
-    }
-    m_scratchpad_size = buffer_offset;
-}
-
-void BufferManager::init_clusters(const LinearIR& linear_ir) {
+BufferManager::BufferSystem BufferManager::create_buffer_system(const lowered::LinearIR& linear_ir) {
     int64_t order = 0;
+    BufferSystem system;
     for (const auto& expr : linear_ir) {
         const auto op = expr->get_node();
         if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            buffer_clusters.push_back(BufferCluster{expr}); // TODO: Add support of inplace
+            system.push_back(expr);
         }
         ov::snippets::pass::SetTopologicalOrder(op, order++);
     }
+    return system;
 }
 
-void BufferManager::init_boxes() {
+size_t BufferManager::init_default(const BufferSystem& buffer_system) {
+    size_t buffer_id = 0;
+    size_t buffer_offset = 0;
+    for (const auto& buffer_expr : buffer_system) {
+        const auto node = buffer_expr->get_node();
+        const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(node);
+        if (!buffer)
+            continue;
+
+        const auto byte_size = buffer->get_byte_size();
+        set_buffer_offset(buffer_expr, buffer_offset);
+        buffer->set_id(buffer_id);
+
+        buffer_offset += byte_size;
+        buffer_id++;
+    }
+    return buffer_offset;
+}
+
+BufferManager::BufferClusters BufferManager::init_clusters(const BufferSystem& buffer_system) {
+    // TODO: Add support of inplace
+    BufferClusters buffer_clusters;
+    for (const auto& buffer_expr : buffer_system) {
+        buffer_clusters.push_back(BufferCluster{buffer_expr});
+    }
+    return buffer_clusters;
+}
+
+std::vector<MemorySolver::Box> BufferManager::init_boxes(const BufferClusters& buffer_clusters) {
+    std::vector<MemorySolver::Box> boxes;
     const auto count = static_cast<int>(buffer_clusters.size());
     for (int i = 0; i < count; i++) {
         MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
@@ -127,12 +130,13 @@ void BufferManager::init_boxes() {
             box.finish = std::max(e_finish, box.finish);
         }
 
-        box.size = utils::div_up(box_size, alignment);
+        box.size = utils::div_up(box_size, m_alignment);
         boxes.push_back(box);
     }
+    return boxes;
 }
 
-void BufferManager::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) const {
+void BufferManager::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
