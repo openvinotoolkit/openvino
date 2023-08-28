@@ -33,7 +33,7 @@ assert input_tensor1.data.dtype == np.float32
 # Fill the first data ...
 
 # Get input tensor by tensor name
-input_tensor2 = infer_request.get_tensor("data")
+input_tensor2 = infer_request.get_tensor("input")
 assert input_tensor2.data.dtype == np.float32
 # Fill the second data ...
 #! [ov_api_2_0:get_input_tensor_aligned]
@@ -46,7 +46,7 @@ assert input_tensor1.data.dtype == np.float32
 # Fill the first data ...
 
 # Get input tensor by tensor name
-input_tensor2 = infer_request.get_tensor("data")
+input_tensor2 = infer_request.get_tensor("input")
 # IR v10 works with converted precisions (i64 -> i32)
 assert input_tensor2.data.dtype == np.float32
 # Fill the second data ..

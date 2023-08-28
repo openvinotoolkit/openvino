@@ -3,7 +3,7 @@
 #
 
 import openvino as ov
-from utils import get_model
+from utils import get_model, get_ngraph_model
 
 core = ov.Core()
 
@@ -24,7 +24,7 @@ compiled_model = core.compile_model(model=model, device_name="MULTI", config=
 
 # ! [compiled_model_set_property]
 # turn CPU off for multi-device execution
-#compiled_model.set_property(properties={"MULTI_DEVICE_PRIORITIES": "GPU"})
+compiled_model.set_property(properties={"MULTI_DEVICE_PRIORITIES": "GPU"})
 # ! [compiled_model_set_property]
 
 # ! [core_get_rw_property]
@@ -43,11 +43,11 @@ perf_mode = compiled_model.get_property("PERFORMANCE_HINT")
 nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
 # ! [compiled_model_get_ro_property]
 
-
-from openvino.inference_engine import IECore
+import ngraph as ng
+import openvino.inference_engine as ie
 from utils import get_ngraph_model
 
-core = IECore()
+core = ie.IECore()
 #! [core_get_metric]
 full_device_name = core.get_metric("CPU", "FULL_DEVICE_NAME")
 #! [core_get_metric]
@@ -60,7 +60,9 @@ num_streams = core.get_config("CPU", "CPU_THROUGHPUT_STREAMS")
 core.set_config({"PERF_COUNT": "YES"}, "CPU")
 #! [core_set_config]
 
-net = get_ngraph_model()
+func = get_ngraph_model()
+caps = ng.Function.to_capsule(func)
+net = ie.IENetwork(caps)
 
 #! [core_load_network]
 exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",
@@ -70,7 +72,7 @@ exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",
 
 #! [executable_network_set_config]
 # turn CPU off for multi-device execution
-#exec_network.set_config({"DEVICE_PRIORITIES": "GPU"})
+exec_network.set_config({"DEVICE_PRIORITIES": "GPU"})
 #! [executable_network_set_config]
 
 #! [executable_network_get_metric]
