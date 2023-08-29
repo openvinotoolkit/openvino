@@ -187,7 +187,7 @@ MarkupOptimizations::MarkupOptimizations(
 
 bool ngraph::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
-    ngraph::pass::Manager markup(get_pass_config());
+    ov::pass::Manager markup(get_pass_config());
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
@@ -214,7 +214,7 @@ bool ngraph::pass::low_precision::LowPrecision::run_on_model(const std::shared_p
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ngraph::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig);
 
     auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
     const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};

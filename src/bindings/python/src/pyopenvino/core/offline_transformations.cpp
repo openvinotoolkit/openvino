@@ -87,7 +87,7 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "apply_make_stateful_transformation",
         [](std::shared_ptr<ov::Model> model, const std::map<std::string, std::string>& param_res_names) {
-            ngraph::pass::Manager manager;
+            ov::pass::Manager manager;
             manager.register_pass<ov::pass::MakeStateful>(param_res_names);
             manager.run_passes(model);
         },
