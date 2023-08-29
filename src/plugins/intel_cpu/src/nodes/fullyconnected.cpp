@@ -473,6 +473,17 @@ void FullyConnected::prepareParams() {
         }
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+            if (prevExecPtr) {
+                const Shape lastInputShape{getLastInputDims()[0]};
+                const Shape inputShape{srcMemPtr->getStaticDims()};
+                DEBUG_LOG("##", getName(), " weight desc changes!!!");
+                DEBUG_LOG("##",  prevExecPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1, " : "FullyConnnect, ",
+                        execPtr->getImplementationType() == brgconv_avx512_1x1 ? "Conv1x1:" : "FullyConnnect:",
+                        " input_shape from: ", lastInputShape.toString(),
+                       " to ", inputShape.toString(), ", element_num from : ", lastInputShape.getElementsCount(),
+                       " to ", inputShape.getElementsCount(), ",  weight_desc from: ", *prevExecPtr->getWeightDesc(), " to ",
+                       *execPtr->getWeightDesc(), " memorysize(MB): \t\t", static_cast<float>(execPtr->getWeightDesc()->getMaxMemSize()) / (1024.0*1024.0));
+            }
             if (weightsNonTransposed) {
                 primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), makeTransposedWeightDescriptor())->getPrimitive();
             } else {

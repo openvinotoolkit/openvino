@@ -309,6 +309,7 @@ void Input::cloneBlobIfRequired() {
 #endif
         const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
         return blobAlignedWithPrec && blobAlignedOnSSE;
+        //return blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -390,11 +391,14 @@ void Input::cloneBlobIfRequired() {
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
+        DEBUG_LOG(">>>>>>>>>>>>>>>weight_cache\n");
     // IRs already have all subnormals flushed to zero, but in
     // read_model scenario with directly loaded original model still can have subnormals
     } else if (isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
+    //} else if (isBlobAligned()) {
         memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
     } else {
+        DEBUG_LOG(">>>>>>>>>>>>>>>>>blob_aligned:%d , isWA %d\n", static_cast<int>(isBlobAligned()), static_cast<int>(isWA()) );
         memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
     }
 }
