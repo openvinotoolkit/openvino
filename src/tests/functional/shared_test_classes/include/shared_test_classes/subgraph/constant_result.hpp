@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace SubgraphTestsDefinitions {
 
@@ -38,3 +38,33 @@ protected:
 };
 
 }  // namespace SubgraphTestsDefinitions
+
+
+namespace ov {
+namespace test {
+
+enum class ConstantSubgraphType {
+    SINGLE_COMPONENT,
+    SEVERAL_COMPONENT
+};
+
+std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type);
+
+typedef std::tuple <
+    ConstantSubgraphType,
+    std::vector<size_t>, // input shape
+    ov::element::Type,   // input precision
+    std::string          // Device name
+> constResultParams;
+
+class ConstantResultSubgraphTestNew : public testing::WithParamInterface<constResultParams>,
+                                      virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
+    void createGraph(const ConstantSubgraphType type, const std::vector<size_t>& inputShape, const ov::element::Type& inputPrecision);
+protected:
+    void SetUp() override;
+};
+
+} //  namespace test
+} //  namespace ov

@@ -14,3 +14,11 @@ TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
 
 }  // namespace SubgraphTestsDefinitions
 
+namespace ov {
+namespace test {
+
+TEST_P(ConstantResultSubgraphTestNew, CompareWithRefs) {
+    run();
+}
+} //  namespace test
+} //  namespace ov
