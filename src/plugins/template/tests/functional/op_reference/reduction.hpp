@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
@@ -20,6 +21,8 @@ using namespace ov;
 
 namespace reference_tests {
 namespace ReductionOpsRefTestDefinitions {
+
+using ov::test::utils::ReductionType;
 
 // Removes some values from a vector of axis values
 template <typename AXIS_VALUES>
@@ -37,18 +40,6 @@ AXIS_VALUES reduce(const AXIS_VALUES& axis_values, const ov::AxisSet& deleted_ax
 
     return result;
 }
-
-enum ReductionType {
-    Mean,
-    Max,
-    Min,
-    Prod,
-    Sum,
-    LogicalOr,
-    LogicalAnd,
-    L1,
-    L2
-};
 
 struct ReductionParams {
     ReductionParams(const ReductionType& reductType, const bool keepDims, const std::vector<int64_t>& axes,

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-
+#include "common_test_utils/test_enums.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -15,10 +15,7 @@ using namespace ov;
 namespace reference_tests {
 namespace ConversionOpsRefTestDefinitions {
 
-enum ConversionTypes {
-    CONVERT,
-    CONVERT_LIKE
-};
+using ov::test::utils::ConversionTypes;
 
 static std::map<ConversionTypes, std::string> conversionNames = {
     {ConversionTypes::CONVERT,      "Convert"},

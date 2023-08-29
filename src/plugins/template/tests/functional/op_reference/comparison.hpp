@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/greater.hpp"
@@ -20,17 +21,7 @@ using namespace ov;
 namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {
 
-enum ComparisonTypes {
-    EQUAL,
-    NOT_EQUAL,
-    IS_FINITE,
-    IS_INF,
-    IS_NAN,
-    LESS,
-    LESS_EQUAL,
-    GREATER,
-    GREATER_EQUAL
-};
+using ov::test::utils::ComparisonTypes;
 
 struct RefComparisonParams {
     ComparisonTypes compType;
