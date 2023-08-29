@@ -440,7 +440,7 @@ const auto testParams2DFP16_smoke = ::testing::Combine(::testing::Combine(::test
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                     ::testing::ValuesIn(filterAdditionalConfig_FP16())),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DFP16),
@@ -497,7 +497,7 @@ const auto testParams2DFP16_nightly = ::testing::Combine(::testing::Combine(::te
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(ElementType::undefined),
                                                                     ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                     ::testing::ValuesIn(filterAdditionalConfig_FP16())),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DFP16),
@@ -641,7 +641,7 @@ const auto fullyConnectedParams3DFP16_smoke = ::testing::Combine(::testing::Valu
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                           ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 
@@ -699,7 +699,7 @@ const auto fullyConnectedParams3DFP16_nightly = ::testing::Combine(::testing::Va
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(ElementType::undefined),
                                                            ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                           ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                            ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 
@@ -786,7 +786,7 @@ const auto fullyConnectedParams2D_Brgemm_FP16_smoke = ::testing::Combine(::testi
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 
@@ -854,7 +854,7 @@ const auto fullyConnectedParams2D_Brgconv1x1_FP16_smoke = ::testing::Combine(::t
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams2D_Brgconv1x1_FP16_smoke = ::testing::Combine(fullyConnectedParams2D_Brgconv1x1_FP16_smoke,
@@ -924,7 +924,7 @@ const auto fullyConnectedParams3D_Brgconv1x1_FP16_smoke = ::testing::Combine(::t
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams3D_Brgconv1x1_FP16_smoke = ::testing::Combine(fullyConnectedParams3D_Brgconv1x1_FP16_smoke,
@@ -978,7 +978,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(::t
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_Amx_smoke,
@@ -1010,7 +1010,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_nightly = ::testing::Combine(::tes
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams2D_FP16_Brgemm_nightly = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_nightly,
@@ -1041,7 +1041,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_Amx_nightly = ::testing::Combine(:
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams2D_FP16_Brgemm_Amx_nightly = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_Amx_nightly,
@@ -1367,7 +1367,7 @@ const auto matMulParams_FP16 = ::testing::Combine(::testing::ValuesIn(IS),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParams_FP16 = ::testing::Combine(matMulParams_FP16,
@@ -1399,7 +1399,7 @@ const auto matMulParamsDynamic_FP16 = ::testing::Combine(::testing::ValuesIn(IS_
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParamsDynamic_FP16 = ::testing::Combine(matMulParamsDynamic_FP16,
@@ -1430,7 +1430,7 @@ const auto matMulParamsDynamic_FP16_nightly = ::testing::Combine(::testing::Valu
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParamsDynamic_FP16_nightly = ::testing::Combine(matMulParamsDynamic_FP16_nightly,
@@ -1492,7 +1492,7 @@ const auto matMulParamsDynamicFusing_FP16 = ::testing::Combine(::testing::Values
                                                         ::testing::Values(ElementType::undefined),
                                                         ::testing::Values(ElementType::undefined),
                                                         ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                         ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParamsDynamicFusing_FP16 = ::testing::Combine(matMulParamsDynamicFusing_FP16,
@@ -1551,7 +1551,7 @@ const auto matMulBrgemmParams_FP16_smoke = ::testing::Combine(::testing::ValuesI
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmParams_FP16_smoke = ::testing::Combine(matMulBrgemmParams_FP16_smoke,
@@ -1603,7 +1603,7 @@ const auto matMulBrgemmAmxParams_FP16_smoke = ::testing::Combine(::testing::Valu
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmAmxParams_FP16_smoke = ::testing::Combine(matMulBrgemmAmxParams_FP16_smoke,
@@ -1634,7 +1634,7 @@ const auto matMulBrgemmParams_FP16_nightly = ::testing::Combine(::testing::Value
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmParams_FP16_nightly = ::testing::Combine(matMulBrgemmParams_FP16_nightly,
@@ -1665,7 +1665,7 @@ const auto matMulBrgemmAmxParams_FP16_nightly = ::testing::Combine(::testing::Va
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(ElementType::undefined),
                                                          ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                          ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmAmxParams_FP16_nightly = ::testing::Combine(matMulBrgemmAmxParams_FP16_nightly,
@@ -1756,7 +1756,7 @@ const auto matMulBrgemmParamsDynamic_FP16 = ::testing::Combine(::testing::Values
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                           ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmParamsDynamic_FP16 = ::testing::Combine(matMulBrgemmParamsDynamic_FP16,
@@ -1787,7 +1787,7 @@ const auto matMulBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(::testing::Val
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(ElementType::undefined),
                                                           ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                          ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                           ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(matMulBrgemmAmxParamsDynamic_FP16,
@@ -1818,7 +1818,7 @@ const auto matMulParamsBrgemmDynamicFusing_FP16 = ::testing::Combine(::testing::
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(helpers::InputLayerType::PARAMETER),
-                                                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                                ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                                 ::testing::ValuesIn(filterAdditionalConfig_FP16()));
 
 const auto testParamsBrgemmDynamicFusing_FP16 = ::testing::Combine(matMulParamsBrgemmDynamicFusing_FP16,
