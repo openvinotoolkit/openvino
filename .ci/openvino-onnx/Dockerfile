@@ -44,6 +44,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
     apt-get clean autoclean && \
     apt-get autoremove -y
 
+RUN python3 -m venv ~/.venv
+RUN source ~/.venv/bin/activate
 RUN python3 -m pip install "cython>=3.0.0"
 
 # Build OpenVINO
@@ -66,7 +68,8 @@ RUN cmake .. \
     -DENABLE_OV_PYTORCH_FRONTEND=ON \
     -DENABLE_OV_TF_FRONTEND=OFF \
     -DENABLE_OPENVINO_DEBUG=OFF \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
+    -DPYTHON_EXECUTABLE=`which python3`
 RUN ninja install
 
 # Run tests via tox
