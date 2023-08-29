@@ -4,6 +4,9 @@
 
 #include "openvino/reference/utils/coordinate_index.hpp"
 
+#include "openvino/core/coordinate.hpp"
+#include "openvino/core/shape.hpp"
+
 namespace ov {
 std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
     if (c.size() < s.size()) {

@@ -25,9 +25,9 @@ void ctc_greedy_decoder(const T* data,
     const auto class_count = data_shape[2];
     const uint64_t blank_index = class_count - 1;
 
-    CoordinateTransform out_transform{out_shape};
-    CoordinateTransform data_transform{data_shape};
-    CoordinateTransform seq_masks_transform{sequence_masks_shape};
+    CoordinateTransform out_transform = CoordinateTransform(out_shape);
+    CoordinateTransform data_transform = CoordinateTransform(data_shape);
+    CoordinateTransform seq_masks_transform = CoordinateTransform(sequence_masks_shape);
 
     // final sequences don't have to fill the whole output, elements that don't store
     // information are set to -1
