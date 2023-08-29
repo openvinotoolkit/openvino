@@ -373,7 +373,7 @@ class TestParallelRunner:
 
         for test in test_dict_cache:
             if test in test_dict_runtime and test not in self._excluded_tests:
-                cached_test_dict[test] = test_dict_cache[test] if test_dict_cache[test] != -1 else test_dict_runtime.get(test, -1)
+                cached_test_dict[test] = test_dict_cache[test]
 
         for test in test_dict_runtime:
             if test not in cached_test_dict and test not in self._excluded_tests:
@@ -604,6 +604,7 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
+                        dir = None
                         if self._device != None and self._available_devices != None:
                             for device_name in self._available_devices:
                                 if device_name in test_name:
@@ -643,7 +644,6 @@ class TestParallelRunner:
                                 test_cnt_real_saved_now += 1
                                 test_name = None
                                 test_log = list()
-                                dir = None
                 log_file.close()
                 if test_name != None:
                     dir = INTERAPTED_DIR
@@ -657,8 +657,8 @@ class TestParallelRunner:
 
                 if test_cnt_real < test_cnt_expected:
                     logger.error(f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {self._split_unit}")
-                else:
-                    os.remove(log_filename)
+                # else:
+                #     os.remove(log_filename)
 
         if len(list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"))) == 0:
             rmtree(os.path.join(self._working_dir, "temp"))
