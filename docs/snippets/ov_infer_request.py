@@ -54,19 +54,18 @@ input_tensor = infer_request.get_input_tensor(0)
 output_tensor = infer_request.get_output_tensor(0)
 #! [get_set_index_tensor]
 
-data = get_image()
 input_tensor_name = "input"
 
 #! [get_set_tensor]
 tensor1 = infer_request.get_tensor("result")
-tensor2 = ov.Tensor(data)
+tensor2 = ov.Tensor(ov.Type.f32, [1, 3, 32, 32])
 infer_request.set_tensor(input_tensor_name, tensor2)
 #! [get_set_tensor]
 
 #! [get_set_tensor_by_port]
 input_port = model.input(0)
 output_port = model.input(input_tensor_name)
-input_tensor = ov.Tensor(data)
+input_tensor = ov.Tensor(ov.Type.f32, [1, 3, 32, 32])
 infer_request.set_tensor(input_port, input_tensor)
 output_tensor = infer_request.get_tensor(output_port)
 #! [get_set_tensor_by_port]

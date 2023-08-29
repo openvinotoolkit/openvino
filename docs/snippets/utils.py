@@ -68,9 +68,7 @@ def get_path_to_extension_library():
 def get_path_to_model(is_old_api=False):
     path_to_xml = tempfile.NamedTemporaryFile(suffix="_model.xml").name
     if is_old_api:
-        func = get_ngraph_model(input_dtype=np.int64)
-        caps = ng.Function.to_capsule(func)
-        net = ie.IENetwork(caps)
+        net = get_ngraph_model(input_dtype=np.int64)
         net.serialize(path_to_xml)
     else:
         model = get_model()

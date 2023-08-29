@@ -31,7 +31,7 @@ infer_request = exec_network.requests[0]
 input_blobs = infer_request.input_blobs
 data = input_blobs["data"].buffer
 # Original I64 precision was converted to I32
-assert data.dtype == np.int64
+assert data.dtype == np.int32
 # Fill the first blob ...
 #! [ie:get_input_tensor]
 
