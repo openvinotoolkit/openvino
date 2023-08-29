@@ -21,12 +21,13 @@ endif()
 
 include (cmake/UseCython.cmake)
 
-# Check Cython version
-if(CYTHON_VERSION VERSION_LESS "3.0.0")
-    message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 3.0.0, found version ${CYTHON_VERSION}")
-else()
-    message(STATUS "Found Cython version ${CYTHON_VERSION}")
-endif()
+# TODO: Reenable once Windows issue is resolved
+# # Check Cython version
+# if(CYTHON_VERSION VERSION_LESS "3.0.0")
+#     message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 3.0.0, found version ${CYTHON_VERSION}")
+# else()
+#     message(STATUS "Found Cython version ${CYTHON_VERSION}")
+# endif()
 
 set(pyversion python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 
