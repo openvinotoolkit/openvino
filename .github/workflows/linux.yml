@@ -23,9 +23,9 @@ on:
     branches:
       - master
 
-# concurrency:
-#   group: ${{ github.head_ref || github.run_id }}-linux
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}-linux
+  cancel-in-progress: true
 
 jobs:
   Build:
