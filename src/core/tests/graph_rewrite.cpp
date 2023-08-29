@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/pass/graph_rewrite.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -12,6 +14,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 
 using namespace ::testing;
@@ -386,7 +389,7 @@ TEST(PassConfigTest, Test1) {
 
 class CheckConsumers : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("CheckConsumers");
     CheckConsumers() {
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
             auto node = m.get_match_root();
@@ -432,8 +435,6 @@ public:
         this->register_matcher(m, callback);
     }
 };
-
-NGRAPH_RTTI_DEFINITION(CheckConsumers, "CheckConsumers");
 
 TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_model();
