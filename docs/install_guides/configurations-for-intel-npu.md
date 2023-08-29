@@ -32,7 +32,7 @@ Prerequisites
 
 
 Manual Configuration steps
-++++++++++++++++++++
+++++++++++++++++++++++++++
 
 (i) After downloading the latest driver, you can unpack it with below command. Please substitute the relevant release version number:
 
@@ -64,7 +64,7 @@ Windows
 Intel® NPU driver for Windows is available through Windows Update.
 
 Manual Configuration steps
-++++++++++++++++++++
+++++++++++++++++++++++++++
 
 After downloading the driver, you can unpack it to a temporary folder.
 
