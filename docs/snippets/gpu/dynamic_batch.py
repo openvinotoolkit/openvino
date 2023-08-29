@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-import openvino.runtime as ov
+import openvino as ov
+from snippets import get_model
+
+model = get_model()
 
 #! [dynamic_batch]
 core = ov.Core()
@@ -11,7 +14,6 @@ C = 3
 H = 224
 W = 224
 
-model = core.read_model("model.xml")
 model.reshape([(1, 10), C, H, W])
 
 # compile model and create infer request
@@ -23,6 +25,9 @@ input_tensor = ov.Tensor(model.input().element_type, [2, C, H, W])
 
 # ...
 
-infer_request.infer([input_tensor])
+results = infer_request.infer([input_tensor])
 
 #! [dynamic_batch]
+
+assert list(results.keys())[0].partial_shape == ov.PartialShape([(1, 10), 3, 224, 224])
+assert list(results.values())[0].shape == tuple(ov.Shape([2, 3, 224, 224]))
