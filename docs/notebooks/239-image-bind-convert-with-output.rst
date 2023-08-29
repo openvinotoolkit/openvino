@@ -149,6 +149,8 @@ Currently, there is only one ImageBind model available for downloading,
 ``imagebind_huge``, more details about it can be found in `model
 card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
 
+.. note::
+
    Please note, depending on internet connection speed, the model
    downloading process can take some time. It also requires at least 5
    GB of free space on disk for saving model checkpoint.
