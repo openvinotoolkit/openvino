@@ -1152,7 +1152,7 @@ event::ptr primitive_inst::update_weights() {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
                                            << " to " << expected_layout.to_short_string() << std::endl;
-            _impl_params->weights_layout = optional_layout(original_layout);
+            _impl_params->weights_layout = optional_layout(expected_layout);
             return nullptr;
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
