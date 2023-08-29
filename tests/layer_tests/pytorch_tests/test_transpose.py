@@ -11,28 +11,38 @@ class TestTranspose(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(2, 3, 4, 5).astype(np.float32),)
 
-    def create_model(self, dim0, dim1):
+    def create_model(self, dim0, dim1, op_type):
         import torch
 
         class aten_transpose(torch.nn.Module):
-            def __init__(self, dim0, dim1):
+            def __init__(self, dim0, dim1, op_type):
                 super(aten_transpose, self).__init__()
                 self.dim0 = dim0
                 self.dim1 = dim1
+                op_types = {"transpose": self.forward_transpose, "swapaxes": self.forward_swapaxes}
+                self.forward = op_types.get(op_type)
 
-            def forward(self, x):
+            def forward_transpose(self, x):
                 return torch.transpose(x, self.dim0, self.dim1)
+            
+            def forward_swapaxes(self, x: torch.Tensor) -> torch.Tensor:
+                return torch.swapaxes(x, self.dim0, self.dim1)
 
         ref_net = None
+        if op_type == "transpose":
+            op_name = "aten::transpose"
+        elif op_type == "swapaxes":
+            op_name = "aten::transpose"
 
-        return aten_transpose(dim0, dim1), ref_net, "aten::transpose"
+        return aten_transpose(dim0, dim1, op_type), ref_net, op_name
 
     @pytest.mark.parametrize("dim0", [0, 1, 2, 3, -1, -2, -3, -4])
     @pytest.mark.parametrize("dim1", [0, 1, 2, 3, -1, -2, -3, -4])
+    @pytest.mark.parametrize("op_type", ["transpose", "swapaxes"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_transpose(self, dim0, dim1, ie_device, precision, ir_version):
-        self._test(*self.create_model(dim0, dim1),
+    def test_transpose(self, dim0, dim1, op_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim0, dim1, op_type),
                    ie_device, precision, ir_version)
 
 
