@@ -304,9 +304,7 @@ ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::e
     if (m_task_executor == nullptr)
         m_task_executor = cldnn::program::make_task_executor(m_config);
 
-    std::shared_ptr<ov::Model> ngraph_function(model);
-    // Check ngraph function pointer
-    if (!ngraph_function) {
+    if (!model) {
         OPENVINO_THROW("ov::Model pointer is nullptr");
     }
 
@@ -318,23 +316,22 @@ ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::e
                                         const std::string& outName,
                                         InferenceEngine::DataPtr& ptr) {
         auto shape = output.get_partial_shape();
+        OPENVINO_ASSERT(shape.rank().is_static(), "GPU plugin only supports static rank!");
         SizeVector dims(1, 0);
-        if (shape.rank().is_static()) {
-            dims.resize(shape.size(), 0);
-            for (size_t i = 0; i < shape.size(); ++i) {
-                if (shape[i].get_max_length() != -1)  // dimension has an estimation
-                    dims[i] = shape[i].get_max_length();
-            }
+        dims.resize(shape.size(), 0);
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (shape[i].get_max_length() != -1)  // dimension has an estimation
+                dims[i] = shape[i].get_max_length();
         }
-        auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
-        const auto rankLayout = rank < 0 ? InferenceEngine::Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
+
+        const auto rankLayout = TensorDesc::getLayoutByRank(shape.rank().get_length());
         const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
         ptr.reset(new InferenceEngine::Data(outName, {precision, dims, rankLayout}));
     };
 
     {
         // Set networkOutputs
-        for (const auto& result : ngraph_function->get_results()) {
+        for (const auto& result : model->get_results()) {
             auto out_node = result->input_value(0);
             auto outName = ov::op::util::create_ie_output_name(out_node);
             DataPtr data;
@@ -343,7 +340,7 @@ ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::e
         }
 
         // Set networkInputs
-        for (const auto& parameter : ngraph_function->get_parameters()) {
+        for (const auto& parameter : model->get_parameters()) {
             const auto& outName = parameter->get_friendly_name();
             DataPtr data;
             create_data_for_result(parameter, outName, data);
@@ -357,7 +354,7 @@ ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::e
     LoadCustomLayers();
 
     // Build program
-    auto ops = ngraph_function->get_ordered_ops();
+    auto ops = model->get_ordered_ops();
     m_programs.emplace_back(BuildProgram(ops, networkInputs, networkOutputs, false, false, true));
 }
 
