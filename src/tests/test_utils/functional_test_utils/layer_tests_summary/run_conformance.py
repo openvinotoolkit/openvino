@@ -231,15 +231,15 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter=\"{self._gtest_filter}\"', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._special_mode}']
-        conformance = TestParallelRunner(exec_file_path = f"{conformance_path}",
-                                         test_command_line = command_line_args,
-                                         worker_num = self._workers,
-                                         working_dir = logs_dir,
-                                         cache_path = self._cache_path,
-                                         split_unit="test",
-                                         repeat_failed = 1,
-                                         is_parallel_devices = self._is_parallel_over_devices,
-                                         excluded_tests = self._expected_failures if not self._expected_failures_update else set())
+        conformance = TestParallelRunner(exec_file_path=f"{conformance_path}",
+                                         test_command_line=command_line_args,
+                                         worker_num=self._workers,
+                                         working_dir=logs_dir,
+                                         cache_path=self._cache_path,
+                                         split_unit=constants.TEST_UNIT_NAME,
+                                         repeat_failed=1,
+                                         is_parallel_devices=self._is_parallel_over_devices,
+                                         excluded_tests=self._expected_failures if not self._expected_failures_update else set())
         conformance.run()
         conformance.postprocess_logs()
 
