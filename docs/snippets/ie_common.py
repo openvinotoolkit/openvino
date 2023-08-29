@@ -10,10 +10,10 @@ import openvino.inference_engine as ie
 core = ie.IECore()
 #! [ie:create_core]
 
-xml_path = get_path_to_model(True)
+model_path = get_path_to_model(True)
 
 #! [ie:read_model]
-network = core.read_network(xml_path)
+network = core.read_network(model_path)
 #! [ie:read_model]
 
 #! [ie:compile_model]

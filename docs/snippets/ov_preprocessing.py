@@ -9,10 +9,12 @@ from utils import get_model, get_temp_dir, get_path_to_model
 
 
 input_name = "input"
+model = get_model()
+
 # ! [ov:preprocess:create]
 from openvino.preprocess import PrePostProcessor
 
-ppp = PrePostProcessor(get_model())
+ppp = PrePostProcessor(model)
 # ! [ov:preprocess:create]
 
 # ! [ov:preprocess:tensor]
@@ -177,7 +179,7 @@ from openvino import serialize
 from openvino.runtime.passes import Manager, Serialize
 # ! [ov:preprocess:save_headers]
 
-xml_path = get_path_to_model()
+model_path = get_path_to_model()
 
 # ! [ov:preprocess:save]
 # ========  Step 0: read original model =========
@@ -213,20 +215,14 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-# First method - using serialize runtime wrapper
-serialize(model, xml_path)
-
-# Second method - using Manager and Serialize pass
-manager = Manager()
-manager.register_pass(Serialize(xml_path))
-manager.run_passes(model)
+serialize(model, model_path)
 # ! [ov:preprocess:save]
 
-path_to_cash_dir = get_temp_dir()
+path_to_cache_dir = get_temp_dir()
 
 # ! [ov:preprocess:save_load]
 core = Core()
-core.set_property({props.cache_dir(): path_to_cash_dir})
+core.set_property({props.cache_dir(): path_to_cache_dir})
 
 # In case that no preprocessing is needed anymore, we can load model on target device directly
 # With cached model available, it will also save some time on reading original model

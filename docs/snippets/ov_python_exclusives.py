@@ -157,7 +157,7 @@ unpacked_data = unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 
-xml_path = get_path_to_model()
+model_path = get_path_to_model()
 path_to_image = get_path_to_image()
 
 
@@ -180,7 +180,7 @@ def prepare_data(input, image_path):
     input_data.append(image)
 
 core = ov.Core()
-model = core.read_model(xml_path)
+model = core.read_model(model_path)
 # Create thread with prepare_data function as target and start it
 thread = Thread(target=prepare_data, args=[model.input(), path_to_image])
 thread.start()

@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from utils import get_model, get_dynamic_model
+from utils import get_dynamic_model
 
 #! [import]
 import openvino as ov
 #! [import]
 
+model = get_dynamic_model()
+
 #! [reshape_undefined]
 core = ov.Core()
-model = get_dynamic_model()
 
 # Set first dimension to be dynamic while keeping others static
 model.reshape([-1, 3, 224, 224])
@@ -37,8 +38,9 @@ print(model.output().partial_shape)
 print(model.input().partial_shape)
 #! [print_dynamic]
 
-#! [detect_dynamic]
 model = get_dynamic_model()
+
+#! [detect_dynamic]
 
 if model.input(0).partial_shape.is_dynamic:
     # input is dynamic
@@ -55,11 +57,12 @@ if model.output(0).partial_shape[1].is_dynamic:
 
 executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
+input_tensor_name = "input"
 
 #! [set_input_tensor]
 # For first inference call, prepare an input tensor with 1x128 shape and run inference request
 input_data1 = np.ones(shape=[1,128])
-infer_request.infer({"Parameter_319": input_data1})
+infer_request.infer({input_tensor_name: input_data1})
 
 # Get resulting outputs
 output_tensor1 = infer_request.get_output_tensor()
@@ -67,7 +70,7 @@ output_data1 = output_tensor1.data[:]
 
 # For second inference call, prepare a 1x200 input tensor and run inference request
 input_data2 = np.ones(shape=[1,200])
-infer_request.infer({"Parameter_319": input_data2})
+infer_request.infer({input_tensor_name: input_data2})
 
 # Get resulting outputs
 output_tensor2 = infer_request.get_output_tensor()
@@ -98,10 +101,9 @@ infer_request.infer()
 data2 = output_tensor.data[:]
 #! [get_input_tensor]
 
-#! [check_inputs]
-core = ov.Core()
-model = core.read_model("model.xml")
+model = get_dynamic_model()
 
+#! [check_inputs]
 # Print model input layer info
 for input_layer in model.inputs:
     print(input_layer.names, input_layer.partial_shape)
