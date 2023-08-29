@@ -77,7 +77,7 @@ TEST(MemSolverTest, GetOffsetThrowException) {
     MemorySolver ms(boxes);
     ms.solve();
 
-    EXPECT_THROW(ms.getOffset(100), ov::Exception);
+    EXPECT_THROW(ms.getOffset(100), std::runtime_error);
 }
 
 //  |

@@ -15,8 +15,6 @@
 #include <map>
 #include <vector>
 
-#include "openvino/core/except.hpp"
-
 /**
  * @brief Helps to solve issue of optimal memory allocation only for particular
  *        execution order.
@@ -179,7 +177,7 @@ public:
     int64_t getOffset(int id) const {
         auto res = _offsets.find(id);
         if (res == _offsets.end())
-            OPENVINO_THROW("There are no box for provided ID");
+            IE_THROW() << "There are no box for provided ID";
         return res->second;
     }
 
