@@ -157,7 +157,7 @@ ppp.output('result').tensor()\
     .set_element_type(Type.u8)
 
 # Also it is possible to insert some custom operations
-import openvino.runtime.opset11 as ops
+import openvino.runtime.opset12 as ops
 from openvino.runtime import Output
 from openvino.runtime.utils.decorators import custom_preprocess_function
 
