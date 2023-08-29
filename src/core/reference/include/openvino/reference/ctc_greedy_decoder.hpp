@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/reference/utils/coordinate_transform.hpp"
+
 namespace ov {
 namespace reference {
 template <typename T>
@@ -19,7 +20,7 @@ void ctc_greedy_decoder(const T* data,
                         const Shape& sequence_masks_shape,
                         const Shape& out_shape,
                         const bool ctc_merge_repeated) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto max_seq_len = data_shape[0];
     const auto batch_size = data_shape[1];
     const auto class_count = data_shape[2];
@@ -58,7 +59,7 @@ void ctc_greedy_decoder(const T* data,
         }
     }
     std::copy(tmp_out.begin(), tmp_out.end(), out);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace ov
