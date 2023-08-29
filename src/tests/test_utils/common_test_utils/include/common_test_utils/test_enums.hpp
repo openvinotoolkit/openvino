@@ -37,6 +37,21 @@ enum ReductionType {
     L2
 };
 
+enum InputLayerType {
+    CONSTANT,
+    PARAMETER,
+};
+
+enum SequenceTestsMode {
+    PURE_SEQ,
+    PURE_SEQ_RAND_SEQ_LEN_CONST,
+    PURE_SEQ_RAND_SEQ_LEN_PARAM,
+    CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+    CONVERT_TO_TI_MAX_SEQ_LEN_PARAM,
+    CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+    CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+};
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
