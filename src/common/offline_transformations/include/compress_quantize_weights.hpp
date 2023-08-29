@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class CompressQuantizeWeights;
 class ZeroPointOptimizer;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
     CompressQuantizeWeights transformation goal is to pre-quantize data to minimize runtime calculations with constant
@@ -58,7 +58,7 @@ class ZeroPointOptimizer;
     Such constant data packing reduces IR size (.bin file size) in offline transformations.
     With that we can skip same calculations in the runtime and make loading of such sub-graphs to the plugin faster.
 */
-class ngraph::pass::CompressQuantizeWeights : public ngraph::pass::MatcherPass {
+class ov::pass::CompressQuantizeWeights : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CompressQuantizeWeights", "0");
     CompressQuantizeWeights();
@@ -85,7 +85,7 @@ public:
                                         |
                                         v
 */
-class ngraph::pass::ZeroPointOptimizer : public ngraph::pass::MatcherPass {
+class ov::pass::ZeroPointOptimizer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ZeroPointOptimizer");
     ZeroPointOptimizer();

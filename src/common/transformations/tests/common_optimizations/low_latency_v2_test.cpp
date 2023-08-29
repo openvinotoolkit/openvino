@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/pass/low_latency.hpp>
+#include <openvino/pass/low_latency.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/pass/manager.hpp>
@@ -14,7 +14,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;

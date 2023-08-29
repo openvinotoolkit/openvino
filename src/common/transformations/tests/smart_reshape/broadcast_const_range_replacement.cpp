@@ -11,7 +11,7 @@
 #include <string>
 #include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;

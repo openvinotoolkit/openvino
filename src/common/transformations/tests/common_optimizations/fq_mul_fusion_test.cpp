@@ -14,7 +14,7 @@
 #include <tuple>
 
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 

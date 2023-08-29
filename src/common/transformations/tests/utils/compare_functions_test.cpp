@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
 using namespace testing;
@@ -599,21 +599,21 @@ TEST(TransformationTests, DummyOpNegativeDifferentStringVector) {
 
 namespace ov {
 
-struct TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION {};
+struct TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION {};
 
 template <>
-class AttributeAdapter<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>
-    : public DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION> {
+class AttributeAdapter<TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION>
+    : public DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION> {
 public:
-    AttributeAdapter(TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION& value)
-        : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION>(value) {}
+    AttributeAdapter(TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION& value)
+        : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION>(value) {}
 
-    OPENVINO_RTTI("TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION");
+    OPENVINO_RTTI("TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION");
 };
 }  // namespace ov
 
 TEST(TransformationTests, DummyOpNegativeNotSupportedType) {
-    ov::TestDummyDataTypeTransformationTests_NO_NGRAPH_NAME_COLISION m{};
+    ov::TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION m{};
     const auto& f1 = createDummyFunc(m);
     const auto& f2 = createDummyFunc(m);
 

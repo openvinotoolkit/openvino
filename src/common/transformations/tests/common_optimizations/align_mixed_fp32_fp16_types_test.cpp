@@ -10,7 +10,7 @@
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
 using namespace testing;

@@ -10,7 +10,7 @@
 #include <transformations/common_optimizations/shared_ops_optimization.hpp>
 #include <transformations/common_optimizations/simplify_shape_of_sub_graph.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::op;

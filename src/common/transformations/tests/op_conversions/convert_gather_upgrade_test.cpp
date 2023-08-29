@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/op/constant.hpp>
+#include <openvino/op/constant.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset7.hpp>
@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/op_conversions/convert_gather_upgrade.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 using namespace ov;
 using namespace testing;
 

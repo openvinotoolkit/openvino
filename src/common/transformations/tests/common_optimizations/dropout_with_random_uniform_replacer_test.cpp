@@ -12,7 +12,7 @@
 #include <transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 using namespace testing;

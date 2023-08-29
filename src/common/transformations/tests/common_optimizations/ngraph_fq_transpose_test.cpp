@@ -7,9 +7,9 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/fake_quantize.hpp>
-#include <ngraph/op/transpose.hpp>
+#include <openvino/op/constant.hpp>
+#include <openvino/op/fake_quantize.hpp>
+#include <openvino/op/transpose.hpp>
 #include <openvino/core/model.hpp>
 #include <openvino/pass/constant_folding.hpp>
 #include <openvino/pass/manager.hpp>
@@ -18,7 +18,7 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/sigmoid.hpp"
 

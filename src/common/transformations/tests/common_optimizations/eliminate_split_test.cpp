@@ -4,12 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/op/parameter.hpp>
+#include <openvino/op/parameter.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <queue>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace ov;
 using namespace testing;

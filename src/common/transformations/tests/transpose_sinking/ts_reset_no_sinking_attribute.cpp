@@ -9,7 +9,7 @@
 #include <transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace testing;

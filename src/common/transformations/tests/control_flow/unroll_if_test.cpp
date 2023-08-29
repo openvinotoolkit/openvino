@@ -11,7 +11,7 @@
 #include <transformations/control_flow/unroll_if.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/logical_not.hpp"

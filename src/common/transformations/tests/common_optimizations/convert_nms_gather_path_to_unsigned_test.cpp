@@ -10,8 +10,7 @@
 #include <transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;

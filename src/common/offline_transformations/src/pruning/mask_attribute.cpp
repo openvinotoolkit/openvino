@@ -5,7 +5,7 @@
 #include "mask_attribute.hpp"
 
 #include <functional>
-#include <ngraph/node.hpp>
+#include <openvino/core/node.hpp>
 #include <ostream>
 
 namespace ov {

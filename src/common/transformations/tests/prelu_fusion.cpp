@@ -14,7 +14,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/prelu_fusion.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
 using namespace ov;
