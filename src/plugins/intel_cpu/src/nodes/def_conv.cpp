@@ -1130,6 +1130,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
     const size_t group_wei_stride = weiStrides[0] * OC;
     auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
+        float w11 = 0, w12 = 0, w21 = 0, w22 = 0;
         for (int ic = 0; ic < IC; ic++) {
             const float *data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
@@ -1143,10 +1144,21 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
                         const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
                         const int v21  = pSampledCoordsVector[sampledCoordIndex + 2];
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
-                        float val = pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v11];  // v11
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v12];  // v12
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v21];  // v21
-                        val += pInterpWeightsVector[sampledCoordIndex++] * data_im_ptr[v22];  // v22
+
+                        float val = 0;
+                        w11 = pInterpWeightsVector[sampledCoordIndex++];
+                        w12 = pInterpWeightsVector[sampledCoordIndex++];
+                        w21 = pInterpWeightsVector[sampledCoordIndex++];
+                        w22 = pInterpWeightsVector[sampledCoordIndex++];
+
+                        // prevent access to invalid memory:
+                        // 0 * (*wrong_pointer) != 0 in common case, i.e.
+                        // 0 * NaN = NaN or segfault
+                        val += ((w11 == 0) ? 0 : w11 * data_im_ptr[v11]);
+                        val += ((w12 == 0) ? 0 : w12 * data_im_ptr[v12]);
+                        val += ((w21 == 0) ? 0 : w21 * data_im_ptr[v21]);
+                        val += ((w22 == 0) ? 0 : w22 * data_im_ptr[v22]);
+
                         d += val * weights[weiIndex + kh_off + kw_off];
                     } else {
                         sampledCoordIndex += sampledPointsPerPixel;
