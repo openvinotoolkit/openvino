@@ -6,6 +6,6 @@
 
 #include "binary_ops.hpp"
 
-using Type = ::testing::Types<BinaryOperatorType<ov::op::v1::FloorMod, ngraph::element::f32>>;
+using Type = ::testing::Types<BinaryOperatorType<ov::op::v1::FloorMod, ov::element::f32>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(visitor_with_auto_broadcast, BinaryOperatorVisitor, Type, BinaryOperatorTypeName);

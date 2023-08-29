@@ -102,7 +102,7 @@ TEST(type_prop, generate_proposals) {
     scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
     im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
@@ -111,7 +111,7 @@ TEST(type_prop, generate_proposals) {
     scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
     im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4});
@@ -120,7 +120,7 @@ TEST(type_prop, generate_proposals) {
     scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
     im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2});
@@ -129,7 +129,7 @@ TEST(type_prop, generate_proposals) {
     scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 
     im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
@@ -138,7 +138,7 @@ TEST(type_prop, generate_proposals) {
     scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 4, 200, 336});
 
     ASSERT_THROW(proposals = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs, element::i32),
-                 ngraph::CheckFailure)
+                 ov::AssertFailure)
         << "GenerateProposals node was created with invalid data.";
 }
 

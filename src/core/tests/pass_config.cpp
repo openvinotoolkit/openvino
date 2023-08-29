@@ -259,7 +259,7 @@ TEST(PassConfig, EnableDisablePasses9) {
 
 class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -282,17 +282,13 @@ public:
     }
 };
 
-NGRAPH_RTTI_DEFINITION(TestNestedMatcher, "TestNestedMatcher");
-
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }
 };
-
-NGRAPH_RTTI_DEFINITION(TestNestedGraphRewrite, "TestNestedGraphRewrite");
 
 TEST(PassConfig, EnableDisablePasses10) {
     std::shared_ptr<Model> f;

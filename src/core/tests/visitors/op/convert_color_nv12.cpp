@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "visitors/visitors.hpp"

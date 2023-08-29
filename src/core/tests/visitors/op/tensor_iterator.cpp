@@ -47,7 +47,7 @@ TEST(attributes, tensor_iterator_lstm) {
                                                        H);
     auto H_o = ngraph::builder::opset1::reshape(LSTM_cell->output(0), Shape{N, 1, H});
     auto C_o = ngraph::builder::opset1::reshape(LSTM_cell->output(1), Shape{N, 1, H});
-    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
+    auto body = make_shared<ov::Model>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -82,7 +82,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
 
     // Body
     auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
+    auto body = make_shared<ov::Model>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();
 
@@ -118,7 +118,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
 
     // Body
     auto Zo = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(Xi, Yi), M_body);
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
+    auto body = make_shared<ov::Model>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();
     tensor_iterator->set_body(body);

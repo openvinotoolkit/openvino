@@ -215,7 +215,7 @@ TEST_F(TypePropMatrixNmsV8Test, output_shape_i32) {
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, Shape{2, 7, 4});
     const auto scores = make_shared<op::v0::Parameter>(element::f32, Shape{2, 5, 7});
     op::v8::MatrixNms::Attributes attrs;
-    attrs.output_type = ngraph::element::i32;
+    attrs.output_type = ov::element::i32;
 
     const auto nms = make_op(boxes, scores, attrs);
 

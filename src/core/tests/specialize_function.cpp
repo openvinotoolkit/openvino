@@ -5,7 +5,9 @@
 #include "ngraph/specialize_function.hpp"
 
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 
 using namespace ngraph;
 NGRAPH_SUPPRESS_DEPRECATED_START;
