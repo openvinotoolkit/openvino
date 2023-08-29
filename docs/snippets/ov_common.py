@@ -29,12 +29,12 @@ infer_request = compiled_model.create_infer_request()
 # Get input tensor by index
 input_tensor1 = infer_request.get_input_tensor(0)
 # Element types, names and layouts are aligned with framework
-assert input_tensor1.data.dtype == np.float32
+assert input_tensor1.data.dtype == np.int64
 # Fill the first data ...
 
 # Get input tensor by tensor name
 input_tensor2 = infer_request.get_tensor("input")
-assert input_tensor2.data.dtype == np.float32
+assert input_tensor2.data.dtype == np.int64
 # Fill the second data ...
 #! [ov_api_2_0:get_input_tensor_aligned]
 
@@ -42,13 +42,13 @@ assert input_tensor2.data.dtype == np.float32
 # Get input tensor by index
 input_tensor1 = infer_request.get_input_tensor(0)
 # IR v10 works with converted precisions (i64 -> i32)
-assert input_tensor1.data.dtype == np.float32
+assert input_tensor1.data.dtype == np.int32
 # Fill the first data ...
 
 # Get input tensor by tensor name
 input_tensor2 = infer_request.get_tensor("input")
 # IR v10 works with converted precisions (i64 -> i32)
-assert input_tensor2.data.dtype == np.float32
+assert input_tensor2.data.dtype == np.int32
 # Fill the second data ..
 #! [ov_api_2_0:get_input_tensor_v10]
 
@@ -95,7 +95,7 @@ infer_queue.wait_all()
 # Model has only one output
 output_tensor = infer_request.get_output_tensor()
 # Element types, names and layouts are aligned with framework
-assert output_tensor.data.dtype == np.float32
+assert output_tensor.data.dtype == np.int64
 # process output data ...
 #! [ov_api_2_0:get_output_tensor_aligned]
 
