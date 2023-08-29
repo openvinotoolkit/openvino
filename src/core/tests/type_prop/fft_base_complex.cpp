@@ -509,9 +509,6 @@ TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of
         auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
         auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);
 
-        // auto signal_size_input =
-        //     op::v0::Constant::create<int64_t>(element::i64, params.signal_size_shape, params.signal_size);
-
         auto dft = this->make_op(data, axes_input, signal_size_input);
 
         EXPECT_EQ(dft->get_element_type(), element::f32);

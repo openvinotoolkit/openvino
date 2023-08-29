@@ -40,12 +40,12 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
     if (fft_kind == FFTKind::RealInput) {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               input_rank >= static_cast<int64_t>(axes_shape[0].get_length()),
+                               ov::cmp::ge(input_rank, axes_shape[0].get_length()),
                                "The input rank must be greater than or equal to the number of axes. ");
     } else {
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               input_rank >= static_cast<int64_t>(axes_shape[0].get_length() + 1),
+                               ov::cmp::ge(input_rank, axes_shape[0].get_length() + 1),
                                "The input rank must be greater than number of axes.");
     }
 }
