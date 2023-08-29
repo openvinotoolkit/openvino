@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/single_layer/mat_mul.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ie_precision.hpp"
@@ -268,7 +269,7 @@ std::vector<CPUSpecificParams> filterSpecificParams_BrgemmAmx() {
 
 std::vector<CPUSpecificParams> filterSpecificParams_FP16_Brgemm() {
     std::vector<CPUSpecificParams> specificParams;
-    if (ov::with_cpu_x86_f16()) {
+    if (ov::with_cpu_x86_avx512_core_fp16()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     }
     return specificParams;
