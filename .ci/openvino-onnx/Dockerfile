@@ -46,7 +46,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
     apt-get autoremove -y
 
 RUN python3 -m venv ~/.venv
-RUN source ~/.venv/bin/activate
+RUN . ~/.venv/bin/activate
 RUN python3 -m pip install "cython>=3.0.0"
 
 # Build OpenVINO
