@@ -40,6 +40,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         python3-dev \
         pybind11-dev \
         python3-virtualenv \
+        python3-venv \
         tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
