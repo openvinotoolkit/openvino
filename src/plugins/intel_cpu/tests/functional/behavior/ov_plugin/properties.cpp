@@ -194,11 +194,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     ASSERT_EQ(enableProfiling, value);
 }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto expected_precision_for_performance_mode = ov::element::f16;
-#else
-    const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#endif
+const auto expected_precision_for_performance_mode = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
 const auto bf16_if_can_be_emulated = InferenceEngine::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
