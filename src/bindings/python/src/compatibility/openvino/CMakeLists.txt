@@ -22,8 +22,8 @@ endif()
 include (cmake/UseCython.cmake)
 
 # Check Cython version
-if(CYTHON_VERSION VERSION_LESS "0.29")
-    message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 0.29, found version ${CYTHON_VERSION}")
+if(CYTHON_VERSION VERSION_LESS "3.0")
+    message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 3.0, found version ${CYTHON_VERSION}")
 else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
 endif()
