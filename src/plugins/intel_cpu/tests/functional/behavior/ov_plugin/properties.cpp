@@ -156,11 +156,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
     auto value = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto precision = ov::element::f16;
-#else
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#endif
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(precision, value);
