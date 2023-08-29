@@ -18,7 +18,10 @@ const char *targetPluginName = "";
 const char *refCachePath = "";
 
 std::vector<std::string> IRFolderPaths = {};
-std::vector<std::string> disabledTests = {};
+std::vector<std::string> disabledTests = {
+    // GPU plugin does not support BF16
+    R"(.*OVInferRequestCheckTensorPrecision.*get(Input|Output|Inputs|Outputs)From.*FunctionWith(Single|Several).*type=(bf16)_target_device=.*GPU.*)",
+};
 
 ov::AnyMap pluginConfig = {};
 

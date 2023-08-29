@@ -173,7 +173,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64 &&
             input_precision != InferenceEngine::Precision::BOOL) {
-            OPENVINO_THROW("Input image format ", input_precision, " is not supported yet...");
+            OPENVINO_THROW("The plugin does not support input precision ", input_precision);
         }
     }
 };
