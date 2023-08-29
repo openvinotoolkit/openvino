@@ -5,15 +5,14 @@
 import openvino as ov
 #! [import]
 
-batch_size = 8
+from snippets import get_path_to_model
 
-# TODO: model is only available as function from snippets
+batch_size = 8
+model_path = get_path_to_model([1, 32])
+
 #! [ov_gna_read_model]
 core = ov.Core()
-
-from snippets import get_model
-
-model = get_model(input_shape=[1, 32])
+model = core.read_model(model=model_path)
 #! [ov_gna_read_model]
 
 #! [ov_gna_set_nc_layout]

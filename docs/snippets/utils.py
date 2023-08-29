@@ -65,13 +65,15 @@ def get_path_to_extension_library():
     return library_path
 
 
-def get_path_to_model(is_old_api=False):
+def get_path_to_model(input_shape = None, is_old_api=False):
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
     path_to_xml = tempfile.NamedTemporaryFile(suffix="_model.xml").name
     if is_old_api:
-        net = get_ngraph_model(input_dtype=np.int64)
+        net = get_ngraph_model(input_shape, input_dtype=np.int64)
         net.serialize(path_to_xml)
     else:
-        model = get_model()
+        model = get_model(input_shape)
         ov.serialize(model, path_to_xml)
     return path_to_xml
 
