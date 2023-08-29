@@ -16,8 +16,7 @@ using BlockedShapeVector = ov::snippets::op::Subgraph::BlockedShapeVector;
 
 class DummyEmitter : public ov::snippets::Emitter {
 public:
-    // Here I pass Add to Emitter, but could be any other op, since it's ignored anyway.
-    DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ov::snippets::Emitter(std::make_shared<ov::op::v1::Add>()) {}
+    DummyEmitter(const std::vector<ov::Node::type_info_t>& custom_opset = {}) : ov::snippets::Emitter() {}
     void emit_code(const std::vector<size_t>&,
                    const std::vector<size_t>&,
                    const std::vector<size_t>&,

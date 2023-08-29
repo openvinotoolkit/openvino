@@ -79,7 +79,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarEmitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BroadcastMoveEmitter);
-    // jitters[snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
+    // jitters[snippets::op::Nop::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(NopEmitter); // Not supported
     // jitters[ov::op::v1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[snippets::op::ConvertTruncation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_truncation_emitter);

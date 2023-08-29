@@ -97,7 +97,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
 KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_container_emitter(h, isa, nullptr),
+    : jit_container_emitter(h, isa, expr),
       reg_indexes_idx(abi_param1.getIdx()),
       reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
