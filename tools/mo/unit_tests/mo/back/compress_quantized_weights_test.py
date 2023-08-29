@@ -5,6 +5,7 @@ import unittest
 from argparse import Namespace
 
 import numpy as np
+import pytest
 
 from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
 from openvino.tools.mo.ops.Cast import Cast
@@ -175,28 +176,13 @@ class CompressionQuantizeDequantizeSeparateTest(unittest.TestCase):
         self.assertTrue(flag, resp)
 
 
-class CompressionDataTypeTest(unittest.TestCase):
-    def test_int64(self):
-        original = np.int64
-        self._test_data_type(original)
-
-    def test_int32(self):
-        original = np.int32
-        self._test_data_type(original)
-
-    def test_float64(self):
-        original = np.float64
-        self._test_data_type(original)
-
-    def test_float32(self):
-        original = np.float32
-        self._test_data_type(original)
-
-    def test_float16(self):
-        original = np.float16
-        self._test_data_type(original)
-
-    def _test_data_type(self, original):
+class TestCompressionDataTypeTest():
+    @pytest.mark.parametrize("original",[np.int64,
+                np.int32,
+                np.float64,
+                np.float32,
+                np.float16])
+    def test_data_type(self, original):
         nodes = nodes_dict(original)
 
         graph = build_graph(nodes, [
@@ -219,9 +205,8 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('scale:0', '1:mul'),
             *connect('mul:0', 'output'),
         ], nodes_with_edges_only=True)
-
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
     def test_data_type_new_fp16(self):
         nodes = nodes_dict(np.float16)
@@ -248,7 +233,7 @@ class CompressionDataTypeTest(unittest.TestCase):
             *connect('mul:0', 'output'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
     def test_fp16_fake_quantize(self):
@@ -275,7 +260,7 @@ class CompressionDataTypeTest(unittest.TestCase):
 
         error_message = 'Unexpected number of {} nodes {} CompressQuantizeWeights.dequantize_data call `{}`'
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        self.assertEqual(len(fq_nodes), 1, error_message.format('FakeQuantize', 'before', len(fq_nodes)))
+        assert len(fq_nodes) == 1, error_message.format('FakeQuantize', 'before', len(fq_nodes))
 
         CompressQuantizeWeights().find_and_replace_pattern(graph)
         graph.clean_up()
@@ -283,7 +268,7 @@ class CompressionDataTypeTest(unittest.TestCase):
         graph.clean_up()
 
         fq_nodes = graph.get_op_nodes(type='FakeQuantize')
-        self.assertEqual(len(fq_nodes), 0, error_message.format('FakeQuantize', 'after', len(fq_nodes)))
+        assert len(fq_nodes) == 0, error_message.format('FakeQuantize', 'after', len(fq_nodes))
 
         graph_ref = build_graph(nodes, [
             *connect('int_weights:0', '0:cast'),
@@ -293,176 +278,161 @@ class CompressionDataTypeTest(unittest.TestCase):
         ], {'cast': {'dst_type': original_type}}, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
 
-class AccuracyCheckFP32Test(unittest.TestCase):
+class TestAccuracyCheckFP32Test():
     eps = np.finfo(np.float32).eps
-    def test_accuracy(self):
-        test_cases = [
-            ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, False),
-            ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, False),
-            ([1, 1 + self.eps, 1 + 2 * self.eps, 1 + 3 * self.eps], [1], [1 + 3 * self.eps], [1],
-            [1 + 3 * self.eps], 256, False),
-            ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, False),
-            ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, True),
-            ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, True),
-            ([1, 1 + self.eps, 1 + 2 * self.eps, 1 + 3 * self.eps], [1], [1 + 3 * self.eps], [1],
-            [1 + 3 * self.eps], 256, True),
-            ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, True),
-        ]
 
-        for idx, (data, in_low, in_high, out_low, out_high, levels, add_cast) in enumerate(test_cases):
-            with self.subTest(test_case=idx):
-                if not add_cast:
-                    nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
-                    graph = build_graph(nodes, [
-                        *connect('weights:0', '0:FQ'),
-                        *connect('il:0', '1:FQ'),
-                        *connect('ih:0', '2:FQ'),
-                        *connect('ol:0', '3:FQ'),
-                        *connect('oh:0', '4:FQ'),
-                        *connect('FQ:0', 'output'),
-                    ], nodes_with_edges_only=True)
-                else:
-                    nodes = nodes_dict(np.float16, None, levels, data, in_low, in_high, out_low, out_high)
-                    graph = build_graph(nodes, [
-                        *connect('weights:0', '0:weights_cast'),
-                        *connect('weights_cast:0', '0:FQ'),
-                        *connect('il:0', '1:FQ'),
-                        *connect('ih:0', '2:FQ'),
-                        *connect('ol:0', '3:FQ'),
-                        *connect('oh:0', '4:FQ'),
-                        *connect('FQ:0', 'output'),
-                    ], nodes_with_edges_only=True)
-                graph_ref = graph.copy()
+    @pytest.mark.parametrize("data, in_low, in_high, out_low, out_high, levels, add_cast" ,[
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, False),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, False),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, False),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, False),
+        ([-2.586, -1.338, 2.773, 4.414], [-2.586], [4.414], [-2.586], [4.414], 256, True),
+        ([-1.5, -0.32, 0.167, 2.8], [-1.5], [2.8], [-1.5], [2.8], 256, True),
+        ([1, 1 + eps, 1 + 2 * eps, 1 + 3 * eps], [1], [1 + 3 * eps], [1], [1 + 3 * eps], 256, True),
+        ([1.0, 2.0, 3.0, 4.0], [1], [4], [1], [4], 256, True),
+    ])
+    def test_accuracy(self, data, in_low, in_high, out_low, out_high, levels, add_cast):
+        if not add_cast:
+            nodes = nodes_dict(np.float32, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
+        else:
+            nodes = nodes_dict(np.float16, None, levels, data, in_low, in_high, out_low, out_high)
+            graph = build_graph(nodes, [
+                *connect('weights:0', '0:weights_cast'),
+                *connect('weights_cast:0', '0:FQ'),
+                *connect('il:0', '1:FQ'),
+                *connect('ih:0', '2:FQ'),
+                *connect('ol:0', '3:FQ'),
+                *connect('oh:0', '4:FQ'),
+                *connect('FQ:0', 'output'),
+            ], nodes_with_edges_only=True)
+        graph_ref = graph.copy()
 
-            CompressQuantizeWeights().find_and_replace_pattern(graph)
+        CompressQuantizeWeights().find_and_replace_pattern(graph)
 
-            for node in graph.get_op_nodes() + graph_ref.get_op_nodes():
-                node['stop_value_propagation'] = False
-                node['need_shape_inference'] = node.soft_get('need_shape_inference', True)
+        for node in graph.get_op_nodes() + graph_ref.get_op_nodes():
+            node['stop_value_propagation'] = False
+            node['need_shape_inference'] = node.soft_get('need_shape_inference', True)
 
-            graph.clean_up()
-            graph_ref.clean_up()
+        graph.clean_up()
+        graph_ref.clean_up()
 
-            const_result_graph = build_graph({**shaped_const_with_data('weights', np.array(data).shape), **result()},
-                                             [*connect('weights', 'output')], nodes_with_edges_only=True)
-            (flag, resp) = compare_graphs(graph, const_result_graph, 'output', check_op_attrs=True)
-            self.assertTrue(flag, resp)
+        const_result_graph = build_graph({**shaped_const_with_data('weights', np.array(data).shape), **result()},
+                                         [*connect('weights', 'output')], nodes_with_edges_only=True)
+        (flag, resp) = compare_graphs(graph, const_result_graph, 'output', check_op_attrs=True)
+        assert flag, resp
 
-            (flag, resp) = compare_graphs(graph_ref, const_result_graph, 'output', check_op_attrs=True)
-            self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph_ref, const_result_graph, 'output', check_op_attrs=True)
+        assert flag, resp
 
         # as this two graphs calculated the same data through different constant folding functions, they resulted in
         # constants of different data type since FakeQuantize always have f32 output dtype, but eltwises use numpy
         # for folding which doesn't have such restriction
         const_node = graph.get_op_nodes(type='Const')
-        self.assertEqual(len(const_node), 1)
+        assert len(const_node) == 1
         if const_node[0].data_type == np.float64:
             const_node[0].data_type = np.float32
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        assert flag, resp
 
         # I would like to leave this commented code here to quickly check the actual output value:
         # print(result_node.in_port(0).data.get_value())  # actual calculated value
 
 
-class NegativeCompressionTestLevels(unittest.TestCase):
-    def test_negative_fq_unacceptable_levels(self):
-        test_cases = [2, 257, None, 0, -5]
+class TestNegativeCompressionTestLevels():
+    @pytest.mark.parametrize("levels" , [(2), (257), (None), (0), (-5)])
+    def test_negative_fq_unacceptable_levels(self, levels):
+        nodes = nodes_dict(np.float32, None, levels)
 
-        for idx, levels in enumerate(test_cases):
-            with self.subTest(test_case=idx):
-                nodes = nodes_dict(np.float32, None, levels)
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+        graph_ref = graph.copy()
+        CompressQuantizeWeights().find_and_replace_pattern(graph)
 
-                graph = build_graph(nodes, [
-                    *connect('weights:0', '0:FQ'),
-                    *connect('il:0', '1:FQ'),
-                    *connect('ih:0', '2:FQ'),
-                    *connect('ol:0', '3:FQ'),
-                    *connect('oh:0', '4:FQ'),
-                    *connect('FQ:0', 'output'),
-                ], nodes_with_edges_only=True)
-                graph_ref = graph.copy()
-                CompressQuantizeWeights().find_and_replace_pattern(graph)
-
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        assert flag, resp
 
 
 
-class ZeroPointOptimizerTestClass(unittest.TestCase):
-    def test_zero_point_optimization(self):
-        test_cases = [
-            ([-10, 7], [-1], [-9, 8], [0]),
-            ([-10, 7], [-0.99999999], [-9, 8], [0]),
+class TestZeroPointOptimizerTestClass():
+    @pytest.mark.parametrize("weights, zero_point, adj_weights, adj_zero_point" ,[
+        ([-10, 7], [-1], [-9, 8], [0]),
+        ([-10, 7], [-0.99999999], [-9, 8], [0]),
+    ])
+    def test_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+        nodes = lambda w, zp: {
+            **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
+            **regular_op_with_shaped_data(
+                'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+            **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
+            **regular_op_with_shaped_data(
+                'sub', [len(w)],
+                {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
+            **result()
+        }
+        edges = [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:sub"),
+            *connect("zp:0", "1:sub"),
+            *connect("sub:0", "0:output"),
         ]
+        graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
+        ZeroPointOptimizer().find_and_replace_pattern(graph)
+        graph.clean_up()
 
-        for idx, (weights, zero_point, adj_weights, adj_zero_point) in enumerate(test_cases):
-            with self.subTest(test_case=idx):
-                nodes = lambda w, zp: {
-                    **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
-                    **regular_op_with_shaped_data(
-                        'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer,
-                                           'dst_type': np.float32}),
-                    **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
-                    **regular_op_with_shaped_data(
-                        'sub', [len(w)],
-                        {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
-                    **result()
-                }
-                edges = [
-                    *connect("weights:0", "0:cast"),
-                    *connect("cast:0", "0:sub"),
-                    *connect("zp:0", "1:sub"),
-                    *connect("sub:0", "0:output"),
-                ]
-                graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
-                ZeroPointOptimizer().find_and_replace_pattern(graph)
-                graph.clean_up()
+        graph_ref = build_graph(nodes(adj_weights, adj_zero_point), [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:output"),
+        ], nodes_with_edges_only=True)
+        graph_ref.clean_up()
 
-                graph_ref = build_graph(nodes(adj_weights, adj_zero_point), [
-                    *connect("weights:0", "0:cast"),
-                    *connect("cast:0", "0:output"),
-                ], nodes_with_edges_only=True)
-                graph_ref.clean_up()
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        assert flag, resp
 
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
-
-    def test_negative_zero_point_optimization(self):
-        test_cases = [
-            ([-128, 7], [1], [-128, 7], [1]),
-            ([127, 7], [-1], [127, 7], [-1]),
+    @pytest.mark.parametrize("weights, zero_point, adj_weights, adj_zero_point" ,[
+        ([-128, 7], [1], [-128, 7], [1]),
+        ([127, 7], [-1], [127, 7], [-1]),
+    ])
+    def test_negative_zero_point_optimization(self, weights, zero_point, adj_weights, adj_zero_point):
+        nodes = lambda w, zp: {
+            **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
+            **regular_op_with_shaped_data(
+                'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+            **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
+            **regular_op_with_shaped_data(
+                'sub', [len(w)],
+                {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
+            **result()
+        }
+        edges = [
+            *connect("weights:0", "0:cast"),
+            *connect("cast:0", "0:sub"),
+            *connect("zp:0", "1:sub"),
+            *connect("sub:0", "0:output"),
         ]
+        graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
+        ZeroPointOptimizer().find_and_replace_pattern(graph)
+        graph.clean_up()
 
-        for idx, (weights, zero_point, adj_weights, adj_zero_point) in enumerate(test_cases):
-            with self.subTest(test_case=idx):
-                nodes = lambda w, zp: {
-                    **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
-                    **regular_op_with_shaped_data(
-                        'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer,
-                                        'dst_type': np.float32}),
-                    **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
-                    **regular_op_with_shaped_data(
-                        'sub', [len(w)],
-                        {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
-                    **result()
-                }
-                edges = [
-                    *connect("weights:0", "0:cast"),
-                    *connect("cast:0", "0:sub"),
-                    *connect("zp:0", "1:sub"),
-                    *connect("sub:0", "0:output"),
-                ]
-                graph = build_graph(nodes(weights, zero_point), edges, nodes_with_edges_only=True)
-                ZeroPointOptimizer().find_and_replace_pattern(graph)
-                graph.clean_up()
+        graph_ref = build_graph(nodes(adj_weights, adj_zero_point), edges, nodes_with_edges_only=True)
+        graph_ref.clean_up()
 
-                graph_ref = build_graph(nodes(adj_weights, adj_zero_point), edges, nodes_with_edges_only=True)
-                graph_ref.clean_up()
-
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-                self.assertTrue(flag, resp)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        assert flag, resp
