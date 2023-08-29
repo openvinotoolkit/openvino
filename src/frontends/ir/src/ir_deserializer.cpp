@@ -865,7 +865,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     }
 
     ov::pass::Attributes attrs_factory;
-    auto set_runtime_info = [&attrs_factory](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
+    auto set_runtime_info = [&ngraphNode, &attrs_factory](RTMap& rt_info, const pugi::xml_node& rt_attrs) {
         if (!rt_attrs)
             return;
         for (const auto& item : rt_attrs) {
@@ -890,7 +890,10 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
                     if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
                         auto res = rt_info.emplace(type_info, attr);
                         if (!res.second) {
-                            // IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
+                            if (ov::op::util::is_output(ngraphNode))
+                                rt_info[type_info] = attr;
+                            else 
+                                IE_THROW() << "multiple rt_info attributes are detected: " << attribute_name;
                         }
                     } else {
                         IE_THROW() << "VisitAttributes is not supported for: " << item.name() << " attribute";
