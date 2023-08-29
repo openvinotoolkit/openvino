@@ -553,6 +553,9 @@ public:
         IE_THROW(NotImplemented) << "canBeExecutedInInt8 not implemented for node with type " << NameFromType(getType());
         return false;
     }
+    const std::vector<VectorDims> getLastInputDims() const {
+        return lastInputDims;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
