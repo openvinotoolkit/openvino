@@ -29,9 +29,12 @@ class TestTranspose(PytorchLayerTest):
                 return torch.swapaxes(x, self.dim0, self.dim1)
 
         ref_net = None
+        op_name = None
         if op_type == "transpose":
             op_name = "aten::transpose"
         elif op_type == "swapaxes":
+            # aten::swapaxes might exist in models, but in tests case, troch.swapaxes() uses aten::transpose
+            # op_name = "aten::swapaxes"
             op_name = "aten::transpose"
 
         return aten_transpose(dim0, dim1, op_type), ref_net, op_name
