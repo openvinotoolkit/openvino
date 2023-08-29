@@ -1,4 +1,4 @@
-# OpenVINO PyTorch 2.0 - torch.compile() backend {#pytorch_2_0_torch_compile}
+# PyTorch Deployment via "torch.compile" {#pytorch_2_0_torch_compile}
 
 @sphinxdirective
 
@@ -39,7 +39,6 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       .. code-block:: console
 
          import openvino.torch 
-         from openvino.frontend.pytorch.torchdynamo import backend
          ...
          model = torch.compile(model, backend='openvino')
 
@@ -57,7 +56,6 @@ To use ``torch.compile``, you need to add an import statement and define one of 
       .. code-block:: console
 
          import openvino.torch
-         from openvino.frontend.pytorch.torchdynamo import backend
          ...
          model = torch.compile(model, backend='openvino_ts')
 
