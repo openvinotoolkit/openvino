@@ -100,7 +100,7 @@ private:
     bool useACL = false;
     DeconvAttrs deconvAttrs;
 
-    Shape inShape;
+    Shape inShape, outShape;
 
     AttrPtr pAttr;
 

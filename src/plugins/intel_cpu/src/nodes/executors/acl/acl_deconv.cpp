@@ -36,12 +36,16 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
     TensorInfo dstTensorInfo = TensorInfo(shapeCast(dstDims), 1,
                                           precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    unsigned int pad_l =
-            (deconvAttrs.paddingL.size() > 1) ? static_cast<unsigned int>(deconvAttrs.paddingL.at(1)) : static_cast<unsigned int>(deconvAttrs.paddingL.at(0));
-    unsigned int pad_r =
-            (deconvAttrs.paddingR.size() > 1) ? static_cast<unsigned int>(deconvAttrs.paddingR.at(1)) : static_cast<unsigned int>(deconvAttrs.paddingR.at(0));
-    unsigned int pad_t = static_cast<unsigned int>(deconvAttrs.paddingL.at(0));
-    unsigned int pad_b = static_cast<unsigned int>(deconvAttrs.paddingR.at(0));
+    int temp_pad_l = (deconvAttrs.paddingL.size() > 1) ? static_cast<int>(deconvAttrs.paddingL.at(1)) : static_cast<int>(deconvAttrs.paddingL.at(0));
+    int temp_pad_r = (deconvAttrs.paddingR.size() > 1) ? static_cast<int>(deconvAttrs.paddingR.at(1)) : static_cast<int>(deconvAttrs.paddingR.at(0));
+    int temp_pad_t = static_cast<int>(deconvAttrs.paddingL.at(0));
+    int temp_pad_b = static_cast<int>(deconvAttrs.paddingR.at(0));
+
+    unsigned int pad_l = temp_pad_l < 0 ? 0 : temp_pad_l;
+    unsigned int pad_r = temp_pad_r < 0 ? 0 : temp_pad_r;
+    unsigned int pad_t = temp_pad_t < 0 ? 0 : temp_pad_t;
+    unsigned int pad_b = temp_pad_b < 0 ? 0 : temp_pad_b;
+
     unsigned int stride_x = (deconvAttrs.stride.size() > 1) ? deconvAttrs.stride.at(1) : deconvAttrs.stride.at(0);
     unsigned int stride_y = deconvAttrs.stride.at(0);
     PadStrideInfo deconv_info(stride_x, stride_y, pad_l, pad_r, pad_t, pad_b, DimensionRoundingType::FLOOR);

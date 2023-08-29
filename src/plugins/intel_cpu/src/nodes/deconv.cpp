@@ -465,7 +465,7 @@ void Deconvolution::getSupportedDescriptors() {
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
-    Shape outShape(outDims);
+    outShape = Shape(outDims);
     initPaddingR(inShape, outShape);
 
 #if defined(OV_CPU_WITH_ACL)
@@ -484,7 +484,7 @@ void Deconvolution::getSupportedDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), inShape));
             for (size_t i = 1; i < getParentEdges().size(); ++i) {
                 config.inConfs[i].setMemDesc(
-                        creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
+                        creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
             }
             config.outConfs[0].setMemDesc(
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), outShape));
@@ -1203,14 +1203,17 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(getParentEdges().size());
         config.outConfs.resize(getOriginalOutputsNumber());
 
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+        config.inConfs[0].setMemDesc(
+                // ACL expected equal precision
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), inShape));
+        for (size_t i = 1; i < getParentEdges().size(); ++i) {
             config.inConfs[i].setMemDesc(
                 // ACL expected equal precision
                 creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
         config.outConfs[0].setMemDesc(
                 // ACL expected equal precision
-                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getOutputShapeAtPort(0)));
+                creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), outShape));
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < config.inConfs.size(); i++) {
