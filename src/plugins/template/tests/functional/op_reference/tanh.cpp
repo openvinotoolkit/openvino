@@ -56,8 +56,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Tanh_With_Hardcoded_Refs, ReferenceTanhLayerTest,
     ::testing::Values(
         Builder {}
-            .input({{11}, element::f16, std::vector<ngraph::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16> {-0.99932930f,
+            .input({{11}, element::f16, std::vector<ov::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16> {-0.99932930f,
                             -0.96402758f,
                             -0.76159416f,
                             -0.46211716f,

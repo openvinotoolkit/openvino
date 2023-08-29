@@ -8,7 +8,6 @@
 #include "logical.hpp"
 
 using namespace ov;
-using LogicalTypes = ngraph::helpers::LogicalTypes;
 
 namespace reference_tests {
 namespace LogicalOpsRefTestDefinitions {

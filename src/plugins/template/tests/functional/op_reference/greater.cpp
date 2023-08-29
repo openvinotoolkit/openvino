@@ -8,7 +8,6 @@
 #include "comparison.hpp"
 
 using namespace ov;
-using ComparisonTypes = ngraph::helpers::ComparisonTypes;
 
 namespace reference_tests {
 namespace ComparisonOpsRefTestDefinitions {

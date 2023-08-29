@@ -55,8 +55,8 @@ TEST_P(ReferenceAcoshLayerTest, AcoshWithHardcodedRefs) {
 INSTANTIATE_TEST_SUITE_P(
     smoke_Acosh_With_Hardcoded_Refs, ReferenceAcoshLayerTest,
     ::testing::Values(Builder {}
-                          .input({{8}, element::f16, std::vector<ngraph::float16> {1.f, 2.f, 3.f, 4.f, 5.f, 10.f, 100.f, 1000.f}})
-                          .expected({{8}, element::f16, std::vector<ngraph::float16> {0., 1.317, 1.763, 2.063, 2.292, 2.993, 5.298, 7.6012}}),
+                          .input({{8}, element::f16, std::vector<ov::float16> {1.f, 2.f, 3.f, 4.f, 5.f, 10.f, 100.f, 1000.f}})
+                          .expected({{8}, element::f16, std::vector<ov::float16> {0., 1.317, 1.763, 2.063, 2.292, 2.993, 5.298, 7.6012}}),
                       Builder {}
                           .input({{8}, element::f32, std::vector<float> {1.f, 2.f, 3.f, 4.f, 5.f, 10.f, 100.f, 1000.f}})
                           .expected({{8}, element::f32, std::vector<float> {0., 1.317, 1.763, 2.063, 2.292, 2.993, 5.298, 7.6012}}),

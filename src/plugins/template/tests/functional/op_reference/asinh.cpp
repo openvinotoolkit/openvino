@@ -57,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Asinh_With_Hardcoded_Refs, ReferenceAsinhLayerTest,
     ::testing::Values(
         Builder {}
-            .input({{11}, element::f16, std::vector<ngraph::float16> {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16> {0.00000000f,
+            .input({{11}, element::f16, std::vector<ov::float16> {0.f, 1.f, -1.f, 2.f, -2.f, 3.f, -3.f, 4.f, 5.f, 10.f, 100.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16> {0.00000000f,
                             0.88137359f,
                             -0.88137359f,
                             1.44363548f,

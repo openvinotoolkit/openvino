@@ -6,9 +6,7 @@
 
 #include <algorithm>
 #include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
 #include <limits>
-#include <ngraph/ngraph.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
 
 #include "base_reference_test.hpp"
@@ -26,12 +24,12 @@ struct IfFunctionalBase {
 struct IfCondConst : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 2, "Incorrect test case! Number of inputs is not 2.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::v0::Parameter>(if_inputs[0].type, if_inputs[0].shape);
         auto Y = std::make_shared<op::v0::Parameter>(if_inputs[1].type, if_inputs[1].shape);
-        auto cond = std::make_shared<op::v0::Constant>(ngraph::element::boolean, Shape{1}, cond_value);
+        auto cond = std::make_shared<op::v0::Constant>(ov::element::boolean, Shape{1}, cond_value);
         auto Xt = std::make_shared<op::v0::Parameter>(if_inputs[0].type, PartialShape::dynamic());
         auto Yt = std::make_shared<op::v0::Parameter>(if_inputs[1].type, PartialShape::dynamic());
         auto Xe = std::make_shared<op::v0::Parameter>(if_inputs[0].type, PartialShape::dynamic());
@@ -58,8 +56,8 @@ struct IfCondConst : public IfFunctionalBase {
 struct IfCondIsNonConst : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
@@ -92,8 +90,8 @@ struct IfCondIsNonConst : public IfFunctionalBase {
 struct IfWithoutAdditionalInputs : IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 1, "Incorrect test case! Number of inputs is not 1.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1});
         auto A = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 8.0);
@@ -114,8 +112,8 @@ struct IfWithoutAdditionalInputs : IfFunctionalBase {
 struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4.");
-        NGRAPH_CHECK(results.size() == 2, "Incorrect test case! Number of outputs is not 2.");
+        OPENVINO_ASSERT(if_inputs.size() == 4, "Incorrect test case! Number of inputs is not 4.");
+        OPENVINO_ASSERT(results.size() == 2, "Incorrect test case! Number of outputs is not 2.");
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 2, 2});
@@ -156,8 +154,8 @@ struct IfDynamismCaseWithStaticInputs : public IfFunctionalBase {
 struct IfConditionIsScalar : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
@@ -192,8 +190,8 @@ struct IfConditionIsScalar : public IfFunctionalBase {
 struct IfConditionIsDynamic : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                               const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
         auto Y = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2});
@@ -227,8 +225,8 @@ struct IfConditionIsDynamic : public IfFunctionalBase {
 struct IfDynamicInputs : public IfFunctionalBase {
     std::shared_ptr<Model> create_function(const std::vector<reference_tests::Tensor>& if_inputs,
                                            const std::vector<reference_tests::Tensor>& results) override {
-        NGRAPH_CHECK(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
-        NGRAPH_CHECK(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
+        OPENVINO_ASSERT(if_inputs.size() == 3, "Incorrect test case! Number of inputs is not 3.");
+        OPENVINO_ASSERT(results.size() == 1, "Incorrect test case! Number of outputs is not 1.");
 
         auto X = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
         auto Y = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
@@ -322,95 +320,95 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         IfParams(
             std::make_shared<IfCondConst>(true),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
             "if_condition_const_is_true"),
         IfParams(
             std::make_shared<IfCondConst>(false),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 2.0, 2.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 1.0, 1.0, 1.0})},
             "if_condition_const_is_false"),
         IfParams(
             std::make_shared<IfCondIsNonConst>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
             "if_condition_si_non_const_true"),
         IfParams(
             std::make_shared<IfCondIsNonConst>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
             "if_condition_is_non_const_false"),
         IfParams(std::make_shared<IfWithoutAdditionalInputs>(),
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::boolean, std::vector<unsigned char>{1})},
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::f32, std::vector<float>{8.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{1})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{8.0})},
                  "if_without_addition_inputs_condition_is_true"),
         IfParams(std::make_shared<IfWithoutAdditionalInputs>(),
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::boolean, std::vector<unsigned char>{0})},
-                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ngraph::element::f32, std::vector<float>{2.0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::boolean, std::vector<unsigned char>{0})},
+                 std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1}, ov::element::f32, std::vector<float>{2.0})},
                  "if_without_addition_inputs_condition_is_false"),
         IfParams(
             std::make_shared<IfConditionIsScalar>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
             "if_condition_is_scalar_cond_true"),
         IfParams(
             std::make_shared<IfConditionIsScalar>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
             "if_condition_is_scalar_cond_false"),
         IfParams(
             std::make_shared<IfDynamismCaseWithStaticInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen()),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 4.0, 9.0, 16.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen())},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
+                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 4.0, 9.0, 16.0}),
+                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen())},
             "If_dynamism_case_with_static_inputs_condition_true"),
         IfParams(
             std::make_shared<IfDynamismCaseWithStaticInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{4, 2, 2}, ngraph::element::f32, Y_gen()),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 4.0, 6.0, 8.0}),
-                                reference_tests::Tensor(Shape{8, 8, 8}, ngraph::element::f32, Z_gen())},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{4, 2, 2}, ov::element::f32, Y_gen()),
+                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 4.0, 6.0, 8.0}),
+                                reference_tests::Tensor(Shape{8, 8, 8}, ov::element::f32, Z_gen())},
             "If_dynamism_case_with_static_inputs_condition_false"),
         IfParams(
             std::make_shared<IfConditionIsDynamic>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
             "if_condition_is_dynamic_cond_true"),
         IfParams(
             std::make_shared<IfConditionIsDynamic>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
             "if_condition_is_dynamic_cond_false"),
         IfParams(
             std::make_shared<IfDynamicInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{1}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{1}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 2.0, 6.0, 12.0})},
             "if_dynamic_inputs_cond_true"),
         IfParams(
             std::make_shared<IfDynamicInputs>(),
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ngraph::element::boolean, std::vector<unsigned char>{0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
-                                reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
-            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ngraph::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{}, ov::element::boolean, std::vector<unsigned char>{0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{1.0, 2.0, 3.0, 4.0}),
+                                reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{2.0, 1.0, 2.0, 3.0})},
+            std::vector<reference_tests::Tensor>{reference_tests::Tensor(Shape{1, 2, 2}, ov::element::f32, std::vector<float>{3.0, 3.0, 5.0, 7.0})},
             "if_dynamic_inputs_cond_false")));

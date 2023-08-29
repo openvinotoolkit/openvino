@@ -56,8 +56,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Cosh_With_Hardcoded_Refs, ReferenceCoshLayerTest,
     ::testing::Values(
         Builder {}
-            .input({{11}, element::f16, std::vector<ngraph::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16> {27.30823284f,
+            .input({{11}, element::f16, std::vector<ov::float16> {-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16> {27.30823284f,
                             3.76219569f,
                             1.54308063f,
                             1.12762597f,

@@ -10,8 +10,6 @@
 #include "base_reference_test.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include "ngraph_functions/builders.hpp"
-
 namespace {
 struct TIFunctionalBase {
     virtual std::shared_ptr<ov::Model> create_function(const std::vector<reference_tests::Tensor> &ti_inputs,
@@ -36,8 +34,8 @@ struct TIDynamicInputs : public TIFunctionalBase {
         auto M_body = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto body_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
 
-        auto trip_count = std::make_shared<ov::opset8::Constant>(ngraph::element::i64, ov::Shape{1}, 3);
-        auto exec_condition = std::make_shared<ov::opset8::Constant>(ngraph::element::boolean, ov::Shape{1}, true);
+        auto trip_count = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{1}, 3);
+        auto exec_condition = std::make_shared<ov::opset8::Constant>(ov::element::boolean, ov::Shape{1}, true);
         // Body
         auto sum = std::make_shared<ov::opset8::Add>(Xi, Yi);
         auto Zo = std::make_shared<ov::opset8::Multiply>(sum, M_body);
@@ -297,7 +295,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                 ov::ResultVector results{std::make_shared<ov::opset8::Result>(unsqueeze),
                                              std::make_shared<ov::opset8::Result>(lstm_cell->output(0)),
                                              std::make_shared<ov::opset8::Result>(lstm_cell->output(1))};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "lstm_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "lstm_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -308,7 +306,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[0], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[1]);
@@ -317,7 +315,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                 tensor_iterator->get_iter_value(results[2]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1),
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1),
                                                                                    tensor_iterator->output(2)}, outer_params);
                 break;
             }
@@ -342,7 +340,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
 
                 auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
-                ngraph::OutputVector out_vector = {squeeze, body_params[1]};
+                ov::OutputVector out_vector = {squeeze, body_params[1]};
 
                 auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
                 auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
@@ -360,9 +358,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                                           false);
 
                 auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(gru_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ov::opset8::Result>(gru_cell->output(0)),
+                ov::ResultVector results{std::make_shared<ov::opset8::Result>(gru_cell->output(0)),
                                              std::make_shared<ov::opset8::Result>(unsqueeze)};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "gru_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "gru_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -373,14 +371,14 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
             case TensorIteratorBodyType::RNN: {
@@ -403,7 +401,7 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                 ov::ParameterVector body_params{std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[0]),
                                                 std::make_shared<ov::op::v0::Parameter>(params.iType, inputShapes[1])};
                 auto squeeze = std::make_shared<ov::opset8::Squeeze>(body_params[0], axis);
-                ngraph::OutputVector out_vector = {squeeze, body_params[1]};
+                ov::OutputVector out_vector = {squeeze, body_params[1]};
 
                 auto W = std::make_shared<ov::opset8::Constant>(params.W.type, params.W.shape, params.W.data.data());
                 auto R = std::make_shared<ov::opset8::Constant>(params.R.type, params.R.shape, params.R.data.data());
@@ -420,9 +418,9 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                                                                           params.clip);
 
                 auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(rnn_cell->output(0), axis);
-                ngraph::ResultVector results{std::make_shared<ov::opset8::Result>(rnn_cell),
+                ov::ResultVector results{std::make_shared<ov::opset8::Result>(rnn_cell),
                                              std::make_shared<ov::opset8::Result>(unsqueeze)};
-                auto body = std::make_shared<ngraph::Function>(results, body_params, "rnn_cell");
+                auto body = std::make_shared<ov::Model>(results, body_params, "rnn_cell");
                 tensor_iterator->set_function(body);
 
                 // 2. Set PortMap
@@ -433,14 +431,14 @@ struct TIStaticInputs : public TIStaticFunctionalBase {
                     tensor_iterator->set_sliced_input(body_params[0], outer_params[0], -1, -1, 1, 0, params.sequenceAxis);
                     tensor_iterator->get_concatenated_slices(results[1], -1, -1, 1, 0, params.sequenceAxis);
                 } else {
-                    NGRAPH_CHECK(false, "Bidirectional case is not supported.");
+                    OPENVINO_ASSERT(false, "Bidirectional case is not supported.");
                 }
 
                 tensor_iterator->set_merged_input(body_params[1], outer_params[1], results[0]);
                 tensor_iterator->get_iter_value(results[0]);
 
                 // 3. Outer function
-                function = std::make_shared<ngraph::Function>(ngraph::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
+                function = std::make_shared<ov::Model>(ov::OutputVector{tensor_iterator->output(0), tensor_iterator->output(1)}, outer_params);
                 break;
             }
         }
