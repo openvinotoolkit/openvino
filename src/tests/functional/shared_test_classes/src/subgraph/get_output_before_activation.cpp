@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
+#include "ngraph_functions/builders.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 namespace SubgraphTestsDefinitions {
 std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     switch (oType) {
@@ -82,3 +83,92 @@ InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const Inference
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
 }
 } // namespace SubgraphTestsDefinitions
+
+namespace ov {
+namespace test {
+std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
+    switch (oType) {
+    case midOutputType::Sub:
+        return (os << "Sub");
+    case midOutputType::Sum:
+        return (os << "Sum");
+    case midOutputType::Mul:
+        return (os << "Mul");
+    default:
+        return (os << "Unknown");
+    }
+}
+
+std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams> &obj) {
+    std::string targetDevice;
+    ov::element::Type netPrecision;
+    size_t inputSize;
+    midOutputType outputType;
+    std::map<std::string, std::string> config;
+    std::tie(targetDevice, netPrecision, inputSize, outputType, config) = obj.param;
+    std::ostringstream result;
+
+    result << "netPrecision=" << netPrecision.get_type_name() << "_";
+    result << "IS=" << inputSize << "_";
+    result << "OutputType=" << outputType << "_";
+    result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
+    return result.str();
+}
+
+void OutputBeforeActivationNew::SetUp() {
+    ov::element::Type netPrecision;
+    std::map<std::string, std::string> config;
+    size_t inputSize;
+    midOutputType outputType;
+    std::tie(targetDevice, netPrecision, inputSize, outputType, config) = this->GetParam();
+    configuration.insert(config.begin(), config.end());
+
+    std::vector<size_t> input_dims { 1, inputSize };
+
+    auto input0 = std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(input_dims));
+    auto input1 = std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(input_dims));
+    ov::ParameterVector params {input0, input1};
+
+    ngraph::OutputVector outputs;
+    std::shared_ptr<ngraph::Node> midLayer;
+    switch (outputType) {
+    case midOutputType::Sum: {
+        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
+        break;
+    }
+    case midOutputType::Sub: {
+        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::SUBTRACT);
+        break;
+    }
+    case midOutputType::Mul: {
+        midLayer = ngraph::builder::makeEltwise(input0, input1, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        break;
+    }
+    default:
+        GTEST_FAIL() << "Unknown midOutputType";
+    }
+
+    auto act = ngraph::builder::makeActivation(midLayer, netPrecision, ngraph::helpers::ActivationTypes::Tanh);
+    outputs.insert(outputs.end(), {midLayer, act});
+    function = std::make_shared<ov::Model>(outputs, params, "output_before_activation");
+
+    std::vector<ov::test::InputShape> input_shapes;
+    for (const auto& param : params) {
+        input_shapes.push_back({{}, {param->get_shape()}});
+    }
+    init_input_shapes(input_shapes);
+}
+
+void OutputBeforeActivationNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    auto itTargetShape = targetInputStaticShapes.begin();
+    for (const auto &param : function->get_parameters()) {
+        auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape++, 2, -1, 100);
+        inputs.insert({param, tensor});
+    }
+}
+} //  namespace test
+} //  namespace ov

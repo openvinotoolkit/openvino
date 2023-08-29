@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <subgraph_tests/get_output_before_activation.hpp>
+#include "subgraph_tests/get_output_before_activation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace SubgraphTestsDefinitions {
+using ov::test::OutputBeforeActivationNew;
+using ov::test::midOutputType;
+
 namespace {
     std::vector<size_t> input_sizes = {
         80,
@@ -23,12 +25,11 @@ namespace {
     std::map<std::string, std::string> additional_config = {};
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation, OutputBeforeActivation,
+INSTANTIATE_TEST_SUITE_P(OutputBeforeActivationNew, OutputBeforeActivationNew,
     ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(InferenceEngine::Precision::FP32),
+        ::testing::Values(ov::element::f32),
         ::testing::ValuesIn(input_sizes),
         ::testing::ValuesIn(midLayerTypes),
         ::testing::Values(additional_config)),
-    OutputBeforeActivation::getTestCaseName);
-} // namespace SubgraphTestsDefinitions
+    OutputBeforeActivationNew::getTestCaseName);

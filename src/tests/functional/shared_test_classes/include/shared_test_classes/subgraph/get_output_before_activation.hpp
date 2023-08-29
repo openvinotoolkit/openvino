@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "common_test_utils/test_common.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include <ie_core.hpp>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace SubgraphTestsDefinitions {
 enum class midOutputType {
@@ -34,3 +33,32 @@ public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 };
 } // namespace SubgraphTestsDefinitions
+
+namespace ov {
+namespace test {
+enum class midOutputType {
+    Sum,
+    Sub,
+    Mul,
+};
+
+typedef std::tuple<
+    std::string,                        // Target device name
+    ov::element::Type,                  // Network precision
+    size_t,                             // Input size
+    midOutputType,                      // Type of layer that will be an output
+    std::map<std::string, std::string>  // Configuration
+> outputBeforeActivationParams;
+
+std::ostream& operator<< (std::ostream& os, const midOutputType& oType);
+
+class OutputBeforeActivationNew : public testing::WithParamInterface<outputBeforeActivationParams>,
+                               virtual public ov::test::SubgraphBaseTest{
+protected:
+    void SetUp() override;
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams> &obj);
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+};
+} //  namespace test
+} //  namespace ov

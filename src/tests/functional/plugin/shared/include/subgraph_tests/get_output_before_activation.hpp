@@ -13,3 +13,13 @@ TEST_P(OutputBeforeActivation, CompareWithRefs) {
 };
 
 } // namespace SubgraphTestsDefinitions
+
+namespace ov {
+namespace test {
+
+TEST_P(OutputBeforeActivationNew, CompareWithRefs) {
+    run();
+};
+
+} //  namespace test
+} //  namespace ov
