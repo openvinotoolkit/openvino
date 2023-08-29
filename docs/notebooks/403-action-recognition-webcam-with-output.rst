@@ -153,9 +153,12 @@ This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
 also provides the text file embedded into this notebook.
 
-   **NOTE**: If you want to run
+.. note::
+
+   If you want to run
    ``"driver-action-recognition-adas-0002"`` model, replace the
    ``kinetics.txt`` file to ``driver_actions.txt``.
+
 
 .. code:: ipython3
 
@@ -664,10 +667,13 @@ Run Action Recognition Using a Webcam `⇑ <#top>`__
 
 Now, try to see yourself in your webcam.
 
-   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
+.. note::
+
+   To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a server, the webcam will not
    work. However, you can still do inference on a video file in the
    final step.
+
 
 .. code:: ipython3
 
