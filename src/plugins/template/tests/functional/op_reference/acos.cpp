@@ -68,15 +68,15 @@ INSTANTIATE_TEST_SUITE_P(
                                                                                      0.00000000f}}),
                       Builder {}
                           .input({{3}, element::i32, std::vector<int32_t> {-1, 0, 1}})
-                          .expected({{3}, element::i32, std::vector<int32_t> {3, 1, 0}}),
+                          .expected({{3}, element::i32, std::vector<int32_t> {3, 2, 0}}),
                       Builder {}
                           .input({{3}, element::i64, std::vector<int64_t> {-1, 0, 1}})
-                          .expected({{3}, element::i64, std::vector<int64_t> {3, 1, 0}}),
+                          .expected({{3}, element::i64, std::vector<int64_t> {3, 2, 0}}),
                       Builder {}
                           .input({{2}, element::u32, std::vector<uint32_t> {0, 1}})
-                          .expected({{2}, element::u32, std::vector<uint32_t> {1, 0}}),
+                          .expected({{2}, element::u32, std::vector<uint32_t> {2, 0}}),
                       Builder {}
                           .input({{2}, element::u64, std::vector<uint64_t> {0, 1}})
-                          .expected({{2}, element::u64, std::vector<uint64_t> {1, 0}})),
+                          .expected({{2}, element::u64, std::vector<uint64_t> {2, 0}})),
     ReferenceAcosLayerTest::getTestCaseName);
 }  // namespace reference_tests
