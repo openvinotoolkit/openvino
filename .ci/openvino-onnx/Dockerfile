@@ -44,7 +44,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
     apt-get clean autoclean && \
     apt-get autoremove -y
 
-RUN python -m pip install "cython>=3.0.0"
+RUN python3 -m pip install "cython>=3.0.0"
 
 # Build OpenVINO
 COPY . /openvino/
