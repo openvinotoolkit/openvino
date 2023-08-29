@@ -63,9 +63,9 @@ TEST_P(ov_multithreading_test, get_property) {
 
     run_parallel([&]() {
         OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
+        ov_free(result);
     });
 
-    ov_free(result);
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
     ov_core_free(core);
