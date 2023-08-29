@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+
 #include "openvino/core/except.hpp"
 
 /**

@@ -29,6 +29,12 @@ public:
     MOCK_METHOD(void, infer, ());
     MOCK_METHOD(std::vector<ov::ProfilingInfo>, get_profiling_info, (), (const));
     MOCK_METHOD(std::vector<ov::SoPtr<ov::IVariableState>>, query_state, (), (const));
+    MOCK_METHOD(ov::SoPtr<ov::ITensor>, get_tensor, (const ov::Output<const ov::Node>&), (const));
+    MOCK_METHOD(std::vector<ov::SoPtr<ov::ITensor>>, get_tensors, (const ov::Output<const ov::Node>&), (const));
+    MOCK_METHOD(void, set_tensor, (const ov::Output<const ov::Node>&, const ov::SoPtr<ov::ITensor>&));
+    MOCK_METHOD(void, set_tensors, (const ov::Output<const ov::Node>&, const std::vector<ov::SoPtr<ov::ITensor>>&));
+    MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, get_inputs, (), (const));
+    MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, get_outputs, (), (const));
 };
 
 }  // namespace ov

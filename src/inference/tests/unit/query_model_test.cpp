@@ -224,8 +224,8 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         auto result2 = std::make_shared<ov::op::v0::Result>(mul);
         result2->set_friendly_name("result2");
 
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
-                                                 ov::ParameterVector{param1, param2});
+        m_function =
+            std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -363,8 +363,7 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
         logsoftmax->set_friendly_name("logsoftmax");
         auto result = std::make_shared<ov::op::v0::Result>(logsoftmax);
         result->set_friendly_name("result");
-        m_function =
-            std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -412,8 +411,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
         interpolate->set_friendly_name("interpolate");
         auto interpolate_result = std::make_shared<ov::op::v0::Result>(interpolate);
         interpolate_result->set_friendly_name("interpolate_result");
-        m_function =
-            std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {

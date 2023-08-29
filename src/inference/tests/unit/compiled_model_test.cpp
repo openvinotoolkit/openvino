@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/runtime/compiled_model.hpp"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -15,7 +17,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
-#include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/variable_state.hpp"
