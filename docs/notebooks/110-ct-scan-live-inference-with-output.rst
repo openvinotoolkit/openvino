@@ -116,7 +116,9 @@ To measure the inference performance of the IR model, use
 is a command-line application that can be run in the notebook with
 ``! benchmark_app`` or ``%sx benchmark_app`` commands.
 
-   **Note**: The ``benchmark_app`` tool is able to measure the
+.. note::
+
+   The ``benchmark_app`` tool is able to measure the
    performance of the OpenVINO Intermediate Representation (OpenVINO IR)
    models only. For more accurate performance, run ``benchmark_app`` in
    a terminal/command prompt after closing other applications. Run
@@ -124,6 +126,7 @@ is a command-line application that can be run in the notebook with
    CPU for one minute. Change ``CPU`` to ``GPU`` to benchmark on GPU.
    Run ``benchmark_app --help`` to see an overview of all command-line
    options.
+
 
 .. code:: ipython3
 
