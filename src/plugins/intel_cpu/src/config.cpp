@@ -245,16 +245,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, Mode
     // when both execution_mode and inference_precision are specified
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
-            inferencePrecision = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-            //fp16 precision is used as default precision on ARM for non-convolution networks
-            //fp16 ACL convolution is slower than fp32
-            if (modelType != ModelType::CNN)
-                inferencePrecision = ov::element::f16;
-#else
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-#endif
+            else
+                inferencePrecision = ov::element::f32;
         } else {
             inferencePrecision = ov::element::f32;
         }
