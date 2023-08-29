@@ -36,10 +36,12 @@ def get_ngraph_model(input_shape = None, input_dtype=np.float32):
         input_shape = [1, 3, 32, 32]
     param = ng.opset11.parameter(input_shape, input_dtype, name="data")
     relu = ng.opset11.relu(param, name="relu")
-    model = Function([relu], [param], "test_model")
+    func = Function([relu], [param], "test_model")
+    caps = ng.Function.to_capsule(func)
+    net = ie.IENetwork(caps)
 
-    assert model is not None
-    return model
+    assert net is not None
+    return net
 
 
 def get_image(shape = (1, 3, 32, 32), dtype = "float32"):
