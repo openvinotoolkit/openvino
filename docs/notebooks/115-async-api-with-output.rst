@@ -54,7 +54,7 @@ Imports `⇑ <#top>`__
     import time
     import numpy as np
     from openvino.runtime import Core, AsyncInferQueue
-    import openvino.runtime as ov
+    import openvino as ov
     from IPython import display
     import matplotlib.pyplot as plt
     
