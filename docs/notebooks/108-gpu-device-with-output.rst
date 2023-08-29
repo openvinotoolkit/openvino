@@ -553,15 +553,18 @@ manually specify devices to use. Below is an example showing how to use
 
 ``compiled_model = core.compile_model(model=model, device_name="AUTO", config={"PERFORMANCE_HINT": "CUMULATIVE_THROUGHPUT"})``
 
-   **Important**: **The “THROUGHPUT”, “MULTI”, and
+.. important::
+
+   The “THROUGHPUT”, “MULTI”, and
    “CUMULATIVE_THROUGHPUT” modes are only applicable to asynchronous
    inferencing pipelines. The example at the end of this article shows
    how to set up an asynchronous pipeline that takes advantage of
-   parallelism to increase throughput.** To learn more, see
+   parallelism to increase throughput. To learn more, see
    `Asynchronous
    Inferencing <https://docs.openvino.ai/2023.1/openvino_docs_ie_plugin_dg_async_infer_request.html>`__
    in OpenVINO as well as the `Asynchronous Inference
    notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/115-async-api>`__.
+
 
 Performance Comparison with benchmark_app `⇑ <#top>`__
 ###############################################################################################################################
