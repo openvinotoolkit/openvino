@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
 from argparse import Namespace
-
+import pytest
 
 from openvino.tools.mo.back.ShuffleChannelPatternOptimization import ShuffleChannelFusion, DepthToSpaceFusion
 from openvino.tools.mo.ops.depth_to_space import DepthToSpaceOp
@@ -17,7 +16,7 @@ from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_d
     valued_const_with_data, connect, regular_op_with_empty_data
 
 
-class ShuffleChannelFusionTest(unittest.TestCase):
+class TestShuffleChannelFusionTest():
     @staticmethod
     def get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group):
         nodes = {
@@ -64,38 +63,35 @@ class ShuffleChannelFusionTest(unittest.TestCase):
         graph_ref.clean_up()
 
         return graph, graph_ref
-    def test_fusion(self):
-        test_cases =[
+
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 3, 4], [1, 512, 7, 6], 2),
         ([2, 512, 7, 6], [2, 2, 256, 7, 6], [0, 2, 1, 3, 4], [2, 512, 7, 6], 2),
         ([1, 200, 200, 200], [1, 50, 4, 200, 200], [0, 2, 1, 3, 4], [1, 200, 200, 200], 50),
-    ]
-        for idx, (input_shape, reshape_0_pattern, order, reshape_1_pattern, group) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph, graph_ref = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
-                ShuffleChannelFusion().find_and_replace_pattern(graph)
-                graph.clean_up()
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-                self.assertTrue(flag, resp)
-                self.assertTrue(len(graph.get_op_nodes(name='final_reshape')) == 1 and
-                                graph.get_op_nodes(name='final_reshape')[0].op == 'ShuffleChannels')
+    ])
+    def test_fusion(self, input_shape, reshape_0_pattern, order, reshape_1_pattern, group):
+        graph, graph_ref = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
+        ShuffleChannelFusion().find_and_replace_pattern(graph)
+        graph.clean_up()
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output')
+        assert flag, resp
+        assert len(graph.get_op_nodes(name='final_reshape')) == 1 and \
+                        graph.get_op_nodes(name='final_reshape')[0].op == 'ShuffleChannels'
 
-    def test_negative(self):
-        test_cases =[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [0, 2, 256, 7, 6], [0, 2, 1, 3, 4], [1, 512, 7, 6], 2),
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 4, 3], [1, 512, 7, 6], 2),
         ([1, 512, 7, 6], [1, 2, 256, 7, 6], [0, 2, 1, 3, 4], [-1, 512, 7, 6], 2),
-    ]
-        for idx, (input_shape, reshape_0_pattern, order, reshape_1_pattern, group) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph, _ = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
-                graph_ref = graph.copy()
-                ShuffleChannelFusion().find_and_replace_pattern(graph)
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-                self.assertTrue(flag, resp)
+    ])
+    def test_negative(self, input_shape, reshape_0_pattern, order, reshape_1_pattern, group):
+        graph, _ = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
+        graph_ref = graph.copy()
+        ShuffleChannelFusion().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output')
+        assert flag, resp
 
 
-class DepthToSpaceFusionTest(unittest.TestCase):
+class TestDepthToSpaceFusionTest():
     @staticmethod
     def get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size):
         nodes = {
@@ -145,31 +141,28 @@ class DepthToSpaceFusionTest(unittest.TestCase):
 
         return graph, graph_ref
 
-    def test_fusion(self):
-        test_cases =[
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size",[
         ([1, 512, 7, 6], [1, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [1, 128, 14, 12], 2),
         ([2, 512, 7, 6], [2, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [2, 128, 14, 12], 2),
         ([1, 200, 200, 200], [1, 2, 2, 50, 200, 200], [0, 1, 4, 2, 5, 3], [1, 50, 400, 400], 2),
-    ]
-        for idx, (input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph, graph_ref = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size)
-                DepthToSpaceFusion().find_and_replace_pattern(graph)
-                graph.clean_up()
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-                self.assertTrue(flag, resp)
-                self.assertTrue(len(graph.get_op_nodes(name='final_reshape')) == 1 and
-                                graph.get_op_nodes(name='final_reshape')[0].op == 'DepthToSpace')
-    def test_negative(self):
-        test_cases =[
+    ])
+    def test_fusion(self, input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size):
+        graph, graph_ref = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, block_size)
+        DepthToSpaceFusion().find_and_replace_pattern(graph)
+        graph.clean_up()
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output')
+        assert flag, resp
+        assert len(graph.get_op_nodes(name='final_reshape')) == 1 and \
+                        graph.get_op_nodes(name='final_reshape')[0].op == 'DepthToSpace'
+
+    @pytest.mark.parametrize("input_shape, reshape_0_pattern, order, reshape_1_pattern, group",[
         ([1, 512, 7, 6], [0, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [1, 128, 14, 12], 2),
         ([2, 512, 7, 6], [2, 2, 2, 128, 7, 6], [0, 1, 4, 2, 5, 3], [-1, 128, 14, 12], 2),
         ([1, 200, 200, 200], [1, 2, 2, 50, 200, 200], [0, 1, 4, 2, 3, 5], [1, 50, 400, 400], 2),
-    ]
-        for idx, (input_shape, reshape_0_pattern, order, reshape_1_pattern, group) in enumerate(test_cases):
-            with self.subTest(test_cases=idx):
-                graph, _ = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
-                graph_ref = graph.copy()
-                DepthToSpaceFusion().find_and_replace_pattern(graph)
-                (flag, resp) = compare_graphs(graph, graph_ref, 'output')
-                self.assertTrue(flag, resp)
+    ])
+    def test_negative(self, input_shape, reshape_0_pattern, order, reshape_1_pattern, group):
+        graph, _ = self.get_graphs(input_shape, reshape_0_pattern, order, reshape_1_pattern, group)
+        graph_ref = graph.copy()
+        DepthToSpaceFusion().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output')
+        assert flag, resp
