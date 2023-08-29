@@ -15,7 +15,7 @@ import openvino.inference_engine as ie
 
 
 def get_dynamic_model():
-    param = ops.parameter(ov.PartialShape([-1, -1]))
+    param = ops.parameter(ov.PartialShape([-1, -1]), name="input")
     return ov.Model(ops.relu(param), [param])
 
 

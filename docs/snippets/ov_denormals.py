@@ -6,7 +6,6 @@ import openvino as ov
 from utils import get_model
 
 device_name = 'CPU'
-xml_path = 'modelWithDenormals.xml'
 model = get_model()
 
 # ! [ov:intel_cpu:denormals_optimization:part0]

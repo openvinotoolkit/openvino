@@ -11,10 +11,10 @@ import openvino as ov
 core = ov.Core()
 #! [ov_api_2_0:create_core]
 
-xml_path = get_path_to_model()
+model_path = get_path_to_model()
 
 #! [ov_api_2_0:read_model]
-model = core.read_model(xml_path)
+model = core.read_model(model_path)
 #! [ov_api_2_0:read_model]
 
 #! [ov_api_2_0:compile_model]
@@ -107,7 +107,8 @@ assert output_tensor.data.dtype == np.int32
 # process output data ...
 #! [ov_api_2_0:get_output_tensor_v10]
 
-#! [ov_api_2_0:load_old_extension]
 path_to_extension_library = get_path_to_extension_library()
+
+#! [ov_api_2_0:load_old_extension]
 core.add_extension(path_to_extension_library)
 #! [ov_api_2_0:load_old_extension]
