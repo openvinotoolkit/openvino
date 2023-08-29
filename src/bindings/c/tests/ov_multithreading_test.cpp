@@ -59,9 +59,9 @@ TEST_P(ov_multithreading_test, get_property) {
     EXPECT_NE(nullptr, compiled_model);
 
     const char* key = ov_property_key_supported_properties;
-    char* result = nullptr;
 
     run_parallel([&]() {
+        char* result = nullptr;
         OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &result));
         ov_free(result);
     });
