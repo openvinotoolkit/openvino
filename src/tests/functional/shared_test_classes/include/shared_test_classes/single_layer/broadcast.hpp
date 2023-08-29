@@ -10,8 +10,7 @@
 #include <memory>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -33,3 +32,25 @@ protected:
 };
 
 }  // namespace LayerTestsDefinitions
+
+namespace ov {
+namespace test {
+
+using BroadcastParamsTuple = typename std::tuple<
+        std::vector<size_t>,       // target shape
+        ov::AxisSet,               // axes mapping
+        ov::op::BroadcastType,     // broadcast mode
+        std::vector<size_t>,       // Input shape
+        ov::element::Type,         // Network precision
+        std::string>;              // Device name
+
+class BroadcastLayerTestNew : public testing::WithParamInterface<BroadcastParamsTuple>,
+                        virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple> &obj);
+
+protected:
+    void SetUp() override;
+};
+} //  namespace test
+} //  namespace ov
