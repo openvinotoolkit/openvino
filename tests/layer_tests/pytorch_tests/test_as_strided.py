@@ -46,7 +46,6 @@ class TestAsStrided(PytorchLayerTest):
 
 class TestAsStridedListConstruct(PytorchLayerTest):
     def _prepare_input(self, size_shape_tensor=[1], stride_shape_tensor=[1]):
-        # return (np.random.randn(8, 8).astype(np.float32),)
         return (
             np.random.randn(8, 8).astype(np.float32),
             np.ones(size_shape_tensor),
