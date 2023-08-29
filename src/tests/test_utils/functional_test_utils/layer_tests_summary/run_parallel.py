@@ -657,8 +657,8 @@ class TestParallelRunner:
 
                 if test_cnt_real < test_cnt_expected:
                     logger.error(f"Number of {self._split_unit}s in {log}: {test_cnt_real}. Expected is {test_cnt_expected} {self._split_unit}")
-                # else:
-                #     os.remove(log_filename)
+                else:
+                    os.remove(log_filename)
 
         if len(list(Path(os.path.join(self._working_dir, "temp")).rglob("log_*.log"))) == 0:
             rmtree(os.path.join(self._working_dir, "temp"))
