@@ -71,9 +71,7 @@ import ngraph as ng
 operation_name = "data"
 
 core = ie.IECore()
-func = get_ngraph_model()
-caps = ng.Function.to_capsule(func)
-network = ie.IENetwork(caps)
+network = get_ngraph_model()
 
 
 #! [mean_scale]

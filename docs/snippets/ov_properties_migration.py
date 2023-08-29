@@ -6,7 +6,7 @@ import openvino as ov
 import openvino.runtime.properties as props
 import openvino.runtime.properties.hint as hints
 
-from utils import get_model, get_ngraph_model
+from utils import get_model
 
 core = ov.Core()
 
@@ -63,9 +63,7 @@ num_streams = core.get_config("CPU", "CPU_THROUGHPUT_STREAMS")
 core.set_config({"PERF_COUNT": "YES"}, "CPU")
 #! [core_set_config]
 
-func = get_ngraph_model()
-caps = ng.Function.to_capsule(func)
-net = ie.IENetwork(caps)
+net = get_ngraph_model()
 
 #! [core_load_network]
 exec_network = core.load_network(net, "MULTI", {"DEVICE_PRIORITIES": "CPU, GPU",
