@@ -3,4 +3,4 @@
 protobuf
 numpy
 six
-paddlepaddle;
+paddlepaddle

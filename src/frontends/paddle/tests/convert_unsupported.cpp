@@ -7,6 +7,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "paddle_utils.hpp"
+#include <ngraph/opsets/opset6.hpp>
 #include "utils.hpp"
 
 using namespace ngraph;
