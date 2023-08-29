@@ -1309,25 +1309,11 @@ void FullyConnected::execLLMFc() {
     } else {
         assert(K == data_dims[1]);
     }
-    auto work_amount = rnd_up(N, 32) / 32;
-    float* bias = nullptr;
-    if (withBiases) {
-        bias = biasRnd.get();
-    }
-    auto thread_num_fcllm = fcLLMs.size();
-    size_t stride_a, stride_c;
-    stride_a = K * dnnl::memory::data_type_size(inputDataType);
-    stride_c = N * dnnl::memory::data_type_size(outputDataType);
-    parallel_for(thread_num_fcllm, [&](size_t idx) {
-        size_t start {0}, end {0};
-        dnnl::impl::balance211(work_amount, thread_num_fcllm, idx, start, end);
-        size_t n0 = start * 32;
-        size_t n1 = std::min(end * 32, N);
-        if (n0 >= N) return;
-
-        llmdnn::fc_kernel_execute(fcLLMs[idx].get(), src, dst, stride_a, stride_c, M, N, K, n0, n1,
-            dequant.get(), requant.get(), bias);
-    });
+    llmdnn::tensor input, output, dq, q, bias;
+    input.resize({ M, K }, src, dnnl::memory::data_type_size(inputDataType), mapToLLMDataType(inputDataType));
+    output.resize({ M, N }, dst, dnnl::memory::data_type_size(outputDataType), mapToLLMDataType(outputDataType));
+    bias.resize({ 1ul, N }, biasRnd.get());
+    fcLLMs->exec(input, output, dq, q, bias);
 }
 
 bool FullyConnected::initLLMFc() {
@@ -1338,16 +1324,13 @@ bool FullyConnected::initLLMFc() {
     }
 
     size_t thread_num = llmdnn::get_total_threads();
-    fcLLMs.resize(thread_num);
     bool ret = true;
-    for (size_t i = 0; i < thread_num; i++) {
-        llmdnn::fc_kernel* fc;
-        if (fc_kernel_create(&fc, &param) != llmdnn::status_ok) {
-            ret = false;
-            break;
-        }
-        fcLLMs[i] = std::shared_ptr<llmdnn::fc_kernel>(fc, [](llmdnn::fc_kernel* p) { fc_kernel_destroy(p); });
-    }
+    // force to reference simple parallel for symbol or the symbol may be deleted by the linker
+    thread_num = std::min(1ul, thread_num);
+    llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
+        fcLLMs = std::make_shared<llmdnn::fc>();
+        ret = fcLLMs->init(param);
+    });
     if (ret) {
         stateLLMFc = State_Use;
         NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -1359,9 +1342,9 @@ bool FullyConnected::initLLMFc() {
         weightDims = weight_ptr->getStaticDims();
         auto N = weightDims[0];
         auto K = weightDims[1];
-        auto work_amount = rnd_up(N, 32) / 32;
         const auto weight_type = getOriginalInputPrecisionAtPort(WEIGHTS_ID);
         auto weight_dnnl_type = DnnlExtensionUtils::IEPrecisionToDataType(weight_type);
+        llmdnn::tensor weight_tensor;
         if (weightsNonTransposed) {
             if (!getParentEdgeAt(1)->getParent()->isConstant())
                 IE_THROW() << "Weight input is not const for node " << getName() << ".";
@@ -1372,27 +1355,16 @@ bool FullyConnected::initLLMFc() {
             auto constDnnlMemOutDesc = edgeMem->getDescWithType<DnnlMemoryDesc>();
             auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
             weight_dnnl_type = weightSrcDesc.get_data_type();
-        }
-
-        size_t stride_b;
-        if (weightsNonTransposed) {
-            stride_b = N * dnnl::memory::data_type_size(weight_dnnl_type);
+            weight_tensor.resize({K, N}, weight, dnnl::memory::data_type_size(weight_dnnl_type), mapToLLMDataType(weight_dnnl_type));
         } else {
-            stride_b = K * dnnl::memory::data_type_size(weight_dnnl_type);
+            weight_tensor.resize({N, K}, weight, dnnl::memory::data_type_size(weight_dnnl_type), mapToLLMDataType(weight_dnnl_type));
         }
-        llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
-            size_t start {0}, end {0};
-            dnnl::impl::balance211(work_amount, thread_num, idx, start, end);
-            size_t n0 = start * 32;
-            size_t n1 = std::min(end * 32, N);
-            if (n0 >= N) return;
 
-            llmdnn::fc_kernel_pack_weight(fcLLMs[idx].get(), weight, mapToLLMDataType(weight_dnnl_type), N, K, stride_b, n0, n1);
-        });
+        fcLLMs->pack_weight(weight_tensor);
     } else {
         // fallback
         stateLLMFc = State_NotUse;
-        fcLLMs.clear();
+        fcLLMs = nullptr;
     }
 
     return ret;

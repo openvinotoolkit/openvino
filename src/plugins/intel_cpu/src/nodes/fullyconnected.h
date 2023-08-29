@@ -127,7 +127,7 @@ private:
     bool initLLMFc();
     void execLLMFc();
 
-    std::vector<std::shared_ptr<llmdnn::fc_kernel>> fcLLMs;
+    std::shared_ptr<llmdnn::fc> fcLLMs;
     enum StateLLMFc {
         Not_Init,
         State_Use,
