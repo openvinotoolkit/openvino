@@ -13,3 +13,13 @@ TEST_P(GRUSequenceTest, CompareWithRefs) {
 };
 
 }  // namespace LayerTestsDefinitions
+
+namespace ov {
+namespace test {
+
+TEST_P(GRUSequenceTestNew, CompareWithRefs) {
+    run();
+};
+
+}  // namespace test
+}  // namespace ov

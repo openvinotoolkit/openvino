@@ -10,8 +10,10 @@
 #include <memory>
 #include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -43,3 +45,36 @@ protected:
 };
 
 }  // namespace LayerTestsDefinitions
+
+namespace ov {
+namespace test {
+
+using GRUSequenceParams = typename std::tuple<
+        ov::test::utils::SequenceTestsMode,       // pure Sequence or TensorIterator
+        size_t,                                   // seq_lengths
+        size_t,                                   // batch
+        size_t,                                   // hidden size
+        // todo: fix. input size hardcoded to 10 due to limitation (10 args) of gtests Combine() func.
+        //size_t,                                 // input size
+        std::vector<std::string>,                 // activations
+        float,                                    // clip
+        bool,                                     // linear_before_reset
+        ov::op::RecurrentSequenceDirection,       // direction
+        ov::test::utils::InputLayerType,          // WRB input type (Constant or Parameter)
+        ov::element::Type,                        // Network precision
+        std::string>;                             // Device name
+
+class GRUSequenceTestNew : public testing::WithParamInterface<GRUSequenceParams>,
+                           virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj);
+
+protected:
+    void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    ov::test::utils::SequenceTestsMode m_mode;
+    int64_t m_max_seq_len = 0;
+};
+
+} //  namespace test
+} //  namespace ov
