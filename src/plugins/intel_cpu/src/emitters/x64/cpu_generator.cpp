@@ -27,7 +27,7 @@
 
 using namespace std;
 
-#define CREATE_EMITTER_NEW(e_type) { \
+#define CREATE_SNIPPETS_EMITTER(e_type) { \
     [this](const ov::snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, expr); \
     }, \
@@ -61,24 +61,24 @@ public:
 ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
     // data movement
-    jitters[ov::op::v0::Parameter::get_type_info_static()] = CREATE_EMITTER_NEW(NopEmitter);
-    jitters[ov::op::v0::Result::get_type_info_static()] = CREATE_EMITTER_NEW(NopEmitter);
-    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_EMITTER_NEW(NopEmitter);
-    jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_EMITTER_NEW(NopEmitter);
+    jitters[ov::op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(NopEmitter);
+    jitters[ov::op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(NopEmitter);
+    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(NopEmitter);
+    jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(NopEmitter);
     // jitters[ov::op::v1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    jitters[snippets::op::Load::get_type_info_static()] = CREATE_EMITTER_NEW(LoadEmitter);
-    jitters[snippets::op::LoadReshape::get_type_info_static()] = CREATE_EMITTER_NEW(LoadEmitter);
-    jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER_NEW(BroadcastLoadEmitter);
-    jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER_NEW(LoadConvertEmitter);
-    jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER_NEW(LoadConvertEmitter);
+    jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoadEmitter);
+    jitters[snippets::op::LoadReshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoadEmitter);
+    jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BroadcastLoadEmitter);
+    jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoadConvertEmitter);
+    jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoadConvertEmitter);
 
-    jitters[snippets::op::Store::get_type_info_static()] = CREATE_EMITTER_NEW(StoreEmitter);
-    jitters[ov::intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_EMITTER_NEW(StoreConvertEmitter);
-    jitters[ov::intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_EMITTER_NEW(StoreConvertEmitter);
+    jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(StoreEmitter);
+    jitters[ov::intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(StoreConvertEmitter);
+    jitters[ov::intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(StoreConvertEmitter);
 
-    jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER_NEW(ScalarEmitter);
-    jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER_NEW(BroadcastMoveEmitter);
+    jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarEmitter);
+    jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BroadcastMoveEmitter);
     // jitters[snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
     // jitters[ov::op::v1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
@@ -146,16 +146,16 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ov::op::v1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::op::v0::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v0_emitter);
     jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_gelu_v7_emitter);
-    jitters[snippets::op::Fill::get_type_info_static()] = CREATE_EMITTER_NEW(FillEmitter);
+    jitters[snippets::op::Fill::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(FillEmitter);
 
-    jitters[snippets::op::HorizonMax::get_type_info_static()] = CREATE_EMITTER_NEW(HorizonEmitter);
-    jitters[snippets::op::HorizonSum::get_type_info_static()] = CREATE_EMITTER_NEW(HorizonEmitter);
+    jitters[snippets::op::HorizonMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(HorizonEmitter);
+    jitters[snippets::op::HorizonSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(HorizonEmitter);
 
-    jitters[snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER_NEW(KernelEmitter);
-    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_EMITTER_NEW(LoopBeginEmitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_EMITTER_NEW(LoopEndEmitter);
-    jitters[ov::intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_EMITTER_NEW(BrgemmEmitter);
-    jitters[ov::intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_EMITTER_NEW(BrgemmCopyBEmitter);
+    jitters[snippets::op::Kernel::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(KernelEmitter);
+    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoopBeginEmitter);
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoopEndEmitter);
+    jitters[ov::intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmEmitter);
+    jitters[ov::intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmCopyBEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
