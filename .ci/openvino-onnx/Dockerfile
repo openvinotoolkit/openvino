@@ -40,10 +40,11 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         python3-dev \
         pybind11-dev \
         python3-virtualenv \
-        cython3 \
         tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
+
+RUN python -m pip install "cython>=3.0.0"
 
 # Build OpenVINO
 COPY . /openvino/
