@@ -10,6 +10,7 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/reference/concat.hpp"
 #include "validation_util.hpp"

@@ -120,7 +120,7 @@ void lstm_cell(const T* X,
         } else if (activation == "sigmoid") {
             reference::sigmoid(gate.data(), gate.data(), gate.size());
         } else if (activation == "tanh") {
-            reference::tanh(gate.data(), gate.data(), gate.size());
+            ov::reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
             OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }
@@ -268,7 +268,7 @@ void lstm_cell_v1(const T* X,
         } else if (activation == "sigmoid") {
             reference::sigmoid(gate.data(), gate.data(), gate.size());
         } else if (activation == "tanh") {
-            reference::tanh(gate.data(), gate.data(), gate.size());
+            ov::reference::tanh(gate.data(), gate.data(), gate.size());
         } else {
             OPENVINO_THROW("Activation function " + activation + " is not supported.");
         }

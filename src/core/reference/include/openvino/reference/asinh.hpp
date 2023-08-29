@@ -4,23 +4,35 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
+
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
-void asinh(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = std::asinh(arg[i]);
-    }
+namespace func {
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T asinh(const T in) {
+    return std::asinh(in);
 }
 
-template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-void asinh(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(std::roundl(std::asinh(arg[i])));
-    }
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T asinh(const T in) {
+    return static_cast<T>(std::round(std::asinh(in)));
+}
+}  // namespace func
+
+/**
+ * @brief Reference implementation of Asinh operator.
+ *
+ * @param arg    Input buffer pointer with input data.
+ * @param out    Output buffer pointer with results.
+ * @param count  Number of elements in input buffer.
+ */
+template <class T>
+void asinh(const T* arg, T* out, const size_t count) {
+    std::transform(arg, arg + count, out, &func::asinh<T>);
 }
 }  // namespace reference
 }  // namespace ov

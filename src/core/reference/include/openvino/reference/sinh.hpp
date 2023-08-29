@@ -4,22 +4,35 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
-#include <cstddef>
+
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
 namespace reference {
-template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
-void sinh(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(std::sinh(arg[i]));
-    }
+namespace func {
+template <class T, typename std::enable_if<ov::is_floating_point<T>()>::type* = nullptr>
+T sinh(const T in) {
+    return std::sinh(in);
 }
-template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+
+template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+T sinh(const T in) {
+    return static_cast<T>(std::round(std::sinh(in)));
+}
+}  // namespace func
+
+/**
+ * @brief Reference implementation of Sinh operator.
+ *
+ * @param arg    Input buffer pointer with input data.
+ * @param out    Output buffer pointer with results.
+ * @param count  Number of elements in input buffer.
+ */
+template <class T>
 void sinh(const T* arg, T* out, size_t count) {
-    for (size_t i = 0; i < count; i++) {
-        out[i] = static_cast<T>(std::roundl(std::sinh(arg[i])));
-    }
+    std::transform(arg, arg + count, out, &func::sinh<T>);
 }
 }  // namespace reference
 }  // namespace ov
