@@ -8,7 +8,6 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/common_util.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(type_info, compare_old_type) {
     ov::DiscreteTypeInfo type1("type1");
     ov::DiscreteTypeInfo type2("type2");
