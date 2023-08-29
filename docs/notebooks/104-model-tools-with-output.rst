@@ -423,7 +423,9 @@ In the next cell, define the ``benchmark_model()`` function that calls
 ``benchmark_app``. This makes it easy to try different combinations. In
 the cell below that, you display available devices on the system.
 
-   **Note**: In this notebook, ``benchmark_app`` runs for 15 seconds to
+.. note::
+
+   In this notebook, ``benchmark_app`` runs for 15 seconds to
    give a quick indication of performance. For more accurate
    performance, it is recommended to run inference for at least one
    minute by setting the ``t`` parameter to 60 or higher, and run
@@ -431,6 +433,7 @@ the cell below that, you display available devices on the system.
    applications. Copy the **benchmark command** and paste it in a
    command prompt where you have activated the ``openvino_env``
    environment.
+
 
 .. code:: ipython3
 
@@ -523,9 +526,7 @@ Benchmark command:
 
 .. code:: ipython3
 
-    benchmark_model(model_path, device="GPU", seconds=15, api="async")
-
-
+   benchmark_model(model_path, device="GPU", seconds=15, api="async")
 
 .. raw:: html
 
@@ -534,8 +535,7 @@ Benchmark command:
 
 .. code:: ipython3
 
-    benchmark_model(model_path, device="MULTI:CPU,GPU", seconds=15, api="async")
-
+   benchmark_model(model_path, device="MULTI:CPU,GPU", seconds=15, api="async")
 
 
 .. raw:: html
