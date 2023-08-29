@@ -12,3 +12,13 @@ TEST_P(BroadcastLayerTest, CompareWithRefs) {
     Run();
 }
 }  // namespace LayerTestsDefinitions
+
+namespace ov {
+namespace test {
+
+TEST_P(BroadcastLayerTestNew, CompareWithRefs) {
+    run();
+}
+
+} //  namespace test
+} //  namespace ov
