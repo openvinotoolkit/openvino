@@ -1364,6 +1364,16 @@ void Convolution::prepareParams() {
         if (!reorderConvDesc)
             return nullptr;
 
+        if (key.attr.get()->post_ops_.count(dnnl::impl::primitive_kind::sum)) {
+            return std::make_shared<ConvolutionSumExecutor>(
+                reorderConvDesc,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                engine,
+                key.constWeight);
+        }
+
         return std::make_shared<ConvolutionExecutor>(
             reorderConvDesc,
             key.inp0->getDnnlDesc(),
@@ -1439,6 +1449,46 @@ Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::primitive_desc
 
     if (outMemDesc != getDnnlDstDesc()) {
         outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
+    }
+}
+
+Convolution::ConvolutionSumExecutor::ConvolutionSumExecutor(const dnnl::primitive_desc& pd,
+                                                            const dnnl::memory::desc& inMemDesc,
+                                                            const dnnl::memory::desc& weightMemDesc,
+                                                            const dnnl::memory::desc& outMemDesc,
+                                                            const dnnl::engine& engine,
+                                                            bool constWeight) : DnnlExecutor(pd) {
+    if (inMemDesc != getDnnlSrcDesc()) {
+        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
+    }
+
+    if (!constWeight && weightMemDesc != getDnnlWeightDesc()) {
+        // const weight will be reordered at first execution
+        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, getDnnlWeightDesc(), engine)});
+    }
+
+    if (outMemDesc != getDnnlDstDesc()) {
+        // In the case of fusing sum, we have to reorder the output data before executing the primitive,
+        // since the output data are used as an accumulator for the covolution computations.
+        inputReorders.insert({DNNL_ARG_DST, IntermReorder(outMemDesc, getDnnlDstDesc(), engine)});
+        outputReorders.insert({DNNL_ARG_DST, IntermReorder(getDnnlDstDesc(), outMemDesc, engine)});
+    }
+}
+
+void Convolution::ConvolutionSumExecutor::reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm) {
+    auto outputMem = primArgs.at(DNNL_ARG_DST);
+    for (auto &inReorder : inputReorders) {
+        if (primArgs.count(inReorder.first)) {
+            dnnl::memory memDst(inReorder.second.getDstDesc(), strm.get_engine());
+            inReorder.second.exec(primArgs[inReorder.first], memDst, strm);
+            primArgs[inReorder.first] = memDst;
+        } else {
+            IE_THROW() << "DnnlExecutor has reorder for input " << inReorder.first << ", but doesn't have source memory";
+        }
+    }
+    execPrim.execute(strm, primArgs);
+    if (!outputReorders.empty()) {
+        outputReorders.at(DNNL_ARG_DST).exec(primArgs.at(DNNL_ARG_DST), outputMem, strm);
     }
 }
 

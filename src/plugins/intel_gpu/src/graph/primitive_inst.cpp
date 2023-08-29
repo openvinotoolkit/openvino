@@ -1229,6 +1229,9 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
+            if (user->is_dynamic()) {
+                return true;
+            }
             if (user_requesting_mem_reuse_false(*user)) {
                 return true;
             }
@@ -1504,13 +1507,18 @@ bool primitive_inst::is_valid_fusion() const {
     return true;
 }
 
-void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode) {
     instrumentation::perf_counter_key key {
             _network.get_input_layouts(),
             _impl_params->input_layouts,
             _impl_params->output_layouts,
             get_implementation_name(),
             stage,
+#ifdef GPU_DEBUG_CONFIG
+            per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+            0,
+#endif
             cache_hit
     };
 
