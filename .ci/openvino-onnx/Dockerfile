@@ -48,7 +48,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 RUN python3 -m venv ~/.venv
 RUN . ~/.venv/bin/activate
 RUN which python3
-RUN python3 install "cython>=3.0.0" --break-system-packages
+RUN python3 -m pip install "cython>=3.0.0" --break-system-packages
 
 # Build OpenVINO
 COPY . /openvino/
