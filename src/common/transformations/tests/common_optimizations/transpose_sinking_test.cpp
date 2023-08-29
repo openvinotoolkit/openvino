@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/transpose_sinking.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/common_optimizations/transpose_sinking.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

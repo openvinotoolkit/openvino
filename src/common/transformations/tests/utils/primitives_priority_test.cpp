@@ -6,19 +6,19 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
-#include <ie_ngraph_utils.hpp>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "ie_ngraph_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;

@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
+
 #include <gtest/gtest.h>
 
 #include <fstream>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset3.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/transpose_sinking.hpp>
-#include <transformations/common_optimizations/transpose_to_reshape.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_subtract.hpp"
+
 #include <gtest/gtest.h>
 
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-#include <transformations/op_conversions/convert_subtract.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;

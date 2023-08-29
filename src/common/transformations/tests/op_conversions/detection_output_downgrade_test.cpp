@@ -7,16 +7,16 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/op/util/detection_output_base.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/util/detection_output_base.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
 using namespace ov;

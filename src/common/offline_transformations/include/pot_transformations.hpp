@@ -5,8 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
 #include <string>
+
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {

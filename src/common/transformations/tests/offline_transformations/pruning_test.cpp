@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pruning.hpp"
+
 #include <gtest/gtest.h>
 
-#include <inference_engine.hpp>
-#include <mask_attribute.hpp>
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
-#include <openvino/pass/serialize.hpp>
-#include <openvino/pass/visualize_tree.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/op/util/attr_types.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/util/env_util.hpp>
-#include <pruning.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "inference_engine.hpp"
+#include "mask_attribute.hpp"
+#include "ngraph/coordinate_transform.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/env_util.hpp"
+#include "transformations/init_node_info.hpp"
 
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"

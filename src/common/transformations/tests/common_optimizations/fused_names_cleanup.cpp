@@ -4,16 +4,16 @@
 
 #define _USE_MATH_DEFINES
 
+#include "transformations/common_optimizations/fused_names_cleanup.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/fused_names_cleanup.hpp>
-#include <transformations/init_node_info.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

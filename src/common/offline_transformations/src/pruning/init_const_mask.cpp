@@ -3,16 +3,16 @@
 //
 
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
-#include <openvino/op/log.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "mask_attribute.hpp"
+#include "ngraph/coordinate_transform.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pruning.hpp"
 
 ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
-                                           const std::function<bool(const double& value)>& condition) {
+                                       const std::function<bool(const double& value)>& condition) {
     auto constant = pattern::wrap_type<opset6::Constant>(
         pattern::type_matches_any({element::i8, element::u8, element::f16, element::f32, element::f64}));
 

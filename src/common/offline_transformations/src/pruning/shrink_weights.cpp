@@ -3,14 +3,14 @@
 //
 
 #include <memory>
-#include <openvino/util/log.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset6.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
 template <typename T>
@@ -180,9 +180,8 @@ static std::shared_ptr<ov::Node> handle_split(const std::shared_ptr<ov::Node>& s
 
     const auto split_lengths_node =
         ov::opset6::Constant::create(ov::element::i64, {split_lengths.size()}, split_lengths);
-    auto var_split = std::make_shared<ov::opset6::VariadicSplit>(split->input_value(0),
-                                                                     split->input_value(1),
-                                                                     split_lengths_node);
+    auto var_split =
+        std::make_shared<ov::opset6::VariadicSplit>(split->input_value(0), split->input_value(1), split_lengths_node);
     var_split->set_friendly_name(split->get_friendly_name());
     ov::copy_runtime_info(split, var_split);
     ov::replace_node(split, var_split);

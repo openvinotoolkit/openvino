@@ -5,19 +5,19 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/multiclass_nms_ie_internal.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace ov;

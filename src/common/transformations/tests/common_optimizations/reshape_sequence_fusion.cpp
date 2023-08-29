@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset6.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 using namespace testing;
 using namespace ov;

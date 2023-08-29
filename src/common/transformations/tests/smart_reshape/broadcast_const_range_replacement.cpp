@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/smart_reshape/broadcast_const_range_replacement.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <queue>
 #include <string>
-#include <transformations/smart_reshape/broadcast_const_range_replacement.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace testing;
 using namespace ov;

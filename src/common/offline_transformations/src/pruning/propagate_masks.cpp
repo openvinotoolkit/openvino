@@ -5,19 +5,18 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
-#include <ngraph/coordinate_transform.hpp>
-#include <openvino/util/log.hpp>
-#include <openvino/op/gelu.hpp>
-#include <openvino/op/max_pool.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/softmax.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/util/pad_base.hpp>
 
 #include "mask_attribute.hpp"
+#include "ngraph/coordinate_transform.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
@@ -1494,8 +1493,7 @@ public:
             const auto& input = pattern_map.at(input_pattern);
             const auto input_mask = ov::getMask(input);
             auto split = pattern_map.at(split_pattern).get_node();
-            auto split_lengths_const =
-                as_type<ov::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
+            auto split_lengths_const = as_type<ov::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
 
             if (!axis_node)
                 return false;

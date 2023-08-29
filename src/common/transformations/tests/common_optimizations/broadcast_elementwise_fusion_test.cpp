@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/pass/constant_folding.hpp>
 #include <string>
-#include <transformations/common_optimizations/broadcast_elementwise_fusion.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset5.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov;

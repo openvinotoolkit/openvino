@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
+
 #include <gtest/gtest.h>
 
 #include <fstream>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/constant_folding.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/optimize_strided_slice.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;

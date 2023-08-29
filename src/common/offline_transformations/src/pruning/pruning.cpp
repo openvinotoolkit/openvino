@@ -5,11 +5,11 @@
 #include "pruning.hpp"
 
 #include <algorithm>
-#include <openvino/util/log.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/visualize_tree.hpp>
 
 #include "mask_attribute.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/log.hpp"
 
 bool ov::pass::Pruning::run_on_model(const std::shared_ptr<ov::Model>& f) {
     Manager manager(get_pass_config());

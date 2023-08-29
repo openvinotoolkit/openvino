@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <compress_quantize_weights.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <transformations/rt_info/decompression.hpp>
+#include "compress_quantize_weights.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 static bool has_dequantization_subgraph(const std::shared_ptr<ov::Node>& first_convert) {
     auto first_convert_users = first_convert->get_users();
@@ -107,7 +107,8 @@ ov::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             std::shared_ptr<Node> new_output_low =
                 op::v0::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
             std::shared_ptr<Node> new_output_high =
-                std::make_shared<opset8::Add>(new_output_low, op::v0::Constant::create(input_type, Shape{}, {levels - 1}));
+                std::make_shared<opset8::Add>(new_output_low,
+                                              op::v0::Constant::create(input_type, Shape{}, {levels - 1}));
             const auto& weights_const = pattern_value_map.at(weights_const_pattern);
             Output<Node> input_low = pattern_value_map.at(input_low_pattern);
             Output<Node> input_high = pattern_value_map.at(input_high_pattern);

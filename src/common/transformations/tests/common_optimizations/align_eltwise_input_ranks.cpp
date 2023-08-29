@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/align_eltwise_input_ranks.hpp"
+
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset8.hpp>
-#include <transformations/common_optimizations/align_eltwise_input_ranks.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace testing;
 using namespace ov;

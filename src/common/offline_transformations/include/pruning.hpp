@@ -5,9 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/manager.hpp>
 #include <vector>
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace pass {

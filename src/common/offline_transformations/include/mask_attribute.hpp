@@ -13,11 +13,10 @@
 
 #include <functional>
 #include <memory>
-#include <openvino/util/log.hpp>
-#include <openvino/core/node.hpp>
 #include <set>
 #include <string>
 
+#include "openvino/core/node.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {
