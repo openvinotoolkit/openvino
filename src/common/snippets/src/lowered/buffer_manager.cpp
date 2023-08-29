@@ -135,14 +135,13 @@ BufferManager::BufferClusters BufferManager::init_inplace_clusters(const lowered
                                     input_buffer_expr->get_output_port_descriptor(0)->get_layout() == consumer.get_descriptor_ptr()->get_layout() &&
                                     ptr_increments[input_buffer_idx] == ptr_increments[i] &&
                                     final_offsets[input_buffer_idx] == final_offsets[i]) {
-                                    auto cluster_it = find_cluster(input_buffer_expr);
-                                    OPENVINO_ASSERT(cluster_it != buffer_clusters.cend(), "Buffer on inputs of Loop must be already saved in clusters");
+                                    const auto cluster_it = find_cluster(input_buffer_expr);
+                                    OPENVINO_ASSERT(cluster_it != buffer_clusters.end(), "Buffer on inputs of Loop must be already saved in clusters");
                                     // Add to the existing cluster
-                                    auto res = cluster_it->insert(consumer_expr);
-                                    OPENVINO_ASSERT(res.second, "Buffer has not been saved in cluster");
+                                    has_been_added = cluster_it->insert(consumer_expr).second;
+                                    OPENVINO_ASSERT(has_been_added, "Buffer has not been saved in cluster");
                                     // Remove input buffer because we have already use its memory
                                     input_buffers.erase(input_buffer_expr);
-                                    has_been_added = res.second;
                                     break;
                                 }
                             }
@@ -162,13 +161,11 @@ BufferManager::BufferClusters BufferManager::init_inplace_clusters(const lowered
             if (ma->is_full_memory_access_op()) {
                 const auto target_loop_ids = expr->get_loop_ids();
                 for (const auto& input : expr->get_input_port_connectors()) {
-                    const auto source_expr = input->get_source().get_expr();
-                    create_cluster(source_expr, expr);
+                    create_cluster(input->get_source().get_expr(), expr);
                 }
                 for (const auto& output : expr->get_output_port_connectors()) {
                     for (const auto& consumer : output->get_consumers()) {
-                        const auto consumer_expr = consumer.get_expr();
-                        create_cluster(consumer_expr, expr);
+                        create_cluster(consumer.get_expr(), expr);
                     }
                 }
             }
