@@ -16,7 +16,8 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # onnx.ModelProto object
+import onnx
+model = onnx.ModelProto() # onnx.ModelProto object
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
