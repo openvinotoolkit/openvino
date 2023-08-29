@@ -87,7 +87,7 @@ void rnn_cell(const T* X,
     } else if (activation_f == "sigmoid") {
         reference::sigmoid(i_t.data(), dst_data, i_t.size());
     } else if (activation_f == "tanh") {
-        reference::tanh(i_t.data(), dst_data, i_t.size());
+        ov::reference::tanh(i_t.data(), dst_data, i_t.size());
     } else {
         OPENVINO_THROW("Activation function " + activation_f + " is not supported.");
     }
