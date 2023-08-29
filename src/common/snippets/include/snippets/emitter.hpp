@@ -25,7 +25,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter(const std::shared_ptr<ov::Node>& n) {}
+    Emitter() {}
 
     Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
 

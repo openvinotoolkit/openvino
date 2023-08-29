@@ -32,7 +32,7 @@ inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::
 jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -318,7 +318,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
 LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     if (!loop_begin)
         IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
@@ -366,7 +366,7 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
 LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     if (!loop_end)
         IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
@@ -434,7 +434,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
 NopEmitter::NopEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
@@ -455,7 +455,7 @@ ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h,
 BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
         IE_THROW() << "BroadcastMoveEmitter supports only equal input and output types but gets: "
@@ -494,7 +494,7 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
 ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
     switch (precision) {
@@ -538,7 +538,7 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
 MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
     dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
@@ -743,7 +743,7 @@ size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
 BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                              dnnl::impl::cpu::x64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     m_brgCtxs.fill(brgemmCtx());
     std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){ return nullptr; });
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -1231,7 +1231,7 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
 BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, nullptr) {
+    : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
@@ -1485,7 +1485,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
 HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, expr->get_node(), Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
         m_op_type = OpType::max;
     } else if (ov::is_type<const snippets::op::HorizonSum>(expr->get_node())) {
@@ -1555,7 +1555,7 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
 FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa, expr->get_node(), Precision::FP32, emitter_in_out_map::vec_to_vec) {
+    : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
         IE_THROW() << "Fill emitter supports only 4 Byte element types but gets: " << fill->get_element_type();
