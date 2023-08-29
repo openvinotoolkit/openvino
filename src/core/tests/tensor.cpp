@@ -10,7 +10,7 @@
 
 #include "common_test_utils/test_tools.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/node.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -46,7 +46,7 @@ TEST(tensor, wrap_tensor_with_unspecified_type) {
 
 TEST(tensor, wrap_tensor_with_unspecified_type_from_host_tensor) {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    auto host_tensor = std::make_shared<ngraph::HostTensor>(element::undefined, ov::PartialShape{});
+    auto host_tensor = std::make_shared<ngraph::runtime::HostTensor>(element::undefined, ov::PartialShape{});
     auto tensor = ov::util::wrap_tensor(host_tensor);
     OPENVINO_SUPPRESS_DEPRECATED_END
     // !tensor means that the tensor is not initialized
