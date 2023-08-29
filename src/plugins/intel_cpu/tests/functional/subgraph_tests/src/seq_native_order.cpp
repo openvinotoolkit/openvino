@@ -171,8 +171,11 @@ protected:
         if (seqInType == ngraph::helpers::InputLayerType::PARAMETER) {
             types.back() = ElementType::i64;
         }
-        auto params = ngraph::builder::makeDynamicParams(types, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (size_t i = 0; i < types.size(); i++) {
+            auto param_node = std::make_shared<ov::op::v0::Parameter>(types[i], inputDynamicShapes[i]);
+            params.push_back(param_node);
+        }
         std::vector<int64_t> order_ref_before = {1, 0, 2};
         const auto order_before = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape({order_ref_before.size()}),

@@ -18,7 +18,7 @@ Source of the
 
 **Table of contents**:
 
-- `Preparation <#1preparation>`__
+- `Preparation <#preparation>`__
 
   - `Imports <#imports>`__
   - `Settings <#settings>`__

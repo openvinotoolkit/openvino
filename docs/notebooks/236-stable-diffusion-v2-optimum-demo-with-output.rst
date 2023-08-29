@@ -20,16 +20,18 @@ accelerate end-to-end pipelines on Intel architectures. More details in
 this
 `repository <https://github.com/huggingface/optimum-intel#openvino>`__.
 
-``Note: We suggest you to create a different environment and run the following installation command there.``
+.. note::
+
+    We suggest you to create a different environment and run the following installation command there.
 
 .. code:: ipython3
 
     %pip install -q "optimum-intel[openvino,diffusers]" "ipywidgets"
 
 
-.. parsed-literal::
+.. hint::
 
-    Note: you may need to restart the kernel to use updated packages.
+    You may need to restart the kernel to use updated packages.
 
 
 Stable Diffusion pipeline should brings 6 elements together, a text
@@ -65,11 +67,13 @@ you have integrated GPU (iGPU) and discrete GPU (dGPU), it will show
 If you just have either an iGPU or dGPU that will be assigned to
 ``"GPU"``
 
-Note: For more details about GPU with OpenVINO visit this
-`link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
-If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
-this
-`blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
+.. note::
+
+   For more details about GPU with OpenVINO visit this
+   `link <https://docs.openvino.ai/nightly/openvino_docs_install_guides_configurations_for_intel_gpu.html>`__.
+   If you have been facing any issue in Ubuntu 20.04 or Windows 11 read
+   this
+   `blog <https://blog.openvino.ai/blog-posts/install-gpu-drivers-windows-ubuntu>`__.
 
 .. code:: ipython3
 
