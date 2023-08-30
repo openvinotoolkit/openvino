@@ -17,9 +17,9 @@ class LocaleTests : public ::testing::Test {
 <net name="model" version="10">
     <layers>
         <layer id="0" name="input" type="Parameter" version="opset1">
-            <data shape="1,256,200,272" element_type="f16"/>
+            <data shape="1,256,200,272" element_type="f32"/>
             <output>
-                <port id="0" precision="FP16" names="input">
+                <port id="0" precision="FP32" names="input">
                     <dim>1</dim>
                     <dim>256</dim>
                     <dim>200</dim>
@@ -28,9 +28,9 @@ class LocaleTests : public ::testing::Test {
             </output>
         </layer>
         <layer id="1" name="rois" type="Parameter" version="opset1">
-            <data shape="1000,4" element_type="f16"/>
+            <data shape="1000,4" element_type="f32"/>
             <output>
-                <port id="0" precision="FP16" names="rois">
+                <port id="0" precision="FP32" names="rois">
                     <dim>1000</dim>
                     <dim>4</dim>
                 </port>
@@ -62,7 +62,7 @@ class LocaleTests : public ::testing::Test {
                 </port>
             </input>
             <output>
-                <port id="3" precision="FP16" names="output">
+                <port id="3" precision="FP32" names="output">
                     <dim>1000</dim>
                     <dim>256</dim>
                     <dim>7</dim>
@@ -233,6 +233,7 @@ protected:
             if (!isLSTM) {
                 if (op->get_friendly_name() == "output") {
                     const auto roi = std::dynamic_pointer_cast<ov::op::v3::ROIAlign>(op);
+                    ASSERT_TRUE(roi);
                     ASSERT_EQ(roi->get_pooled_h(), 7);
                     ASSERT_EQ(roi->get_pooled_w(), 7);
                     ASSERT_EQ(roi->get_sampling_ratio(), 2);
@@ -241,6 +242,7 @@ protected:
             } else {
                 if (op->get_friendly_name() == "LSTMCell") {
                     const auto lstm_seq = std::dynamic_pointer_cast<ov::op::util::RNNCellBase>(op);
+                    ASSERT_TRUE(lstm_seq);
                     ASSERT_EQ(lstm_seq->get_clip(), 0.0f);
                     ASSERT_EQ(lstm_seq->get_hidden_size(), 256);
                 }
