@@ -7,7 +7,6 @@
 namespace ov {
 namespace snippets {
 using Result = IShapeInferSnippets::Result;
-using VectorDims = IShapeInferSnippets::VectorDims;
 namespace {
 // broadcast_merge_into for VectorDims
 bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
@@ -85,7 +84,7 @@ bool merge_into(VectorDims& dst, const VectorDims& src) {
 }
 } // namespace
 
-Result entryNumpyBroadcasting::infer(const std::vector<VectorDimsRef>& input_shapes) {
+Result NumpyBroadcastShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         size_t max_rank = 0;
         size_t max_rank_idx = 0;
         for (size_t i = 0; i < input_shapes.size(); ++i) {

@@ -36,24 +36,24 @@ ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::
 
 const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry {
         // todo: Parameter and Scalar should be handled separately, since they have no inputs, and infer can't be called
-        SHAPE_INFER_PREDEFINED(op::ConvertTruncation, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(op::ConvertSaturation, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(op::Load, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(op::Store, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(op::Buffer, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(op::Fill, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, entryFirstPassThrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::ConvertTruncation, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::ConvertSaturation, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Buffer, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, PassThroughShapeInfer),
         //
-        SHAPE_INFER_PREDEFINED(op::LoopBegin, entrySingleElement),
-        SHAPE_INFER_PREDEFINED(op::Scalar, entrySingleElement),
-        SHAPE_INFER_PREDEFINED(op::VectorBuffer, entrySingleElement),
-        SHAPE_INFER_PREDEFINED(op::LoopEnd, entryEmpty),
-        SHAPE_INFER_PREDEFINED(op::Nop, entryEmpty),
+        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
         // Note that Result has no output PortConnectors, so the shape must be empty
-        SHAPE_INFER_PREDEFINED(ov::op::v0::Result, entryEmpty),
+        SHAPE_INFER_PREDEFINED(ov::op::v0::Result, EmptyShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
         SHAPE_INFER_OP_SPECIFIC(op::Brgemm),
@@ -73,11 +73,11 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
     } else if (auto shape_infer = factory->make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
-        return std::make_shared<entryFirstPassThrough>();
+        return std::make_shared<PassThroughShapeInfer>();
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {
-        return std::make_shared<entryNumpyBroadcasting>();
+        return std::make_shared<NumpyBroadcastShapeInfer>();
     } else {
         OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) + " is not supported in Snippets shape inference pipeline");
     }

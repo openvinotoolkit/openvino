@@ -469,8 +469,7 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
         (elementwise->get_autob().m_type != ov::op::AutoBroadcastType::PDPD);
 }
 
-IShapeInferSnippets::Result
-Subgraph::shape_infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes) {
+IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
     if (!m_shape_infer && !m_linear_ir) {
         OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empy body");
         m_shape_infer = std::make_shared<ngraphShapeInferSnippets>(body_ptr());
@@ -484,8 +483,7 @@ Subgraph::ngraphShapeInferSnippets::ngraphShapeInferSnippets(const std::shared_p
     m_ngraph_body(body), m_parameters(body->get_parameters()), m_results(body->get_results()) {
 }
 
-IShapeInferSnippets::Result
-Subgraph::ngraphShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
+IShapeInferSnippets::Result Subgraph::ngraphShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < m_parameters.size(); ++i)
         m_parameters[i]->set_partial_shape(utils::vector_dims_to_partial_shape(input_shapes[i].get()));

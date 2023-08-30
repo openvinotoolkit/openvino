@@ -124,11 +124,10 @@ BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     m_brgemmVNNIFactor = brg_copyb->m_brgemmVNNIFactor;
 }
 
-snippets::IShapeInferSnippets::Result
-BrgemmCopyB::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const std::vector<snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     const auto& old_shape = input_shapes[0].get();
-    IShapeInferSnippets::VectorDims planar_shape;
+    snippets::VectorDims planar_shape;
     planar_shape.reserve(old_shape.size());
     for (const auto idx : m_layout)
         planar_shape.push_back(old_shape[idx]);
@@ -137,7 +136,7 @@ BrgemmCopyB::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(N != DYNAMIC_DIMENSION && K != DYNAMIC_DIMENSION,
                     "BrgemmCopyB shape infer got dynamic N or K dimension, which is not supported");
 
-    std::vector<IShapeInferSnippets::VectorDims> new_shapes(m_num_outs);
+    std::vector<snippets::VectorDims> new_shapes(m_num_outs);
     new_shapes[0].push_back(rnd_up(K, m_brgemmVNNIFactor));
     new_shapes[0].push_back(rnd_up(N, m_N_blk));
     if (m_num_outs == 2) {

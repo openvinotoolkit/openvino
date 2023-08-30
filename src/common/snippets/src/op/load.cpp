@@ -78,7 +78,7 @@ IShapeInferSnippets::Result
 LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     const auto& old_shape = input_shapes[0].get();
-    IShapeInferSnippets::VectorDims new_shape;
+    VectorDims new_shape;
     new_shape.reserve(old_shape.size());
     for (const auto idx : m_order)
         new_shape.push_back(old_shape[idx]);

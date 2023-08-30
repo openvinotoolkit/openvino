@@ -8,21 +8,21 @@
 
 namespace ov {
 namespace snippets {
-class entryNumpyBroadcasting : public IShapeInferSnippets {
+class NumpyBroadcastShapeInfer : public IShapeInferSnippets {
 public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
 
 template<class BroadcastOP>
-class  BroadcastShapeInfer : public IShapeInferSnippets {
+class BroadcastShapeInfer : public IShapeInferSnippets {
     VectorDims::value_type m_broadcasted_dim;
 public:
     explicit BroadcastShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
-class entryFirstPassThrough : public IShapeInferSnippets {
+class PassThroughShapeInfer : public IShapeInferSnippets {
 public:
     inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for entryFirstPassthrough");
@@ -30,14 +30,14 @@ public:
     }
 };
 
-class entryEmpty : public IShapeInferSnippets {
+class EmptyShapeInfer : public IShapeInferSnippets {
 public:
     inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         return {{}, ShapeInferStatus::success};
     }
 };
 
-class entrySingleElement : public IShapeInferSnippets {
+class SingleElementShapeInfer : public IShapeInferSnippets {
 public:
     inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         return {{{1}}, ShapeInferStatus::success};

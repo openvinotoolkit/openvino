@@ -10,6 +10,7 @@
 
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
+#include "lowered/shape_inference/shape_types.hpp"
 
 
 namespace ov {
@@ -27,8 +28,8 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
 ov::PartialShape get_port_planar_shape(const Input<Node>& out);
 ov::PartialShape get_port_planar_shape(const Output<Node>& out);
 ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const std::vector<size_t>& layout);
-IShapeInferSnippets::VectorDims partial_shape_to_vector_dims(const PartialShape&);
-ov::PartialShape vector_dims_to_partial_shape(const IShapeInferSnippets::VectorDims&);
+VectorDims partial_shape_to_vector_dims(const PartialShape&);
+ov::PartialShape vector_dims_to_partial_shape(const VectorDims&);
 
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;

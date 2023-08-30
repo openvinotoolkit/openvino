@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/core/core.hpp>
+#include "shape_types.hpp"
 
 namespace ov {
 namespace snippets {
@@ -20,8 +21,6 @@ enum class ShapeInferStatus {
 class IShapeInferSnippets {
 public:
     enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
-    using VectorDims = std::vector<size_t>;
-    using VectorDimsRef = std::reference_wrapper<const VectorDims>;
     struct Result {
         std::vector<VectorDims> dims;
         ShapeInferStatus status;

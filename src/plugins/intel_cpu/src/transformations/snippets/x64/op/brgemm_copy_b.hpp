@@ -59,7 +59,7 @@ public:
         size_t m_brgemmVNNIFactor = 1;
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
-        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+        Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
     };
 
 private:

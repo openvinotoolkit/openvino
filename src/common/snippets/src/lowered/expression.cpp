@@ -114,7 +114,7 @@ ExpressionPort Expression::get_output_port(size_t i) {
 void Expression::updateShapes() {
     IShapeInferSnippets::Result result;
     try {
-        std::vector<IShapeInferSnippets::VectorDimsRef> input_shapes;
+        std::vector<VectorDimsRef> input_shapes;
 
         const auto& in_connectors = get_input_port_connectors();
         const auto& in_descriptors = get_input_port_descriptors();
@@ -122,7 +122,7 @@ void Expression::updateShapes() {
         input_shapes.reserve(in_connectors.size());
         for (size_t i = 0; i < in_connectors.size(); i++) {
             const auto& src_port = in_connectors[i]->get_source();
-            const auto i_shape = src_port.get_expr()->get_output_port_descriptor(src_port.get_index())->get_shape();
+            const auto i_shape = src_port.get_descriptor_ptr()->get_shape();
             // todo: do we really need to store the same shape twice in parent's out_port_desc and this in_port_descs
             in_descriptors[i]->set_shape(i_shape);
             input_shapes.emplace_back(i_shape);

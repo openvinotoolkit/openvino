@@ -87,15 +87,15 @@ ov::PartialShape get_reordered_planar_shape(const ov::PartialShape& shape, const
     return reordered_shape;
 }
 
-IShapeInferSnippets::VectorDims partial_shape_to_vector_dims(const PartialShape& pshape) {
-    IShapeInferSnippets::VectorDims result;
+VectorDims partial_shape_to_vector_dims(const PartialShape& pshape) {
+    VectorDims result;
     result.reserve(pshape.size());
     for (const auto& d : pshape)
         result.push_back(d.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : d.get_length());
     return result;
 }
 
-ov::PartialShape vector_dims_to_partial_shape(const IShapeInferSnippets::VectorDims& vdims) {
+ov::PartialShape vector_dims_to_partial_shape(const VectorDims& vdims) {
     ov::PartialShape result;
     result.reserve(vdims.size());
     for (const auto& v : vdims)

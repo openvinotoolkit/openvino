@@ -117,8 +117,7 @@ public:
     ov::PartialShape canonicalized_body_shape_infer(const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);
     std::vector<Shape> reshape_body(const std::vector<Shape>& input_shapes);
-    IShapeInferSnippets::Result
-            shape_infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes);
+    IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
