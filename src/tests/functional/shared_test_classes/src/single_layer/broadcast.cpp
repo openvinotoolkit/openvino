@@ -11,7 +11,7 @@
 #include "openvino/op/result.hpp"
 
 namespace LayerTestsDefinitions {
-std::string BroadcastLayerTestLegacy::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
+std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
     InferenceEngine::SizeVector targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
@@ -30,7 +30,7 @@ std::string BroadcastLayerTestLegacy::getTestCaseName(const testing::TestParamIn
     return result.str();
 }
 
-void BroadcastLayerTestLegacy::SetUp() {
+void BroadcastLayerTest::SetUp() {
     InferenceEngine::SizeVector targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
@@ -53,7 +53,7 @@ void BroadcastLayerTestLegacy::SetUp() {
 namespace ov {
 namespace test {
 
-std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
+std::string BroadcastLayerTestNew::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
     std::vector<size_t> targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
@@ -72,7 +72,7 @@ std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<Bro
     return result.str();
 }
 
-void BroadcastLayerTest::SetUp() {
+void BroadcastLayerTestNew::SetUp() {
     std::vector<size_t> targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;

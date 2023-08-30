@@ -11,7 +11,7 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using BroadcastLayerTestLegacyParamsSet = typename std::tuple<
+using BroadcastLayerTestParamsSet = typename std::tuple<
         std::vector<ov::test::InputShape>,     // Shapes
         std::vector<int64_t>,                  // Target shapes
         std::vector<int64_t>,                  // Axes mapping
@@ -21,14 +21,14 @@ using BroadcastLayerTestLegacyParamsSet = typename std::tuple<
         std::string>;                          // Device name
 
 using BroadcastLayerCPUTestParamsSet = typename std::tuple<
-        BroadcastLayerTestLegacyParamsSet,
+        BroadcastLayerTestParamsSet,
         CPUSpecificParams>;
 
 class BroadcastLayerCPUTest : public testing::WithParamInterface<BroadcastLayerCPUTestParamsSet>,
                               virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerCPUTestParamsSet> obj) {
-        BroadcastLayerTestLegacyParamsSet basicParamsSet;
+        BroadcastLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
@@ -65,7 +65,7 @@ public:
 
 protected:
     void SetUp() override {
-        BroadcastLayerTestLegacyParamsSet basicParamsSet;
+        BroadcastLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
 

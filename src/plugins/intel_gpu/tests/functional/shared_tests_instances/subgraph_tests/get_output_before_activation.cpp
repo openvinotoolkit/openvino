@@ -23,12 +23,12 @@ namespace {
     std::map<std::string, std::string> additional_config = {};
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(OutputBeforeActivationLegacy, OutputBeforeActivationLegacy,
+INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation, OutputBeforeActivation,
     ::testing::Combine(
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::ValuesIn(input_sizes),
         ::testing::ValuesIn(midLayerTypes),
         ::testing::Values(additional_config)),
-    OutputBeforeActivationLegacy::getTestCaseName);
+    OutputBeforeActivation::getTestCaseName);
 } // namespace SubgraphTestsDefinitions

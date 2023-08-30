@@ -34,7 +34,7 @@ namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
 
-    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonZeroClip, GRUSequenceTestLegacy,
+    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonZeroClip, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -48,9 +48,9 @@ namespace {
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                            GRUSequenceTestLegacy::getTestCaseName);
+                            GRUSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTestLegacy,
+    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::Values(ngraph::helpers::SequenceTestsMode::PURE_SEQ),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -64,9 +64,9 @@ namespace {
                                     ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                            GRUSequenceTestLegacy::getTestCaseName);
+                            GRUSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonClip, GRUSequenceTestLegacy,
+    INSTANTIATE_TEST_SUITE_P(GRUSequenceCommonClip, GRUSequenceTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
@@ -80,6 +80,6 @@ namespace {
                                     ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                            GRUSequenceTestLegacy::getTestCaseName);
+                            GRUSequenceTest::getTestCaseName);
 
 }  // namespace

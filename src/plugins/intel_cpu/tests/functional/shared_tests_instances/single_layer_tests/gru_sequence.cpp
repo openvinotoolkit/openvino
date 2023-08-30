@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/test_enums.hpp"
 
-using ov::test::GRUSequenceTest;
+using ov::test::GRUSequenceTestNew;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
 
@@ -37,7 +37,7 @@ namespace {
     std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
                                                     ov::element::f16};
 
-    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClip, GRUSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClip, GRUSequenceTestNew,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -51,9 +51,9 @@ namespace {
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                            GRUSequenceTest::getTestCaseName);
+                            GRUSequenceTestNew::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonZeroClipNonConstantWRB, GRUSequenceTestNew,
                             ::testing::Combine(
                                     ::testing::Values(SequenceTestsMode::PURE_SEQ),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -67,9 +67,9 @@ namespace {
                                     ::testing::Values(InputLayerType::PARAMETER),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                            GRUSequenceTest::getTestCaseName);
+                            GRUSequenceTestNew::getTestCaseName);
 
-    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonClip, GRUSequenceTest,
+    INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceCommonClip, GRUSequenceTestNew,
                             ::testing::Combine(
                                     ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
@@ -83,6 +83,6 @@ namespace {
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                            GRUSequenceTest::getTestCaseName);
+                            GRUSequenceTestNew::getTestCaseName);
 
 }  // namespace

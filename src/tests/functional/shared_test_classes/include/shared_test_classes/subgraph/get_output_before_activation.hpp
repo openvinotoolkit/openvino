@@ -20,16 +20,16 @@ typedef std::tuple<
     size_t,                             // Input size
     midOutputType,                      // Type of layer that will be an output
     std::map<std::string, std::string>  // Configuration
-> OutputBeforeActivationLegacyParams;
+> OutputBeforeActivationParams;
 
 std::ostream& operator<< (std::ostream& os, const midOutputType& oType);
 
-class OutputBeforeActivationLegacy : virtual public LayerTestsUtils::LayerTestsCommon,
-    public testing::WithParamInterface<OutputBeforeActivationLegacyParams> {
+class OutputBeforeActivation : virtual public LayerTestsUtils::LayerTestsCommon,
+    public testing::WithParamInterface<OutputBeforeActivationParams> {
 protected:
     void SetUp() override;
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationParams> &obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 };
 } // namespace SubgraphTestsDefinitions
@@ -48,16 +48,16 @@ typedef std::tuple<
     size_t,                             // Input size
     midOutputType,                      // Type of layer that will be an output
     std::map<std::string, std::string>  // Configuration
-> OutputBeforeActivationLegacyParams;
+> OutputBeforeActivationParams;
 
 std::ostream& operator<< (std::ostream& os, const midOutputType& oType);
 
-class OutputBeforeActivation : public testing::WithParamInterface<OutputBeforeActivationLegacyParams>,
+class OutputBeforeActivationNew : public testing::WithParamInterface<OutputBeforeActivationParams>,
                                virtual public ov::test::SubgraphBaseTest{
 protected:
     void SetUp() override;
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationParams> &obj);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 } //  namespace test

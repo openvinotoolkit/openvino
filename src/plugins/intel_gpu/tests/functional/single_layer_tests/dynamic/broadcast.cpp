@@ -23,12 +23,12 @@ typedef std::tuple<
         ov::element::Type_t,                   // Network precision
         std::vector<bool>,                     // Const inputs
         std::string                            // Device name
-> BroadcastLayerTestLegacyParamsSet;
+> BroadcastLayerTestParamsSet;
 
-class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerTestLegacyParamsSet>,
+class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerTestParamsSet>,
                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestLegacyParamsSet> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestParamsSet> obj) {
         std::vector<ov::test::InputShape> inputShapes;
         std::vector<int64_t> targetShapes, axesMapping;
         ov::op::BroadcastType mode;

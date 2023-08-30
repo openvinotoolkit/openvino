@@ -20,7 +20,7 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     }
 }
 
-std::string OutputBeforeActivationLegacy::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams>& obj) {
+std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationParams>& obj) {
     std::string targetDevice;
     InferenceEngine::Precision netPrecision;
     size_t inputSize;
@@ -39,7 +39,7 @@ std::string OutputBeforeActivationLegacy::getTestCaseName(const testing::TestPar
     return result.str();
 }
 
-void OutputBeforeActivationLegacy::SetUp() {
+void OutputBeforeActivation::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> config;
     size_t inputSize;
@@ -79,7 +79,7 @@ void OutputBeforeActivationLegacy::SetUp() {
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
 }
 
-InferenceEngine::Blob::Ptr OutputBeforeActivationLegacy::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
 }
 } // namespace SubgraphTestsDefinitions
@@ -99,7 +99,7 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     }
 }
 
-std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams> &obj) {
+std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationParams> &obj) {
     std::string targetDevice;
     ov::element::Type type;
     size_t inputSize;
@@ -118,7 +118,7 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void OutputBeforeActivation::SetUp() {
+void OutputBeforeActivationNew::SetUp() {
     std::map<std::string, std::string> config;
     size_t inputSize;
     midOutputType outputType;
@@ -161,7 +161,7 @@ void OutputBeforeActivation::SetUp() {
     init_input_shapes(input_shapes);
 }
 
-void OutputBeforeActivation::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void OutputBeforeActivationNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {

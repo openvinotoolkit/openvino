@@ -24,7 +24,7 @@ std::vector<std::string> disabledTestPatterns() {
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
             R"(.*(RNNSequenceTest).*)",
-            R"(.*(GRUSequenceTestLegacy).*)",
+            R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
             R"(.*(LSTM).*activations=\(relu.*netPRC=FP16.*)",
 
@@ -36,7 +36,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
             // TODO: Issue: 48106
-            R"(.*ConstantResultSubgraphTestLegacy.*inPrc=I16.*)",
+            R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
             // need to implement Export / Import

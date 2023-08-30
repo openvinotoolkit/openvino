@@ -8,7 +8,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(OutputBeforeActivationLegacy, CompareWithRefs) {
+TEST_P(OutputBeforeActivation, CompareWithRefs) {
     Run();
 };
 
@@ -17,7 +17,7 @@ TEST_P(OutputBeforeActivationLegacy, CompareWithRefs) {
 namespace ov {
 namespace test {
 
-TEST_P(OutputBeforeActivation, CompareWithRefs) {
+TEST_P(OutputBeforeActivationNew, CompareWithRefs) {
     run();
 };
 

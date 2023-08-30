@@ -12,7 +12,7 @@ namespace LayerTestsDefinitions {
 
     using ngraph::helpers::InputLayerType;
 
-    std::string GRUSequenceTestLegacy::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
+    std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
         ngraph::helpers::SequenceTestsMode mode;
         size_t seq_lengths;
         size_t batch;
@@ -48,7 +48,7 @@ namespace LayerTestsDefinitions {
         return result.str();
     }
 
-    void GRUSequenceTestLegacy::SetUp() {
+    void GRUSequenceTest::SetUp() {
         using namespace ngraph::helpers;
         size_t seq_lengths;
         size_t batch;
@@ -135,7 +135,7 @@ namespace LayerTestsDefinitions {
         }
     }
 
-    void GRUSequenceTestLegacy::GenerateInputs() {
+    void GRUSequenceTest::GenerateInputs() {
         inputs.clear();
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
@@ -155,7 +155,7 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
 using ngraph::helpers::is_tensor_iterator_exist;
 
-std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
+std::string GRUSequenceTestNew::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
     SequenceTestsMode mode;
     size_t seq_lengths;
     size_t batch;
@@ -191,7 +191,7 @@ std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSeq
     return result.str();
 }
 
-void GRUSequenceTest::SetUp() {
+void GRUSequenceTestNew::SetUp() {
     size_t seq_lengths;
     size_t batch;
     size_t hidden_size;
@@ -293,7 +293,7 @@ void GRUSequenceTest::SetUp() {
     init_input_shapes(input_shapes);
 }
 
-void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void GRUSequenceTestNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
