@@ -22,7 +22,7 @@
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/buffer_manager.hpp"
+#include "snippets/lowered/buffer_solver.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
@@ -675,7 +675,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    m_buffer_scratchpad = lowered::BufferManager::allocate(linear_ir);
+    m_buffer_scratchpad = lowered::BufferSolver::solve(linear_ir);
 
     lowered::pass::PassPipeline final_pipeline;
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();

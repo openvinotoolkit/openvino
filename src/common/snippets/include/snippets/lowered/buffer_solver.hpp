@@ -13,15 +13,18 @@ namespace snippets {
 namespace lowered {
 
 /**
- * @interface MemoryManager
- * @brief Helps to solve issue of optimal memory allocation only for Buffers in graph using MemorySolver
+ * @interface BufferSolver
+ * @brief Helps to solve issue of optimal memory allocation only for Buffers in graph using the following optimizations:
+ *         - MemorySolver: helps to solve issue of optimal memory allocation;
+ *         - InPlace: Loop or MemoryAccess ops read from the memory and store data to the same memory if possible
+ *         - Reusing Buffer IDs: Buffers have the same IDs (gpr) in cases when Buffers aren't connected or has the same data ptr shifts
  * @ingroup snippets
  */
-class BufferManager {
+class BufferSolver {
 public:
-    BufferManager() = default;
+    BufferSolver() = default;
 
-    static int64_t allocate(const lowered::LinearIR& linear_ir);
+    static int64_t solve(lowered::LinearIR& linear_ir);
 
 private:
     using BufferCluster = std::set<ExpressionPtr>;

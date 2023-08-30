@@ -3,7 +3,7 @@
 //
 
 
-#include "snippets/lowered/buffer_manager.hpp"
+#include "snippets/lowered/buffer_solver.hpp"
 
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/buffer.hpp"
@@ -17,8 +17,8 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-int64_t BufferManager::allocate(const lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferManager::allocate")
+int64_t BufferSolver::solve(lowered::LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferSolver::solve")
     auto scratchpad_size = init_default_buffers(linear_ir);
     if (m_mode & OptimizationsBit::DefaultBit) {
         return scratchpad_size;
@@ -45,7 +45,7 @@ int64_t BufferManager::allocate(const lowered::LinearIR& linear_ir) {
     return scratchpad_size;
 }
 
-size_t BufferManager::init_default_buffers(const lowered::LinearIR& linear_ir) {
+size_t BufferSolver::init_default_buffers(const lowered::LinearIR& linear_ir) {
     size_t buffer_id = 0;
     size_t buffer_offset = 0;
     for (const auto& expr : linear_ir) {
@@ -61,12 +61,12 @@ size_t BufferManager::init_default_buffers(const lowered::LinearIR& linear_ir) {
     return buffer_offset;
 }
 
-BufferManager::BufferClusters BufferManager::init_clusters(const lowered::LinearIR& linear_ir) {
+BufferSolver::BufferClusters BufferSolver::init_clusters(const lowered::LinearIR& linear_ir) {
     return m_mode & InPlaceOneLevelBit || m_mode & InPlaceMultiLevelBit ? init_inplace_clusters(linear_ir)
                                                                         : init_default_clusters(linear_ir);
 }
 
-BufferManager::BufferClusters BufferManager::init_default_clusters(const lowered::LinearIR& linear_ir) {
+BufferSolver::BufferClusters BufferSolver::init_default_clusters(const lowered::LinearIR& linear_ir) {
     BufferClusters buffer_clusters;
     for (const auto& expr : linear_ir) {
         if (ov::is_type<op::Buffer>(expr->get_node())) {
@@ -76,7 +76,7 @@ BufferManager::BufferClusters BufferManager::init_default_clusters(const lowered
     return buffer_clusters;
 }
 
-BufferManager::BufferClusters BufferManager::init_inplace_clusters(const lowered::LinearIR& linear_ir) {
+BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::LinearIR& linear_ir) {
     BufferClusters buffer_clusters;
     auto find_cluster = [&buffer_clusters](const ExpressionPtr& target) {
         for (auto it = buffer_clusters.begin(); it != buffer_clusters.end(); ++it) {
@@ -175,7 +175,7 @@ BufferManager::BufferClusters BufferManager::init_inplace_clusters(const lowered
     return buffer_clusters;
 }
 
-std::vector<MemorySolver::Box> BufferManager::init_boxes(const BufferClusters& buffer_clusters) {
+std::vector<MemorySolver::Box> BufferSolver::init_boxes(const BufferClusters& buffer_clusters) {
     std::vector<MemorySolver::Box> boxes;
     const auto count = static_cast<int>(buffer_clusters.size());
     for (int i = 0; i < count; i++) {
@@ -184,7 +184,7 @@ std::vector<MemorySolver::Box> BufferManager::init_boxes(const BufferClusters& b
         for (const auto& buffer_expr : buffer_clusters[i]) {
             int e_start = 0, e_finish = 0;
             const auto buffer = ov::as_type_ptr<ov::snippets::op::Buffer>(buffer_expr->get_node());
-            OPENVINO_ASSERT(buffer != nullptr, "BufferManager expects Buffer ops in clusters");
+            OPENVINO_ASSERT(buffer != nullptr, "BufferSolver expects Buffer ops in clusters");
             const auto buffer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(buffer));
 
             // life finish time - order of LoopEnd / MemoryAccess ops
@@ -230,7 +230,7 @@ std::vector<MemorySolver::Box> BufferManager::init_boxes(const BufferClusters& b
     return boxes;
 }
 
-void BufferManager::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
+void BufferSolver::set_buffer_offset(const ExpressionPtr& buffer_expr, const size_t offset) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
     // to correctly read and write data because all Buffers have the common data pointer on buffer scratchpad
 
