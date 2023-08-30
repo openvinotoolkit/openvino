@@ -12,7 +12,7 @@ namespace LayerTestsDefinitions {
 
     using ngraph::helpers::InputLayerType;
 
-    std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
+    std::string GRUSequenceTestLegacy::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
         ngraph::helpers::SequenceTestsMode mode;
         size_t seq_lengths;
         size_t batch;
@@ -48,7 +48,7 @@ namespace LayerTestsDefinitions {
         return result.str();
     }
 
-    void GRUSequenceTest::SetUp() {
+    void GRUSequenceTestLegacy::SetUp() {
         using namespace ngraph::helpers;
         size_t seq_lengths;
         size_t batch;
@@ -135,7 +135,7 @@ namespace LayerTestsDefinitions {
         }
     }
 
-    void GRUSequenceTest::GenerateInputs() {
+    void GRUSequenceTestLegacy::GenerateInputs() {
         inputs.clear();
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
@@ -155,7 +155,7 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
 using ngraph::helpers::is_tensor_iterator_exist;
 
-std::string GRUSequenceTestNew::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
+std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
     SequenceTestsMode mode;
     size_t seq_lengths;
     size_t batch;
@@ -168,10 +168,10 @@ std::string GRUSequenceTestNew::getTestCaseName(const testing::TestParamInfo<GRU
     bool linear_before_reset;
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType WRBType;
-    ov::element::Type netPrecision;
+    ov::element::Type type;
     std::string targetDevice;
     std::tie(mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, WRBType,
-                netPrecision, targetDevice) = obj.param;
+                type, targetDevice) = obj.param;
     std::vector<std::vector<size_t>> inputShapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {3 * hidden_size, input_size},
                     {3 * hidden_size, hidden_size}, {(linear_before_reset ? 4 : 3) * hidden_size}},
@@ -186,12 +186,12 @@ std::string GRUSequenceTestNew::getTestCaseName(const testing::TestParamInfo<GRU
     result << "activations=" << ov::test::utils::vec2str(activations) << "_";
     result << "direction=" << direction << "_";
     result << "clip=" << clip << "_";
-    result << "netPRC=" << netPrecision.get_type_name() << "_";
+    result << "IT=" << type.get_type_name() << "_";
     result << "targetDevice=" << targetDevice << "_";
     return result.str();
 }
 
-void GRUSequenceTestNew::SetUp() {
+void GRUSequenceTest::SetUp() {
     size_t seq_lengths;
     size_t batch;
     size_t hidden_size;
@@ -203,11 +203,10 @@ void GRUSequenceTestNew::SetUp() {
     bool linear_before_reset;
     ov::op::RecurrentSequenceDirection direction;
     InputLayerType WRBType;
-    ov::element::Type netPrecision;
     std::tie(m_mode, seq_lengths, batch, hidden_size, activations, clip, linear_before_reset, direction, WRBType,
-            netPrecision, targetDevice) = this->GetParam();
-    inType = outType = netPrecision;
-    if (netPrecision == ElementType::bf16 || netPrecision == ElementType::f16) {
+            inType, targetDevice) = this->GetParam();
+    outType = inType;
+    if (inType == ElementType::bf16 || inType == ElementType::f16) {
         rel_threshold = 1e-2;
     }
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
@@ -219,8 +218,8 @@ void GRUSequenceTestNew::SetUp() {
                                          {num_directions, (linear_before_reset ? 4 : 3) * hidden_size}},
     };
     m_max_seq_len = seq_lengths;
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShapes[0])),
-                               std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(inputShapes[1]))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes[0])),
+                               std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShapes[1]))};
 
     const auto& W_shape = inputShapes[3];
     const auto& R_shape = inputShapes[4];
@@ -245,9 +244,9 @@ void GRUSequenceTestNew::SetUp() {
 
     std::shared_ptr<ov::Node> W, R, B;
     if (WRBType == InputLayerType::PARAMETER) {
-        const auto W_param = std::make_shared<ov::op::v0::Parameter>(netPrecision, W_shape);
-        const auto R_param = std::make_shared<ov::op::v0::Parameter>(netPrecision, R_shape);
-        const auto B_param = std::make_shared<ov::op::v0::Parameter>(netPrecision, B_shape);
+        const auto W_param = std::make_shared<ov::op::v0::Parameter>(inType, W_shape);
+        const auto R_param = std::make_shared<ov::op::v0::Parameter>(inType, R_shape);
+        const auto B_param = std::make_shared<ov::op::v0::Parameter>(inType, B_shape);
         W = W_param;
         R = R_param;
         B = B_param;
@@ -255,13 +254,13 @@ void GRUSequenceTestNew::SetUp() {
         params.push_back(R_param);
         params.push_back(B_param);
     } else {
-        auto tensor_w = ov::test::utils::create_and_fill_tensor(netPrecision, W_shape);
+        auto tensor_w = ov::test::utils::create_and_fill_tensor(inType, W_shape);
         W = std::make_shared<ov::op::v0::Constant>(tensor_w);
 
-        auto tensor_R = ov::test::utils::create_and_fill_tensor(netPrecision, R_shape);
+        auto tensor_R = ov::test::utils::create_and_fill_tensor(inType, R_shape);
         R = std::make_shared<ov::op::v0::Constant>(tensor_R);
 
-        auto tensor_B = ov::test::utils::create_and_fill_tensor(netPrecision, B_shape);
+        auto tensor_B = ov::test::utils::create_and_fill_tensor(inType, B_shape);
         B = std::make_shared<ov::op::v0::Constant>(tensor_B);
     }
 
@@ -294,7 +293,7 @@ void GRUSequenceTestNew::SetUp() {
     init_input_shapes(input_shapes);
 }
 
-void GRUSequenceTestNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {

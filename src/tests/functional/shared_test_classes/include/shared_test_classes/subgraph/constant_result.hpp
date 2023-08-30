@@ -28,7 +28,7 @@ typedef std::tuple <
     std::string                  // Device name
 > constResultParams;
 
-class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
+class ConstantResultSubgraphTestLegacy : public testing::WithParamInterface<constResultParams>,
                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
@@ -57,11 +57,11 @@ typedef std::tuple <
     std::string          // Device name
 > constResultParams;
 
-class ConstantResultSubgraphTestNew : public testing::WithParamInterface<constResultParams>,
+class ConstantResultSubgraphTest : public testing::WithParamInterface<constResultParams>,
                                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<constResultParams>& obj);
-    void createGraph(const ConstantSubgraphType type, const std::vector<size_t>& inputShape, const ov::element::Type& inputPrecision);
+    void createGraph(const ConstantSubgraphType type, const std::vector<size_t>& inputShape);
 protected:
     void SetUp() override;
 };

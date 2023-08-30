@@ -10,7 +10,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, AGRUSequenceTest_FORWARD_all_static_rank) {
+TEST(StaticShapeInferenceTest, AGRUSequenceTestLegacy_FORWARD_all_static_rank) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;
@@ -45,7 +45,7 @@ TEST(StaticShapeInferenceTest, AGRUSequenceTest_FORWARD_all_static_rank) {
     EXPECT_EQ(static_output_shapes[1], StaticShape({batch_size, num_directions, hidden_size}));
 }
 
-TEST(StaticShapeInferenceTest, AGRUSequenceTest_FORWARD_all_inputs_dynamic_rank) {
+TEST(StaticShapeInferenceTest, AGRUSequenceTestLegacy_FORWARD_all_inputs_dynamic_rank) {
     constexpr size_t batch_size = 2;
     constexpr size_t input_size = 3;
     constexpr size_t hidden_size = 5;

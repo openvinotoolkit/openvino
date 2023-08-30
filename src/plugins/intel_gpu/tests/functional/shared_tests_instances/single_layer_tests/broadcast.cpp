@@ -32,14 +32,14 @@ std::vector<std::vector<size_t>> targetShapesNumpy0D = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast0D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy0D),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 // NUMPY MODE //////////////////////////////////////////
 // 1D
@@ -54,16 +54,16 @@ std::vector<std::vector<size_t>> targetShapesNumpy1D = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy1D),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTestLegacy,
         ::testing::Combine(
             ::testing::Values(targetShapesNumpy1D[0]),
             ::testing::Values(ngraph::AxisSet{}), //not used in numpy mode
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
             ::testing::Values(std::vector<size_t>{1}),
             ::testing::ValuesIn(inputTPrecisions),
             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-        BroadcastLayerTest::getTestCaseName);
+        BroadcastLayerTestLegacy::getTestCaseName);
 
 // 2D
 std::vector<std::vector<size_t>> targetShapesNumpy2D = {
@@ -82,14 +82,14 @@ std::vector<std::vector<size_t>> targetShapesNumpy2D = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy2D),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{3, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 // 3D
 std::vector<std::vector<size_t>> targetShapesNumpy3D = {
@@ -100,34 +100,34 @@ std::vector<std::vector<size_t>> targetShapesNumpy3D = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy3D),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 4, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast6D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 2, 3, 4, 5, 6}),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1, 6}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast5D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 2, 3, 4, 5}),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
                                            ::testing::Values(std::vector<size_t>{1, 2, 1, 4, 1}),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 // END NUMPY MODE //////////////////////////////////////
 
 // BIDIRECTIONAL MODE //////////////////////////////////
@@ -144,14 +144,14 @@ std::vector<std::vector<size_t>> targetShapesBidi = {
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesBidi),
                                            ::testing::Values(ngraph::AxisSet{}),  // not used in bidirectional mode
                                            ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
                                            ::testing::ValuesIn(inShapesBidi),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 // EXPLICIT MODE ///////////////////////////////////////
 // 1D
@@ -160,24 +160,24 @@ std::vector<std::vector<size_t>> targetShapesExplicit1D = { {4, 2, 4}, {4, 2, 4,
 std::vector<ngraph::AxisSet> axes1D = { {0}, {2} };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast1D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit1D),
                                            ::testing::ValuesIn(axes1D),
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit1D),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestBidirectionalBroadcast3,
-                         BroadcastLayerTest,
+                         BroadcastLayerTestLegacy,
                          ::testing::Combine(::testing::Values(targetShapesBidi[2]),
                                             ::testing::Values(ngraph::AxisSet{}),  // not used in bidirectional mode
                                             ::testing::Values(ngraph::op::BroadcastType::BIDIRECTIONAL),
                                             ::testing::Values(inShapesBidi[2]),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         BroadcastLayerTest::getTestCaseName);
+                         BroadcastLayerTestLegacy::getTestCaseName);
 
 // EXPLICIT MODE
 
@@ -197,14 +197,14 @@ std::vector<std::vector<size_t>> targetShapesExplicit2D = { {2, 2, 4}, {2, 2, 4,
 std::vector<ngraph::AxisSet> axes2D = { {1, 2}, {0, 2} };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit2D),
                                            ::testing::ValuesIn(axes2D),
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit2D),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 
 // 3D
 std::vector<std::vector<size_t>> inShapesExplicit3D = { {2, 2, 2} };
@@ -212,14 +212,14 @@ std::vector<std::vector<size_t>> targetShapesExplicit3D = { {2, 2, 2, 2} };
 std::vector<ngraph::AxisSet> axes3D = { {0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3} };
 
 INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast3D,
-                        BroadcastLayerTest,
+                        BroadcastLayerTestLegacy,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit3D),
                                            ::testing::ValuesIn(axes3D),
                                            ::testing::Values(ngraph::op::BroadcastType::EXPLICIT),
                                            ::testing::ValuesIn(inShapesExplicit3D),
                                            ::testing::ValuesIn(inputPrecisions),
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        BroadcastLayerTest::getTestCaseName);
+                        BroadcastLayerTestLegacy::getTestCaseName);
 // END EXPLICIT MODE ///////////////////////////////////
 
 }  // namespace

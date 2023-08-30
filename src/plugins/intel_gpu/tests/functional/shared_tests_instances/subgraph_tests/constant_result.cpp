@@ -34,13 +34,13 @@ const std::vector<Precision> precisions = {
     Precision::BOOL
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTestLegacy,
                         ::testing::Combine(
                             ::testing::ValuesIn(types),
                             ::testing::ValuesIn(shapes),
                             ::testing::ValuesIn(precisions),
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        ConstantResultSubgraphTest::getTestCaseName);
+                        ConstantResultSubgraphTestLegacy::getTestCaseName);
 
 }  // namespace
 

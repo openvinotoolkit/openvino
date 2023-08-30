@@ -36,8 +36,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 24839
         R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(1.3\).*)",
         R"(.*ConvolutionLayerTestFixture.CompareWithRefs.*D=\(3.1\).*)",
-        R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
-        R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
+        R"(.*ConstantResultSubgraphTestLegacy.*IS=\(2\.3\.4\.5\).*)",
+        R"(.*ConstantResultSubgraphTestLegacy.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
         R"(.*importExportedFunctionParameterResultOnly.*)",
         R"(.*importExportedFunctionConstantResultOnly.*)",
         R"(.*importExportedIENetworkConstantResultOnly.*)",

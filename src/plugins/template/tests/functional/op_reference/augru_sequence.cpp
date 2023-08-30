@@ -70,7 +70,7 @@ struct AUGRUSequenceParams {
     std::string testcaseName;
 };
 
-class ReferenceAUGRUSequenceTest : public testing::TestWithParam<AUGRUSequenceParams>, public CommonReferenceTest {
+class ReferenceAUGRUSequenceTestLegacy : public testing::TestWithParam<AUGRUSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -122,7 +122,7 @@ private:
     }
 };
 
-TEST_P(ReferenceAUGRUSequenceTest, CompareWithRefs) {
+TEST_P(ReferenceAUGRUSequenceTestLegacy, CompareWithRefs) {
     Exec();
 }
 
@@ -722,7 +722,7 @@ std::vector<AUGRUSequenceParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_AUGRUSequence_With_Hardcoded_Refs, ReferenceAUGRUSequenceTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceAUGRUSequenceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AUGRUSequence_With_Hardcoded_Refs, ReferenceAUGRUSequenceTestLegacy,
+    testing::ValuesIn(generateCombinedParams()), ReferenceAUGRUSequenceTestLegacy::getTestCaseName);
 
 } // namespace

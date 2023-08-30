@@ -73,7 +73,7 @@ struct GRUSequenceParams {
     std::string testcaseName;
 };
 
-class ReferenceGRUSequenceTest : public testing::TestWithParam<GRUSequenceParams>, public CommonReferenceTest {
+class ReferenceGRUSequenceTestLegacy : public testing::TestWithParam<GRUSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
         auto params = GetParam();
@@ -132,7 +132,7 @@ private:
     }
 };
 
-TEST_P(ReferenceGRUSequenceTest, CompareWithRefs) {
+TEST_P(ReferenceGRUSequenceTestLegacy, CompareWithRefs) {
     Exec();
 }
 
@@ -1379,7 +1379,7 @@ std::vector<GRUSequenceParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GRUSequence_With_Hardcoded_Refs, ReferenceGRUSequenceTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceGRUSequenceTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GRUSequence_With_Hardcoded_Refs, ReferenceGRUSequenceTestLegacy,
+    testing::ValuesIn(generateCombinedParams()), ReferenceGRUSequenceTestLegacy::getTestCaseName);
 
 } // namespace

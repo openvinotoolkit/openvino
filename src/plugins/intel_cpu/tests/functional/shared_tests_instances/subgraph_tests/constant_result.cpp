@@ -7,7 +7,7 @@
 #include "subgraph_tests/constant_result.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using ov::test::ConstantResultSubgraphTestNew;
+using ov::test::ConstantResultSubgraphTest;
 using ov::test::ConstantSubgraphType;
 
 namespace {
@@ -34,12 +34,12 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::boolean
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTestNew,
+INSTANTIATE_TEST_SUITE_P(smoke_Check, ConstantResultSubgraphTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(types),
                             ::testing::ValuesIn(shapes),
                             ::testing::ValuesIn(precisions),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                        ConstantResultSubgraphTestNew::getTestCaseName);
+                        ConstantResultSubgraphTest::getTestCaseName);
 
 } // namespace

@@ -21,12 +21,12 @@ std::vector<std::map<std::string, std::string>> configs = {{
                                                            {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(OutputBeforeActivation,
-                         OutputBeforeActivation,
+INSTANTIATE_TEST_SUITE_P(OutputBeforeActivationLegacy,
+                         OutputBeforeActivationLegacy,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GNA),
                                             ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::ValuesIn(input_sizes),
                                             ::testing::ValuesIn(midLayerTypes),
                                             ::testing::ValuesIn(configs)),
-                         OutputBeforeActivation::getTestCaseName);
+                         OutputBeforeActivationLegacy::getTestCaseName);
 }  // namespace SubgraphTestsDefinitions

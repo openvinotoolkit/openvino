@@ -8,7 +8,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
+TEST_P(ConstantResultSubgraphTestLegacy, CompareWithRefs) {
     Run();
 }
 
@@ -17,7 +17,7 @@ TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
 namespace ov {
 namespace test {
 
-TEST_P(ConstantResultSubgraphTestNew, CompareWithRefs) {
+TEST_P(ConstantResultSubgraphTest, CompareWithRefs) {
     run();
 }
 } //  namespace test

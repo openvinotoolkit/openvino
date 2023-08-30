@@ -20,7 +20,7 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     }
 }
 
-std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams>& obj) {
+std::string OutputBeforeActivationLegacy::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams>& obj) {
     std::string targetDevice;
     InferenceEngine::Precision netPrecision;
     size_t inputSize;
@@ -39,7 +39,7 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-void OutputBeforeActivation::SetUp() {
+void OutputBeforeActivationLegacy::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> config;
     size_t inputSize;
@@ -79,7 +79,7 @@ void OutputBeforeActivation::SetUp() {
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
 }
 
-InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr OutputBeforeActivationLegacy::GenerateInput(const InferenceEngine::InputInfo &info) const {
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
 }
 } // namespace SubgraphTestsDefinitions
@@ -99,16 +99,16 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     }
 }
 
-std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams> &obj) {
+std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<OutputBeforeActivationLegacyParams> &obj) {
     std::string targetDevice;
-    ov::element::Type netPrecision;
+    ov::element::Type type;
     size_t inputSize;
     midOutputType outputType;
     std::map<std::string, std::string> config;
-    std::tie(targetDevice, netPrecision, inputSize, outputType, config) = obj.param;
+    std::tie(targetDevice, type, inputSize, outputType, config) = obj.param;
     std::ostringstream result;
 
-    result << "netPrecision=" << netPrecision.get_type_name() << "_";
+    result << "IT=" << type.get_type_name() << "_";
     result << "IS=" << inputSize << "_";
     result << "OutputType=" << outputType << "_";
     result << "targetDevice=" << targetDevice;
@@ -118,18 +118,17 @@ std::string OutputBeforeActivationNew::getTestCaseName(const testing::TestParamI
     return result.str();
 }
 
-void OutputBeforeActivationNew::SetUp() {
-    ov::element::Type netPrecision;
+void OutputBeforeActivation::SetUp() {
     std::map<std::string, std::string> config;
     size_t inputSize;
     midOutputType outputType;
-    std::tie(targetDevice, netPrecision, inputSize, outputType, config) = this->GetParam();
+    std::tie(targetDevice, inType, inputSize, outputType, config) = this->GetParam();
     configuration.insert(config.begin(), config.end());
 
     std::vector<size_t> input_dims { 1, inputSize };
 
-    auto input0 = std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(input_dims));
-    auto input1 = std::make_shared<ov::op::v0::Parameter>(netPrecision, ov::Shape(input_dims));
+    auto input0 = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(input_dims));
+    auto input1 = std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(input_dims));
     ov::ParameterVector params {input0, input1};
 
     ngraph::OutputVector outputs;
@@ -151,7 +150,7 @@ void OutputBeforeActivationNew::SetUp() {
         GTEST_FAIL() << "Unknown midOutputType";
     }
 
-    auto act = ngraph::builder::makeActivation(midLayer, netPrecision, ngraph::helpers::ActivationTypes::Tanh);
+    auto act = ngraph::builder::makeActivation(midLayer, inType, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ov::Model>(outputs, params, "output_before_activation");
 
@@ -162,7 +161,7 @@ void OutputBeforeActivationNew::SetUp() {
     init_input_shapes(input_shapes);
 }
 
-void OutputBeforeActivationNew::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+void OutputBeforeActivation::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {

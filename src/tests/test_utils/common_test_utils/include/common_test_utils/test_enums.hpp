@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include <ostream>
+
 namespace ov {
 namespace test {
 namespace utils {
 
-enum ComparisonTypes {
+enum class ComparisonTypes {
     EQUAL,
     NOT_EQUAL,
     IS_FINITE,
@@ -20,12 +22,12 @@ enum ComparisonTypes {
     GREATER_EQUAL
 };
 
-enum ConversionTypes {
+enum class ConversionTypes {
     CONVERT,
     CONVERT_LIKE
 };
 
-enum ReductionType {
+enum class ReductionType {
     Mean,
     Max,
     Min,
@@ -37,12 +39,12 @@ enum ReductionType {
     L2
 };
 
-enum InputLayerType {
+enum class InputLayerType {
     CONSTANT,
     PARAMETER,
 };
 
-enum SequenceTestsMode {
+enum class SequenceTestsMode {
     PURE_SEQ,
     PURE_SEQ_RAND_SEQ_LEN_CONST,
     PURE_SEQ_RAND_SEQ_LEN_PARAM,
@@ -51,6 +53,16 @@ enum SequenceTestsMode {
     CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
     CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
 };
+
+std::ostream& operator<<(std::ostream& os, const ComparisonTypes type);
+
+std::ostream& operator<<(std::ostream& os, const ConversionTypes type);
+
+std::ostream &operator<<(std::ostream& os, const ReductionType type);
+
+std::ostream& operator<<(std::ostream& os, const InputLayerType type);
+
+std::ostream& operator<<(std::ostream& os, const SequenceTestsMode type);
 
 }  // namespace utils
 }  // namespace test

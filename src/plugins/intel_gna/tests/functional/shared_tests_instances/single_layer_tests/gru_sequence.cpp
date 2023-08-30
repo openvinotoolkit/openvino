@@ -15,7 +15,7 @@ namespace LayerTestsDefinitions {
 
 using ngraph::helpers::InputLayerType;
 
-class GRUSequenceGNATest : public GRUSequenceTest {
+class GRUSequenceGNATest : public GRUSequenceTestLegacy {
 protected:
     void SetUp() override {
         using namespace ngraph::helpers;
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::test::utils::DEVICE_GNA)),
-    GRUSequenceTest::getTestCaseName);
+    GRUSequenceTestLegacy::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_GRUSequenceCommonClip,
@@ -187,6 +187,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(InputLayerType::CONSTANT),
                        ::testing::ValuesIn(netPrecisions),
                        ::testing::Values(ov::test::utils::DEVICE_GNA)),
-    GRUSequenceTest::getTestCaseName);
+    GRUSequenceTestLegacy::getTestCaseName);
 
 }  // namespace

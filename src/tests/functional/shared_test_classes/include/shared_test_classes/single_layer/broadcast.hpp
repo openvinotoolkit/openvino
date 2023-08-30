@@ -22,7 +22,7 @@ using BroadcastParamsTuple = typename std::tuple<
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 
-class BroadcastLayerTest : public testing::WithParamInterface<BroadcastParamsTuple>,
+class BroadcastLayerTestLegacy : public testing::WithParamInterface<BroadcastParamsTuple>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple> &obj);
@@ -44,7 +44,7 @@ using BroadcastParamsTuple = typename std::tuple<
         ov::element::Type,         // Network precision
         std::string>;              // Device name
 
-class BroadcastLayerTestNew : public testing::WithParamInterface<BroadcastParamsTuple>,
+class BroadcastLayerTest : public testing::WithParamInterface<BroadcastParamsTuple>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple> &obj);

@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type) {
     return os;
 }
 
-std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
+std::string ConstantResultSubgraphTestLegacy::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
     ConstantSubgraphType type;
     SizeVector IS;
     Precision inputPrecision;
@@ -41,7 +41,7 @@ std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParam
     return result.str();
 }
 
-void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, const SizeVector &inputShape, const Precision &inputPrecision) {
+void ConstantResultSubgraphTestLegacy::createGraph(const ConstantSubgraphType& type, const SizeVector &inputShape, const Precision &inputPrecision) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
 
     ParameterVector params;
@@ -66,7 +66,7 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, c
     function = std::make_shared<Function>(results, params, "ConstResult");
 }
 
-void ConstantResultSubgraphTest::SetUp() {
+void ConstantResultSubgraphTestLegacy::SetUp() {
     ConstantSubgraphType type;
     SizeVector IS;
     Precision inputPrecision;
@@ -95,38 +95,37 @@ std::ostream& operator<<(std::ostream &os, ConstantSubgraphType type) {
     return os;
 }
 
-std::string ConstantResultSubgraphTestNew::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
+std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
     ConstantSubgraphType type;
     std::vector<size_t> IS;
-    ov::element::Type inputPrecision;
+    ov::element::Type input_type;
     std::string targetDevice;
 
-    std::tie(type, IS, inputPrecision, targetDevice) = obj.param;
+    std::tie(type, IS, input_type, targetDevice) = obj.param;
     std::ostringstream result;
     result << "SubgraphType=" << type << "_";
     result << "IS=" << ov::test::utils::vec2str(IS) << "_";
-    result << "inPrc=" << inputPrecision.get_type_name() << "_";
+    result << "IT=" << input_type.get_type_name() << "_";
     result << "Device=" << targetDevice;
     return result.str();
 }
 
-void ConstantResultSubgraphTestNew::createGraph(const ConstantSubgraphType type,
-                                                const std::vector<size_t>& inputShape,
-                                                const ov::element::Type& inputPrecision) {
+void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType type,
+                                                const std::vector<size_t>& inputShape) {
     ParameterVector params;
     ResultVector results;
     switch (type) {
         case ConstantSubgraphType::SINGLE_COMPONENT: {
-            auto tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, inputShape);
+            auto tensor = ov::test::utils::create_and_fill_tensor(inType, inputShape);
             auto input = std::make_shared<ov::op::v0::Constant>(tensor);
             results.push_back(std::make_shared<opset3::Result>(input));
             break;
         }
         case ConstantSubgraphType::SEVERAL_COMPONENT: {
-            auto tensor1 = ov::test::utils::create_and_fill_tensor(inputPrecision, inputShape);
+            auto tensor1 = ov::test::utils::create_and_fill_tensor(inType, inputShape);
             auto input1 = std::make_shared<ov::op::v0::Constant>(tensor1);
             results.push_back(std::make_shared<opset3::Result>(input1));
-            auto tensor2 = ov::test::utils::create_and_fill_tensor(inputPrecision, inputShape);
+            auto tensor2 = ov::test::utils::create_and_fill_tensor(inType, inputShape);
             auto input2 = std::make_shared<ov::op::v0::Constant>(tensor2);
             results.push_back(std::make_shared<opset3::Result>(input2));
             break;
@@ -136,18 +135,18 @@ void ConstantResultSubgraphTestNew::createGraph(const ConstantSubgraphType type,
         }
     }
     function = std::make_shared<ov::Model>(results, params, "ConstResult");
+}
+
+void ConstantResultSubgraphTest::SetUp() {
+    ConstantSubgraphType type;
+    std::vector<size_t> IS;
+    std::tie(type, IS, inType, targetDevice) = this->GetParam();
+    outType = inType;
+
+    createGraph(type, IS);
 
     std::vector<ov::test::InputShape> input_shapes;
     init_input_shapes(input_shapes);
-}
-
-void ConstantResultSubgraphTestNew::SetUp() {
-    ConstantSubgraphType type;
-    std::vector<size_t> IS;
-    ov::element::Type inputPrecision;
-    std::tie(type, IS, inputPrecision, targetDevice) = this->GetParam();
-
-    createGraph(type, IS, inputPrecision);
 }
 } //  namespace test
 } //  namespace ov
