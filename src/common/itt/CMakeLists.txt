@@ -4,7 +4,7 @@
 
 set(TARGET_NAME openvino_itt)
 
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp" "include/*.hpp")
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 

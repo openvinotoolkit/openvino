@@ -252,10 +252,12 @@ Load model `⇑ <#top>`__
 Define a common class for model loading and predicting.
 
 There are four main steps for OpenVINO model initialization, and they
-are required to run for only once before inference loop. 1. Initialize
-OpenVINO Runtime. 2. Read the network from ``*.bin`` and ``*.xml`` files
-(weights and architecture). 3. Compile the model for device. 4. Get
-input and output names of nodes.
+are required to run for only once before inference loop.
+
+1. Initialize OpenVINO Runtime.
+2. Read the network from ``*.bin`` and ``*.xml`` files (weights and architecture).
+3. Compile the model for device.
+4. Get input and output names of nodes.
 
 In this case, we can put them all in a class constructor function.
 
@@ -344,10 +346,12 @@ Select device from dropdown list for running inference using OpenVINO:
 Data Processing `⇑ <#top>`__
 ###############################################################################################################################
 
-Data Processing includes data preprocess and postprocess functions. - Data preprocess function is used to change
-the layout and shape of input data, according to requirement of the
-network input format. - Data postprocess function is used to extract the
-useful information from network’s original output and visualize it.
+Data Processing includes data preprocess and postprocess functions. 
+
+- Data preprocess function is used to change the layout and shape of input data, 
+  according to requirement of the network input format.
+- Data postprocess function is used to extract the useful information from 
+  network’s original output and visualize it.
 
 .. code:: ipython3
 

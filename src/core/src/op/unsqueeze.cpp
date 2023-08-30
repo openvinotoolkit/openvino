@@ -11,7 +11,8 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/copy.hpp"
+#include "ngraph/validation_util.hpp"
+#include "openvino/reference/copy.hpp"
 #include "unsqueeze_shape_inference.hpp"
 
 using namespace std;

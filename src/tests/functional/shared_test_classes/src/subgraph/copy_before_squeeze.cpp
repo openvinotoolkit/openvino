@@ -26,7 +26,7 @@ namespace SubgraphTestsDefinitions {
         configuration.insert(config.begin(), config.end());
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        auto input = ngraph::builder::makeParams(ngPrc, {inputShape});
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
         auto reshape_0_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                         ngraph::Shape{3},
                                                                         std::vector<size_t>{1, inputShape[1] / 64, 64});

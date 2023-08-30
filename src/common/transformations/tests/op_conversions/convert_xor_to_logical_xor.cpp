@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/function.hpp>
+#include <openvino/core/model.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         auto xor_op =
             std::make_shared<opset1::Xor>(input1, input2, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        function = std::make_shared<ngraph::Function>(NodeVector{xor_op}, ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(NodeVector{xor_op}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::ConvertXorToLogicalXor>();
     }
 
@@ -51,6 +51,6 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
                                                   input2,
                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        function_ref = std::make_shared<ngraph::Function>(NodeVector{logical_xor}, ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(NodeVector{logical_xor}, ParameterVector{input1, input2});
     }
 }

@@ -8,7 +8,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/crop.hpp>
-#include "ngraph/runtime/reference/matmul.hpp"
+#include "openvino/reference/matmul.hpp"
 
 #include "compilation_context.hpp"
 #include "gemm_inst.h"
