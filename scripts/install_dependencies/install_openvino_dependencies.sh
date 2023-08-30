@@ -128,7 +128,7 @@ elif [ "$os" == "ubuntu18.04" ] ; then
     pkgs_core=(libtbb2 libpugixml1v5)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo libnuma-dev)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
@@ -137,7 +137,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     pkgs_core=(libpugixml1v5)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo libnuma-dev)
+    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
 
     if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] ||
        [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
@@ -172,7 +172,7 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo libnuma-dev)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo)
     pkgs_gpu=()
 
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
