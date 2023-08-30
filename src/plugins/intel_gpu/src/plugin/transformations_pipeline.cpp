@@ -59,7 +59,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
-#include "transformations/common_optimizations/compress_float_constants.hpp"
 
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -221,16 +220,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
 
-        auto is_matmul_output = [](const_node_ptr &node) -> bool {
-            const auto outputs = node->get_output_target_inputs(0);
-            return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
-        };
-
-        manager.register_pass<ov::pass::CompressFloatConstants>(true);
-        manager.get_pass_config()->set_callback<ov::pass::CompressFloatConstants>(is_matmul_output);
-
-        manager.register_pass<ov::pass::KeepConstAndDecompression>();
-        manager.get_pass_config()->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
+        manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
+        pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
+            [](const_node_ptr &node) -> bool {
+                const auto outputs = node->get_output_target_inputs(0);
+                return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+            });
 
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
 

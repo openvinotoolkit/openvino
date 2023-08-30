@@ -5,6 +5,7 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -23,7 +24,7 @@ pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertConst
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& node = m.get_match_root();
-        if (!is_decompression(node) || is_fp16_compression_postponed(node->get_input_node_ptr(0)->get_rt_info()))
+        if (!is_decompression(node))
             return false;
         enable_constant_folding(node);
         return true;
@@ -74,4 +75,36 @@ pass::KeepConstAndDecompression::KeepConstAndDecompression() {
     };
     auto m = std::make_shared<pattern::Matcher>(node_pattern, matcher_name);
     register_matcher(m, callback);
+}
+
+pass::KeepConstantsPrecisionAndAddConverts::KeepConstantsPrecisionAndAddConverts() {
+    MATCHER_SCOPE(KeepConstantsPrecisionAndAddConverts);
+    auto const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto const_node = m.get_match_root();
+
+        if (transformation_callback(const_node)) {
+            return false;
+        }
+
+        auto constant_target_inputs = const_node->get_output_target_inputs(0);
+        auto convert = std::make_shared<ov::op::v0::Convert>(const_node, const_node->get_element_type());
+
+        convert->set_friendly_name(const_node->get_friendly_name());
+        const_node->set_friendly_name(const_node->get_friendly_name() + "_compressed");
+        ov::copy_runtime_info(const_node, convert);
+
+        disable_constant_folding(convert);
+        enable_keep_fp16_const(const_node);
+
+        for (const auto& target_input : constant_target_inputs) {
+            target_input.replace_source_output(convert);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<pass::pattern::Matcher>(const_pattern, matcher_name);
+    this->register_matcher(m, callback);
 }
