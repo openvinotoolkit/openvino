@@ -16,6 +16,12 @@ const size_t idx_false = 1;
 static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op, size_t idx) {
     cldnn::condition::branch branch;
     const auto& internal_body = (idx == idx_true)? op->get_then_body() : op->get_else_body();
+    GPU_DEBUG_LOG << "Generate inner program for " << "op::v"
+                    << op->get_type_info().version_id << "::"
+                    << op->get_type_name() << " operation "
+                    << "(friendly_name=" << op->get_friendly_name() << ") : "
+                    << internal_body->get_friendly_name()
+                    << ", num inputs: " << op->get_input_size() << std::endl;
 
     auto config = p.get_config();
     config.set_property(ov::intel_gpu::max_dynamic_batch(1));
@@ -41,6 +47,7 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
         output_map.insert({out_desc->m_output_index, internal_id});
     }
 
+    GPU_DEBUG_LOG << op->get_friendly_name() << " branch_info[" << internal_body->get_friendly_name() << "] : " << branch << std::endl;
     return branch;
 }
 

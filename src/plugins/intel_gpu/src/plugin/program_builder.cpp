@@ -308,6 +308,9 @@ ProgramBuilder::ProgramBuilder(const std::shared_ptr<ov::Model>& model, cldnn::e
         OPENVINO_THROW("ov::Model pointer is nullptr");
     }
 
+    // inner network is only allowed single batch
+    m_max_batch = 1;
+
     // Set input / output for Parameter and Result in cldnn
     InferenceEngine::InputsDataMap networkInputs = {};
     InferenceEngine::OutputsDataMap networkOutputs = {};
