@@ -32,7 +32,7 @@ How to Run the Example
 
    .. code-block:: sh
 
-      python3 ./classification_example.py -m <PATH_TO_IR_XML> -a <IMAGENET_ANNOTATION_FILE> -d <IMAGES_DIR>
+      python3 ./classification_sample.py -m <PATH_TO_IR_XML> -a <IMAGENET_ANNOTATION_FILE> -d <IMAGES_DIR>
 
    Optional: you can specify .bin file of IR directly using the ``-w``, ``--weights`` options.
 
