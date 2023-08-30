@@ -13,7 +13,7 @@ from openvino.runtime import Core, Model
 from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
-from tests.test_utils.test_utils import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filename_for_test, compare_models
 
 def create_model():
     shape = [100, 100, 2]

@@ -9,7 +9,7 @@ from openvino.runtime.op import Parameter, Constant
 from openvino.runtime.opset12 import add, multiply
 
 import openvino as ov
-from tests.test_utils.test_utils import create_filename_for_test
+from tests.utils.helpers import create_filename_for_test
 
 
 def make_constant(values, transposed):
