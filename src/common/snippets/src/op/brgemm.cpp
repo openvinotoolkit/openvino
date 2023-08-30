@@ -197,25 +197,14 @@ Brgemm::ShapeInfer::ShapeInfer(const std::shared_ptr<Node>& n) {
     m_io_layouts.push_back(get_output_layout(n));
 }
 
-Brgemm::ShapeInfer::VectorDims Brgemm::ShapeInfer::get_reordered_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout) {
-    if (layout.empty())
-        return shape;
-    VectorDims reordered_shape(layout.size());
-    for (size_t i = 0; i < layout.size(); i++) {
-        OPENVINO_ASSERT(layout[i] < shape.size(), "Got invalid layout and shape combination");
-        reordered_shape[i] = shape[layout[i]];
-    }
-    return reordered_shape;
-}
-
 IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
-    const auto& arg0_shape = get_reordered_planar_shape(input_shapes[0], m_io_layouts[0]);
-    const auto& arg1_shape = get_reordered_planar_shape(input_shapes[1], m_io_layouts[1]);
-    // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support
+    OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
-    size_t arg0_rank = arg0_shape.size();
-    size_t arg1_rank = arg1_shape.size();
+    // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
+    const auto arg0_shape = snippets::utils::lowered::get_planar_shape(input_shapes[0].get(), m_io_layouts[0]);
+    const auto arg1_shape = snippets::utils::lowered::get_planar_shape(input_shapes[1].get(), m_io_layouts[1]);
+
+    size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
 
     // temporary shapes to calculate output shape
     VectorDims arg0_shape_tmp(arg0_shape), arg1_shape_tmp(arg1_shape);
@@ -226,24 +215,15 @@ IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDi
         // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
         // For example {S} will be reshaped to {1, S}.
         arg0_shape_tmp.insert(arg0_shape_tmp.begin(), 1);
-        arg0_rank++;
+        arg0_rank = arg0_shape_tmp.size();
     }
     if (arg1_rank == 1) {
         // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
         // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
         // For example {S} will be reshaped to {S, 1}.
         arg1_shape_tmp.insert(arg1_shape_tmp.end(), 1);
-        arg1_rank++;
+        arg1_rank = arg1_shape_tmp.size();
     }
-    // Check matrices dimensions compatibility,
-    auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
-    auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
-
-
-    OPENVINO_ASSERT(arg0_col_dim == arg1_row_dim ||
-                    arg0_col_dim == DYNAMIC_DIMENSION ||
-                    arg1_row_dim == DYNAMIC_DIMENSION,
-                    "Incompatible Brgemm matrix dimension");
 
     // add 1 to begin to align shape ranks if needed
     if (arg0_rank < arg1_rank)
@@ -253,15 +233,17 @@ IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDi
 
     size_t max_rank = arg0_shape_tmp.size();
     VectorDims output_shape(max_rank);
-
     for (size_t i = 0; i < max_rank - 2; ++i) {
-        OPENVINO_ASSERT(arg0_shape_tmp[i] == arg1_shape_tmp[i] ||
-                        arg0_shape_tmp[i] == 1 ||
-                        arg1_shape_tmp[i] == 1 ||
-                        arg0_shape_tmp[i] == DYNAMIC_DIMENSION ||
-                        arg1_shape_tmp[i] == DYNAMIC_DIMENSION,
-                        "Incompatible Brgemm batch dimension");
-        output_shape[i] = std::max(arg0_shape_tmp[i], arg1_shape_tmp[i]);
+        if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
+            output_shape[i] = arg0_shape_tmp[i];
+        } else {
+            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg1_shape_tmp[i];
+            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
+                output_shape[i] = arg0_shape_tmp[i];
+            else
+                OPENVINO_THROW("Incompatible Brgemm batch dimension");
+        }
     }
     output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
     output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
@@ -273,7 +255,8 @@ IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDi
     if (arg1_shape.size() == 1) {
         output_shape.erase(output_shape.begin() + output_shape.size() - 1);
     }
-    return {{get_reordered_planar_shape(output_shape, m_io_layouts[2])}, ShapeInferStatus::success};
+    output_shape = snippets::utils::lowered::get_planar_shape(output_shape, m_io_layouts[2]);
+    return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 
 } // namespace op

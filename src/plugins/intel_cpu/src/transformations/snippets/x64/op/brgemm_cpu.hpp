@@ -69,11 +69,9 @@ public:
 
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
-    class ShapeInfer : public snippets::IShapeInferSnippets {
-        std::vector<std::vector<size_t>> m_layouts{};
+    class ShapeInfer : public Brgemm::ShapeInfer {
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
-        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 
 

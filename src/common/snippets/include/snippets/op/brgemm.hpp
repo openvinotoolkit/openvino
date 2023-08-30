@@ -40,8 +40,8 @@ public:
     bool has_evaluate() const override { return false; }
 
     class ShapeInfer : public IShapeInferSnippets {
+    protected:
         std::vector<std::vector<size_t>> m_io_layouts;
-        VectorDims get_reordered_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout);
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
