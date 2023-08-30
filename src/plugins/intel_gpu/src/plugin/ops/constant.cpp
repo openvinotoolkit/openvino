@@ -241,8 +241,9 @@ void createClDnnConstant(ProgramBuilder& p, const ov::Shape& constDims, const st
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant]" << std::endl;
         cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
+                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();
