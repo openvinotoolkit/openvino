@@ -20,6 +20,29 @@ class TRANSFORMATIONS_API TSShapeOfForward;
 /**
  * @ingroup ie_transformation_common_api
  * @brief TSShapeOfForward transformation sinks Transpose through ShapeOf in the forward direction.
+ *
+ * It replaces:
+ *
+ *   +---------+
+ *   |Transpose|
+ *   +---------+
+ *        |
+ *        v
+ *   +---------+
+ *   | ShapeOf |
+ *   +---------+
+ *
+ * with the following:
+ *
+ *   +---------+
+ *   | ShapeOf |
+ *   +---------+
+ *       |
+ *       v
+ *    +------+
+ *    |Gather|
+ *    +------+
+ *
  */
 class ov::pass::transpose_sinking::TSShapeOfForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
