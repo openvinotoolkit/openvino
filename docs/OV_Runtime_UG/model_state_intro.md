@@ -165,22 +165,21 @@ In the following example, the ``SinkVector`` is used to create the ``ov::Model``
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
 
-        .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-          :language: cpp
-          :fragment: [model_create]
-    
-    .. tab-item:: Python
-        :sync: py
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [model_create]
 
-        .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
-          :language: python
-          :fragment: ov:model_create
+   .. tab-item:: Python
+      :sync: py
 
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:model_create
 
-    .. _openvino-state-api:
+.. _openvino-state-api:
 
 OpenVINO State API
 ####################
