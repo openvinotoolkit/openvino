@@ -14,6 +14,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -78,7 +79,7 @@ public:
 
         auto callback = [pattern](pattern::Matcher& m) {
             OPENVINO_DEBUG << "In a callback for construct_multiply_by_one against " << m.get_match_root()->get_name();
-            NGRAPH_CHECK(m.get_match_root()->input_values().size() == 2);
+            OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
 
@@ -105,7 +106,7 @@ public:
                 return false;
             }
 
-            ngraph::replace_node(m.get_match_root(), pattern_map[pattern]);
+            ov::replace_node(m.get_match_root(), pattern_map[pattern]);
             return true;
         };
 
@@ -136,7 +137,7 @@ public:
 
         auto callback = [pattern](pattern::Matcher& m) {
             OPENVINO_DEBUG << "In a callback for construct_add_zero against " << m.get_match_root()->get_name();
-            NGRAPH_CHECK(m.get_match_root()->input_values().size() == 2);
+            OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
 
@@ -163,7 +164,7 @@ public:
                 return false;
             }
 
-            ngraph::replace_node(m.get_match_root(), pattern_map[pattern]);
+            ov::replace_node(m.get_match_root(), pattern_map[pattern]);
             return true;
         };
 
@@ -214,13 +215,13 @@ TEST(pattern, graph_rewrite) {
         auto graph_a = make_shared<op::v1::Add>(a, iconst0);
         auto graph_b = make_shared<op::v1::Add>(b, iconst0);
 
-        auto f = std::make_shared<Model>(ngraph::NodeVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
+        auto f = std::make_shared<Model>(ov::NodeVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
         pass_manager.run_passes(f);
 
         ASSERT_TRUE(graph_a->get_output_target_inputs(0).empty());
         ASSERT_TRUE(graph_b->get_output_target_inputs(0).empty());
 
-        auto expected = ngraph::NodeVector{a, b, a, c, b};
+        auto expected = ov::NodeVector{a, b, a, c, b};
         ASSERT_TRUE(count_ops_of_type<op::v1::Add>(f) == 0);
     }
 
@@ -658,7 +659,7 @@ public:
             // matches are added in reverse order (i.e. the first match is the topmost node)
             auto arg = rm.get_bound_nodes_for_pattern(rpattern).at(number_of_adds - 1);
             OPENVINO_DEBUG << "Replacing " << rm.get_match_root()->get_name() << " with " << arg->get_name();
-            ngraph::replace_node(rm.get_match_root(), arg);
+            ov::replace_node(rm.get_match_root(), arg);
             return true;
         };
 
@@ -694,7 +695,7 @@ TEST(pattern, recurrent_graph_rewrite) {
 
         auto graph = make_shared<op::v1::Multiply>(abs_add_a3, abs_add_b2);
 
-        auto f = std::make_shared<Model>(ngraph::NodeVector{graph}, ParameterVector{a, b});
+        auto f = std::make_shared<Model>(ov::NodeVector{graph}, ParameterVector{a, b});
         pass_manager.run_passes(f);
 
         auto left_abs = graph->input_value(0).get_node_shared_ptr();
