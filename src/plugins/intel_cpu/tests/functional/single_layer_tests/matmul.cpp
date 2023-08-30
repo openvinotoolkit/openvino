@@ -158,7 +158,7 @@ protected:
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
-        auto params = builder::makeDynamicParams(netType, {inShapeA});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
         auto matrixB = builder::makeDynamicInputLayer(netType, secondaryInputType, inShapeB);
         if (secondaryInputType == helpers::InputLayerType::PARAMETER) {
@@ -866,7 +866,7 @@ const auto fullyConnectedParams2D_llmdnn_Amx_smoke = ::testing::Combine(::testin
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(helpers::InputLayerType::CONSTANT),
-                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::Values(ov::test::utils::DEVICE_CPU),
                                                        ::testing::ValuesIn(filterAdditionalConfig_BrgemmAmx()));
 
 const auto testParams2D_llmdnn_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_llmdnn_Amx_smoke,

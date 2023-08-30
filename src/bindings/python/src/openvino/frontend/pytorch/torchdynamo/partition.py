@@ -30,7 +30,7 @@ class Partitioner:
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
         fx_gm = make_fx(graph_module)(*args)
-        return fx_gm  # prim_module
+        return fx_gm
 
     def add_get_attr_inputs(self, partitions: t.List[Partition]):
         # TODO: Find a more efficient way to include input
@@ -44,9 +44,18 @@ class Partitioner:
         for getattr_node, getattr_part in getattr_to_merge.items():
             getattr_part.add_node(getattr_node)
 
+    def check_fully_supported(self, graph_module: GraphModule) -> bool:
+        num_fused = 0
+        for node in graph_module.graph.nodes:
+            if node.op == "call_module" and "fused_" in node.name:
+                num_fused += 1
+            elif node.op != "placeholder" and node.op != "output":
+                return False
+        if num_fused == 1:
+            return True
+        return False
+
     def make_partitions(self, graph_module: GraphModule) -> GraphModule:
-        # entry function for nvFuser backend
-        # FX graph based partitioning based on nvfuser supported ops
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=False)
         partitions = partitioner.propose_partitions()

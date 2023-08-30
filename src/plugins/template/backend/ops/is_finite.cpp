@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/is_finite.hpp"
+#include "openvino/reference/is_finite.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>

@@ -63,7 +63,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:
-            logger.error(f' {xml} is corrupted and skipped')
+            # logger.error(f' {xml} is corrupted and skipped')
             continue
         xml_results = xml_root.find("results")
         xml_timestamp = xml_root.get("timestamp")

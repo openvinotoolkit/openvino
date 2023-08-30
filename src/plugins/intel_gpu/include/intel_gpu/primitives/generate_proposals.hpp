@@ -55,13 +55,13 @@ struct generate_proposals
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
-    float min_size;
-    float nms_threshold;
-    int64_t pre_nms_count;
-    int64_t post_nms_count;
-    bool normalized;
-    float nms_eta;
-    data_types roi_num_type;
+    float min_size = 0.0f;
+    float nms_threshold = 0.0f;
+    int64_t pre_nms_count = 0;
+    int64_t post_nms_count = 0;
+    bool normalized = false;
+    float nms_eta = 0.0f;
+    data_types roi_num_type = data_types::bin;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

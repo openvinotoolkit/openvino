@@ -46,6 +46,8 @@ TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_variable_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_while_op);
+TF_OP_CONVERTER(translate_xla_conv_v2_op);
+TF_OP_CONVERTER(translate_xla_dot_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -262,10 +264,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Switch", CreatorFunction(translate_switch_op)},
         {"TensorListFromTensor", CreatorFunction(translate_tensor_list_from_tensor_op)},
         {"TensorListGetItem", CreatorFunction(translate_tensor_list_get_item_op)},
+        {"TensorListLength", CreatorFunction(translate_tensor_list_length_op)},
         {"TensorListPushBack", CreatorFunction(translate_tensor_list_push_back_op)},
         {"TensorListSetItem", CreatorFunction(translate_tensor_list_set_item_op)},
         {"TensorListStack", CreatorFunction(translate_tensor_list_stack_op)},
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
+        {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"TopK", CreatorFunction(translate_top_k_op)},
         {"TopKV2", CreatorFunction(translate_top_k_v2_op)},
@@ -301,6 +305,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SparseFillEmptyRows", CreatorFunction(translate_sparse_fill_empty_rows_op)},
         {"SparseSegmentSum", CreatorFunction(translate_sparse_segment_sum_op)},
         {"Unique", CreatorFunction(translate_unique_op)},
+
+        // XLA operations
+        {"XlaConvV2", CreatorFunction(translate_xla_conv_v2_op)},
+        {"XlaDotV2", CreatorFunction(translate_xla_dot_op)},
     };
 };
 }  // namespace op
