@@ -55,8 +55,8 @@ OutputVector translate_as_strided(const NodeContext& context) {
     }
     FRONT_END_OP_CONVERSION_CHECK(sizes.size() == strides.size(),
                                   "aten::as_strided: Vector for strides and sizes need to have equal length.");
-    int strides_size = strides.size() - 1;
-    int i = 0;
+    auto strides_size = strides.size() - 1;
+    auto i = 0;
     auto strides_length_const = v0::Constant::create(element::i32, Shape{1}, {strides.size()});
     auto ones_strides_len = context.mark_node(std::make_shared<v0::Tile>(const_1, strides_length_const));
     auto indices = const_0;
