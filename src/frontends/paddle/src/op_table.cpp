@@ -22,6 +22,7 @@ OP_CONVERTER(concat);
 OP_CONVERTER(conditional_block);
 OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
+OP_CONVERTER(cos);
 OP_CONVERTER(cumsum);
 OP_CONVERTER(deformable_conv);
 OP_CONVERTER(dequantize_linear);
@@ -100,6 +101,7 @@ OP_CONVERTER(shape);
 OP_CONVERTER(share_data);
 OP_CONVERTER(sigmoid);
 OP_CONVERTER(silu);
+OP_CONVERTER(sin);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
@@ -142,6 +144,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"conditional_block", op::conditional_block},
             {"conv2d", op::conv2d},
             {"conv2d_transpose", op::conv2d_transpose},
+            {"cos", op::cos},
             {"cumsum", op::cumsum},
             {"deformable_conv", op::deformable_conv},
             {"deformable_conv_v1", op::deformable_conv},
@@ -226,6 +229,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"share_data", op::share_data},
             {"sigmoid", op::sigmoid},
             {"silu", op::silu},
+            {"sin", op::sin},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},

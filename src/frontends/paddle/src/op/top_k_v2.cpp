@@ -27,7 +27,7 @@ NamedOutputs top_k_v2(const NodeContext& node) {
     std::string sort_type = sorted ? "value" : "none";
     std::string mode = largest ? "max" : "min";
 
-    auto node_topk = std::make_shared<default_opset::TopK>(x, k_expected_node, axis, mode, sort_type);
+    auto node_topk = std::make_shared<default_opset::TopK>(x, k_expected_node, axis, mode, sort_type, element::i64);
 
     NamedOutputs named_outputs;
     named_outputs["Out"] = OutputVector{node_topk->output(0)};
