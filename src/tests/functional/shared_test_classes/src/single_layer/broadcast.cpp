@@ -11,7 +11,7 @@
 #include "openvino/op/result.hpp"
 
 namespace LayerTestsDefinitions {
-std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
+std::string BroadcastLayerTestLegacy::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
     InferenceEngine::SizeVector targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
@@ -30,7 +30,7 @@ std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<Bro
     return result.str();
 }
 
-void BroadcastLayerTest::SetUp() {
+void BroadcastLayerTestLegacy::SetUp() {
     InferenceEngine::SizeVector targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
@@ -53,39 +53,38 @@ void BroadcastLayerTest::SetUp() {
 namespace ov {
 namespace test {
 
-std::string BroadcastLayerTestNew::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
+std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
     std::vector<size_t> targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
     std::vector<size_t> inputShape;
-    ov::element::Type networkPrecision;
+    ov::element::Type type;
     std::string deviceName;
-    std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, deviceName) = obj.param;
+    std::tie(targetShape, axesMapping, mode, inputShape, type, deviceName) = obj.param;
 
     std::ostringstream result;
     result << "targetShape=" << ov::test::utils::vec2str(targetShape) << "_";
     result << "axesMapping=" << ov::test::utils::set2str(axesMapping)  << "_";
     result << "mode=" << mode << "_";
     result << "inShape=" << ov::test::utils::vec2str(inputShape) << "_";
-    result << "inNPrec=" << networkPrecision.get_type_name() << "_";
+    result << "IT=" << type.get_type_name() << "_";
     result << "trgDev=" << deviceName;
     return result.str();
 }
 
-void BroadcastLayerTestNew::SetUp() {
+void BroadcastLayerTest::SetUp() {
     std::vector<size_t> targetShape;
     ov::AxisSet axesMapping;
     ov::op::BroadcastType mode;
     std::vector<size_t> inputShape;
-    ov::element::Type networkPrecision;
-    std::tie(targetShape, axesMapping, mode, inputShape, networkPrecision, targetDevice) = this->GetParam();
-    inType = outType = networkPrecision;
-    if (networkPrecision == ElementType::bf16 || networkPrecision == ElementType::f16) {
+    std::tie(targetShape, axesMapping, mode, inputShape, inType, targetDevice) = this->GetParam();
+    outType = inType;
+    if (inType == ElementType::bf16 || inType == ElementType::f16) {
         rel_threshold = 1e-2;
     }
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {targetShape.size()}, targetShape);
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(networkPrecision, ov::Shape(inputShape))};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, ov::Shape(inputShape))};
 
     std::shared_ptr<ov::Node> broadcast;
     if (mode == ngraph::op::BroadcastType::NONE) {

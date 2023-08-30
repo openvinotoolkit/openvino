@@ -32,7 +32,7 @@ using GRUSequenceParams = typename std::tuple<
         InferenceEngine::Precision,               // Network precision
         std::string>;                             // Device name
 
-class GRUSequenceTest : public testing::WithParamInterface<GRUSequenceParams>,
+class GRUSequenceTestLegacy : public testing::WithParamInterface<GRUSequenceParams>,
                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj);
@@ -64,7 +64,7 @@ using GRUSequenceParams = typename std::tuple<
         ov::element::Type,                        // Network precision
         std::string>;                             // Device name
 
-class GRUSequenceTestNew : public testing::WithParamInterface<GRUSequenceParams>,
+class GRUSequenceTest : public testing::WithParamInterface<GRUSequenceParams>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj);

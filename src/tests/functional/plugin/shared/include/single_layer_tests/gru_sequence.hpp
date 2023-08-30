@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(GRUSequenceTest, CompareWithRefs) {
+TEST_P(GRUSequenceTestLegacy, CompareWithRefs) {
     Run();
 };
 
@@ -17,7 +17,7 @@ TEST_P(GRUSequenceTest, CompareWithRefs) {
 namespace ov {
 namespace test {
 
-TEST_P(GRUSequenceTestNew, CompareWithRefs) {
+TEST_P(GRUSequenceTest, CompareWithRefs) {
     run();
 };
 
