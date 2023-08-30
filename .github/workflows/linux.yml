@@ -31,7 +31,8 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores
     container:
-      image: openvino.azurecr.io/openvino_ci/ubuntu2004:python_311
+      # image: openvino.azurecr.io/openvino_ci/ubuntu2004:python_311
+      image: ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
