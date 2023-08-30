@@ -60,6 +60,7 @@ jobs:
         with:
           path: 'openvino'
           submodules: 'recursive'
+          ref: 'b790458da677574c663051e1638c457cf414d311'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@v3
