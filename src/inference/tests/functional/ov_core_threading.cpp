@@ -64,7 +64,7 @@ public:
                 ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                    std::string("template_extension") + IE_BUILD_POSTFIX));
             core.add_extension(extension);
-        } catch (const InferenceEngine::Exception& ex) {
+        } catch (const ov::Exception& ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
@@ -167,7 +167,7 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 
 #if defined(ENABLE_OV_IR_FRONTEND)
 // tested function: read_model and add_legacy_extension
-TEST_F(CoreThreadingTests, ReadNetwork) {
+TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
 
