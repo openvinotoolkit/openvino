@@ -66,7 +66,12 @@ ov::SoPtr<ov::IAsyncInferRequest> ov::hetero::InferRequest::get_request(const ov
 }
 
 ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    return get_request(port)->get_tensor(port);
+    const auto infer_request = get_request(port);
+    auto tensor = infer_request->get_tensor(port);
+    if (!tensor._so) {
+        tensor._so = infer_request._so;
+    }
+    return tensor;
 }
 
 void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -76,7 +81,14 @@ void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::hetero::InferRequest::get_tensors(
     const ov::Output<const ov::Node>& port) const {
-    return get_request(port)->get_tensors(port);
+    const auto infer_request = get_request(port);
+    auto tensors = infer_request->get_tensors(port);
+    for (auto& tensor : tensors) {
+        if (!tensor._so) {
+            tensor._so = infer_request._so;
+        }
+    }
+    return tensors;
 }
 
 void ov::hetero::InferRequest::set_tensors(const ov::Output<const ov::Node>& port,
