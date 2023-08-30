@@ -52,7 +52,7 @@ std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std:
         return make_dense_tensor_as_constant<char>(absolute_indices, values_tensor, shape);
     case element::f32:
         return make_dense_tensor_as_constant<float>(absolute_indices, values_tensor, shape);
-    case element::f16:
+        // case element::f16:
         return make_dense_tensor_as_constant<ngraph::float16>(absolute_indices, values_tensor, shape);
     case element::f64:
         return make_dense_tensor_as_constant<double>(absolute_indices, values_tensor, shape);
@@ -72,7 +72,7 @@ std::shared_ptr<default_opset::Constant> get_dense_tensor_as_constant(const std:
         return make_dense_tensor_as_constant<uint32_t>(absolute_indices, values_tensor, shape);
     case element::u64:
         return make_dense_tensor_as_constant<uint64_t>(absolute_indices, values_tensor, shape);
-    case element::bf16:
+        // case element::bf16:
         return make_dense_tensor_as_constant<ngraph::bfloat16>(absolute_indices, values_tensor, shape);
     default:
         throw error::tensor::invalid_data_type{values_tensor};
