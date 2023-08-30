@@ -21,7 +21,7 @@ class ConvertInterpolateToInterpOrResampleMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertInterpolateToInterpOrResampleMatcher", "0");
     ConvertInterpolateToInterpOrResampleMatcher();

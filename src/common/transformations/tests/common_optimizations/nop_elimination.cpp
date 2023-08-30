@@ -2,28 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/nop_elimination.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph_functions/builders.hpp>
-#include <ngraph_functions/utils/ngraph_helpers.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace std;

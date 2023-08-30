@@ -10,7 +10,7 @@
 #include <numeric>
 #include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/insert_reshape_around_matmul.hpp"
 
 template <bool ADD = false,

@@ -8,7 +8,7 @@
 #include <openvino/pass/serialize.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 

@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class SwapConvertTranspose : public ngraph::pass::MatcherPass {
+class SwapConvertTranspose : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SwapConvertTranspose();

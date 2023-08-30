@@ -36,7 +36,7 @@ class PropagateThroughPrecisionPreserved;
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::PropagateThroughPrecisionPreserved : public ov::pass::MatcherPass {
 public:
     PropagateThroughPrecisionPreserved(const std::vector<ngraph::element::Type>& defaultPrecisions = precision_set::int8_support) {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {

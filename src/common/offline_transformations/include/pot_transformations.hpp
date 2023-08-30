@@ -5,28 +5,29 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <string>
 
-namespace ngraph {
+#include "openvino/pass/graph_rewrite.hpp"
+
+namespace ov {
 namespace pass {
 
 class POTTransformations;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
- * @brief This transformation is an entry point for nGraph transformations that will be
+ * @brief This transformation is an entry point for OpenVINO transformations that will be
  * executed inside POT.
  */
 
-class ngraph::pass::POTTransformations : public ngraph::pass::FunctionPass {
+class ov::pass::POTTransformations : public ov::pass::ModelPass {
     std::string m_device;
 
 public:
     OPENVINO_RTTI("POTTransformations", "0");
     explicit POTTransformations(std::string device) : m_device(std::move(device)) {}
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>&) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };

@@ -14,7 +14,7 @@ namespace pass {
  * @brief Removes reshapes before MaxPool which do nothing. Such reshapes can be a result of conversion from IR10 to
  * IR7.
  */
-class RemoveExtraReshapes : public ngraph::pass::MatcherPass {
+class RemoveExtraReshapes : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RemoveExtraReshapes", "0");
     RemoveExtraReshapes();

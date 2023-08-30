@@ -23,7 +23,7 @@ bool ngraph::pass::low_precision::PropagatePrecisions::run_on_model(const std::s
     RUN_ON_FUNCTION_SCOPE(PropagatePrecisions);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    std::shared_ptr<ngraph::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ov::pass::GraphRewrite>();
     precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(params, AttributeSource::OutputPort);
     precisionsPropagation->add_matcher<low_precision::PropagateThroughPrecisionPreserved<PrecisionsAttribute>>(params.defaultPrecisions);
     precisionsPropagation->add_matcher<low_precision::PropagateToInput<PrecisionsAttribute>>(params.defaultPrecisions);

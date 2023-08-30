@@ -13,7 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
 

@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/dimension_tracking.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/divide_fusion.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/divide_fusion.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/utils/utils.hpp"
 using namespace ov;
 using namespace testing;
 

@@ -4,7 +4,7 @@
 
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 
-#include "openvino/cc/ngraph/itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
 bool ov::pass::FusedNamesCleanup::run_on_model(const std::shared_ptr<ov::Model>& f) {

@@ -22,7 +22,7 @@ bool ngraph::pass::low_precision::AlignQuantizationIntervals::run_on_model(const
     RUN_ON_FUNCTION_SCOPE(AlignQuantizationIntervals);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    std::shared_ptr<ngraph::pass::GraphRewrite> intervalsAlignment = manager.register_pass<ngraph::pass::GraphRewrite>();
+    std::shared_ptr<ov::pass::GraphRewrite> intervalsAlignment = manager.register_pass<ov::pass::GraphRewrite>();
     intervalsAlignment->add_matcher<low_precision::CreateAttribute<IntervalsAlignmentAttribute, opset1::FakeQuantize>>(
         AttributeParameters(ngraph::element::f32, defaultPrecisions));
     intervalsAlignment->add_matcher<low_precision::PropagateThroughPrecisionPreserved<IntervalsAlignmentAttribute>>(defaultPrecisions);

@@ -36,7 +36,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
  * in the Inference Engine Developer Guide.
  */
 template <class AttributeType>
-class ngraph::pass::low_precision::PropagateSharedValue : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {
 public:
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateSharedValue");

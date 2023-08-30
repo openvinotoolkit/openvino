@@ -15,7 +15,7 @@
 #include <low_precision/reshape.hpp>
 #include <low_precision/concat.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"

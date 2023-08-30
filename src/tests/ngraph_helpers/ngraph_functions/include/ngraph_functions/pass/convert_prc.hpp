@@ -86,7 +86,7 @@ public:
 };
 
 template<ngraph::element::Type_t from, ngraph::element::Type_t to>
-class ConvertPrecision : public ngraph::pass::GraphRewrite {
+class ConvertPrecision : public ov::pass::GraphRewrite {
 public:
     ConvertPrecision() {
         add_matcher<ConvertConstantsPrecision<from, to>>();

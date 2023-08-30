@@ -14,7 +14,7 @@
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/markup_quantization_granularity.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/convolution_function.hpp"
 
 using namespace testing;

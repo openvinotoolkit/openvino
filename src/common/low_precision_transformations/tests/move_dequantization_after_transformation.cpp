@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/network_helper.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/move_dequantization_after_function.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

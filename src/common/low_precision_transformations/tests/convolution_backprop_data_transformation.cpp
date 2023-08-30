@@ -15,7 +15,7 @@
 #include <low_precision/convolution_backprop_data.hpp>
 #include <low_precision/network_helper.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
 

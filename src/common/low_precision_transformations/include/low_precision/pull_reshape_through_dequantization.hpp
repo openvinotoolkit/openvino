@@ -28,7 +28,7 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
  * [PullReshapeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::PullReshapeThroughDequantization : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::PullReshapeThroughDequantization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PullReshapeThroughDequantization", "0");
     PullReshapeThroughDequantization(const std::vector<ngraph::element::Type>& inputPrecisions = {});

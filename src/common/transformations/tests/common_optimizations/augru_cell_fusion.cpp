@@ -8,7 +8,7 @@
 
 #include <queue>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "ov_ops/augru_cell.hpp"

@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertTileToSeqTiles: public ngraph::pass::MatcherPass {
+class ConvertTileToSeqTiles: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertTileToSeqTiles", "0");
     ConvertTileToSeqTiles();

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/moc_transformations.hpp"
+
 #include <gtest/gtest.h>
 
 #include <string>
-#include <transformations/common_optimizations/moc_transformations.hpp>
 
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"

@@ -37,7 +37,7 @@ namespace pass {
  *    |      |        |
  * Any#2 .. Any#K .. Any#N
  */
-class TSSplitBackward : public ngraph::pass::MatcherPass {
+class TSSplitBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TSSplitBackward", "0");
     TSSplitBackward();

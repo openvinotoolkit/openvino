@@ -19,7 +19,7 @@ class ConvertHardSigmoidToLegacyMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertHardSigmoidToLegacyMatcher", "0");
     ConvertHardSigmoidToLegacyMatcher();

@@ -38,7 +38,7 @@ class CreatePrecisionsDependentAttribute;
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType, typename OperationType>
-class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {
 public:
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();

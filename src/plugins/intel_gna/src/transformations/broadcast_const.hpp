@@ -46,7 +46,7 @@ namespace pass {
  * For information about broadcasting rules see
  * https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/broadcast_rules.md
  */
-class BroadcastAddMultiplyConst : public ngraph::pass::MatcherPass {
+class BroadcastAddMultiplyConst : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BroadcastAddMultiplyConst", "0");
     BroadcastAddMultiplyConst();

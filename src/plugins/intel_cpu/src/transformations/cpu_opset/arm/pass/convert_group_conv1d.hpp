@@ -52,7 +52,7 @@
 
 namespace ov {
 namespace intel_cpu {
-class ConvertConv1DBase: public ngraph::pass::MatcherPass {
+class ConvertConv1DBase: public ov::pass::MatcherPass {
 protected:
     OPENVINO_RTTI("ConvertConv1DBase", "0");
     template <class Conv>

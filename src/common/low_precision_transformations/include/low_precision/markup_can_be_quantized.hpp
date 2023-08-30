@@ -28,7 +28,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {
+class ngraph::pass::low_precision::MarkupCanBeQuantized : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MarkupCanBeQuantized", "0");
     MarkupCanBeQuantized(const std::vector<ngraph::element::Type> defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });

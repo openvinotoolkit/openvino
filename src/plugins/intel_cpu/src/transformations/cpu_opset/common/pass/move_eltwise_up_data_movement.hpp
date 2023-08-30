@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class MoveEltwiseUpThroughDataMov : public ngraph::pass::MatcherPass {
+class MoveEltwiseUpThroughDataMov : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MoveEltwiseUpThroughDataMov", "0");
     MoveEltwiseUpThroughDataMov();

@@ -9,7 +9,7 @@
 #include <tuple>
 
 #include "backend/gna_limitations.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 

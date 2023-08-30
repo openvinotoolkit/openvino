@@ -20,7 +20,7 @@ class ConvertGatherTreeToGatherTreeIEMatcher;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGatherTreeToGatherTreeIEMatcher", "0");
     ConvertGatherTreeToGatherTreeIEMatcher();

@@ -35,7 +35,7 @@ class PropagateToInput;
  * in the Inference Engine Developer Guide.
  */
 template <typename AttributeType>
-class ngraph::pass::low_precision::PropagateToInput : public ngraph::pass::MatcherPass {
+class ngraph::pass::low_precision::PropagateToInput : public ov::pass::MatcherPass {
 public:
     PropagateToInput(const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 }) {
         ngraph::graph_rewrite_callback callback = [&](pattern::Matcher& m) {

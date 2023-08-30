@@ -9,7 +9,7 @@
 #include <string>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/clamp.hpp"

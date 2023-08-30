@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <string>
-#include <transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace testing;
 using namespace std;

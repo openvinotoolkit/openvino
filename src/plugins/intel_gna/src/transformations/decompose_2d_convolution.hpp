@@ -32,7 +32,7 @@ namespace pass {
  *   Transpose (NCHW -> NHWC)               Transpose (NCHW -> NHWC)
  *
  */
-class Decompose2DConv : public ngraph::pass::MatcherPass {
+class Decompose2DConv : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConv", "0");
     Decompose2DConv(const InferenceEngine::Precision& gnaPrecision);
@@ -53,7 +53,7 @@ public:
  *      Broadcast Bias                       Broadcast Bias
  *
  */
-class Decompose2DConvTransposedWithBias : public ngraph::pass::MatcherPass {
+class Decompose2DConvTransposedWithBias : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBias", "0");
     Decompose2DConvTransposedWithBias(const InferenceEngine::Precision& gnaPrecision);
@@ -76,7 +76,7 @@ public:
  *   Activation Function                  Activation Function
  *
  */
-class Decompose2DConvTransposedWithBiasAF : public ngraph::pass::MatcherPass {
+class Decompose2DConvTransposedWithBiasAF : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Decompose2DConvTransposedWithBiasAF", "0");
     Decompose2DConvTransposedWithBiasAF(const InferenceEngine::Precision& gnaPrecision);

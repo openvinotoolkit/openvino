@@ -5,18 +5,18 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/ops.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
 #include <string>
-#include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ov;
 using namespace testing;

@@ -58,7 +58,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     // Some passes before ConvertOpSet1ToLegacy can produce some of this
     // operations. So for convenience we decompose this operations here and
     // in CommonOptimizations.
-    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
     decomp->add_matcher<ov::pass::ConvertMod>();
     decomp->add_matcher<ov::pass::ConvertMinimum>();
     decomp->add_matcher<ov::pass::ConvertSubtract>();
@@ -66,7 +66,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     decomp->add_matcher<ov::pass::ConvertNegative>();
     decomp->set_name("ngraph::pass::LegacyDecompositions");
 
-    auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto convert_matmul = manager.register_pass<ov::pass::GraphRewrite>();
     convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     convert_matmul->add_matcher<ov::pass::PullTransposeThroughFQUp>();
     convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
@@ -78,7 +78,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
 
     // Convolution/Deconvolution/FullyConnected fusions
-    auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto fusion = manager.register_pass<ov::pass::GraphRewrite>();
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
@@ -90,7 +90,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_model(const std::shared_ptr<ngr
     // List of passes that convert opset1 operations to legacy
     // plus transformations that are required by InferenceEngine
     // All this transformations can be executed simultaneously
-    auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
+    auto anchor = manager.register_pass<ov::pass::GraphRewrite>();
     anchor->add_matcher<ngraph::pass::ReshapeFullyConnected>();
     anchor->add_matcher<ngraph::pass::Reshape1DConvolution>();
     anchor->add_matcher<ngraph::pass::Reshape1DAvgPool>();
