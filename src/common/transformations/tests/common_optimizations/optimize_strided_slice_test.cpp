@@ -119,6 +119,43 @@ TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
     }
 }
 
+TEST_F(TransformationTestsF, UselessSlice) {
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        auto begin = opset1::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto end = opset1::Constant::create(element::i64, Shape{2}, {5, 5});
+        auto stride = opset1::Constant::create(element::i64, Shape{2}, {1, 1});
+        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+
+        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+
+        model = std::make_shared<ov::Model>(slice, ParameterVector{data});
+        manager.register_pass<ov::pass::UselessSliceEraser>();
+    }
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        model_ref = std::make_shared<ov::Model>(relu, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NegativeUselessSliceWithNegativeStrides) {
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        auto begin = opset1::Constant::create(element::i64, Shape{2}, {4, 0});
+        auto end = opset1::Constant::create(element::i64, Shape{2}, {INT32_MIN, 5});
+        auto stride = opset1::Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+
+        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+
+        model = std::make_shared<ov::Model>(slice, ParameterVector{data});
+        manager.register_pass<ov::pass::UselessSliceEraser>();
+    }
+}
+
 TEST_F(TransformationTestsF, OptimizeSS_Usefull_Test) {
     {
         auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});

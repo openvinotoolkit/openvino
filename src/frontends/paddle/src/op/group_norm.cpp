@@ -25,7 +25,7 @@ Output<ov::Node> reshape_channel_shaped_node_to_nchw(const Output<ov::Node>& nod
 NamedOutputs group_norm(const NodeContext& node) {
     auto data = node.get_input("X");
     size_t num_groups = static_cast<size_t>(node.get_attribute<int32_t>("groups"));
-    auto epsilon = node.get_attribute<float>("epsilon", 1e-5);
+    auto epsilon = node.get_attribute<float>("epsilon", 1e-5f);
     auto data_layout = node.get_attribute<std::string>("data_layout", "NCHW");
 
     const auto& pshape = data.get_partial_shape();
