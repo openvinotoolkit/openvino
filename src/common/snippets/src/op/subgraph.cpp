@@ -675,7 +675,8 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     backend_passes_post_common.run(linear_ir);
 
-    m_buffer_scratchpad = lowered::BufferSolver::solve(linear_ir);
+    lowered::BufferSolver buffer_solver;
+    m_buffer_scratchpad = buffer_solver.solve(linear_ir);
 
     lowered::pass::PassPipeline final_pipeline;
     final_pipeline.register_pass<lowered::pass::PropagateLayout>();

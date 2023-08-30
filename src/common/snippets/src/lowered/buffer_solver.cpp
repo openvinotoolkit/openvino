@@ -19,46 +19,29 @@ namespace lowered {
 
 int64_t BufferSolver::solve(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BufferSolver::solve")
-    auto scratchpad_size = init_default_buffers(linear_ir);
-    if (m_mode & OptimizationsBit::DefaultBit) {
-        return scratchpad_size;
-    }
 
+    enumerate(linear_ir);
+    identify_buffers(linear_ir);
+    const auto buffer_clusters = init_clusters(linear_ir);
+    const auto scratchpad_size = allocate(buffer_clusters);
+    return scratchpad_size;
+}
+
+void BufferSolver::enumerate(const lowered::LinearIR& linear_ir) {
     int64_t order = 0;
     for (const auto& expr : linear_ir) {
         ov::snippets::pass::SetTopologicalOrder(expr->get_node(), order++);
     }
-
-    const auto buffer_clusters = init_clusters(linear_ir);
-    const auto boxes = init_boxes(buffer_clusters);
-
-    MemorySolver staticMemSolver(boxes);
-    scratchpad_size = static_cast<size_t>(staticMemSolver.solve()) * m_alignment;  // alignment in byte
-
-    // Set offsets for Buffers
-    for (auto& box : boxes) {
-        for (auto& buffer : buffer_clusters[box.id]) {
-            int64_t offset = staticMemSolver.getOffset(box.id);
-            set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
-        }
-    }
-    return scratchpad_size;
 }
 
-size_t BufferSolver::init_default_buffers(const lowered::LinearIR& linear_ir) {
+void BufferSolver::identify_buffers(const lowered::LinearIR& linear_ir) {
     size_t buffer_id = 0;
-    size_t buffer_offset = 0;
     for (const auto& expr : linear_ir) {
         const auto op = expr->get_node();
         if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            const auto byte_size = buffer->get_byte_size();
-            set_buffer_offset(expr, buffer_offset);
-            buffer->set_id(buffer_id);
-            buffer_offset += byte_size;
-            buffer_id++;
+            buffer->set_id(buffer_id++);
         }
     }
-    return buffer_offset;
 }
 
 BufferSolver::BufferClusters BufferSolver::init_clusters(const lowered::LinearIR& linear_ir) {
@@ -173,6 +156,36 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
     }
 
     return buffer_clusters;
+}
+
+int64_t BufferSolver::allocate(const BufferClusters& buffer_clusters) {
+    if (m_mode & MemorySolverBit) {
+        const auto boxes = init_boxes(buffer_clusters);
+        MemorySolver memSolver(boxes);
+        const auto scratchpad_size = static_cast<size_t>(memSolver.solve()) * m_alignment;  // alignment in byte
+
+        // Set offsets for Buffers
+        for (const auto& box : boxes) {
+            for (const auto& buffer : buffer_clusters[box.id]) {
+                int64_t offset = memSolver.getOffset(box.id);
+                set_buffer_offset(buffer, offset * m_alignment);  // alignment in byte
+            }
+        }
+        return scratchpad_size;
+    }
+
+    size_t buffer_offset = 0;
+    for (const auto& cluster : buffer_clusters) {
+        size_t cluster_size = 0;
+        for (const auto& buffer_expr : cluster) {
+            const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
+            OPENVINO_ASSERT(buffer != nullptr, "BufferSolver expects Buffers in clusters");
+            set_buffer_offset(buffer_expr, buffer_offset);
+            cluster_size = std::max(cluster_size, buffer->get_byte_size());
+        }
+        buffer_offset += cluster_size;
+    }
+    return static_cast<int64_t>(buffer_offset);
 }
 
 std::vector<MemorySolver::Box> BufferSolver::init_boxes(const BufferClusters& buffer_clusters) {
