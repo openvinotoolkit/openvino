@@ -22,13 +22,16 @@ Linux
 Prerequisites
 ++++++++++++++++++++
 
+
 * Supported operating systems: Ubuntu 20.04 / 22.04 LTS
 
 * Ensure that make, gcc, and Linux kernel headers are installed. Use the following command to install the required software:
 
+
 .. code-block:: sh
 
    sudo apt-get install gcc make linux-headers-generic
+
 
 
 Manual Configuration steps
@@ -58,10 +61,12 @@ Successful bootup of the NPU should print following message or similar:
     `[  797.193201] [drm] Initialized intel_vpu 0.<version number> for 0000:00:0b.0 on minor 0`
 
 
+
 Windows
 ####################
 
 Intel® NPU driver for Windows is available through Windows Update.
+
 
 Manual Configuration steps
 ++++++++++++++++++++++++++
@@ -84,6 +89,7 @@ b. If you cannot find this device, then search for 'Other devices' -> 'Multimedi
     Browse to the location of the `<unpacked driver location>\drivers\x64` folder you copied earlier, and click Next:
 
 (v) You should get a Success message upon driver installation. Click Close.
+
 
 
 
