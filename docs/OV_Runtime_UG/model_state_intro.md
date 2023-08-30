@@ -203,18 +203,19 @@ One infer request and one thread will be used in this example. Using several thr
 
 .. tab-set::
 
-    .. tab-item:: C++
-        :sync: cpp
-        .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
-          :language: cpp
-          :fragment: [part1]
+   .. tab-item:: C++
+      :sync: cpp
+      
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+         :language: cpp
+         :fragment: [part1]
     
-    .. tab-item:: Python
-        :sync: py
+   .. tab-item:: Python
+      :sync: py
 
-        .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
-          :language: python
-          :fragment: ov:part1
+      .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.py
+         :language: python
+         :fragment: ov:part1
 
 
 
