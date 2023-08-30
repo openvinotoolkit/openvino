@@ -30,7 +30,7 @@ public:
     }
 
 private:
-    std::function<void()> exec_func;
+    std::unique_ptr<arm_compute::IFunction> ifunc;
     ReduceAttrs reduceAttrs;
     impl_desc_type implType = impl_desc_type::acl;
 
