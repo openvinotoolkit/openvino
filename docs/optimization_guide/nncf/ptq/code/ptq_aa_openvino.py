@@ -21,7 +21,7 @@ import torch
 import openvino
 from sklearn.metrics import accuracy_score
 
-def validate(model: openvino.runtime.CompiledModel, 
+def validate(model: openvino.CompiledModel, 
              validation_loader: torch.utils.data.DataLoader) -> float:
     predictions = []
     references = []
@@ -39,7 +39,7 @@ def validate(model: openvino.runtime.CompiledModel,
 #! [validation]
 
 #! [quantization]
-model = ... # openvino.runtime.Model object
+model = ... # openvino.Model object
 
 quantized_model = nncf.quantize_with_accuracy_control(model,
                         calibration_dataset=calibration_dataset,
@@ -50,7 +50,7 @@ quantized_model = nncf.quantize_with_accuracy_control(model,
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
+import openvino as ov
 
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(quantized_model)

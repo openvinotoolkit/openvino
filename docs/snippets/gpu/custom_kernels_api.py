@@ -1,10 +1,10 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import openvino as ov
 
-from openvino.runtime import Core
-
+# TODO: missing property to replace string
 #! [part0]
-core = Core()
+core = ov.Core()
 core.set_property("GPU", {"CONFIG_FILE": "<path_to_the_xml_file>"})
 #! [part0]

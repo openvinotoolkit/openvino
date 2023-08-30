@@ -1,23 +1,23 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Core, Layout, set_batch
-ov = Core()
-model = ov.read_model("path/to/model")
+import openvino as ov
+from utils import get_model, get_image
+
+model = get_model()
 
 #! [picture_snippet]
 model.reshape([8, 3, 448, 448])
 #! [picture_snippet]
 
 #! [set_batch]
-model.get_parameters()[0].set_layout(Layout("N..."))
-set_batch(model, 5)
+model.get_parameters()[0].set_layout(ov.Layout("N..."))
+ov.set_batch(model, 5)
 #! [set_batch]
 
 #! [simple_spatials_change]
-from cv2 import imread
-image = imread("path/to/image")
-model.reshape({1, 3, image.shape[0], image.shape[1]})
+image = get_image()
+model.reshape([1, 3, image.shape[0], image.shape[1]])
 #! [simple_spatials_change]
 
 #! [obj_to_shape]
