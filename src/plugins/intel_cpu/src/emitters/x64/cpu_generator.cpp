@@ -14,6 +14,7 @@
 #include "jit_dnnl_emitters.hpp"
 #include "jit_dnnl_ext_emitters.hpp"
 #include "jit_conversion_emitters.hpp"
+#include "jit_perf_count_emitters.hpp"
 
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
@@ -157,6 +158,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(LoopEndEmitter);
     jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmEmitter);
     jitters[intel_cpu::BrgemmCopyB::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BrgemmCopyBEmitter);
+
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_perf_count_start_emitter);
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_perf_count_end_emitter);
 }
 
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {

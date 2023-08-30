@@ -87,6 +87,11 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
 
     const auto& loop_begin = std::make_shared<op::LoopBegin>();
     const auto& loop_begin_expr = linear_ir.create_expression(loop_begin, std::vector<PortConnectorPtr>{});
+    //
+    // const auto& perf_count_begin = std::make_shared<op::PerfCountBegin>();
+    // const auto& perf_count_begin_expr = linear_ir.create_expression(perf_count_begin, std::vector<PortConnectorPtr>{});
+    // linear_ir.insert(loop_begin_pos, perf_count_begin_expr);
+    //
     linear_ir.insert(loop_begin_pos, loop_begin_expr);
 
     const auto& loop_end = std::make_shared<op::LoopEnd>(
@@ -99,6 +104,11 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
 
     const auto& loop_end_expr = linear_ir.create_expression(loop_end, loop_end_inputs);
     const auto& it = linear_ir.insert(loop_end_pos, loop_end_expr);
+    //
+    // const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(*perf_count_begin);
+    // const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, std::vector<PortConnectorPtr>{});
+    // linear_ir.insert(loop_end_pos, perf_count_end_expr);
+    //
 
     const auto outer_loop_ids = get_outer_loop_ids(*std::prev(it), loop_id);
     loop_begin_expr->set_loop_ids(outer_loop_ids);

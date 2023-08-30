@@ -66,7 +66,9 @@ Generator::opRegType Generator::get_op_reg_type(const std::shared_ptr<Node>& op)
         std::dynamic_pointer_cast<op::LoopEnd>(op) ||
         std::dynamic_pointer_cast<op::Brgemm>(op) ||
         std::dynamic_pointer_cast<op::Buffer>(op) ||
-        std::dynamic_pointer_cast<op::RankNormalization>(op))
+        std::dynamic_pointer_cast<op::RankNormalization>(op)) ||
+        std::dynamic_pointer_cast<op::PerfCountBegin>(op) ||
+        std::dynamic_pointer_cast<op::PerfCountEnd>(op))
         return gpr2gpr;
     else if (std::dynamic_pointer_cast<snippets::op::Load>(op) ||
              std::dynamic_pointer_cast<snippets::op::BroadcastLoad>(op))
