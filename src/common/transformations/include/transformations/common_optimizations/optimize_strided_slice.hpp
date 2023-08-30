@@ -14,7 +14,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API StridedSliceOptimization;
-class TRANSFORMATIONS_API UselessStridedSliceEraser;
+class TRANSFORMATIONS_API UselessSliceEraser;
 class TRANSFORMATIONS_API SharedStridedSliceEraser;
 class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
@@ -24,12 +24,12 @@ class TRANSFORMATIONS_API GroupedSliceToVSplitOptimization;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief UselessStridedSliceEraser transformation removes StridedSlice operations
+ * @brief UselessSliceEraser transformation removes Slice/StridedSlice operations
  * with equal input and output shapes.
  */
-class ov::pass::UselessStridedSliceEraser : public ov::pass::ModelPass {
+class ov::pass::UselessSliceEraser : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("UselessStridedSliceEraser", "0");
+    OPENVINO_RTTI("UselessSliceEraser", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
