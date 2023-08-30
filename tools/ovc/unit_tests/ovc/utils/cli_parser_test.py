@@ -31,6 +31,38 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
                       _InputCutInfo(name='inp2', shape=PartialShape([-1,45,7,1]))]
         self.assertEqual(inputs, inputs_ref)
 
+    def test_raises_get_shapes_1(self):
+        argv_input = "[h,y]"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_raises_get_shapes_2(self):
+        argv_input = "(2, 3)"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_raises_get_shapes_3(self):
+        argv_input = "input_1(2, 3)"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_raises_get_shapes_4(self):
+        argv_input = "(2, 3),(10, 10)"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_raises_get_shapes_5(self):
+        argv_input = "<2,3,4>"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_raises_get_shapes_6(self):
+        argv_input = "sd<2,3>"
+        self.assertRaises(Error, input_to_input_cut_info, argv_input)
+
+    def test_get_shapes_complex_input(self):
+        argv_input = "[10, -1, 100],mask[],[?,?]"
+        inputs = input_to_input_cut_info(argv_input)
+        inputs_ref = [_InputCutInfo(shape=PartialShape([10, -1, 100])),
+                      _InputCutInfo(name='mask', shape=PartialShape([])),
+                      _InputCutInfo(shape=PartialShape([-1, -1]))]
+        self.assertEqual(inputs, inputs_ref)
+
     def test_get_shapes_and_freezing_with_scalar_and_without_shapes_in_input(self):
         # shapes and value for freezing specified using --input command line parameter
         argv_input = "inp1,inp2"
