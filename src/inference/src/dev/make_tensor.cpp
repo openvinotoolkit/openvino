@@ -657,9 +657,9 @@ ie::Blob::Ptr tensor_to_blob(const ov::SoPtr<ITensor>& orig_tensor, bool unwrap,
             CASE(u64, uint64_t);
             CASE(u1, int8_t);
             CASE(boolean, bool);
-            // case element::f16:
+        case element::f16:
             return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, create_desc(tensor, desc));
-            // case element::bf16:
+        case element::bf16:
             return std::make_shared<TensorMemoryBlob<int16_t>>(tensor, create_desc(tensor, desc));
         default:
             OPENVINO_THROW("Unsupported element type");

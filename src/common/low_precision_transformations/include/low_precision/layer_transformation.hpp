@@ -146,7 +146,7 @@ public:
                         return -2147483647.f;
                 }
                 break;
-            // case element::f16:
+            case element::f16:
                 return -1.0e15f;
             case element::f32:
                 return std::numeric_limits<float>::lowest();
@@ -184,7 +184,7 @@ public:
                 return 32767.f;
             case element::i32:
                 return 2147483648.f;  // 2147483648.f == 2147483647.f
-            // case element::f16:
+            case element::f16:
                 return 1.0e15f;
             case element::f32:
                 return std::numeric_limits<float>::max();
