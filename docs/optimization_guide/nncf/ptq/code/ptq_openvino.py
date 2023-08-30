@@ -16,14 +16,12 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 
 #! [quantization]
 import openvino.runtime as ov
-model = ov.Core().read_model("model path")
+model = ov.Core().read_model("model_path")
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
-
 # compile the model to transform quantized operations to int8
 model_int8 = ov.compile_model(quantized_model)
 
