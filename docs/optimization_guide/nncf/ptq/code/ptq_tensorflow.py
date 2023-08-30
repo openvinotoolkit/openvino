@@ -16,7 +16,7 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 
 #! [quantization]
 import tensorflow as tf
-model = tf.Module() # tensorflow.Module object
+model = tf.saved_model.load("model_path")
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
