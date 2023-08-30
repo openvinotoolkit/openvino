@@ -1130,7 +1130,6 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
     const size_t group_wei_stride = weiStrides[0] * OC;
     auto compKer = [=](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
-        float w11 = 0, w12 = 0, w21 = 0, w22 = 0;
         for (int ic = 0; ic < IC; ic++) {
             const float *data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
@@ -1146,14 +1145,17 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
 
                         float val = 0;
-                        w11 = pInterpWeightsVector[sampledCoordIndex++];
-                        w12 = pInterpWeightsVector[sampledCoordIndex++];
-                        w21 = pInterpWeightsVector[sampledCoordIndex++];
-                        w22 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w11 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w12 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w21 = pInterpWeightsVector[sampledCoordIndex++];
+                        float w22 = pInterpWeightsVector[sampledCoordIndex++];
 
-                        // prevent access to invalid memory:
+                        // Prevent access to invalid memory in the case, when
+                        // data_im_ptr[v_i1_i2] is out of the input memory.
+                        // Logic of skipping of such points realized by nullifying
+                        // of corresponding weight, but we must explicitly check it, because
                         // 0 * (*wrong_pointer) != 0 in common case, i.e.
-                        // 0 * NaN = NaN or segfault
+                        // 0 * NaN == NaN or throws segfault
                         val += ((w11 == 0) ? 0 : w11 * data_im_ptr[v11]);
                         val += ((w12 == 0) ? 0 : w12 * data_im_ptr[v12]);
                         val += ((w21 == 0) ? 0 : w21 * data_im_ptr[v21]);
