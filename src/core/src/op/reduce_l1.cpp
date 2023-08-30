@@ -44,8 +44,8 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, bf16, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f16, arg, out, axes, keep_dims);
+
+
         NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f32, arg, out, axes, keep_dims);
     default:
         rc = false;
@@ -74,8 +74,8 @@ bool op::v4::ReduceL1::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

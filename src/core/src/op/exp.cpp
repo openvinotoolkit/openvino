@@ -48,7 +48,7 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
         NGRAPH_TYPE_CASE(evaluate_exp, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_exp, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_exp, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_exp, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_exp, f32, arg0, out, count);
     default:
         rc = false;
@@ -74,7 +74,7 @@ bool op::Exp::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

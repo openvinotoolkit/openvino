@@ -119,10 +119,10 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
     case ngraph::element::f64:
-    case ngraph::element::bf16:
+    // case ngraph::element::bf16:
         return true;
     default:
         return false;

@@ -44,8 +44,8 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
     switch (arg0->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_negative, bf16, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_negative, f16, arg0, out, count);
+
+
         NGRAPH_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
     default:
         rc = false;
@@ -70,7 +70,7 @@ bool op::Negative::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

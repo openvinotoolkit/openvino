@@ -47,7 +47,7 @@ bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
         NGRAPH_TYPE_CASE(evaluate_sin, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sin, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_sin, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_sin, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_sin, f32, arg0, out, count);
     default:
         rc = false;
@@ -70,7 +70,7 @@ bool op::Sin::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

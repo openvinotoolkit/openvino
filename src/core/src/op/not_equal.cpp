@@ -41,7 +41,7 @@ bool evaluate_not_equal(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_not_equal, i64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_not_equal, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_not_equal, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_not_equal, f16, arg0, arg1, out, broadcast_spec);
+
         NGRAPH_TYPE_CASE(evaluate_not_equal, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
@@ -80,7 +80,7 @@ bool op::v1::NotEqual::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

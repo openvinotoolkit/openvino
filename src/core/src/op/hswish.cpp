@@ -45,8 +45,8 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
     out->set_unary(arg);
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_hswish, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_hswish, f16, arg, out, count);
+
+
         NGRAPH_TYPE_CASE(evaluate_hswish, f32, arg, out, count);
     default:
         rc = false;
@@ -68,8 +68,8 @@ bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorV
 bool op::v4::HSwish::has_evaluate() const {
     OV_OP_SCOPE(v4_HSwish_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

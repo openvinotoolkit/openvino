@@ -42,9 +42,9 @@ bool evaluate_subtract(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_subtract, u8, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_subtract, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_subtract, f16, arg0, arg1, out, broadcast_spec);
+
         NGRAPH_TYPE_CASE(evaluate_subtract, f32, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_subtract, bf16, arg0, arg1, out, broadcast_spec);
+
     default:
         rc = false;
         break;
@@ -78,9 +78,9 @@ bool op::v1::Subtract::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::bf16:
+    // case ngraph::element::bf16:
         return true;
     default:
         break;

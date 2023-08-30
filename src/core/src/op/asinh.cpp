@@ -45,7 +45,7 @@ bool evaluate_asinh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
         NGRAPH_TYPE_CASE(evaluate_asinh, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_asinh, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_asinh, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_asinh, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_asinh, f32, arg0, out, count);
     default:
         rc = false;
@@ -68,7 +68,7 @@ bool op::v3::Asinh::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

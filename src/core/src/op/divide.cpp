@@ -52,9 +52,9 @@ bool evaluate_divide(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_divide, i64, arg0, arg1, out, broadcast_spec, pythondiv);
         NGRAPH_TYPE_CASE(evaluate_divide, u32, arg0, arg1, out, broadcast_spec, pythondiv);
         NGRAPH_TYPE_CASE(evaluate_divide, u64, arg0, arg1, out, broadcast_spec, pythondiv);
-        NGRAPH_TYPE_CASE(evaluate_divide, f16, arg0, arg1, out, broadcast_spec, pythondiv);
+
         NGRAPH_TYPE_CASE(evaluate_divide, f32, arg0, arg1, out, broadcast_spec, pythondiv);
-        NGRAPH_TYPE_CASE(evaluate_divide, bf16, arg0, arg1, out, broadcast_spec, pythondiv);
+
     default:
         rc = false;
         break;
@@ -277,8 +277,8 @@ bool op::v1::Divide::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
+    // case ngraph::element::f16:
+    // case ngraph::element::bf16:
     case ngraph::element::f32:
         return true;
     default:

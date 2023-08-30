@@ -46,7 +46,7 @@ bool evaluate_cosh(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
         NGRAPH_TYPE_CASE(evaluate_cosh, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_cosh, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_cosh, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_cosh, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_cosh, f32, arg0, out, count);
     default:
         rc = false;
@@ -72,7 +72,7 @@ bool op::Cosh::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

@@ -43,8 +43,8 @@ bool evaluate_add(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_add, u16, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_add, f16, arg0, arg1, out, broadcast_spec);
+
+
         NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
@@ -101,8 +101,8 @@ bool op::v1::Add::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

@@ -47,7 +47,7 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
         NGRAPH_TYPE_CASE(evaluate_acos, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_acos, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_acos, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_acos, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_acos, f32, arg0, out, count);
     default:
         rc = false;
@@ -70,7 +70,7 @@ bool ov::op::v0::Acos::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

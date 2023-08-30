@@ -39,9 +39,9 @@ bool evaluate_abs(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr
         NGRAPH_TYPE_CASE(evaluate_abs, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_abs, u32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_abs, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_abs, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_abs, f32, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_abs, bf16, arg0, out, count);
+
     default:
         rc = false;
         break;
@@ -63,9 +63,9 @@ bool ov::op::v0::Abs::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::bf16:
+    // case ngraph::element::bf16:
         return true;
     default:
         break;

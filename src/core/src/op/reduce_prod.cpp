@@ -45,7 +45,7 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
         NGRAPH_TYPE_CASE(evaluate_product, i64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_product, u32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_product, u64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_product, f16, arg, out, axes, keep_dims);
+
         NGRAPH_TYPE_CASE(evaluate_product, f32, arg, out, axes, keep_dims);
     default:
         rc = false;
@@ -76,7 +76,7 @@ bool op::v1::ReduceProd::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

@@ -51,8 +51,8 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
     bool rc = true;
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
-        NGRAPH_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out);
-        NGRAPH_TYPE_CASE(evaluate_prelu, f16, arg, slope, out);
+
+
         NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
     default:
         rc = false;
@@ -75,8 +75,8 @@ bool ov::op::v0::PRelu::has_evaluate() const {
     OV_OP_SCOPE(v0_PRelu_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i8:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

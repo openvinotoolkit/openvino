@@ -39,7 +39,7 @@ bool evaluate_acosh(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorP
         NGRAPH_TYPE_CASE(evaluate_acosh, i64, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_acosh, u32, arg0, out);
         NGRAPH_TYPE_CASE(evaluate_acosh, u64, arg0, out);
-        NGRAPH_TYPE_CASE(evaluate_acosh, f16, arg0, out);
+
         NGRAPH_TYPE_CASE(evaluate_acosh, f32, arg0, out);
     default:
         rc = false;
@@ -62,7 +62,7 @@ bool ov::op::v3::Acosh::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

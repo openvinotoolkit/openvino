@@ -118,7 +118,7 @@ bool evaluate_fakequantize(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_fakequantize, i64, arg0, arg1, arg2, arg3, arg4, out, parent);
         NGRAPH_TYPE_CASE(evaluate_fakequantize, u32, arg0, arg1, arg2, arg3, arg4, out, parent);
         NGRAPH_TYPE_CASE(evaluate_fakequantize, u64, arg0, arg1, arg2, arg3, arg4, out, parent);
-        NGRAPH_TYPE_CASE(evaluate_fakequantize, f16, arg0, arg1, arg2, arg3, arg4, out, parent);
+
         NGRAPH_TYPE_CASE(evaluate_fakequantize, f32, arg0, arg1, arg2, arg3, arg4, out, parent);
     default:
         rc = false;
@@ -147,7 +147,7 @@ bool ngraph::op::FakeQuantize::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

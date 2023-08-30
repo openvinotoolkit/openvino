@@ -52,8 +52,8 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_floor_mod, u8, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, bf16, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_floor_mod, f16, arg0, arg1, out, broadcast_spec);
+
+
         NGRAPH_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
@@ -78,8 +78,8 @@ bool op::v1::FloorMod::has_evaluate() const {
     case ngraph::element::u8:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

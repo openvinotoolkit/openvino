@@ -58,8 +58,8 @@ bool evaluate_softplus(const HostTensorPtr& arg, const HostTensorPtr& out) {
     size_t count = shape_size(arg->get_shape());
 
     switch (arg->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
-        NGRAPH_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
+
+
         NGRAPH_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
     default:
         rc = false;
@@ -81,8 +81,8 @@ bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs, const HostTenso
 bool op::v4::SoftPlus::has_evaluate() const {
     OV_OP_SCOPE(v4_SoftPlus_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::bf16:
-    case ngraph::element::f16:
+    // case ngraph::element::bf16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

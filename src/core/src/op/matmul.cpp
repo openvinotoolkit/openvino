@@ -73,7 +73,7 @@ bool evaluate_matmul(const op::MatMul* op,
         NGRAPH_TYPE_CASE(evaluate_matmul, i64, op, arg0, arg1, output);
         NGRAPH_TYPE_CASE(evaluate_matmul, u32, op, arg0, arg1, output);
         NGRAPH_TYPE_CASE(evaluate_matmul, u64, op, arg0, arg1, output);
-        NGRAPH_TYPE_CASE(evaluate_matmul, f16, op, arg0, arg1, output);
+
         NGRAPH_TYPE_CASE(evaluate_matmul, f32, op, arg0, arg1, output);
     default:
         rc = false;
@@ -96,7 +96,7 @@ bool op::MatMul::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

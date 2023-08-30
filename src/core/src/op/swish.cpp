@@ -100,7 +100,7 @@ bool evaluate_swish(const HostTensorVector& inputs, const HostTensorPtr& out) {
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_swish, f16, arg0, arg1, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_swish, f32, arg0, arg1, out, count);
     default:
         rc = false;
@@ -123,7 +123,7 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
 bool op::v4::Swish::has_evaluate() const {
     OV_OP_SCOPE(v4_Swish_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

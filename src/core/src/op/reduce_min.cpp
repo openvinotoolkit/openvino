@@ -34,7 +34,7 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_min, i64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, u32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, u64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_min, f16, arg, out, axes, keep_dims);
+
         NGRAPH_TYPE_CASE(evaluate_min, f32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, i8, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_min, u8, arg, out, axes, keep_dims);
@@ -80,7 +80,7 @@ bool op::v1::ReduceMin::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

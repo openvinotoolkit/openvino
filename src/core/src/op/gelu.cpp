@@ -120,7 +120,7 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_gelu, f16, arg0, out, mode, count);
+
         NGRAPH_TYPE_CASE(evaluate_gelu, f32, arg0, out, mode, count);
     default:
         rc = false;
@@ -142,7 +142,7 @@ bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVec
 bool op::v7::Gelu::has_evaluate() const {
     OV_OP_SCOPE(v7_Gelu_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

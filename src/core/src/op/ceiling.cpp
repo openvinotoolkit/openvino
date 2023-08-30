@@ -54,7 +54,7 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
         NGRAPH_COPY_TENSOR(evaluate_ceiling, u16, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_ceiling, u32, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_ceiling, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_ceiling, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_ceiling, f32, arg0, out, count);
     default:
         rc = false;
@@ -81,7 +81,7 @@ bool op::Ceiling::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

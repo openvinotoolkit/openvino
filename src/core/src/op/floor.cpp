@@ -59,7 +59,7 @@ bool evaluate_floor(const HostTensorPtr& arg0, const HostTensorPtr& out, const s
         NGRAPH_COPY_TENSOR(evaluate_floor, u16, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_floor, u32, arg0, out, count);
         NGRAPH_COPY_TENSOR(evaluate_floor, u64, arg0, out, count);
-        NGRAPH_TYPE_CASE(evaluate_floor, f16, arg0, out, count);
+
         NGRAPH_TYPE_CASE(evaluate_floor, f32, arg0, out, count);
     default:
         rc = false;
@@ -86,7 +86,7 @@ bool op::Floor::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

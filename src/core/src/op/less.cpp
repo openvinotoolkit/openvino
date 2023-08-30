@@ -40,7 +40,7 @@ bool evaluate_less(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_less, i64, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_less, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_less, u64, arg0, arg1, out, broadcast_spec);
-        NGRAPH_TYPE_CASE(evaluate_less, f16, arg0, arg1, out, broadcast_spec);
+
         NGRAPH_TYPE_CASE(evaluate_less, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
@@ -76,7 +76,7 @@ bool op::v1::Less::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

@@ -95,8 +95,8 @@ bool op::v0::Clamp::has_evaluate() const {
     case ngraph::element::u16:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::bf16:
+    // case ngraph::element::f16:
+    // case ngraph::element::bf16:
     case ngraph::element::f32:
         return true;
     default:

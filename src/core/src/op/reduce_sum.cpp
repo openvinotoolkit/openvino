@@ -48,7 +48,7 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         NGRAPH_TYPE_CASE(evaluate_reduce_sum, i64, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_reduce_sum, u32, arg, out, axes, keep_dims);
         NGRAPH_TYPE_CASE(evaluate_reduce_sum, u64, arg, out, axes, keep_dims);
-        NGRAPH_TYPE_CASE(evaluate_reduce_sum, f16, arg, out, axes, keep_dims);
+
         NGRAPH_TYPE_CASE(evaluate_reduce_sum, f32, arg, out, axes, keep_dims);
     default:
         rc = false;
@@ -79,7 +79,7 @@ bool op::v1::ReduceSum::has_evaluate() const {
     case ngraph::element::i64:
     case ngraph::element::u32:
     case ngraph::element::u64:
-    case ngraph::element::f16:
+    // case ngraph::element::f16:
     case ngraph::element::f32:
         return true;
     default:

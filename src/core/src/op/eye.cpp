@@ -25,8 +25,8 @@ bool evaluate_eye(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
     switch (out->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate, i8, out, diagonal_index);
         NGRAPH_TYPE_CASE(evaluate, u8, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, f16, out, diagonal_index);
-        NGRAPH_TYPE_CASE(evaluate, bf16, out, diagonal_index);
+
+
         NGRAPH_TYPE_CASE(evaluate, i32, out, diagonal_index);
         NGRAPH_TYPE_CASE(evaluate, f32, out, diagonal_index);
         NGRAPH_TYPE_CASE(evaluate, f64, out, diagonal_index);
