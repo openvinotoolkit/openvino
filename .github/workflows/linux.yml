@@ -55,6 +55,10 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_x86_64_Release
       CCACHE_MAXSIZE: 50G
     steps:
+      - name: Install git
+        run: |
+          apt-get install -y git git-lfs
+
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
