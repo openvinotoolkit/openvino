@@ -10,7 +10,7 @@ namespace ov {
 namespace snippets {
 class entryNumpyBroadcasting : public IShapeInferSnippets {
 public:
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
 
@@ -19,30 +19,27 @@ class  BroadcastShapeInfer : public IShapeInferSnippets {
     VectorDims::value_type m_broadcasted_dim;
 public:
     explicit BroadcastShapeInfer(const std::shared_ptr<Node>& n);
-    IShapeInferSnippets::Result
-    infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
-class entryFirstPassthrough : public IShapeInferSnippets {
+class entryFirstPassThrough : public IShapeInferSnippets {
 public:
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override {
+    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for entryFirstPassthrough");
-        std::vector<VectorDims> output_shapes {input_shapes[0].get()};
-        return {std::move(output_shapes), ShapeInferStatus::success};
+        return {{input_shapes[0].get()}, ShapeInferStatus::success};
     }
 };
 
 class entryEmpty : public IShapeInferSnippets {
 public:
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override {
+    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         return {{}, ShapeInferStatus::success};
     }
 };
 
 class entrySingleElement : public IShapeInferSnippets {
 public:
-    IShapeInferSnippets::Result
-    infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override {
+    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         return {{{1}}, ShapeInferStatus::success};
     }
 };
@@ -51,8 +48,7 @@ class SelectShapeInfer : public IShapeInferSnippets {
     ov::op::AutoBroadcastSpec m_broadcast_spec;
 public:
     explicit SelectShapeInfer(const std::shared_ptr<Node>& n);
-    IShapeInferSnippets::Result
-    infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
 } // namespace snippets

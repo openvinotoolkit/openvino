@@ -199,7 +199,7 @@ BrgemmCPU::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
 }
 
 snippets::IShapeInferSnippets::Result
-BrgemmCPU::ShapeInfer::infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes) {
+BrgemmCPU::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?

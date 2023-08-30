@@ -41,11 +41,10 @@ public:
 
     class ShapeInfer : public IShapeInferSnippets {
         std::vector<std::vector<size_t>> m_io_layouts;
-        VectorDims get_reordered_planar_shape(const VectorDims & shape, const std::vector<size_t>& layout);
+        VectorDims get_reordered_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout);
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
-        IShapeInferSnippets::Result
-        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 
 protected:

@@ -722,7 +722,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     ov::snippets::lowered::pass::PassPipeline control_flow_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_pipeline, ov::intel_cpu::pass::FuseLoadStoreConvert);
-    // Todo: We don't need shape infer factory now, since shape infer will be done through validata_and_infer_types
+    // Todo: We don't need shape infer factory now, since shape infer will be done through validate_and_infer_types
     //  pass std::make_shared<snippets::CPUShapeInferSnippetsFactory>() instead of nullptr, when shape infer is performed on LIR
     schedule = snippet_for_generation->generate(backend_passes,
                                                 control_flow_markup_pipeline,

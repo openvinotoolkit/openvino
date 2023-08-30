@@ -36,18 +36,19 @@ ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::
 
 const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry {
         // todo: Parameter and Scalar should be handled separately, since they have no inputs, and infer can't be called
-        SHAPE_INFER_PREDEFINED(op::ConvertTruncation, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(op::ConvertSaturation, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(op::Load, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(op::Store, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(op::Buffer, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(op::Fill, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, entryFirstPassthrough),
+        SHAPE_INFER_PREDEFINED(op::ConvertTruncation, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::ConvertSaturation, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::Load, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::Store, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::Buffer, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(op::Fill, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, entryFirstPassThrough),
         //
         SHAPE_INFER_PREDEFINED(op::LoopBegin, entrySingleElement),
         SHAPE_INFER_PREDEFINED(op::Scalar, entrySingleElement),
+        SHAPE_INFER_PREDEFINED(op::VectorBuffer, entrySingleElement),
         SHAPE_INFER_PREDEFINED(op::LoopEnd, entryEmpty),
         SHAPE_INFER_PREDEFINED(op::Nop, entryEmpty),
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
@@ -58,10 +59,10 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_OP_SPECIFIC(op::Brgemm),
         SHAPE_INFER_OP_SPECIFIC(op::HorizonMax),
         SHAPE_INFER_OP_SPECIFIC(op::HorizonSum),
-        SHAPE_INFER_OP_SPECIFIC(op::VectorBuffer),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
 };
+#undef SHAPE_INFER_OP_SPECIFIC_EXTERNAL
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
 
@@ -72,7 +73,7 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
     } else if (auto shape_infer = factory->make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
-        return std::make_shared<entryFirstPassthrough>();
+        return std::make_shared<entryFirstPassThrough>();
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseLogical>(op)) {

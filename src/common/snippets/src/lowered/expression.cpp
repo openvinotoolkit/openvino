@@ -114,7 +114,7 @@ ExpressionPort Expression::get_output_port(size_t i) {
 void Expression::updateShapes() {
     IShapeInferSnippets::Result result;
     try {
-        std::vector<std::reference_wrapper<const std::vector<size_t>>> input_shapes;
+        std::vector<IShapeInferSnippets::VectorDimsRef> input_shapes;
 
         const auto& in_connectors = get_input_port_connectors();
         const auto& in_descriptors = get_input_port_descriptors();

@@ -59,8 +59,7 @@ public:
         size_t m_brgemmVNNIFactor = 1;
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
-        IShapeInferSnippets::Result
-        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 
 private:
@@ -73,6 +72,7 @@ private:
 
     size_t m_K_blk = 0;
     size_t m_N_blk = 0;
+    size_t m_brgemmVNNIFactor = 1;
 };
 
 } // namespace intel_cpu

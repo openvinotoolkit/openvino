@@ -29,7 +29,7 @@ void HorizonMax::validate_and_infer_types() {
 }
 
 IShapeInferSnippets::Result
-HorizonMax::ShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+HorizonMax::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     auto output_shapes = input_shapes[0].get();
     if (!output_shapes.empty())
         output_shapes.back() = 1;

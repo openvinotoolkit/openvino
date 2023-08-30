@@ -34,11 +34,11 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry {
         // todo: Parameter and Scalar should be handled separately, since they have no inputs, and infer can't be called
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, entryNumpyBroadcasting),
-        SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertSaturation, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, entryFirstPassthrough),
-        SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, entryFirstPassthrough),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertSaturation, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, entryFirstPassThrough),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, entryFirstPassThrough),
         //
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCPU),

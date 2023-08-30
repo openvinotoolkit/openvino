@@ -6,11 +6,11 @@
 #include "openvino/op/select.hpp"
 namespace ov {
 namespace snippets {
+using Result = IShapeInferSnippets::Result;
+using VectorDims = IShapeInferSnippets::VectorDims;
 namespace {
-// broadcast_merge_into for VectorDimp
-bool broadcast_merge_into(IShapeInferSnippets::VectorDims& dst,
-                          const IShapeInferSnippets::VectorDims& src,
-                          const ov::op::AutoBroadcastSpec& autob) {
+// broadcast_merge_into for VectorDims
+bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
     auto broadcast_merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
         if (d1 == d2 || d1 == 1 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
             dst = d2;
@@ -29,7 +29,7 @@ bool broadcast_merge_into(IShapeInferSnippets::VectorDims& dst,
             return true;
         case ov::op::AutoBroadcastType::NUMPY: {
             const auto new_rank = std::max(dst_rank, src_rank);
-            IShapeInferSnippets::VectorDims dims(new_rank);
+            VectorDims dims(new_rank);
             bool success = true;
             for (int64_t i = 0; i < new_rank; i++) {
                 auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
@@ -64,7 +64,7 @@ bool broadcast_merge_into(IShapeInferSnippets::VectorDims& dst,
     }
     return false;
 }
-bool merge_into(IShapeInferSnippets::VectorDims& dst, const IShapeInferSnippets::VectorDims& src) {
+bool merge_into(VectorDims& dst, const VectorDims& src) {
     auto merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
         if (d1 == d2 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
             dst = d2;
@@ -85,9 +85,7 @@ bool merge_into(IShapeInferSnippets::VectorDims& dst, const IShapeInferSnippets:
 }
 } // namespace
 
-
-IShapeInferSnippets::Result
-entryNumpyBroadcasting::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+Result entryNumpyBroadcasting::infer(const std::vector<VectorDimsRef>& input_shapes) {
         size_t max_rank = 0;
         size_t max_rank_idx = 0;
         for (size_t i = 0; i < input_shapes.size(); ++i) {
@@ -115,7 +113,7 @@ entryNumpyBroadcasting::infer(const std::vector<std::reference_wrapper<const Vec
                 }
             }
         }
-        return { { std::move(output_shape) }, ShapeInferStatus::success };
+        return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
 
 template<class BroadcastOP>
@@ -124,14 +122,13 @@ BroadcastShapeInfer<BroadcastOP>::BroadcastShapeInfer(const std::shared_ptr<Node
                       std::is_base_of<snippets::op::BroadcastLoad, BroadcastOP>(),
                       "This ShapeInfer class could be used only for BroadcastMove and BroadcastLoad operations.");
         const auto& broadcast = as_type_ptr<BroadcastOP>(n);
-        OPENVINO_ASSERT(ov::is_type<BroadcastOP>(n), "Invalid node passed to BroadcastShapeInfer.",
+        OPENVINO_ASSERT(broadcast, "Invalid node passed to BroadcastShapeInfer.",
                         "Expected ", typeid(BroadcastOP).name(), "got ", n->get_type_name());
         const auto last_dim = *broadcast->get_output_shape().rbegin();
         m_broadcasted_dim = last_dim.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : last_dim.get_length();
 }
 template<class BroadcastOP>
-IShapeInferSnippets::Result
-BroadcastShapeInfer<BroadcastOP>::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+Result BroadcastShapeInfer<BroadcastOP>::infer(const std::vector<VectorDimsRef>& input_shapes) {
     auto out_shape = input_shapes[0].get();
     out_shape.back() = m_broadcasted_dim;
     return {{out_shape}, ShapeInferStatus::success};
@@ -147,8 +144,7 @@ SelectShapeInfer::SelectShapeInfer(const std::shared_ptr<Node>& n) {
     m_broadcast_spec = select->get_auto_broadcast();
 }
 
-IShapeInferSnippets::Result
-SelectShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+Result SelectShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 3, "Invalid number of shapes passed SelectShapeInfer");
     VectorDims result_shape;
     if (m_broadcast_spec == ov::op::AutoBroadcastType::PDPD) {

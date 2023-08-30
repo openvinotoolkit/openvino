@@ -485,32 +485,14 @@ Subgraph::ngraphShapeInferSnippets::ngraphShapeInferSnippets(const std::shared_p
 }
 
 IShapeInferSnippets::Result
-Subgraph::ngraphShapeInferSnippets::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+Subgraph::ngraphShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
-    for (size_t i = 0; i < m_parameters.size(); ++i) {
-        const auto& in_shape = input_shapes[i].get();
-        std::vector<Dimension> new_shape;
-        std::transform(in_shape.cbegin(), in_shape.cend(), std::back_inserter(new_shape),
-                       [](const VectorDims::value_type &v) {
-                           return v == IShapeInferSnippets::DYNAMIC_DIMENSION ?
-                                  Dimension::dynamic() :
-                                  Dimension(static_cast<Dimension::value_type>(v));
-                      });
-        m_parameters[i]->set_partial_shape(new_shape);
-    }
+    for (size_t i = 0; i < m_parameters.size(); ++i)
+        m_parameters[i]->set_partial_shape(utils::vector_dims_to_partial_shape(input_shapes[i].get()));
     m_ngraph_body->validate_nodes_and_infer_types();
     std::vector<VectorDims> outputDims;
-    for (const auto& res : m_results) {
-        const auto& out_shape = res->get_input_partial_shape(0);
-        VectorDims new_shape;
-        std::transform(out_shape.cbegin(), out_shape.cend(), std::back_inserter(new_shape),
-                       [](const Dimension &d) {
-                           return d.is_dynamic() ?
-                                  IShapeInferSnippets::DYNAMIC_DIMENSION :
-                                  static_cast<VectorDims::value_type>(d.get_length());
-                       });
-        outputDims.emplace_back(std::move(new_shape));
-    }
+    for (const auto& res : m_results)
+        outputDims.emplace_back(utils::partial_shape_to_vector_dims(res->get_input_partial_shape(0)));
     m_last_result = {outputDims, ShapeInferStatus::success};
     return m_last_result;
 }
@@ -527,7 +509,7 @@ Subgraph::LIRShapeInferSnippets::LIRShapeInferSnippets(const std::shared_ptr<low
 }
 
 IShapeInferSnippets::Result
-Subgraph::LIRShapeInferSnippets::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+Subgraph::LIRShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_param_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
     // todo: check that order of param_exprs is always the same as that of input_shapes
     //  if not use io_expr index to sort in constructor

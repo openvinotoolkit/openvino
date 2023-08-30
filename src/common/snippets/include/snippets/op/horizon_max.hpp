@@ -30,8 +30,7 @@ public:
     class ShapeInfer : public IShapeInferSnippets {
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n) {}
-        IShapeInferSnippets::Result
-        infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 };
 

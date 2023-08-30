@@ -18,6 +18,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
     : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
       m_type(type), m_src_type(src_type) {
+    m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
@@ -33,6 +34,7 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
     : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
       m_type(type), m_src_type(src_type) {
+    m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
@@ -82,9 +84,8 @@ void BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::element::Ty
     const auto shape = pshape.get_shape();
     const auto N = *shape.rbegin();
     const auto K = *(shape.rbegin() + 1);
-    const auto brgemmVNNIFactor = 4 / m_src_type.size();
 
-    set_output_type(0, element_type, ov::PartialShape{ov::Dimension(rnd_up(K, brgemmVNNIFactor)),
+    set_output_type(0, element_type, ov::PartialShape{ov::Dimension(rnd_up(K, m_brgemmVNNIFactor)),
                                                       ov::Dimension(rnd_up(N, m_N_blk))});
     if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension(rnd_up(N, m_N_blk))});
@@ -118,13 +119,13 @@ BrgemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     const auto& brg_copyb = ov::as_type_ptr<BrgemmCopyB>(n);
     OPENVINO_ASSERT(brg_copyb, "Got invalid node in BrgemmCopyB::ShapeInfer");
     m_layout = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->input(0))->get_layout();
-    m_num_outs = brg_copyb->is_with_compensations() ? 2 : 1;;
-    m_N_blk = brg_copyb->get_input_element_type(0) == element::bf16 ? 32 : 64;
-    m_brgemmVNNIFactor = 4 / brg_copyb->m_src_type.size();
+    m_num_outs = brg_copyb->get_output_size();
+    m_N_blk = brg_copyb->get_n_block_size();
+    m_brgemmVNNIFactor = brg_copyb->m_brgemmVNNIFactor;
 }
 
 snippets::IShapeInferSnippets::Result
-BrgemmCopyB::ShapeInfer::infer(const std::vector<std::reference_wrapper<const IShapeInferSnippets::VectorDims>>& input_shapes) {
+BrgemmCopyB::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     const auto& old_shape = input_shapes[0].get();
     IShapeInferSnippets::VectorDims planar_shape;

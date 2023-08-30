@@ -197,7 +197,7 @@ Brgemm::ShapeInfer::ShapeInfer(const std::shared_ptr<Node>& n) {
     m_io_layouts.push_back(get_output_layout(n));
 }
 
-Brgemm::ShapeInfer::VectorDims Brgemm::ShapeInfer::get_reordered_planar_shape(const VectorDims & shape, const std::vector<size_t>& layout) {
+Brgemm::ShapeInfer::VectorDims Brgemm::ShapeInfer::get_reordered_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout) {
     if (layout.empty())
         return shape;
     VectorDims reordered_shape(layout.size());
@@ -208,8 +208,7 @@ Brgemm::ShapeInfer::VectorDims Brgemm::ShapeInfer::get_reordered_planar_shape(co
     return reordered_shape;
 }
 
-IShapeInferSnippets::Result
-Brgemm::ShapeInfer:: infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) {
+IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
     const auto& arg0_shape = get_reordered_planar_shape(input_shapes[0], m_io_layouts[0]);
     const auto& arg1_shape = get_reordered_planar_shape(input_shapes[1], m_io_layouts[1]);

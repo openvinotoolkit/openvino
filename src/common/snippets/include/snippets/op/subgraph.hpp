@@ -196,7 +196,7 @@ private:
         ResultVector m_results;
     public:
         explicit ngraphShapeInferSnippets(const std::shared_ptr<ov::Model>& body);
-        Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
     class LIRShapeInferSnippets : public ShapeInferSnippetsNode {
         using IOExpression = lowered::IOExpression;
@@ -205,7 +205,7 @@ private:
         std::vector<std::shared_ptr<IOExpression>> m_result_exprs;
     public:
         explicit LIRShapeInferSnippets(const std::shared_ptr<lowered::LinearIR>& body);
-        Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes) override;
+        Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 };
 

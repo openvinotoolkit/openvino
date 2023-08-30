@@ -13,11 +13,16 @@ using Result = IShapeInfer::Result;
 
 class SnippetShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit SnippetShapeInfer(const std::shared_ptr<snippets::op::Subgraph>& s) : m_subgraph(s) {}
+    explicit SnippetShapeInfer(const std::shared_ptr<snippets::op::Subgraph>& s) : m_subgraph(s) {
+        m_status_map[snippets::ShapeInferStatus::success] = ov::intel_cpu::ShapeInferStatus::success;
+        m_status_map[snippets::ShapeInferStatus::skip] = ov::intel_cpu::ShapeInferStatus::skip;
+    }
     Result infer(
             const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
             const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return {m_subgraph->shape_infer(input_shapes).dims, ShapeInferStatus::success};
+        const auto& snippets_result = m_subgraph->shape_infer(input_shapes);
+        OPENVINO_ASSERT(m_status_map.count(snippets_result.status) != 0, "Failed to map snippets shapeInfer status to the plugin one");
+        return {snippets_result.dims, m_status_map.at(snippets_result.status)};
     }
 
     port_mask_t get_port_mask() const override {
@@ -26,6 +31,7 @@ public:
 
 private:
     std::shared_ptr<snippets::op::Subgraph> m_subgraph;
+    std::map<snippets::ShapeInferStatus, ov::intel_cpu::ShapeInferStatus> m_status_map;
 };
 
 class SnippetShapeInferFactory : public ShapeInferFactory {
