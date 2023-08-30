@@ -15,7 +15,7 @@
 #include <low_precision/fold_fake_quantize.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/fake_quantize_on_weights_and_unsupported_child_function.hpp"
 

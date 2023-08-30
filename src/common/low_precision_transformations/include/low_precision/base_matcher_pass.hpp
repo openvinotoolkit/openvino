@@ -17,7 +17,7 @@ class LP_TRANSFORMATIONS_API BaseMatcherPass;
 }  // namespace pass
 }  // namespace ngraph
 
-class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::BaseMatcherPass : public ngraph::pass::MatcherPass {
+class LP_TRANSFORMATIONS_API ngraph::pass::low_precision::BaseMatcherPass : public ov::pass::MatcherPass {
 public:
     BaseMatcherPass(const AttributeParameters& params = AttributeParameters());
     AttributeParameters params;
