@@ -366,19 +366,17 @@ TEST(constant, int4_vector_broadcast_positive_number) {
 
 TEST(constant, int4_input_value_validation) {
     Shape shape{2};
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, 8), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, -9), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, 8), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, -9), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9, 1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8, 2}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{-9, 1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<int>{8, 2}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}),
-                 ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}),
-                 ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"-9", "1"}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::i4, shape, std::vector<std::string>{"8", "1"}), ::ov::AssertFailure);
 }
 
 //
@@ -855,19 +853,17 @@ TEST(constant, uint4_vector_broadcast) {
 
 TEST(constant, uint4_input_value_validation) {
     Shape shape{2};
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, 16), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, -1), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, 16), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, -1), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ov::AssertFailure);
 
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}),
-                 ::ngraph::CheckFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}),
-                 ::ngraph::CheckFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ov::AssertFailure);
+    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ov::AssertFailure);
 }
 
 //

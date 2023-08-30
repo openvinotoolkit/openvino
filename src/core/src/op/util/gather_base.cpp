@@ -7,6 +7,7 @@
 #include "bound_evaluate.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -115,6 +116,7 @@ bool evaluate_gather(const ngraph::HostTensorPtr& arg0,
                      int64_t batch_dims = 0) {
     bool rc = true;
 
+    using ov::element::Type_t;
     switch (out->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis, batch_dims);
         NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis, batch_dims);

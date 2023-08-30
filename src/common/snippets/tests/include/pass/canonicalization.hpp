@@ -31,7 +31,7 @@ public:
 
 protected:
     void SetUp() override;
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
     Shape expected_output_shape;
     BlockedShapeVector input_blocked_shapes;
     BlockedShapeVector output_blocked_shapes;

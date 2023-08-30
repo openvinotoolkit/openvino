@@ -10,7 +10,7 @@
 #include <transformations/common_optimizations/nonzero_horizontal_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
+using namespace ov;
 using namespace testing;
 
 enum NonZeroType { I32, I64, NONE };

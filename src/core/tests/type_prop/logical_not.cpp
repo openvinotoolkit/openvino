@@ -15,7 +15,7 @@ using namespace testing;
 using LogicalNotTestParam = std::tuple<element::Type, PartialShape>;
 
 namespace {
-using namespace ngraph::element;
+using namespace ov::element;
 constexpr size_t exp_num_of_outputs = 1;
 
 const auto types = Values(boolean, i16, i32, i64, u16, u32, u64, f32, f64);
