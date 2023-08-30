@@ -280,7 +280,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.BUILD_TYPE }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
@@ -288,7 +288,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.BUILD_TYPE }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
@@ -297,6 +297,13 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - BUILD_TYPE: 'static'
+          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -319,13 +326,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -484,7 +491,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-cpp
+          name: test-results-cpp-${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -493,6 +500,13 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - BUILD_TYPE: 'static'
+          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -566,13 +580,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -749,7 +763,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-python
+          name: test-results-python-${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
@@ -758,6 +772,13 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - BUILD_TYPE: 'static'
+          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -775,13 +796,13 @@ jobs:
       - name: Download OpenVINO package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_package
+          name: openvino_package_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@v3
         with:
-          name: openvino_tests
+          name: openvino_tests_${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
@@ -802,6 +823,6 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: test-results-functional-cpu
+          name: test-results-functional-cpu-${{ matrix.BUILD_TYPE }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
