@@ -237,7 +237,31 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
     if isinstance(input_model, tf.Graph):
         return GraphIteratorTFGraph(input_model, share_weights)
     elif isinstance(input_model, tf.types.experimental.ConcreteFunction):
-        return GraphIteratorTFGraph(input_model.graph, share_weights)
+        # ConcreteFunction has inputs and outputs signatures with mapping from external tensor names to internal ones
+        # create input_names_map and output_names_map for creation of GraphIteratorTFGraph
+        input_names_map = None
+        if hasattr(input_model, 'structured_input_signature') and \
+                isinstance(input_model.structured_input_signature, tuple):
+            for item in input_model.structured_input_signature:
+                if not isinstance(item, dict):
+                    continue
+                for external_name, internal_tensor in item.items():
+                    if not isinstance(external_name, str) or not isinstance(internal_tensor, TensorSpec):
+                        continue
+                    if input_names_map is None:
+                        input_names_map = {}
+                    input_names_map[internal_tensor.name] = external_name
+
+        output_names_map = None
+        if hasattr(input_model, 'outputs') and hasattr(input_model, 'structured_outputs'):
+            external_names = sorted(list(input_model.structured_outputs.keys()))
+            internal_names = sorted([tensor.name for tensor in input_model.outputs])
+            if len(external_names) == len(internal_names):
+                for external_name, internal_name in zip(external_names, internal_names):
+                    if output_names_map is None:
+                        output_names_map = {}
+                    output_names_map[internal_name] = external_name
+        return GraphIteratorTFGraph(input_model.graph, share_weights, False, input_names_map, output_names_map)
     raise Exception("Could not wrap model of type {} to GraphIteratorTFGraph.".format(type(input_model)))
 
 
