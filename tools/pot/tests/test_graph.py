@@ -1,18 +1,19 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from addict import Dict
-
 import pytest
+from addict import Dict
+from tests.utils.check_graph import check_model
+from tests.utils.path import HARDWARE_CONFIG_PATH
 
 import openvino.tools.pot.graph.node_utils as nu
-from openvino.tools.pot.graph import load_model
 from openvino.tools.pot.configs.hardware_config import HardwareConfig
+from openvino.tools.pot.graph import load_model
+from openvino.tools.pot.graph.model_utils import (get_node_by_name,
+                                                  get_nodes_by_type)
+from openvino.tools.pot.graph.node_utils import (get_first_convolutions,
+                                                 get_node_inputs)
 from openvino.tools.pot.graph.transformer import GraphTransformer
-from openvino.tools.pot.graph.model_utils import get_nodes_by_type, get_node_by_name
-from openvino.tools.pot.graph.node_utils import get_node_inputs, get_first_convolutions
-from tests.utils.path import HARDWARE_CONFIG_PATH
-from tests.utils.check_graph import check_model
 
 CPU_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'cpu.json'
 GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
@@ -271,6 +272,7 @@ MODELS_WITH_LSTM = [
 
 
 def test_lstm_ends(tmp_path, models):
+    pytest.skip('Skipped due to OpenVINO bug - #118730')
     model_name, model_framework, lstm_ends_ref = MODELS_WITH_LSTM[0]
     model = models.get(model_name, model_framework, tmp_path)
     model = load_model(model.model_params)
