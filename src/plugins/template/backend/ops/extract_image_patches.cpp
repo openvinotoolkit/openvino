@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/extract_image_patches.hpp"
+#include "openvino/reference/extract_image_patches.hpp"
 
 #include "evaluate_node.hpp"
 

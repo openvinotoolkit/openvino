@@ -11,9 +11,9 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/select.hpp"
-#include "ngraph/runtime/reference/fake_quantize.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "openvino/reference/fake_quantize.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/tile.hpp"
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 using namespace testing;
 
 class TypePropTileTest : public TypePropOpTest<op::v0::Tile> {
@@ -18,8 +21,8 @@ protected:
 };
 
 TEST_F(TypePropTileTest, exception_if_repeats_are_float) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{2, 3, 4});
-    const auto repeats = op::Constant::create(element::f32, Shape{3}, {3, 2, 1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{2, 3, 4});
+    const auto repeats = ov::op::v0::Constant::create(element::f32, Shape{3}, {3, 2, 1});
 
     OV_EXPECT_THROW(auto op = make_op(data, repeats),
                     NodeValidationFailure,
@@ -27,8 +30,8 @@ TEST_F(TypePropTileTest, exception_if_repeats_are_float) {
 }
 
 TEST_F(TypePropTileTest, exception_if_repeats_shape_is_not_rank_1) {
-    const auto data = make_shared<op::Parameter>(element::f64, Shape{2, 3, 4});
-    const auto repeats = op::Constant::create(element::i16, Shape{3, 1}, {3, 2, 1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f64, Shape{2, 3, 4});
+    const auto repeats = ov::op::v0::Constant::create(element::i16, Shape{3, 1}, {3, 2, 1});
 
     OV_EXPECT_THROW(auto op = make_op(data, repeats),
                     NodeValidationFailure,
@@ -36,8 +39,8 @@ TEST_F(TypePropTileTest, exception_if_repeats_shape_is_not_rank_1) {
 }
 
 TEST_F(TypePropTileTest, repeats_has_negative_values) {
-    const auto data = make_shared<op::Parameter>(element::i32, PartialShape{-1, 3, 4, {-1, 5}, {4, -1}});
-    const auto repeats = op::Constant::create(element::i8, Shape{5}, {-1, -2, 1, -1, -1});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{-1, 3, 4, {-1, 5}, {4, -1}});
+    const auto repeats = ov::op::v0::Constant::create(element::i8, Shape{5}, {-1, -2, 1, -1, -1});
     auto op = make_op(data, repeats);
 
     EXPECT_EQ(op->get_element_type(), element::i32);
@@ -45,8 +48,8 @@ TEST_F(TypePropTileTest, repeats_has_negative_values) {
 }
 
 TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_lt_data_rank) {
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 8, 10});
-    const auto repeats = make_shared<op::Parameter>(element::i32, Shape{2});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{6, 8, 10});
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
 
     const auto op = make_op(data, repeats);
 
@@ -55,8 +58,8 @@ TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_lt_data_rank) {
 }
 
 TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_gt_data_rank) {
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{6, 8, 10});
-    const auto repeats = make_shared<op::Parameter>(element::i32, Shape{5});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{6, 8, 10});
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, Shape{5});
 
     const auto op = make_op(data, repeats);
 
@@ -65,8 +68,8 @@ TEST_F(TypePropTileTest, repeats_are_undefined_and_its_rank_gt_data_rank) {
 }
 
 TEST_F(TypePropTileTest, data_dynamic_rank_repeats_are_undefined) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto repeats = make_shared<op::Parameter>(element::i32, Shape{5});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, Shape{5});
 
     const auto op = make_op(data, repeats);
 
@@ -75,8 +78,8 @@ TEST_F(TypePropTileTest, data_dynamic_rank_repeats_are_undefined) {
 }
 
 TEST_F(TypePropTileTest, data_and_repeats_are_dynamic_rank) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto repeats = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
 
     const auto op = make_op(data, repeats);
 
@@ -89,13 +92,13 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value_no_repeats) {
     set_shape_labels(p_shape, 1);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
 
-    const auto repeats = op::Constant::create(element::i32, Shape{1}, {1});
+    const auto repeats = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
     const auto op = make_op(labeled_shape_of, repeats);
     const auto bc =
-        std::make_shared<op::v3::Broadcast>(std::make_shared<op::Parameter>(ov::element::i32, PartialShape{1}),
+        std::make_shared<op::v3::Broadcast>(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1}),
                                             op,
                                             "BIDIRECTIONAL");
 
@@ -109,13 +112,13 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
     set_shape_labels(p_shape, 1);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<op::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::ShapeOf>(labeled_param);
+    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
 
-    const auto repeats = op::Constant::create(element::i32, Shape{1}, {2});
+    const auto repeats = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
     const auto op = make_op(labeled_shape_of, repeats);
     const auto bc =
-        std::make_shared<op::v3::Broadcast>(std::make_shared<op::Parameter>(ov::element::i32, PartialShape{1}),
+        std::make_shared<op::v3::Broadcast>(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1}),
                                             op,
                                             "BIDIRECTIONAL");
 
@@ -127,10 +130,10 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
 TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
     auto shape = PartialShape{1, {1, 2}, {-1, 3}, {2, -1}, -1};
     set_shape_labels(shape, 20);
-    const auto p_repeats = std::make_shared<op::Parameter>(element::i64, shape);
-    const auto shape_of_repeats = std::make_shared<op::ShapeOf>(p_repeats);
+    const auto p_repeats = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
+    const auto shape_of_repeats = std::make_shared<op::v0::ShapeOf>(p_repeats);
 
-    auto data = op::Constant::create(element::i64, Shape{2, 2, 2, 1, 1}, {1, 2, 3, 4, 5, 6, 7, 8});
+    auto data = ov::op::v0::Constant::create(element::i64, Shape{2, 2, 2, 1, 1}, {1, 2, 3, 4, 5, 6, 7, 8});
 
     const auto op = make_op(data, shape_of_repeats);
 
@@ -140,8 +143,8 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
 }
 
 TEST_F(TypePropTileTest, repeats_has_dynamic_shape) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
-    const auto repeats = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
 
     const auto op = make_op(data, repeats);
 
@@ -149,8 +152,8 @@ TEST_F(TypePropTileTest, repeats_has_dynamic_shape) {
 }
 
 TEST_F(TypePropTileTest, repeats_has_interval_shape) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
-    const auto repeats = make_shared<op::Parameter>(element::i32, PartialShape{{3, 10}});
+    const auto data = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 10, 2, 5});
+    const auto repeats = make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{{3, 10}});
 
     const auto op = make_op(data, repeats);
 
@@ -222,8 +225,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(TileTest, default_ctor) {
     constexpr auto dt = element::f16;
-    const auto data = make_shared<op::Parameter>(dt, shape_in);
-    const auto repeats = op::Constant::create(element::i64, Shape{repeats_val.size()}, repeats_val);
+    const auto data = make_shared<ov::op::v0::Parameter>(dt, shape_in);
+    const auto repeats = ov::op::v0::Constant::create(element::i64, Shape{repeats_val.size()}, repeats_val);
 
     const auto op = make_op();
     op->set_arguments(OutputVector{data, repeats});
@@ -237,8 +240,8 @@ TEST_P(TileTest, propagate_shapes_and_labels) {
     ASSERT_TRUE(shape_in.rank().is_static()) << "Cannot test labels propagation for dynamic rank.";
 
     constexpr auto dt = element::f32;
-    const auto data = make_shared<op::Parameter>(dt, shape_in);
-    const auto repeats = op::Constant::create(element::i64, Shape{repeats_val.size()}, repeats_val);
+    const auto data = make_shared<ov::op::v0::Parameter>(dt, shape_in);
+    const auto repeats = ov::op::v0::Constant::create(element::i64, Shape{repeats_val.size()}, repeats_val);
 
     const auto op = make_op(data, repeats);
 

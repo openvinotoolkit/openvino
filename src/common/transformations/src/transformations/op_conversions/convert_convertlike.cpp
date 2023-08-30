@@ -5,13 +5,13 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 
 #include <memory>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov;
 

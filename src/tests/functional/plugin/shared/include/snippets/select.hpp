@@ -11,9 +11,9 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        ov::Shape,                   // Input 0 Shape
-        ov::Shape,                   // Input 1 Shape
-        ov::Shape,                   // Input 2 Shape
+        InputShape,                  // Input 0 Shape
+        InputShape,                  // Input 1 Shape
+        InputShape,                  // Input 2 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
@@ -21,10 +21,10 @@ typedef std::tuple<
 > SelectParams;
 
 typedef std::tuple<
-        ov::Shape,                   // Input 0 Shape
-        ov::Shape,                   // Input 1 Shape
-        ov::Shape,                   // Input 2 Shape
-        ov::Shape,                   // Input 3 Shape
+        InputShape,                  // Input 0 Shape
+        InputShape,                  // Input 1 Shape
+        InputShape,                  // Input 2 Shape
+        ov::PartialShape,            // Input 3 Shape
         ov::element::Type,           // Element type
         size_t,                      // Expected num nodes
         size_t,                      // Expected num subgraphs
@@ -52,7 +52,6 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
-
 
 } // namespace snippets
 } // namespace test
