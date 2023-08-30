@@ -781,7 +781,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         auto new_format = lo.get_preferred_format(deconv_node);
         if (new_format == format::b_fs_zyx_fsv16 || new_format == format::bs_fs_zyx_bsv16_fsv16) {
             auto reorder = rf.get_reorder(input.id(), input_layout,
-                layout{ input_layout.data_type, new_format, input_layout.get_tensor() });
+                layout{ input_layout.get_partial_shape(), input_layout.data_type, new_format });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
             }

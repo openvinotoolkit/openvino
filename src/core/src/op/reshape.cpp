@@ -8,11 +8,11 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/reference/reshape.hpp"
 #include "reshape_shape_inference.hpp"
 
 using namespace std;
