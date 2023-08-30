@@ -5,6 +5,7 @@
 #include "snippets/itt.hpp"
 
 #include "snippets/op/load.hpp"
+#include "snippets/utils.hpp"
 
 
 namespace ov {
@@ -74,15 +75,9 @@ LoadReshape::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     OPENVINO_ASSERT(loadReshape, "Got invalid node in LoadReshape::ShapeInfer");
     m_order = loadReshape->m_order;
 }
-IShapeInferSnippets::Result
-LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+IShapeInferSnippets::Result LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
-    const auto& old_shape = input_shapes[0].get();
-    VectorDims new_shape;
-    new_shape.reserve(old_shape.size());
-    for (const auto idx : m_order)
-        new_shape.push_back(old_shape[idx]);
-    return {{new_shape}, ShapeInferStatus::success};
+    return {{utils::lowered::get_planar_shape(input_shapes[0], m_order)}, ShapeInferStatus::success};
 }
 
 }// namespace op

@@ -142,7 +142,7 @@ public:
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
     std::shared_ptr<lowered::LinearIR>
-    convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>());
+    convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory = std::make_shared<IShapeInferSnippetsFactory>()) const;
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);

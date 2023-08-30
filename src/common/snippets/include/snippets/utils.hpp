@@ -10,7 +10,7 @@
 
 #include "snippets_isa.hpp"
 #include "emitter.hpp"
-#include "lowered/shape_inference/shape_types.hpp"
+#include "lowered/shape_types.hpp"
 
 
 namespace ov {

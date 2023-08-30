@@ -130,7 +130,7 @@ void Expression::updateShapes() {
 
         result = m_shapeInference->infer(input_shapes);
     }
-    catch (const std::runtime_error& exp) {
+    catch (const std::exception& exp) {
         OPENVINO_THROW("Shape inference of " + (get_node()->get_friendly_name()) + " failed: " + exp.what());
     }
     const auto& out_descriptors = get_output_port_descriptors();

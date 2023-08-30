@@ -44,7 +44,7 @@
 #include "transformations/utils/utils.hpp"
 
 #include "snippets/pass_manager.hpp"
-#include "ngraph/pass/constant_folding.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
 
@@ -471,7 +471,7 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
 
 IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
     if (!m_shape_infer && !m_linear_ir) {
-        OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empy body");
+        OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empty body");
         m_shape_infer = std::make_shared<ngraphShapeInferSnippets>(body_ptr());
     } else if (!std::dynamic_pointer_cast<LIRShapeInferSnippets>(m_shape_infer) && m_linear_ir) {
         m_shape_infer = std::make_shared<LIRShapeInferSnippets>(m_linear_ir);
@@ -515,7 +515,7 @@ Subgraph::LIRShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_s
     for (size_t i = 0; i < m_param_exprs.size(); ++i) {
         m_param_exprs[i]->get_output_port_descriptor(0)->set_shape(input_shapes[i]);
     }
-    for (auto& expr : *m_lir_body) {
+    for (const auto& expr : *m_lir_body) {
         if (expr->needShapeInfer())
             expr->updateShapes();
     }
@@ -529,14 +529,12 @@ Subgraph::LIRShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_s
 }
 
 std::shared_ptr<lowered::LinearIR>
-Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) {
+Subgraph::convert_body_to_linear_ir(const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory) const {
     lowered::Config lowering_config;
     lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
     lowering_config.m_loop_depth = tileRank;
 
-    // Todo: uncomment this line and return m_linear_ir before pipeline refactoring is merged
-    //m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), factory, lowering_config);
     return std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
 }
 

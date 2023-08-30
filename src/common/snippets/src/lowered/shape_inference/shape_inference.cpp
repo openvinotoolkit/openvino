@@ -35,7 +35,6 @@ ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::
     { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<InferType>(n);} }
 
 const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry {
-        // todo: Parameter and Scalar should be handled separately, since they have no inputs, and infer can't be called
         SHAPE_INFER_PREDEFINED(op::ConvertTruncation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::ConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
@@ -45,6 +44,10 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::op::v0::PRelu, PassThroughShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
         SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
@@ -57,8 +60,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         //
         SHAPE_INFER_OP_SPECIFIC(op::LoadReshape),
         SHAPE_INFER_OP_SPECIFIC(op::Brgemm),
-        SHAPE_INFER_OP_SPECIFIC(op::HorizonMax),
-        SHAPE_INFER_OP_SPECIFIC(op::HorizonSum),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastLoad),
         SHAPE_INFER_OP_SPECIFIC(op::BroadcastMove),
 };

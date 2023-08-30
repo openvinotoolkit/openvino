@@ -51,5 +51,10 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
+class HorizonOpShapeInfer : public IShapeInferSnippets {
+public:
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
+};
+
 } // namespace snippets
 } // namespace ov

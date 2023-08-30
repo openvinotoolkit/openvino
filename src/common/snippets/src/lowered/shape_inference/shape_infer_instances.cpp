@@ -8,7 +8,9 @@ namespace ov {
 namespace snippets {
 using Result = IShapeInferSnippets::Result;
 namespace {
-// broadcast_merge_into for VectorDims
+/*
+ * Merge SRC to DST with broadcasting rules defined by the Autobroadcast specifier
+ */
 bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
     auto broadcast_merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
         if (d1 == d2 || d1 == 1 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
@@ -63,6 +65,9 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
     }
     return false;
 }
+/*
+ * Merge SRC to DST, no broadcasting is allowed
+ */
 bool merge_into(VectorDims& dst, const VectorDims& src) {
     auto merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
         if (d1 == d2 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
@@ -85,32 +90,11 @@ bool merge_into(VectorDims& dst, const VectorDims& src) {
 } // namespace
 
 Result NumpyBroadcastShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-        size_t max_rank = 0;
-        size_t max_rank_idx = 0;
-        for (size_t i = 0; i < input_shapes.size(); ++i) {
-            auto item_rank = input_shapes[i].get().size();
-            if (item_rank > max_rank) {
-                max_rank = item_rank;
-                max_rank_idx = i;
-            }
-        }
-        auto output_shape = input_shapes[max_rank_idx].get();
-        // use NUMPY broadcast rule
-        for (size_t i = 0; i < input_shapes.size(); i++) {
-            if (i == max_rank_idx)
-                continue;
-
-            auto& input_shape = input_shapes[i].get();
-            const size_t offset = max_rank - input_shape.size();
-            for (size_t j = 0; j < input_shape.size(); ++j) {
-                if (input_shape[j] != output_shape[offset + j]) {
-                    if (output_shape[offset + j] == 1) {
-                        output_shape[offset + j] = input_shape[j];
-                    } else if (input_shape[j] != 1) {
-                        OPENVINO_THROW(input_shapes.size() == 1, "Got not broadcastable input shapes");
-                    }
-                }
-            }
+        OPENVINO_ASSERT(!input_shapes.empty(), "No input shapes were provided for NumpyBroadcastShapeInfer");
+        auto output_shape = input_shapes[0].get();
+        for (size_t i = 1; i < input_shapes.size(); i++) {
+            OPENVINO_ASSERT(broadcast_merge_into(output_shape, input_shapes[i], ov::op::AutoBroadcastType::NUMPY),
+                            "Failed to broadcast-merge input shapes in NumpyBroadcastShapeInfer");
         }
         return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
@@ -168,6 +152,14 @@ Result SelectShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         }
     }
     return {{result_shape}, ShapeInferStatus::success};
+}
+
+Result HorizonOpShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes in HorizonShapeInfer");
+    auto output_shapes = input_shapes[0].get();
+    if (!output_shapes.empty())
+        output_shapes.back() = 1;
+    return {{output_shapes}, ShapeInferStatus::success};
 }
 
 } // namespace snippets

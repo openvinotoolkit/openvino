@@ -18,11 +18,9 @@ using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
                                                                         const std::shared_ptr<ov::Node>& op) const {
     const auto& maker_iter = specific_ops_registry.find(key);
-    if (maker_iter != specific_ops_registry.end()) {
+    if (maker_iter != specific_ops_registry.end())
         return maker_iter->second(op);
-    } else {
-        return {};
-    }
+    return {};
 }
 
 
@@ -32,7 +30,6 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<OP::ShapeInfer>(n);} }
 
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry {
-        // todo: Parameter and Scalar should be handled separately, since they have no inputs, and infer can't be called
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertSaturation, PassThroughShapeInfer),
