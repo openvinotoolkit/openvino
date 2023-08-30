@@ -54,7 +54,6 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
@@ -209,7 +208,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MVNFusion>();
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
-        manager.register_pass<ov::pass::BroadcastTransition>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
