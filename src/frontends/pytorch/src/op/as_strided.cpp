@@ -59,7 +59,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     int i = 0;
     auto strides_length_const = v0::Constant::create(element::i32, Shape{1}, {strides.size()});
     auto ones_strides_len = context.mark_node(std::make_shared<v0::Tile>(const_1, strides_length_const));
-    auto indices = const_0->output(0).get_node_shared_ptr();
+    auto indices = const_0;
     std::for_each(strides.rbegin(), strides.rend(), [&](Output<Node>& stride) {
         auto const_num_iter = v0::Constant::create(element::i32, Shape{1}, {strides_size - i});
         stride = context.mark_node(std::make_shared<v0::Convert>(stride, element::i32));
