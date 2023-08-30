@@ -24,8 +24,6 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     size_t count = arg.get_size();
 
     switch (arg.get_element_type()) {
-
-
         NGRAPH_TYPE_CASE(evaluate_softsign, f32, arg, out, count);
         NGRAPH_TYPE_CASE(evaluate_softsign, f64, arg, out, count);
     default:

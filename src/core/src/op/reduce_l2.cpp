@@ -42,8 +42,6 @@ bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet&
 bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     bool rc = true;
     switch (arg->get_element_type()) {
-
-
         NGRAPH_TYPE_CASE(evaluate_reduce_l2, f32, arg, out, axes, keep_dims);
     default:
         rc = false;

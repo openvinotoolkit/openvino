@@ -45,7 +45,6 @@ bool evaluate_negative(const HostTensorPtr& arg0, const HostTensorPtr& out, cons
         NGRAPH_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
 
-
         NGRAPH_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
     default:
         rc = false;

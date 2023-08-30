@@ -45,8 +45,6 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
     out->set_unary(arg);
 
     switch (arg->get_element_type()) {
-
-
         NGRAPH_TYPE_CASE(evaluate_hswish, f32, arg, out, count);
     default:
         rc = false;

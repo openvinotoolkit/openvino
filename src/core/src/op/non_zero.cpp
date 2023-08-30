@@ -142,7 +142,6 @@ bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
         NGRAPH_TYPE_CASE(evaluate_nonzero, u32, input, output);
         NGRAPH_TYPE_CASE(evaluate_nonzero, u64, input, output);
 
-
         NGRAPH_TYPE_CASE(evaluate_nonzero, f32, input, output);
         NGRAPH_TYPE_CASE(evaluate_nonzero, f64, input, output);
     default:

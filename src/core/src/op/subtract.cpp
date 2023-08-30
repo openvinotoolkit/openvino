@@ -80,7 +80,7 @@ bool op::v1::Subtract::has_evaluate() const {
     case ngraph::element::u64:
     // case ngraph::element::f16:
     case ngraph::element::f32:
-    // case ngraph::element::bf16:
+        // case ngraph::element::bf16:
         return true;
     default:
         break;

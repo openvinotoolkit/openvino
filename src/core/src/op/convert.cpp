@@ -113,7 +113,6 @@ bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out) {
         NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, i64, arg, out);
 
-
         NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, f64, arg, out);
         NGRAPH_TYPE_CASE(evaluate_convert, boolean, arg, out);

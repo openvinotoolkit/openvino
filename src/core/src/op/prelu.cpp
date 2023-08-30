@@ -52,7 +52,6 @@ bool evaluate_prelu(const ngraph::HostTensorPtr& arg,
     switch (arg->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out);
 
-
         NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out);
     default:
         rc = false;

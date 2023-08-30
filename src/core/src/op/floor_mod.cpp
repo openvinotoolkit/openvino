@@ -53,7 +53,6 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec);
 
-
         NGRAPH_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;

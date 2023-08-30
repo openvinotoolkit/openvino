@@ -182,8 +182,6 @@ bool evaluate_power(const HostTensorPtr& out,
                     int version) {
     bool rc = true;
     switch (output_type) {
-
-
         NGRAPH_TYPE_CASE(evaluate_range, f32, out, start, stop, step, version);
         NGRAPH_TYPE_CASE(evaluate_range, f64, out, start, stop, step, version);
         NGRAPH_TYPE_CASE(evaluate_range, i8, out, start, stop, step, version);

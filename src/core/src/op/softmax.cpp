@@ -28,8 +28,6 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
     bool rc = true;
 
     switch (arg->get_element_type()) {
-
-
         NGRAPH_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
         NGRAPH_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
     default:

@@ -44,7 +44,6 @@ bool evaluate_add(const HostTensorPtr& arg0,
         NGRAPH_TYPE_CASE(evaluate_add, u32, arg0, arg1, out, broadcast_spec);
         NGRAPH_TYPE_CASE(evaluate_add, u64, arg0, arg1, out, broadcast_spec);
 
-
         NGRAPH_TYPE_CASE(evaluate_add, f32, arg0, arg1, out, broadcast_spec);
     default:
         rc = false;
