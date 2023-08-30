@@ -118,6 +118,7 @@ public:
 
 protected:
     void SetUp() override {
+        using PassPosition = ov::snippets::pass::Manager::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
         size_t add_input_idx;
@@ -126,7 +127,7 @@ protected:
         snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 
         // Note: this inserts MulAddToFMA at the end of the pipeline
-        backend_passes.emplace_back(ov::snippets::pass::Manager::PassPosition("", true),
+        backend_passes.emplace_back(PassPosition(PassPosition::Place::PipelineEnd),
                                     std::make_shared<ov::intel_cpu::pass::MulAddToFMA>());
 
         std::vector<ov::Node::type_info_t> custom_opset{ov::intel_cpu::FusedMulAdd::get_type_info_static()};

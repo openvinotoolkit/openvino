@@ -35,14 +35,16 @@ public:
     * @ingroup snippets
     */
     class PassPosition {
+    public:
+        enum class Place {Before, After, PipelineStart, PipelineEnd};
+        using PassListType = std::vector<std::shared_ptr<ov::pass::PassBase>>;
+        explicit PassPosition(Place pass_place);
+        explicit PassPosition(Place pass_place, std::string pass_name, size_t pass_instance = 0);
+        PassListType::const_iterator get_insert_position(const PassListType& pass_list) const;
+    private:
         const std::string m_pass_name;
         const size_t m_pass_instance{0};
-        const bool m_after{false};
-
-    public:
-        using PassListType = std::vector<std::shared_ptr<ov::pass::PassBase>>;
-        explicit PassPosition(std::string pass_name, bool after = false, size_t pass_instance = 0);
-        PassListType::const_iterator get_insert_position(const PassListType& pass_list) const;
+        const Place m_place{Place::Before};
     };
     struct PositionedPass {
         PassPosition position;

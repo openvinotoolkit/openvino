@@ -695,28 +695,29 @@ bool Snippet::SnippetJitExecutor::optimizeExecDomain(std::vector<VectorDims>& in
 
 void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp) {
     using Manager = snippets::pass::Manager;
+    using PassPosition = snippets::pass::Manager::PassPosition;
+    using Place = snippets::pass::Manager::PassPosition::Place;
     std::vector<Manager::PositionedPass> backend_passes;
 
-#define SNIPPETS_ADD_POS_PASS(POS, PASS, ...) \
-            backend_passes.emplace_back(Manager::PassPosition(POS), std::make_shared<PASS>(__VA_ARGS__))
+#define SNIPPETS_REGISTER_PASS(PASS_POS, PASS, ...) \
+            backend_passes.emplace_back(PASS_POS, std::make_shared<PASS>(__VA_ARGS__))
 
-    SNIPPETS_ADD_POS_PASS("", ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ConvertToSwishCPU);
     if (enforceBF16 && snippet_for_generation->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be ran later again for case if BF16 enforcement is not happened
-        SNIPPETS_ADD_POS_PASS("", ov::snippets::pass::MatMulToBrgemm);
-        SNIPPETS_ADD_POS_PASS("", pass::EnforcePrecision, element::f32, element::bf16);
+        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), ov::snippets::pass::MatMulToBrgemm);
+        SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineStart), pass::EnforcePrecision, element::f32, element::bf16);
     }
 
-    SNIPPETS_ADD_POS_PASS("PropagatePrecision", ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    SNIPPETS_ADD_POS_PASS("PropagatePrecision", ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::Before, "PropagatePrecision"), ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
 
-    const auto& pipeline_end = Manager::PassPosition("", true);
-    SNIPPETS_ADD_POS_PASS(pipeline_end, ov::intel_cpu::pass::RemoveConverts);
-    SNIPPETS_ADD_POS_PASS(pipeline_end, ov::intel_cpu::pass::MulAddToFMA);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS(PassPosition(Place::PipelineEnd), ov::intel_cpu::pass::MulAddToFMA);
 
-#undef SNIPPETS_ADD_POS_PASS
+#undef SNIPPETS_REGISTER_PASS
 
     ov::snippets::lowered::pass::PassPipeline control_flow_markup_pipeline;
     CPU_REGISTER_PASS_X64(control_flow_markup_pipeline, ov::intel_cpu::pass::BrgemmBlocking);

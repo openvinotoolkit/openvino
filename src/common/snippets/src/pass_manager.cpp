@@ -7,17 +7,18 @@
 namespace ov {
 namespace snippets {
 namespace pass {
-
-Manager::PassPosition::PassPosition(std::string pass_name, bool after, size_t pass_instance)
-: m_pass_name(std::move(pass_name)), m_pass_instance(pass_instance), m_after(after) {
-    OPENVINO_ASSERT((!m_pass_name.empty()) || (m_pass_instance == 0),
-                    "Non-zero pass_instance is not allowed if pass_name is not provided");
+Manager::PassPosition::PassPosition(Place pass_place) : m_place(pass_place) {
+    OPENVINO_ASSERT(m_place == Place::PipelineStart || m_place == Place::PipelineEnd,
+                    "Invalid arg: pass_name and pass_instance args could be omitted only for Place::PipelineStart/Place::PipelineEnd");
+}
+Manager::PassPosition::PassPosition(Place pass_place, std::string pass_name, size_t pass_instance)
+: m_pass_name(std::move(pass_name)), m_pass_instance(pass_instance), m_place(pass_place) {
+    OPENVINO_ASSERT((m_place == Place::Before || m_place == Place::After) && !m_pass_name.empty(),
+                    "Invalid args combination: pass_place must be Place::Before/Place::After and pass_name must be non-empty");
 }
 
 Manager::PassPosition::PassListType::const_iterator
 Manager::PassPosition::get_insert_position(const PassListType& pass_list) const {
-    if (m_pass_name.empty())
-        return m_after ? pass_list.cend() : pass_list.cbegin();
     size_t pass_count = 0;
     auto match = [this, &pass_count](const std::shared_ptr<PassBase>& p) {
         auto name = p->get_name();
@@ -38,11 +39,18 @@ Manager::PassPosition::get_insert_position(const PassListType& pass_list) const 
         }
         return false;
     };
-    auto insert_it = std::find_if(pass_list.cbegin(), pass_list.cend(), match);
-    OPENVINO_ASSERT(insert_it != pass_list.cend(), "snippets::pass::Manager failed to find pass ", m_pass_name);
-    if (m_after)
-        std::advance(insert_it, 1);
-    return insert_it;
+    switch (m_place) {
+        case Place::PipelineStart: return pass_list.cbegin();
+        case Place::PipelineEnd: return pass_list.cend();
+        case Place::Before:
+        case Place::After: {
+            auto insert_it = std::find_if(pass_list.cbegin(), pass_list.cend(), match);
+            OPENVINO_ASSERT(insert_it != pass_list.cend(), "snippets::pass::Manager failed to find pass ", m_pass_name);
+            return m_place == Place::After ?  std::next(insert_it) : insert_it;
+        }
+        default:
+            OPENVINO_THROW("Unsupported Place type in PassPosition::get_insert_position");
+    }
 }
 
 std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPosition& position,
