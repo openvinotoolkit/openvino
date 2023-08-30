@@ -24,9 +24,9 @@ OutputVector translate_as_strided(const NodeContext& context) {
     // "aten::as_strided(Tensor(a) self, SymInt[] size, SymInt[] stride, SymInt? storage_offset=None) -> Tensor(a)"
     num_inputs_check(context, 3, 4);
     auto input = context.get_input(0);
-    auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-    auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto const_neg_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto flat_input = context.mark_node(std::make_shared<v1::Reshape>(input, const_neg_1, false));
 
     std::deque<Output<Node>> sizes;
