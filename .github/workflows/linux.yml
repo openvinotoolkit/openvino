@@ -30,6 +30,13 @@ jobs:
       run:
         shell: bash
     runs-on: ubuntu-latest-8-cores
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+          - BUILD_TYPE: 'static'
+          - BUILD_TYPE: 'dynamic'
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -127,11 +134,11 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ github.job }}-linux
+          key: linux-${{ matrix.BUILD_TYPE }}
           restore-keys: |
-            ${{ github.job }}-linux
+            linux-${{ matrix.BUILD_TYPE }}
 
       - name: Get tools versions
         run: |
@@ -154,12 +161,12 @@ jobs:
             -DENABLE_PYTHON=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_SHARED_LIBS=${{ matrix.BUILD_TYPE == 'static' && 'OFF' || 'ON' }} \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DENABLE_OV_ONNX_FRONTEND=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_FASTER_BUILD=ON \
+            -DENABLE_FASTER_BUILD=${{ matrix.BUILD_TYPE == 'static' && 'ON' || 'OFF' }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
