@@ -4,8 +4,7 @@
 
 #include "openvino/runtime/variable_state.hpp"
 
-#include <gmock/gmock-spec-builders.h>
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/infer_request.hpp"
@@ -160,22 +159,22 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetName) {
     EXPECT_STREQ(state.front().get_name().c_str(), "someName");
 }
 
-// TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
-//     std::vector<ov::SoPtr<ov::IVariableState>> toReturn;
-//     ov::SoPtr<ov::ITensor> saver;
-//     toReturn.push_back(mock_variable_state);
-//
-//     EXPECT_CALL(*mock_infer_request.get(), query_state()).WillRepeatedly(Return(toReturn));
-//     EXPECT_CALL(*mock_variable_state.get(), set_state(_)).WillOnce(SaveArg<0>(&saver));
-//
-//     float data[] = {123, 124, 125};
-//     auto stateBlob = ov::Tensor(ov::element::f32, {3}, data);
-//
-//     EXPECT_NO_THROW(req.query_state().front().set_state(stateBlob));
-//     ASSERT_FLOAT_EQ(saver->data<float>()[0], 123);
-//     ASSERT_FLOAT_EQ(saver->data<float>()[1], 124);
-//     ASSERT_FLOAT_EQ(saver->data<float>()[2], 125);
-// }
+TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {
+    std::vector<ov::SoPtr<ov::IVariableState>> toReturn;
+    ov::SoPtr<ov::ITensor> saver;
+    toReturn.push_back(mock_variable_state);
+
+    EXPECT_CALL(*mock_infer_request.get(), query_state()).WillRepeatedly(Return(toReturn));
+    EXPECT_CALL(*mock_variable_state.get(), set_state(_)).WillOnce(SaveArg<0>(&saver));
+
+    float data[] = {123, 124, 125};
+    auto stateBlob = ov::Tensor(ov::element::f32, {3}, data);
+
+    EXPECT_NO_THROW(req.query_state().front().set_state(stateBlob));
+    ASSERT_FLOAT_EQ(saver->data<float>()[0], 123);
+    ASSERT_FLOAT_EQ(saver->data<float>()[1], 124);
+    ASSERT_FLOAT_EQ(saver->data<float>()[2], 125);
+}
 
 TEST_F(VariableStateTests, DISABLED_InfReqVariableStateCanPropagateGetLastState) {
     std::vector<ov::SoPtr<ov::IVariableState>> toReturn;
