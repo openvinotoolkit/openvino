@@ -576,8 +576,8 @@ void Subgraph::data_flow_transformations(const std::vector<snippets::pass::Manag
 }
 
 void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
-                                            const lowered::pass::PassPipeline& pre_common,
-                                            const lowered::pass::PassPipeline& post_common) {
+                                            const lowered::pass::PassPipeline& backend_passes_pre_common,
+                                            const lowered::pass::PassPipeline& backend_passes_post_common) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::control_flow_transformations")
 
@@ -586,7 +586,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     // Ticket: 113666
     // TODO: Make pass pipeline with backend passes more flexible
-    pre_common.run(linear_ir);
+    backend_passes_pre_common.run(linear_ir);
 
     lowered::pass::PassPipeline common_pipeline;
     common_pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
@@ -603,7 +603,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
     common_pipeline.register_pass<lowered::pass::InsertLoops>();
     common_pipeline.run(linear_ir);
 
-    post_common.run(linear_ir);
+    backend_passes_post_common.run(linear_ir);
 
     const auto buffer_allocation_pass = std::make_shared<lowered::pass::AllocateBuffers>();
     lowered::pass::PassPipeline buffer_pipeline;
@@ -629,27 +629,27 @@ snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,
 
 snippets::Schedule Subgraph::generate(const BlockedShapeVector& output_shapes,
                                       const BlockedShapeVector& input_shapes,
-                                      const std::vector<pass::Manager::PositionedPass>& backend_passes,
-                                      const lowered::pass::PassPipeline& pre_common,
-                                      const lowered::pass::PassPipeline& post_common,
+                                      const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                      const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                      const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                       const void* compile_params) {
     canonicalize(output_shapes, input_shapes);
-    return generate(backend_passes, pre_common, post_common, compile_params);
+    return generate(data_flow_passes, control_flow_passes_pre_common, control_flow_passes_post_common, compile_params);
 }
 
 snippets::Schedule Subgraph::generate(const void* compile_params) {
     return generate({}, {}, {}, compile_params);
 }
 
-snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::PositionedPass>& backend_passes,
-                                      const lowered::pass::PassPipeline& pre_common,
-                                      const lowered::pass::PassPipeline& post_common,
+snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                      const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                      const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                       const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
-    data_flow_transformations(backend_passes);
+    data_flow_transformations(data_flow_passes);
 
     lowered::Config lowering_config;
     lowering_config.m_save_expressions = config.m_has_domain_sensitive_ops;
@@ -657,7 +657,7 @@ snippets::Schedule Subgraph::generate(const std::vector<pass::Manager::Positione
     lowering_config.m_loop_depth = tileRank;
 
     lowered::LinearIR linear_ir = lowered::LinearIR(body_ptr(), lowering_config);
-    control_flow_transformations(linear_ir, pre_common, post_common);
+    control_flow_transformations(linear_ir, control_flow_passes_pre_common, control_flow_passes_post_common);
 
     // actual code emission
     const auto& lowering_result = m_generator->generate(linear_ir, lowering_config, compile_params);

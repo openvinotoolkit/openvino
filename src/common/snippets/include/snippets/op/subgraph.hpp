@@ -99,14 +99,14 @@ public:
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
     snippets::Schedule generate(const BlockedShapeVector& output_shapes,
                                 const BlockedShapeVector& input_shapes,
-                                const std::vector<pass::Manager::PositionedPass>& backend_passes,
-                                const lowered::pass::PassPipeline& pre_common,
-                                const lowered::pass::PassPipeline& post_common,
+                                const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(const std::vector<pass::Manager::PositionedPass>& backend_passes,
-                                const lowered::pass::PassPipeline& pre_common,
-                                const lowered::pass::PassPipeline& post_common,
+    snippets::Schedule generate(const std::vector<pass::Manager::PositionedPass>& data_flow_passes,
+                                const lowered::pass::PassPipeline& control_flow_passes_pre_common,
+                                const lowered::pass::PassPipeline& control_flow_passes_post_common,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
@@ -142,8 +142,8 @@ private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void data_flow_transformations(const std::vector<snippets::pass::Manager::PositionedPass>& backend_passes);
     void control_flow_transformations(lowered::LinearIR& linear_ir,
-                                      const lowered::pass::PassPipeline& pre_common,
-                                      const lowered::pass::PassPipeline& post_common);
+                                      const lowered::pass::PassPipeline& backend_passes_pre_common,
+                                      const lowered::pass::PassPipeline& backend_passes_post_common);
     void init_config();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)

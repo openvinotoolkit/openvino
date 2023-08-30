@@ -69,7 +69,7 @@ public:
     }
 
     std::shared_ptr<PassBase> register_pass_instance(const PassPosition& pass_id, const std::shared_ptr<PassBase>& pass);
-    void register_positioned_passes(const std::vector<PositionedPass>& backend_passes);
+    void register_positioned_passes(const std::vector<PositionedPass>& pos_passes);
 
 protected:
     std::shared_ptr<Manager::PassBase> insert_pass_instance(const PassPosition& position, const std::shared_ptr<PassBase>& pass);

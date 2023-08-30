@@ -51,9 +51,9 @@ std::shared_ptr<Manager::PassBase> Manager::register_pass_instance(const PassPos
     return insert_pass_instance(position, pass);
 }
 
-void Manager::register_positioned_passes(const std::vector<PositionedPass>& backend_passes) {
-    for (const auto& pos_pass : backend_passes)
-        register_pass_instance(pos_pass.position, pos_pass.pass);
+void Manager::register_positioned_passes(const std::vector<PositionedPass>& pos_passes) {
+    for (const auto& pp : pos_passes)
+        register_pass_instance(pp.position, pp.pass);
 }
 
 std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosition& position,
