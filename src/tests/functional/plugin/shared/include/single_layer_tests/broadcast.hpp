@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-TEST_P(BroadcastLayerTestLegacy, CompareWithRefs) {
+TEST_P(BroadcastLayerTest, CompareWithRefs) {
     Run();
 }
 }  // namespace LayerTestsDefinitions
@@ -16,7 +16,7 @@ TEST_P(BroadcastLayerTestLegacy, CompareWithRefs) {
 namespace ov {
 namespace test {
 
-TEST_P(BroadcastLayerTest, CompareWithRefs) {
+TEST_P(BroadcastLayerTestNew, CompareWithRefs) {
     run();
 }
 
