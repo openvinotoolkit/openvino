@@ -33,7 +33,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     std::deque<Output<Node>> strides;
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(1).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(1);
-        std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int input_val) {
+        std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
             auto const_input = v0::Constant::create(element::i32, Shape{}, {input_val});
             sizes.push_front(const_input);
         });
@@ -42,7 +42,7 @@ OutputVector translate_as_strided(const NodeContext& context) {
     }
     if (std::dynamic_pointer_cast<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr())) {
         auto input_vector = context.const_input<std::vector<int64_t>>(2);
-        std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int input_val) {
+        std::for_each(input_vector.rbegin(), input_vector.rend(), [&](int64_t input_val) {
             auto const_input = v0::Constant::create(element::i32, Shape{}, {input_val});
             strides.push_front(const_input);
         });
