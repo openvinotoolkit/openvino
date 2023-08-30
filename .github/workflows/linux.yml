@@ -57,6 +57,7 @@ jobs:
     steps:
       - name: Install git
         run: |
+          apt-get update
           apt-get install -y git git-lfs
 
       - name: Clone OpenVINO
