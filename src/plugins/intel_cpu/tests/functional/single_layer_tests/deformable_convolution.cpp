@@ -632,5 +632,39 @@ INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest8, DefConvLayerCPUTest, params8, DefCo
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest9, DefConvLayerCPUTest, params9, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest10, DefConvLayerCPUTest, params10, DefConvLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(DefConvLayoutTest11, DefConvLayerCPUTest, params11, DefConvLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<size_t>> blockMultigroupChParam = {
+    {2}, // gr.
+    {1}, // def. gr.
+    {16}, // in. ch. per gr.
+    {16} // out. ch. per gr.
+};
+const std::vector<std::vector<size_t>> blockMultigroupSpatParam = {
+    {1}, // batch
+    {2, 2}, // in. spat. shape
+    {2, 2}, // off. spat. shape
+    {1, 1} // ker. spat. shape
+};
+const auto blockMultigroupAddParam = ::testing::Combine(
+    ::testing::Values(true),  // with_bilinear_interpolation_pad
+    ::testing::Values(false),  // with_modulation
+    ::testing::Values(OffsetType::ZERO)  // offset type
+);
+const auto blockMultigroupKernelParam = ::testing::Combine(
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),  // pad. type
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. begin
+        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),  // pad. end
+        ::testing::Values(std::vector<size_t> {1, 1}),  // strides
+        ::testing::Values(std::vector<size_t> {1, 1})  // dilations
+);
+const auto blockMultigroupParam = ::testing::Combine(
+                        ::testing::Combine(
+                            blockMultigroupKernelParam,
+                            ::testing::ValuesIn(static_shapes_to_test_representation(buildStaticParams(blockMultigroupSpatParam, blockMultigroupChParam))),
+                            blockMultigroupAddParam,
+                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        ::testing::ValuesIn(filterCPUInfoForDevice(true)));
+INSTANTIATE_TEST_SUITE_P(blockMultigroupDefConvTest, DefConvLayerCPUTest, blockMultigroupParam, DefConvLayerCPUTest::getTestCaseName);
 } // namespace
 } // namespace CPULayerTestsDefinitions
