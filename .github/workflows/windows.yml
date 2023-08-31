@@ -664,7 +664,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: windows-latest-8-cores
+    runs-on: windows-latest-16-cores
     env:
       INSTALL_DIR: "${{ github.workspace }}\\install"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
