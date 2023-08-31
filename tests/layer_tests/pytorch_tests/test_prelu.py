@@ -18,14 +18,14 @@ class TestPRelu(PytorchLayerTest):
         class aten_prelu(torch.nn.Module):
             def __init__(self, alpha):
                 super(aten_prelu, self).__init__()
-                self.alpha = alpha
+                self.alpha = torch.Tensor([alpha])
 
             def forward(self, x):
                 return x, F.prelu(x, self.alpha)
 
         ref_net = None
 
-        return aten_prelu(alpha), ref_net, "aten:prelu"
+        return aten_prelu(alpha), ref_net, "aten::prelu"
 
     @pytest.mark.parametrize("alpha", [0.01, 1.01, -0.01])
     @pytest.mark.nightly
