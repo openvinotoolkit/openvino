@@ -338,7 +338,9 @@ public:
                             cond->set_then_body(body_then_generator->get_function());
                             cond->set_input(data, body_then_generator->get_input(), body_else_generator->get_input());
                             cond->set_output(body_then_generator->get_result(), body_else_generator->get_result());
-                            auto result = std::make_shared<ngraph::opset1::Result>(cond);
+                            auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(cond);
+                            auto shapeOf2 = std::make_shared<ngraph::opset3::ShapeOf>(shapeOf);
+                            auto result = std::make_shared<ngraph::opset1::Result>(shapeOf2);
                             result->set_friendly_name("outer_result");
                             function = std::make_shared<ngraph::Function>(ngraph::OutputVector {result}, params);
                         }
@@ -625,7 +627,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         ov::Shape input_shape;
         for (auto& shape : targetInputStaticShapes) {
-            if (shape.size() > 1) {
+            if (shape.size() >= 1) {
                 input_shape = shape;
                 break;
             }
@@ -686,10 +688,6 @@ const std::vector<InnerBodyTypeParams> innerBodyTypes_f32 = {
         InnerBodyGenerator::InnerBodyType::Type02,
         InnerBodyGenerator::InnerBodyType::Type03
     },
-    {
-        InnerBodyGenerator::InnerBodyType::Type02,
-        InnerBodyGenerator::InnerBodyType::Type06
-    }
 };
 
 const std::vector<InnerBodyTypeParams> innerBodyTypes_f16 = {
@@ -730,4 +728,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_dynamic_f16, DynamicConditionLay
                     testing::ValuesIn(condTypes),                                       // cond type
                     testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),         // device type
                 DynamicConditionLayerGPUTest::getTestCaseName);
+
+
+const std::vector<ov::test::InputShape> dynamicInputShapes_zero = {
+    ov::test::InputShape(ov::PartialShape({-1}), {{24}, {64}, {8}})
+};
+
+const std::vector<InnerBodyTypeParams> innerBodyTypes_zero = {
+    {
+        InnerBodyGenerator::InnerBodyType::Type02,
+        InnerBodyGenerator::InnerBodyType::Type06
+    },
+};
+
+const std::vector<InferenceEngine::Precision> netPrecisions_zero = {
+    InferenceEngine::Precision::FP16
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConditionGPUTest_dynamic_zero, DynamicConditionLayerGPUTest,
+                testing::Combine(
+                    testing::ValuesIn(dynamicInputShapes_zero),                          // input shapes
+                    testing::ValuesIn(innerBodyTypes_zero),                              // inner body type
+                    testing::ValuesIn(netPrecisions_zero),                               // network precision
+                    testing::ValuesIn(condTypes),                                       // cond type
+                    testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),         // device type
+                DynamicConditionLayerGPUTest::getTestCaseName);
+
 } // namespace GPULayerTestsDefinitions

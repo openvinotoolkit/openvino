@@ -241,6 +241,11 @@ void createClDnnConstant(ProgramBuilder& p, const ov::Shape& constDims, const st
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
+        if (constLayout.is_static() && constLayout.count() == 0) {
+            // Convert zero dimension constant layout to 1 dimension to fix the issue
+            // that memory allocation is failed on windows when constant layout is zero dimension.
+            constLayout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+        }
         cldnn::memory::ptr mem = p.get_engine().allocate_memory(constLayout, false);
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
