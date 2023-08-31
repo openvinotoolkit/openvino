@@ -752,9 +752,9 @@ jobs:
     runs-on: ubuntu-latest-4-cores
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${INSTALL_DIR}/tests
-      PARALLEL_TEST_SCRIPT: ${INSTALL_TEST_DIR}/functional_test_utils/run_parallel.py
-      PARALLEL_TEST_CACHE: ${INSTALL_TEST_DIR}/test_cache.lst
+      INSTALL_TEST_DIR: ${{ env.INSTALL_DIR }}/tests
+      PARALLEL_TEST_SCRIPT: ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ env.INSTALL_TEST_DIR }}/test_cache.lst
 
     steps:
       - name: Create Directories
