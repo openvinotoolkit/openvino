@@ -139,7 +139,8 @@ public:
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             bool is_internal);
 
-    explicit program(engine& engine);
+    explicit program(engine& engine,
+                const ExecutionConfig& config = {});
     ~program();
     engine& get_engine() const { return _engine; }
     const ExecutionConfig& get_config() const { return _config; }
@@ -283,6 +284,7 @@ private:
     bool is_body_program;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
+    const int _num_async_build_threads = 1;
     std::unique_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;

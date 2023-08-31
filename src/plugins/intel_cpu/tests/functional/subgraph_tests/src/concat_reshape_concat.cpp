@@ -79,8 +79,10 @@ public:
         auto& InputShapes = this->GetParam();
         ASSERT_EQ(InputShapes.size(), number_of_params) << "Unexpected number of input shapes";
         init_input_shapes(InputShapes);
-        auto input_params = ngraph::builder::makeDynamicParams(netPrc, inputDynamicShapes);
-
+        ov::ParameterVector input_params;
+        for (auto&& shape : inputDynamicShapes) {
+            input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
+        }
         ov::NodeVector first_level_reshapes;
 
         for (size_t i = 0; i < number_of_params; ++i) {

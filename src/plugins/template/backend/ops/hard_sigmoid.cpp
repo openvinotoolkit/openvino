@@ -4,7 +4,7 @@
 
 // clang-format off
 #include "evaluate_node.hpp"
-#include "ngraph/runtime/reference/hard_sigmoid.hpp"
+#include "openvino/reference/hard_sigmoid.hpp"
 // clang-format on
 
 template <ngraph::element::Type_t ET>

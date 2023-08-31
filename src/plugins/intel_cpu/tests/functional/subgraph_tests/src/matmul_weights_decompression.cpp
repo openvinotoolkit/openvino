@@ -37,7 +37,8 @@ using MatmulWeightsDecompressionParams = std::tuple<std::vector<InputShape>,  //
                                                     bool,                     // decompression subtract
                                                     bool,                     // reshape on decompression constants
                                                     std::map<std::string, std::string>,  // additional config
-                                                    fusingSpecificParams>;
+                                                    fusingSpecificParams,
+                                                    bool>; // should use decompression implementation
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
                                   virtual public SubgraphBaseTest,
@@ -51,6 +52,7 @@ public:
         bool reshape_on_decompression;
         std::map<std::string, std::string> additional_config;
         fusingSpecificParams fusing_params;
+        bool should_fuse;
 
         std::tie(inputShapes,
                  weights_precision,
@@ -58,7 +60,8 @@ public:
                  decompression_sub,
                  reshape_on_decompression,
                  additional_config,
-                 fusing_params) = obj.param;
+                 fusing_params,
+                 should_fuse) = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
@@ -97,7 +100,7 @@ protected:
                                                 const bool transpose_weights,
                                                 const bool add_subtract,
                                                 const bool reshape_on_decompression) {
-        auto params = builder::makeDynamicParams(data_precision, {inputShapes[0]});
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, inputShapes[0])};
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
             if (!transpose_weights)
                 return shape;
@@ -158,6 +161,7 @@ protected:
         bool reshape_on_decompression;
         std::map<std::string, std::string> additional_config;
         fusingSpecificParams fusing_params;
+        bool should_fuse;
 
         std::tie(inputShapes,
                  weights_precision,
@@ -165,15 +169,14 @@ protected:
                  decompression_sub,
                  reshape_on_decompression,
                  additional_config,
-                 fusing_params) = GetParam();
+                 fusing_params,
+                 should_fuse) = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
         init_input_shapes(inputShapes);
 
         ElementType netType = element::f32;
-        if (additional_config[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
-            netType = ElementType::bf16;
         inType = outType = netType;
 
         function = initSubgraph(inputDynamicShapes, netType, weights_precision, transpose_weights, decompression_sub, reshape_on_decompression);
@@ -182,6 +185,7 @@ protected:
     void checkResults() {
         const auto& test_param = GetParam();
         ov::test::ElementType weights_precision = std::get<1>(test_param);
+        bool should_fuse = std::get<7>(test_param);
         for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
             if (n->get_friendly_name() == "Compressed_weights") {
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
@@ -189,9 +193,7 @@ protected:
         }
 
         std::map<std::string, std::string> additional_config = std::get<5>(test_param);
-        const size_t expected_count =
-            InferenceEngine::with_cpu_x86_avx2() &&
-            additional_config[PluginConfigParams::KEY_ENFORCE_BF16] != PluginConfigParams::YES ? 0 : 1;
+        const size_t expected_count = should_fuse ? 0 : 1;
         CheckNumberOfNodesWithType(compiledModel, "Convert", expected_count);
         CheckNumberOfNodesWithType(compiledModel, "Eltwise", expected_count);
         CheckNumberOfNodesWithType(compiledModel, "Subgraph", 0);
@@ -206,11 +208,31 @@ TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
 
 namespace {
 
-std::vector<std::map<std::string, std::string>> filterAdditionalConfig() {
-    std::vector<std::map<std::string, std::string>> additional_config{CPUTestUtils::cpuEmptyPluginConfig};
-    if (with_cpu_x86_avx512_core())
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigBasic() {
+    std::vector<std::map<std::string, std::string>> additional_config = {CPUTestUtils::cpuEmptyPluginConfig};
+    return additional_config;
+}
+std::vector<std::map<std::string, std::string>> filterAdditionalConfigBig() {
+    std::vector<std::map<std::string, std::string>> additional_config = {CPUTestUtils::cpuEmptyPluginConfig};
+    if (with_cpu_x86_avx512_core_amx())
         additional_config.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
     return additional_config;
+}
+
+bool shouldUseDecompressionKernelBig() {
+    // No decompression support on non-avx systems
+    if (!with_cpu_x86_avx2())
+        return false;
+
+    return true;
+}
+
+bool shouldUseDecompressionKernelBasic() {
+    // AMX decompression support has shape limitations
+    if (with_cpu_x86_avx512_core_amx())
+        return false;
+
+    return shouldUseDecompressionKernelBig();
 }
 
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8};
@@ -218,13 +240,17 @@ const std::vector<std::vector<InputShape>> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {{}, {{16, 32}}}},
     {{{}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
     {{{}, {{10, 40, 496}}}, {{}, {{1, 496, 240}}}},
-    {{{}, {{1, 4, 32}}}, {{}, {{32, 256}}}},
     {{{}, {{1, 4, 48}}}, {{}, {{48, 256}}}},
+    {{{}, {{11, 339, 377}}}, {{}, {{377, 335}}}},
+};
+const std::vector<std::vector<InputShape>> input_shapes_big = {
+    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {{}, {{1, 480, 256}}}},
+    {{{}, {{1, 4, 32}}}, {{}, {{32, 256}}}},
     {{{}, {{1, 4, 512}}}, {{}, {{512, 256}}}},
     {{{}, {{1, 16, 32}}}, {{}, {{32, 64}}}},
     {{{}, {{2, 4, 32}}}, {{}, {{32, 65}}}},
-    {{{}, {{11, 339, 377}}}, {{}, {{377, 335}}}},
     {{{}, {{3, 12, 768}}}, {{}, {{768, 1024}}}},
+    {{{}, {{11, 339, 577}}}, {{}, {{577, 335}}}},
 };
 const std::vector<fusingSpecificParams> fusingParamsSet {
     emptyFusingSpec,
@@ -238,27 +264,57 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
-                                            ::testing::ValuesIn(filterAdditionalConfig()),
-                                            ::testing::ValuesIn(fusingParamsSet)),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
+                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
                          MatmulWeightsDecompression::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> input_shapes_corner_cases = {
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_big,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_big),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(filterAdditionalConfigBig()),
+                                            ::testing::ValuesIn(fusingParamsSet),
+                                            ::testing::Values(shouldUseDecompressionKernelBig())),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> input_shapes_corner_cases_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{1, 16, 32}}}},
     {{{-1, -1, -1}, {{1, 4, 16}}}, {{}, {{16, 32}}}},
 };
+const std::vector<std::vector<InputShape>> input_shapes_corner_cases_big = {
+    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {{}, {{1, 480, 256}}}},
+};
+
 const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> add_decompression_sub = {true, false};
 const std::vector<bool> reshape_on_decompression = {true, false};
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
-                                            ::testing::Values(CPUTestUtils::cpuEmptyPluginConfig),
-                                            ::testing::Values(emptyFusingSpec)),
+                                            ::testing::ValuesIn(filterAdditionalConfigBasic()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(shouldUseDecompressionKernelBasic())),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_big,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases_big),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(transpose_weights),
+                                            ::testing::ValuesIn(add_decompression_sub),
+                                            ::testing::ValuesIn(reshape_on_decompression),
+                                            ::testing::ValuesIn(filterAdditionalConfigBig()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(shouldUseDecompressionKernelBig())),
                          MatmulWeightsDecompression::getTestCaseName);
 } // namespace
 

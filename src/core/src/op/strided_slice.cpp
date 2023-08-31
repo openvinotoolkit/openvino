@@ -14,14 +14,15 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/reference/strided_slice.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;

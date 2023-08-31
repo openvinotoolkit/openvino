@@ -63,11 +63,11 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:
-            logger.error(f' {xml} is corrupted and skipped')
+            # logger.error(f' {xml} is corrupted and skipped')
             continue
         xml_results = xml_root.find("results")
         xml_timestamp = xml_root.get("timestamp")
-        if aggregated_timestamp is None or xml_timestamp < aggregated_timestamp:
+        if aggregated_timestamp is None or xml_timestamp > aggregated_timestamp:
             aggregated_timestamp = xml_timestamp
         for xml_device_entry in xml_results:
             if merge_device_suffix and "." in xml_device_entry.tag:

@@ -69,7 +69,7 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
-void Config::readProperties(const std::map<std::string, std::string> &prop) {
+void Config::readProperties(const std::map<std::string, std::string> &prop, ModelType modelType) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
     const auto hintsConfigKeys = perfHintsConfig.SupportedKeys();
     for (const auto& kvp : prop) {

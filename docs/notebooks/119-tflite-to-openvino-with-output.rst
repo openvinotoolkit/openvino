@@ -1,25 +1,45 @@
 Convert a Tensorflow Lite Model to OpenVINO™
 ============================================
 
+.. _top:
+
 `TensorFlow Lite <https://www.tensorflow.org/lite/guide>`__, often
 referred to as TFLite, is an open source library developed for deploying
 machine learning models to edge devices.
 
 This short tutorial shows how to convert a TensorFlow Lite
-`efficientnet-lite-b0 <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
+`EfficientNet-Lite-B0 <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
 image classification model to OpenVINO `Intermediate
 Representation <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_IR_and_opsets.html>`__
 (OpenVINO IR) format, using `Model
 Optimizer <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
-and do inference with a sample image.
+and do inference with a sample image. 
 
-Preparation
------------
+**Table of contents**:
 
-Install requirements
-~~~~~~~~~~~~~~~~~~~~
+- `Preparation <#preparation>`__
+
+  - `Install requirements <#install-requirements>`__
+  - `Imports <#imports>`__
+
+- `Download TFLite model <#download-tflite-model>`__
+- `Convert a Model to OpenVINO IR Format <#convert-a-model-to-openvino-ir-format>`__
+- `Load model using OpenVINO TensorFlow Lite Frontend <#load-model-using-openvino-tensorflow-lite-frontend>`__
+- `Run OpenVINO model inference <#run-openvino-model-inference>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Estimate Model Performance <#estimate-model-performance>`__
+
+Preparation `⇑ <#top>`__
+###############################################################################################################################
+
+
+Install requirements `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -33,8 +53,9 @@ Install requirements
         filename='notebook_utils.py'
     );
 
-Imports
-~~~~~~~
+Imports `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -46,8 +67,9 @@ Imports
     
     from notebook_utils import download_file, load_image
 
-Download TFLite model
----------------------
+Download TFLite model `⇑ <#top>`__
+###############################################################################################################################
+
 
 .. code:: ipython3
 
@@ -70,25 +92,26 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/119-tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
-Convert a Model to OpenVINO IR Format
--------------------------------------
+Convert a Model to OpenVINO IR Format `⇑ <#top>`__
+###############################################################################################################################
 
-To convert the TFLite model to OpenVINO IR, OpenVINO Model Optimizer
-Python API can be used. ``mo.convert_model`` function accept path to
-TFLite model and returns OpenVINO Model class instance which represents
-this model. Obtained model is ready to use and loading on device using
-``compile_model`` or can be saved on disk using ``serialize`` function
-reducing loading time for next running. Optionally, we can apply
-compression to FP16 model weigths using ``compress_to_fp16=True`` option
-and integrate preprocessing using this approach. See the `Model
-Optimizer Developer
-Guide <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
-for more information about Model Optimizer and TensorFlow Lite `models
-suport <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+
+To convert the TFLite model to OpenVINO IR, model conversion Python API
+can be used. ``mo.convert_model`` function accepts the path to the
+TFLite model and returns an OpenVINO Model class instance which
+represents this model. The obtained model is ready to use and to be
+loaded on a device using ``compile_model`` or can be saved on a disk
+using ``serialize`` function, reducing loading time for next running.
+Optionally, we can apply compression to the FP16 model weights, using
+the ``compress_to_fp16=True`` option and integrate preprocessing using
+this approach. For more information about model conversion, see this
+`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+For TensorFlow Lite models support, refer to this
+`tutorial <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
 .. code:: ipython3
 
@@ -102,13 +125,14 @@ suport <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_conver
     Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
 
 
-Load model using OpenVINO TensorFlow Lite Frontend
---------------------------------------------------
+Load model using OpenVINO TensorFlow Lite Frontend `⇑ <#top>`__
+###############################################################################################################################
 
-TensorFlow Lite models are supported via FrontEnd API. You may skip
+
+TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
 more examples supported formats reading via Frontend API, please look
-this `tutorial <../002-openvino-api>`__.
+this `tutorial <002-openvino-api-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -116,8 +140,9 @@ this `tutorial <../002-openvino-api>`__.
     
     ov_model = core.read_model(tflite_model_path)
 
-Run OpenVINO model inference
-----------------------------
+Run OpenVINO model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 We can find information about model input preprocessing in its
 `description <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
@@ -131,10 +156,11 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
     resized_image = image.resize((224, 224))
     input_tensor = np.expand_dims((np.array(resized_image).astype(np.float32) - 127) / 128, 0)
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -191,20 +217,22 @@ select device from dropdown list for running inference using OpenVINO
     Predicted label: n02109047 Great Dane with probability 0.715318
 
 
-Estimate Model Performance
---------------------------
+Estimate Model Performance `⇑ <#top>`__
+###############################################################################################################################
 
-`Benchmark
-Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+`Benchmark Tool <https://docs.openvino.ai/latest/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
 is used to measure the inference performance of the model on CPU and
 GPU.
 
-   **NOTE**: For more accurate performance, it is recommended to run
+.. note::
+
+   For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
    benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
    all command-line options.
+
 
 .. code:: ipython3
 
@@ -233,7 +261,7 @@ GPU.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 21.86 ms
+    [ INFO ] Read model took 9.14 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -247,7 +275,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 183.81 ms
+    [ INFO ] Compile model took 151.57 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -269,15 +297,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.41 ms
+    [ INFO ] First inference took 7.60 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17364 iterations
-    [ INFO ] Duration:         15009.20 ms
+    [ INFO ] Count:            17526 iterations
+    [ INFO ] Duration:         15005.75 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.04 ms
-    [ INFO ]    Average:       5.05 ms
-    [ INFO ]    Min:           3.22 ms
-    [ INFO ]    Max:           15.36 ms
-    [ INFO ] Throughput:   1156.89 FPS
+    [ INFO ]    Median:        5.00 ms
+    [ INFO ]    Average:       5.00 ms
+    [ INFO ]    Min:           3.28 ms
+    [ INFO ]    Max:           14.83 ms
+    [ INFO ] Throughput:   1167.95 FPS
 

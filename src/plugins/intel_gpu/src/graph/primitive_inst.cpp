@@ -19,6 +19,7 @@
 #include "eltwise_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
+#include "softmax_inst.h"
 #include "gemm_inst.h"
 #include "assign_inst.h"
 #include "read_value_inst.h"
@@ -349,7 +350,8 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
-        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], layout.data_padding);
+        auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
+        layout.data_padding = padding::max(_node->get_primitive()->output_paddings[idx], data_padding);
         if (_impl_params->get_output_layout(idx) != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
@@ -436,7 +438,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             _outputs[0]->set_reused(true);
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
         }
-        if (need_reset_output_memory()) {
+        if (need_reset_output_memory() && !can_be_optimized()) {
             ev = _outputs[0]->fill(_network.get_stream());
         }
     } else {
@@ -476,6 +478,17 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
     return ev;
+}
+
+bool primitive_inst::use_async_compilation() {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+        return false;
+    }
+    return (_node->is_type<convolution>() ||
+            _node->is_type<fully_connected>() ||
+            _node->is_type<gemm>() ||
+            _node->is_type<softmax>());
 }
 
 bool primitive_inst::update_impl() {
@@ -575,7 +588,8 @@ bool primitive_inst::update_impl() {
             o.data_padding.set_dynamic_pad(tensor(0));
         }
 
-        auto& cache = get_network().get_program()->get_implementations_cache();
+        const auto& prog = get_network().get_program();
+        auto& cache = prog->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
             cached_impl = cache.get(updated_params_no_dyn_pad);
@@ -590,15 +604,8 @@ bool primitive_inst::update_impl() {
         }
         if (!cached_impl) {
             if (_dynamic_impl) {
-                auto use_async_compilation = [&]() {
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
-                        return false;
-                    }
-                    return true;
-                };
                 if (use_async_compilation()) {
-                    auto& compilation_context = get_network().get_program()->get_compilation_context();
+                    auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params_no_dyn_pad, [this, &compilation_context, updated_params_no_dyn_pad]() {
                         if (compilation_context.is_stopped())
                             return;
@@ -611,10 +618,12 @@ bool primitive_inst::update_impl() {
                                 return;
                         }
 
-                        auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                         if (!can_be_optimized()) {
-                            auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
-                            impl->set_kernels(kernels);
+                            auto impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
+                            if (impl->get_kernels_source().size() > 0) {
+                                auto kernels = _program->get_kernels_cache().compile(updated_params_no_dyn_pad, impl->get_kernels_source());
+                                impl->set_kernels(kernels);
+                            }
                             cache.add(updated_params_no_dyn_pad, impl->clone());
                         }
                     });
@@ -629,7 +638,7 @@ bool primitive_inst::update_impl() {
                 _impl = _node->type()->choose_impl(*_node, updated_params_no_dyn_pad);
                 _impl->set_node_params(*_node);
                 if (!can_be_optimized()) {
-                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto& kernels_cache = prog->get_kernels_cache();
                     auto kernels = kernels_cache.compile(updated_params_no_dyn_pad, _impl->get_kernels_source());
                     _impl->set_kernels(std::move(kernels));
                     cache.add(updated_params_no_dyn_pad, _impl->clone());
@@ -988,6 +997,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     if (_impl) {
         _impl->set_node_params(node);
         if (_impl->is_dynamic() && !_impl->is_cpu()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": initialize impl with dynamic impl " << _impl->get_kernel_name() << std::endl;
             _dynamic_impl = _impl->clone();
             // Actual shape info layout is the following:
             // input_0 -> input_1, ..., fused_dep_0, fused_dep1, ..., output_0, output_1, ...
@@ -1127,7 +1137,6 @@ event::ptr primitive_inst::update_weights() {
     if (!reorder_kernel_params) {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so reset cached weights for such case
-        _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
     } else {
         auto expected_layout = reorder_kernel_params->get_output_layout();
@@ -1143,7 +1152,6 @@ event::ptr primitive_inst::update_weights() {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
                                            << " to " << expected_layout.to_short_string() << std::endl;
-            _reordered_weights_cache.add(expected_layout, engine.reinterpret_buffer(*original_weights_memory, expected_layout));
             return nullptr;
         } else {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
@@ -1176,7 +1184,7 @@ event::ptr primitive_inst::update_weights() {
             memory::ptr weights_memory = nullptr;
             if (_reordered_weights_cache.is_full()) {
                 weights_memory = _reordered_weights_cache.get_lru_element().second;
-                can_reuse = weights_memory->size() <= expected_layout.bytes_count() && (weights_memory->buffer_ptr() != original_weights_memory->buffer_ptr());
+                can_reuse = weights_memory->size() <= expected_layout.bytes_count();
             }
 
             if (can_reuse) {
@@ -1219,6 +1227,9 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
         if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
+            if (user->is_dynamic()) {
+                return true;
+            }
             if (user_requesting_mem_reuse_false(*user)) {
                 return true;
             }
@@ -1494,13 +1505,18 @@ bool primitive_inst::is_valid_fusion() const {
     return true;
 }
 
-void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time) {
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode) {
     instrumentation::perf_counter_key key {
             _network.get_input_layouts(),
             _impl_params->input_layouts,
             _impl_params->output_layouts,
             get_implementation_name(),
             stage,
+#ifdef GPU_DEBUG_CONFIG
+            per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+            0,
+#endif
             cache_hit
     };
 

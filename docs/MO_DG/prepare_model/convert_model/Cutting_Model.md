@@ -22,7 +22,7 @@ The following examples are the situations when model cutting is useful or even r
 Model conversion API parameters
 ###############################
 
-Model conversion API provides command line options ``input`` and ``output`` to specify new entry and exit nodes, while ignoring the rest of the model:
+Model conversion API provides ``input`` and ``output`` command-line options to specify new entry and exit nodes, while ignoring the rest of the model:
 
 * ``input`` option accepts a list of layer names of the input model that should be treated as new entry points to the model. See the full list of accepted types for input on :doc:`Model Conversion Python API <openvino_docs_MO_DG_Python_API>` page.
 * ``output`` option accepts a list of layer names of the input model that should be treated as new exit points from the model.

@@ -1,6 +1,8 @@
 Semantic Segmentation with OpenVINO™ using Segmenter
 ====================================================
 
+.. _top:
+
 Semantic segmentation is a difficult computer vision problem with many
 applications such as autonomous driving, robotics, augmented reality,
 and many others. Its goal is to assign labels to each pixel according to
@@ -24,7 +26,28 @@ Segmenter <https://github.com/rstrudel/segmenter>`__.
 More about the model and its details can be found in the following
 paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
-`repository <https://github.com/rstrudel/segmenter>`__.
+`repository <https://github.com/rstrudel/segmenter>`__. 
+
+**Table of contents**:
+
+- `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__
+
+  - `Prerequisites <#prerequisites>`__
+  - `Loading PyTorch model <#loading-pytorch-model>`__
+
+- `Preparing preprocessing and visualization functions <#preparing-preprocessing-and-visualization-functions>`__
+
+  - `Preprocessing <#preprocessing>`__
+  - `Visualization <#visualization>`__
+
+- `Validation of inference of original model <#validation-of-inference-of-original-model>`__
+- `Export to ONNX <#export-to-onnx>`__
+- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+- `Verify converted model inference <#verify-converted-model-inference>`__
+
+  - `Select inference device <#select-inference-device>`__
+
+- `Benchmarking performance of converted model <#benchmarking-performance-of-converted-model>`__
 
 .. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
 
@@ -39,13 +62,14 @@ notebook consists of the following steps:
 -  Validating inference of the converted model
 -  Benchmark performance of the converted model
 
-Get and prepare PyTorch model
------------------------------
+Get and prepare PyTorch model `⇑ <#top>`__
+###############################################################################################################################
+
 
 The first thing we’ll need to do is clone
 `repository <https://github.com/rstrudel/segmenter>`__ containing model
 and helper functions. We will use Tiny model with mask transformer, that
-is Seg-T-Mask/16. There are also better, but much larger models
+is ``Seg-T-Mask/16``. There are also better, but much larger models
 available in the linked repo. This model is pre-trained on
 `ADE20K <https://groups.csail.mit.edu/vision/datasets/ADE20K/>`__
 dataset used for segmentation.
@@ -54,8 +78,9 @@ The code from the repository already contains functions that create
 model and load weights, but we will need to download config and trained
 weights (checkpoint) file and add some additional helper functions.
 
-Prerequisites
-~~~~~~~~~~~~~
+Prerequisites `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -86,8 +111,8 @@ Prerequisites
     )
     from notebook_utils import download_file, load_image
 
-We’ll need timm, mmsegmentation, enops and mmcv, to use functions from
-segmenter repo
+We’ll need ``timm``, ``mmsegmentation``, ``einops`` and ``mmcv``, to use
+functions from segmenter repo
 
 First, we will clone the Segmenter repo and then download weights and
 config for our model.
@@ -109,7 +134,7 @@ config for our model.
     Cloning into 'segmenter'...
     remote: Enumerating objects: 268, done.[K
     remote: Total 268 (delta 0), reused 0 (delta 0), pack-reused 268[K
-    Receiving objects: 100% (268/268), 15.34 MiB | 4.21 MiB/s, done.
+    Receiving objects: 100% (268/268), 15.34 MiB | 3.75 MiB/s, done.
     Resolving deltas: 100% (117/117), done.
 
 
@@ -117,8 +142,8 @@ config for our model.
 
     # download config and pretrained model weights
     # here we use tiny model, there are also better but larger models available in repository
-    WEIGHTS_LINK = "https://www.rocq.inria.fr/cluster-willow/rstrudel/segmenter/checkpoints/ade20k/seg_tiny_mask/checkpoint.pth"
-    CONFIG_LINK = "https://www.rocq.inria.fr/cluster-willow/rstrudel/segmenter/checkpoints/ade20k/seg_tiny_mask/variant.yml"
+    WEIGHTS_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/segmenter/checkpoints/ade20k/seg_tiny_mask/checkpoint.pth"
+    CONFIG_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/segmenter/checkpoints/ade20k/seg_tiny_mask/variant.yml"
     
     MODEL_DIR = Path("model/")
     MODEL_DIR.mkdir(exist_ok=True)
@@ -142,8 +167,9 @@ config for our model.
     model/variant.yml:   0%|          | 0.00/940 [00:00<?, ?B/s]
 
 
-Loading PyTorch model
-~~~~~~~~~~~~~~~~~~~~~
+Loading PyTorch model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 PyTorch models are usually an instance of
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -187,26 +213,29 @@ Load normalization settings from config file.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mmcv/__init__.py:20: UserWarning: On January 1, 2023, MMCV will release v2.0.0, in which it will remove components related to the training process and add a data transformation module. In addition, it will rename the package names mmcv to mmcv-lite and mmcv-full to mmcv. See https://github.com/open-mmlab/mmcv/blob/master/docs/en/compatibility.md for more details.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mmcv/__init__.py:20: UserWarning: On January 1, 2023, MMCV will release v2.0.0, in which it will remove components related to the training process and add a data transformation module. In addition, it will rename the package names mmcv to mmcv-lite and mmcv-full to mmcv. See https://github.com/open-mmlab/mmcv/blob/master/docs/en/compatibility.md for more details.
       warnings.warn(
 
 
-Preparing preprocessing and visualization functions
----------------------------------------------------
+Preparing preprocessing and visualization functions `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
 
-Preprocessing
-~~~~~~~~~~~~~
+Preprocessing `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
 format, where:
 
-* ``B`` - batch size (in our case 1, as we are just adding 1 with unsqueeze)
-* ``C`` - image channels (in our case RGB - 3)
-* ``H`` - image height
-* ``W`` - image width
+-  ``B`` - batch size (in our case 1, as we are just adding 1 with
+   unsqueeze)
+-  ``C`` - image channels (in our case RGB - 3)
+-  ``H`` - image height
+-  ``W`` - image width
 
 Resizing to the correct scale and splitting to batches is done inside
 inference, so we don’t need to resize or split the image in
@@ -241,15 +270,16 @@ normalized with given mean and standard deviation provided in
     
         return im
 
-Visualization
-~~~~~~~~~~~~~
+Visualization `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 Inference output contains labels assigned to each pixel, so the output
-in our case is ``[150, H, W]`` in ``CL, H, W`` format where: 
+in our case is ``[150, H, W]`` in ``CL, H, W`` format where:
 
-* ``CL`` - number of classes for labels (in our case 150)
-* ``H`` - image height
-* ``W`` - image width
+-  ``CL`` - number of classes for labels (in our case 150)
+-  ``H`` - image height
+-  ``W`` - image width
 
 Since we want to visualize this output, we reduce dimensions to
 ``[1, H, W]`` where we keep only class with the highest value as that is
@@ -285,8 +315,9 @@ corresponding to the inferred labels.
     
         return pil_blend
 
-Validation of inference of original model
------------------------------------------
+Validation of inference of original model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now that we have everything ready, we can perform segmentation on
 example image ``coco_hollywood.jpg``.
@@ -337,8 +368,9 @@ We can see that model segments the image into meaningful parts. Since we
 are using tiny variant of model, the result is not as good as it is with
 larger models, but it already shows nice segmentation performance.
 
-Export to ONNX
---------------
+Export to ONNX `⇑ <#top>`__
+###############################################################################################################################
+
 
 Now that we’ve verified that the inference of PyTorch model works, we
 will first export it to ONNX format.
@@ -347,15 +379,16 @@ To do this, we first get input dimensions from the model configuration
 file and create torch dummy input. Input dimensions are in our case
 ``[2, 3, 512, 512]`` in ``B, C, H, W]`` format, where:
 
-* ``B`` - batch size 
-* ``C`` - image channels (in our case RGB - 3) 
-* ``H`` - model input image height
-* ``W`` - model input image width 
+-  ``B`` - batch size
+-  ``C`` - image channels (in our case RGB - 3)
+-  ``H`` - model input image height
+-  ``W`` - model input image width
 
 .. note::
 
-   Note that H and W are here fixed to 512, as this is required by the model. Resizing is
-done inside the inference function from the original repository.
+   Note that H and W are here fixed to 512, as this is required by the
+   model. Resizing is done inside the inference function from the
+   original repository.
 
 After that, we use ``export`` function from PyTorch to convert the model
 to ONNX. The process can generate some warnings, but they are not a
@@ -388,36 +421,37 @@ problem.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if H % patch_size > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if W % patch_size > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x.shape[1] != pos_embed.shape[1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       masks = rearrange(masks, "b (h w) n -> b n h w", h=int(GS))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_h > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_w > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-448/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
       _C._jit_pass_onnx_graph_shape_type_inference(
 
 
-Convert ONNX model to OpenVINO Intermediate Representation (IR)
----------------------------------------------------------------
+Convert ONNX model to OpenVINO Intermediate Representation (IR). `⇑ <#top>`__
+###############################################################################################################################
 
 While ONNX models are directly supported by OpenVINO runtime, it can be
 useful to convert them to IR format to take advantage of OpenVINO
-optimization tools and features. ``mo.convert_model`` function can be
-used for converting model using OpenVINO Model Optimizer. The function
-returns instance of OpenVINO Model class, which is ready to use in
-Python interface but can also be serialized to OpenVINO IR format for
-future execution.
+optimization tools and features. The ``mo.convert_model`` function of
+`model conversion
+API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+can be used. The function returns instance of OpenVINO Model class,
+which is ready to use in Python interface but can also be serialized to
+OpenVINO IR format for future execution.
 
 .. code:: ipython3
 
@@ -428,8 +462,9 @@ future execution.
     # serialize model for saving IR
     serialize(model, str(MODEL_DIR / "segmenter.xml"))
 
-Verify converted model inference
---------------------------------
+Verify converted model inference `⇑ <#top>`__
+###############################################################################################################################
+
 
 To test that model was successfully converted, we can use same inference
 function from original repository, but we need to make custom class.
@@ -496,13 +531,14 @@ any additional custom code required to process input.
             """
             return torch.from_numpy(self.model(data)[self.output_blob])
 
-Now that we have created SegmenterOV helper class, we can use it in
+Now that we have created ``SegmenterOV`` helper class, we can use it in
 inference function.
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-select device from dropdown list for running inference using OpenVINO
+
+Select device from dropdown list for running inference using OpenVINO:
 
 .. code:: ipython3
 
@@ -560,25 +596,27 @@ select device from dropdown list for running inference using OpenVINO
 
 As we can see, we get the same results as with original model.
 
-Benchmarking performance of converted model
--------------------------------------------
+Benchmarking performance of converted model `⇑ <#top>`__
+###############################################################################################################################
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
 to measure the inference performance of the model.
 
-   NOTE: For more accurate performance, it is recommended to run
-   ``benchmark_app`` in a terminal/command prompt after closing other
-   applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
-   async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
-   benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
-   all command-line options.
+Note that for more accurate performance, it is recommended to run
+``benchmark_app`` in a terminal/command prompt after closing other
+applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
+async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
+benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
+all command-line options.
 
-..
+.. note::
 
    Keep in mind that the authors of original paper used V100 GPU, which
    is significantly more powerful than the CPU used to obtain the
    following throughput. Therefore, FPS can’t be compared directly.
+
 
 .. code:: ipython3
 
@@ -606,18 +644,18 @@ to measure the inference performance of the model.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.0.0-10926-b4452d56304-releases/2023/0
+    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 16.16 ms
+    [ INFO ] Read model took 16.30 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input (node: input) : f32 / [...] / [2,3,512,512]
@@ -631,7 +669,7 @@ to measure the inference performance of the model.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [2,150,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 349.84 ms
+    [ INFO ] Compile model took 343.28 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
@@ -660,15 +698,15 @@ to measure the inference performance of the model.
     [ INFO ] Fill input 'input' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 219.27 ms
+    [ INFO ] First inference took 227.83 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1374 iterations
-    [ INFO ] Duration:         120364.60 ms
+    [ INFO ] Count:            1332 iterations
+    [ INFO ] Duration:         120630.17 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        523.66 ms
-    [ INFO ]    Average:       524.91 ms
-    [ INFO ]    Min:           217.86 ms
-    [ INFO ]    Max:           612.22 ms
-    [ INFO ] Throughput:   22.83 FPS
+    [ INFO ]    Median:        542.28 ms
+    [ INFO ]    Average:       542.75 ms
+    [ INFO ]    Min:           344.15 ms
+    [ INFO ]    Max:           609.17 ms
+    [ INFO ] Throughput:   22.08 FPS
 

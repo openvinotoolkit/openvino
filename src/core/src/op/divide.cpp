@@ -15,7 +15,7 @@
 #include "ngraph/op/or.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/divide.hpp"
+#include "openvino/reference/divide.hpp"
 #include "shape_util.hpp"
 
 using namespace std;

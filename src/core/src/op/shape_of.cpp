@@ -14,9 +14,9 @@
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/reference/shape_of.hpp"
 
 using namespace std;
 using namespace ngraph;

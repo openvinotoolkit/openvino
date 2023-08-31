@@ -127,7 +127,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 
         metaDevices.push_back(std::move(devInfo));
         // set the return value of SelectDevice
-        // for example if there are three device, if will return GPU on the first call, and then MYRIAD
+        // for example if there are three device, if will return GPU on the first call, and then NPU
         // at last CPU
         ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _, _))
             .WillByDefault(Return(metaDevices[deviceConfigs.size() - selDevsSize]));
@@ -181,12 +181,12 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
 // {       true,                false,       GENERAL,                 3 device,           2,         3,                2}
 //
 // there are three devices for loading
-// CPU load for accelerator success, but GPU will load faild and then select MYRIAD and load again
+// CPU load for accelerator success, but GPU will load faild and then select NPU and load again
 // LoadExeNetworkImpl will not throw exception and can continue to run,
-// it will select twice, first select GPU, second select MYRIAD
-// it will load network three times(CPU, GPU, MYRIAD)
+// it will select twice, first select GPU, second select NPU
+// it will load network three times(CPU, GPU, NPU)
 // the inference request num is loadSuccessCount * optimalNum, in this test case optimalNum is 2
-// so inference request num is 4 (CPU 2, MYRIAD 2)
+// so inference request num is 4 (CPU 2, NPU 2)
 //
 const std::vector<ConfigParams> testConfigs = {
     ConfigParams{true,
