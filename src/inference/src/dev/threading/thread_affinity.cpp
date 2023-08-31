@@ -137,7 +137,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
-#else // no threads pinning/binding on MacOS
+#else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
 }
