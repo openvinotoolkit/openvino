@@ -37,10 +37,13 @@ public:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        if (Precision::BF16 == (inPrc = outPrc = this->GetParam()))
+        if (Precision::BF16 == (inPrc = outPrc = this->GetParam())) {
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
-        else
+        } else if (Precision::FP16 == (inPrc = outPrc = this->GetParam())) {
+            configuration.insert({ov::hint::inference_precision.name(), "f16" });
+        } else {
             configuration.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
+        }
 
         const std::vector<size_t> inputShape = {1, 3, 3, 11};
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngraph::element::f32, ov::Shape(inputShape))};
@@ -69,6 +72,11 @@ public:
 
 namespace {
     TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
+        if (this->GetParam() == Precision::FP16) {
+            if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+                GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+            }
+        }
         Run();
         if (this->GetParam() == Precision::BF16)
             CheckNumberOfNodesWithType(executableNetwork, "Reorder", 3);
@@ -77,7 +85,7 @@ namespace {
     }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatConstantInPlaceTest_CPU, ConcatConstantInPlaceTest,
-    testing::Values(Precision::FP32, Precision::BF16),
+    testing::Values(Precision::FP32, Precision::BF16, Precision::FP16),
     ConcatConstantInPlaceTest::getTestCaseName);
 
 } // namespace

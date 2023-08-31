@@ -561,6 +561,33 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
     }
 }
 
+TEST_P(MHAQuantTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    std::vector<InputShape> inputShapes;
+    std::vector<ElementType> inputPrecisions;
+    std::vector<ElementType> matMulIn0Precisions;
+    size_t patternType;
+    ExpectedNodes expectedNodes;
+    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) = this->GetParam();
+
+    if (inputPrecisions[0] == ElementType::bf16 && !InferenceEngine::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    if (!InferenceEngine::with_cpu_x86_avx512_core_vnni())
+        GTEST_SKIP();
+
+    run();
+
+    for (const auto& node : expectedNodes) {
+        CheckNumberOfNodesWithType(compiledModel, node.first, node.second);
+    }
+}
+
+
 namespace {
 
 std::vector<std::vector<ngraph::Shape>> inputShapesQuant = {

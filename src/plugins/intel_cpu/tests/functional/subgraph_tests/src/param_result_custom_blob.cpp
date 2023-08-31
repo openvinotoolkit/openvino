@@ -50,6 +50,21 @@ TEST_P(ParameterResultCustomBlobTest, CompareWithRefs) {
 
     Run();
 }
+
+TEST_P(ParameterResultCustomBlobTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    // Just to show that it is not possible to set different precisions for inputs and outputs with the same name.
+    // If it was possible, the input would have I8 precision and couldn't store data from the custom blob.
+    inPrc = Precision::I8;
+    outPrc = Precision::FP32;
+
+    Run();
+}
+
 namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_Check_Custom_Blob, ParameterResultCustomBlobTest,
                             ::testing::Combine(
@@ -74,6 +89,16 @@ protected:
 };
 
 TEST_P(ParameterResultSameBlobTest, CompareWithRefs) {
+    Run();
+}
+
+
+TEST_P(ParameterResultSameBlobTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
     Run();
 }
 namespace {

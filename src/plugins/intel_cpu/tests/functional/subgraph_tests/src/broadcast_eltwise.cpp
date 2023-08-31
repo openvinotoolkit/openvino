@@ -115,6 +115,17 @@ TEST_P(BroadcastEltwise, smoke_CompareWithRefs) {
     CheckLastNode(compiledModel);
 }
 
+TEST_P(BroadcastEltwise, smoke_CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    CheckLastNode(compiledModel);
+}
+
+
 namespace {
 const std::vector<InputShape> input_shapes = {
     {{-1, -1, -1, -1}, {{1, 3, 16, 16}}},

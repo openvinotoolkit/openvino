@@ -141,6 +141,18 @@ TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs) {
     // CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
 }
 
+TEST_P(CustomOpConvertI64CPUTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    // TODO: Graph could not be dumped with int64 for now. Swith on this in scope of int64 enabling.
+    // CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
+}
+
+
 const InputShape inputShapes = {
     {}, {{2, 3, 64}}
 };

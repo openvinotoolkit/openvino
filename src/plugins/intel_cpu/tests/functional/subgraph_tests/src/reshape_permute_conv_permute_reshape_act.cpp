@@ -29,8 +29,6 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP16,
 };
 
-std::map<std::string, std::string> additional_config = { };
-
 namespace SubgraphTestsDefinitions {
     INSTANTIATE_TEST_SUITE_P(smoke_basic, ConvReshapeAct,
         ::testing::Combine(
@@ -39,7 +37,7 @@ namespace SubgraphTestsDefinitions {
             ::testing::ValuesIn(input_shapes),
             ::testing::ValuesIn(kernel_shapes),
             ::testing::ValuesIn(output_channels),
-            ::testing::Values(additional_config)),
+            ::testing::ValuesIn({cpuEmptyPluginConfig, cpuFP16PluginConfig})),
         ConvReshapeAct::getTestCaseName);
 } // namespace SubgraphTestsDefinitions
 

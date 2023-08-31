@@ -277,7 +277,7 @@ std::vector<CPUSpecificParams> filterSpecificParams_FP16_Brgemm() {
 
 std::vector<CPUSpecificParams> filterSpecificParams_FP16_BrgemmAmx() {
     std::vector<CPUSpecificParams> specificParams;
-    if (ov::with_cpu_x86_avx512_core_amx_f16()) {
+    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
         specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
     }
     return specificParams;

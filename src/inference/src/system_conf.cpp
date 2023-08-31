@@ -88,7 +88,7 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
 }
 
-bool with_cpu_x86_avx512_core_amx_f16() {
+bool with_cpu_x86_avx512_core_amx_fp16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
 }
 

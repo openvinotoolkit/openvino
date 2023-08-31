@@ -174,7 +174,8 @@ const std::map<std::string, std::string> cpuFP32PluginConfig =
 const std::map<std::string, std::string> cpuBF16PluginConfig =
         { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
 const std::map<std::string, std::string> cpuFP16PluginConfig =
-        { { "INFERENCE_PRECISION_HINT", "f16" } };
+        { {ov::hint::inference_precision.name(), "f16" } };
+
 
 
 // utility functions

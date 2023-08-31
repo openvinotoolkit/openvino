@@ -143,7 +143,7 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_FP16 instructions are available, `false` otherwise
  */
-OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_f16();
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
 
 /**
  * @brief      Checks whether CPU supports AMX capability

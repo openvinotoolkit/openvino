@@ -83,6 +83,16 @@ TEST_P(FuseScaleShiftAndFakeQuantizeTest, CompareWithRefs) {
     Run();
 }
 
+
+TEST_P(FuseScaleShiftAndFakeQuantizeTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    Run();
+}
+
 namespace {
 std::vector<Shape> inputShapes {
     {1, 4, 16, 16}, {8, 4, 16, 16},

@@ -179,9 +179,21 @@ TEST_P(IntertactionCPUTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
 }
 
+
+TEST_P(IntertactionCPUTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "Interaction", 1);
+}
+
 namespace {
 const std::vector<ElementType> inPrecisions = {
         ElementType::f32,
+        ElementType::f16,
         ElementType::bf16,
         ElementType::i32,
         ElementType::i8

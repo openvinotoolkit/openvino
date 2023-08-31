@@ -2,17 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/shape.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
+using namespace CPUTestUtils;
 
 namespace SubgraphTestsDefinitions {
 
-class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<ov::Shape> {
+typedef std::tuple<
+        ov::Shape,
+        std::map<std::string, std::string>   // Device config
+> AnyLayoutTestParamsSet;
+
+
+class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<AnyLayoutTestParamsSet> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<ov::Shape> obj) {
+    static std::string getTestCaseName(::testing::TestParamInfo<AnyLayoutTestParamsSet> obj) {
         std::ostringstream result;
-        result << "shape=" << obj.param;
+        ov::Shape shape;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(shape, additionalConfig) = obj.param;
+        result << "shape=" << shape;
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                result << "_" << item.first << "=" << item.second;
+            }
+        }
+
         return result.str();
     }
 
@@ -32,7 +50,9 @@ protected:
     }
 
     void Run() {
-        const ov::Shape & shape = GetParam();
+        ov::Shape shape;
+        std::map<std::string, std::string> additionalConfig;
+        std::tie(shape, additionalConfig) = GetParam();
         auto shape_size = ov::shape_size(shape);
 
         std::vector<float> input_data(shape_size, 2);
@@ -64,7 +84,7 @@ protected:
 
         // Load network
         Core ie;
-        ExecutableNetwork executable_network = ie.LoadNetwork(cnn, "CPU");
+        ExecutableNetwork executable_network = ie.LoadNetwork(cnn, "CPU", additionalConfig);
 
         // Infer
         InferRequest infer_request = executable_network.CreateInferRequest();
@@ -80,15 +100,18 @@ TEST_P(AnyLayoutOnInputsAndOutputs, CheckExpectedResult) {
     Run();
 }
 
-static AnyLayoutOnInputsAndOutputs::ParamType AnyLayoutOnInputsAndOutputsParams[] = {
+static std::vector<ov::Shape> AnyLayoutOnInputsAndOutputsParams = {
     ov::Shape{ 1, 2, 3, 4 },
     ov::Shape{ 1, 2, 3, 4, 5 },
     ov::Shape{ 1, 2, 3, 4, 5, 6 },
 };
 
+
 INSTANTIATE_TEST_SUITE_P(AnyLayoutOnInputsAndOutputs,
                          AnyLayoutOnInputsAndOutputs,
-                         ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
+                         ::testing::Combine(
+                             ::testing::ValuesIn(AnyLayoutOnInputsAndOutputsParams),
+                             ::testing::ValuesIn({cpuEmptyPluginConfig, cpuFP16PluginConfig})),
                          AnyLayoutOnInputsAndOutputs::getTestCaseName);
 
 }   // namespace SubgraphTestsDefinitions

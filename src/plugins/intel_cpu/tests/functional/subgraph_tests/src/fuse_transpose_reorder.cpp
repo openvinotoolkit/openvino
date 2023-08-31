@@ -95,6 +95,16 @@ TEST_P(FuseTransposeAndReorderTest, CompareWithRefs) {
     CheckTransposeCount(0);
 }
 
+TEST_P(FuseTransposeAndReorderTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    Run();
+    CheckTransposeCount(0);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 
@@ -230,6 +240,17 @@ TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     CheckTransposeCount(1);
 }
 
+
+TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    Run();
+    CheckTransposeCount(1);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 /*  FuseTransposeAndReorderTest3 graph
@@ -279,6 +300,16 @@ void FuseTransposeAndReorderTest3::CreateGraph() {
 }
 
 TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs) {
+    Run();
+    CheckTransposeCount(1);
+}
+
+TEST_P(FuseTransposeAndReorderTest3, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
     Run();
     CheckTransposeCount(1);
 }
@@ -339,6 +370,17 @@ TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs) {
     CheckTransposeCount(0);
 }
 
+TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    Run();
+    CheckTransposeCount(0);
+}
+
+
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest4, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
@@ -352,5 +394,18 @@ TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
     auto core = ov::Core();
     ASSERT_NO_THROW(core.compile_model(model, "CPU"));
 }
+
+TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest_FP16) {
+    auto model = ov::builder::preprocess::create_preprocess_1input(ov::element::u8, ov::PartialShape{1, 3, 224, 224});
+    auto p = ov::preprocess::PrePostProcessor(model);
+    p.input().tensor().set_spatial_dynamic_shape().set_layout("NHWC");
+    p.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    p.input().model().set_layout("NCHW");
+    model = p.build();
+
+    auto core = ov::Core();
+    ASSERT_NO_THROW(core.compile_model(model, "CPU", {{ov::hint::inference_precision.name(), "f16"}}));
+}
+
 
 }  // namespace SubgraphTestsDefinitions

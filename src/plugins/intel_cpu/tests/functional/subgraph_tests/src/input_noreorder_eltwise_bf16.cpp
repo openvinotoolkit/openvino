@@ -56,4 +56,41 @@ TEST_F(InputNoReorderEltwiseBF16, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
     CheckNumberOfNodesWithTypes(executableNetwork, {"Eltwise", "Subgraph"}, 1);
 }
+
+class InputNoReorderEltwiseFP16 : virtual public LayerTestsUtils::LayerTestsCommon,
+                                  public CPUTestsBase {
+protected:
+    void SetUp() override {
+        auto netPrecision = inPrc = Precision::FP32;
+        outPrc = Precision::BF16;
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        std::map<std::string, std::string> additional_config{{ov::hint::inference_precision.name(), "f16"}};
+        configuration.insert(additional_config.begin(), additional_config.end());
+
+        std::vector<size_t> inputShape {2, 4, 4, 1};
+        auto eltwiseType = ngraph::helpers::EltwiseTypes::ADD;
+        auto secondaryInputType = ngraph::helpers::InputLayerType::CONSTANT;
+
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        ov::ParameterVector input {std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
+        std::shared_ptr<ngraph::Node> secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape);
+        auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
+
+        function = makeNgraphFunction(ngPrc, input, eltwise, "Eltwise");
+    }
+};
+
+
+TEST_F(InputNoReorderEltwiseFP16, smoke_CompareWithRefs) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+
+    Run();
+
+    CheckNumberOfNodesWithType(executableNetwork, "Reorder", 0);
+    CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);
+    CheckNumberOfNodesWithTypes(executableNetwork, {"Eltwise", "Subgraph"}, 1);
+}
+
 } // namespace CPULayerTestsDefinitions

@@ -123,6 +123,18 @@ TEST_P(ConvertRangeSubgraphCPUTest, CompareWithRefs) {
     checkResults();
 }
 
+TEST_P(ConvertRangeSubgraphCPUTest, CompareWithRefs_FP16) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    checkResults();
+}
+
+
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
     {{ov::hint::inference_precision.name(), ov::element::bf16}},
     {{ov::hint::inference_precision.name(), ov::element::f16}}

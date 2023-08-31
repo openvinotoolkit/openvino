@@ -84,6 +84,16 @@ TEST_P(FuseMulAddAndEwSimpleTest2, CompareWithRefs) {
     Run();
 }
 
+TEST_P(FuseMulAddAndEwSimpleTest2, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    Run();
+}
+
+
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseMulAddAndEwSimpleTest2, mulAddAndEwSimpleCommonParams, FuseMulAddAndEwSimpleTest::getTestCaseName);
 
 
@@ -106,6 +116,16 @@ void FuseMulAddAndEwSimpleTest3::CreateGraph() {
 }
 
 TEST_P(FuseMulAddAndEwSimpleTest3, CompareWithRefs) {
+    Run();
+}
+
+
+TEST_P(FuseMulAddAndEwSimpleTest3, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
     Run();
 }
 

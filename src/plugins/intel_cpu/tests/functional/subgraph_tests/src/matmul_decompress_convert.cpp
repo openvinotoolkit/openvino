@@ -242,6 +242,18 @@ TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
     CheckExecutionGraph();
 }
 
+
+TEST_P(MatMulDecompressConvertTest, CompareWithRefs_FP16) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    CheckExecutionGraph();
+}
+
 namespace {
 
 const std::vector<std::pair<bool, bool>> transposeParams = {
@@ -399,9 +411,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|
@@ -416,9 +428,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulDecompressConvertTest, testPara
     |       MatMul        |               |       MatMul        |
     -----------------------               -----------------------
                       |                       |
-                   --------------------------------- 
-                   |             Concat            | 
-                   --------------------------------- 
+                   ---------------------------------
+                   |             Concat            |
+                   ---------------------------------
                                    |
                                 --------
                                 |Output|
@@ -517,6 +529,18 @@ TEST_P(MatMulDecompressConvertTest2, CompareWithRefs) {
     run();
     CheckExecutionGraph();
 }
+
+TEST_P(MatMulDecompressConvertTest2, CompareWithRefs_FP16) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    CheckExecutionGraph();
+}
+
 
 namespace {
 

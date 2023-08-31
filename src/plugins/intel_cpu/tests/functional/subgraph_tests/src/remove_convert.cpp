@@ -108,7 +108,29 @@ TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
 }
 
+TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
+    run();
+    CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
+    CheckPluginRelatedResults(compiledModel, "StridedSlice");
+}
+
+
 TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+}
+
+TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs_FP16) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    }
+    configuration.insert({ov::hint::inference_precision.name(), "f16"});
+
     run();
     CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
 }
