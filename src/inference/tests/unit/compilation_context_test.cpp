@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "compilation_context.hpp"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -11,17 +13,15 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "compilation_context.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "ngraph/function.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-using namespace InferenceEngine;
 using namespace ov;
-using namespace ngraph;
 using namespace ::testing;
 using namespace std::chrono;
 
@@ -107,45 +107,45 @@ TEST_F(NetworkContext_CalcFileInfoTests, SizeModified) {
 
 ////////////////////////////////////////////////////
 
-static std::shared_ptr<ngraph::Function> create_simple_function() {
-    // This example is taken from docs, shows how to create ngraph::Function
+static std::shared_ptr<ov::Model> create_simple_model() {
+    // This example is taken from docs, shows how to create ov::Model
     //
     // Parameter--->Multiply--->Add--->Result
     //    Constant---'          /
     //              Constant---'
 
     // Create opset6::Parameter operation with static shape
-    auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i8, ngraph::Shape{3, 1, 2});
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::Shape{3, 1, 2});
     data->set_friendly_name("Parameter");
     data->get_output_tensor(0).set_names({"parameter"});
 
-    auto mul_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {3});
+    auto mul_constant = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{1}, {3});
     mul_constant->set_friendly_name("mul_constant");
     mul_constant->get_output_tensor(0).set_names({"mul_constant"});
-    auto mul = std::make_shared<ngraph::opset6::Multiply>(data, mul_constant);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(data, mul_constant);
     mul->set_friendly_name("mul");
     mul->get_output_tensor(0).set_names({"mul"});
 
-    auto add_constant = ngraph::opset6::Constant::create(ngraph::element::i8, ngraph::Shape{1}, {2});
+    auto add_constant = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{1}, {2});
     add_constant->set_friendly_name("add_constant");
     add_constant->get_output_tensor(0).set_names({"add_constant"});
-    auto add = std::make_shared<ngraph::opset6::Add>(mul, add_constant);
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_constant);
     add->set_friendly_name("add");
     add->get_output_tensor(0).set_names({"add"});
 
     // Create opset3::Result operation
-    auto res = std::make_shared<ngraph::opset6::Result>(add);
+    auto res = std::make_shared<ov::op::v0::Result>(add);
     res->set_friendly_name("res");
 
-    // Create nGraph function
-    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
-    return func;
+    // Create ov function
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+    return model;
 }
 
 static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
                           const std::function<void(Node::RTMap&, const std::string& name)>& nameCb) {
-    auto model1 = create_simple_function();
-    auto model2 = create_simple_function();
+    auto model1 = create_simple_model();
+    auto model2 = create_simple_model();
     auto& op1 = model1->get_ops().front()->get_rt_info();
     auto& op2 = model2->get_ops().front()->get_rt_info();
 
@@ -166,22 +166,22 @@ static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
 }
 
 TEST(NetworkContext, HashOfSame) {
-    auto model1 = create_simple_function();
-    auto model2 = create_simple_function();
+    auto model1 = create_simple_model();
+    auto model2 = create_simple_model();
     ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 }
 
 TEST(NetworkContext, HashWithConfig) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
     ASSERT_NE(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {}));
     ASSERT_EQ(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {{"key", "value"}}));
 }
 
 TEST(NetworkContext, HashWithPrimitivesPriority) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
-    auto net3 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
+    auto net3 = create_simple_model();
     auto& op2 = net2->get_ops().front()->get_rt_info();
     op2[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
@@ -214,9 +214,9 @@ TEST(NetworkContext, HashWithPrimitivesPriorityType) {
 }
 
 TEST(NetworkContext, HashWithAffinity) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
-    auto net3 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
+    auto net3 = create_simple_model();
     auto& op2 = net2->get_ops().front()->get_rt_info();
     op2["affinity"] = "testAffinity";
 
@@ -229,9 +229,9 @@ TEST(NetworkContext, HashWithAffinity) {
 }
 
 TEST(NetworkContext, HashWithFutureRt_string) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
-    auto net3 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
+    auto net3 = create_simple_model();
 
     auto& op1 = net1->get_ops().front()->get_rt_info();
     op1["someFutureKey"] = "hello";
@@ -248,9 +248,9 @@ TEST(NetworkContext, HashWithFutureRt_string) {
 }
 
 TEST(NetworkContext, HashWithFutureRt_int64) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
-    auto net3 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
+    auto net3 = create_simple_model();
 
     auto& op1 = net1->get_ops().front()->get_rt_info();
     op1["someFutureKey"] = int64_t(42);
@@ -267,9 +267,9 @@ TEST(NetworkContext, HashWithFutureRt_int64) {
 }
 
 TEST(NetworkContext, HashWithTensorNames) {
-    auto fun1 = create_simple_function();
-    auto fun2 = create_simple_function();
-    auto fun3 = create_simple_function();
+    auto fun1 = create_simple_model();
+    auto fun2 = create_simple_model();
+    auto fun3 = create_simple_model();
     std::unordered_set<std::string> names1, names2;
     std::vector<std::string> testNames;
     testNames.reserve(100);
@@ -292,19 +292,19 @@ TEST(NetworkContext, HashWithTensorNames) {
 }
 
 TEST(NetworkContext, HashWithDifferentResults) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
     net2->remove_result(net2->get_results().front());
-    auto net3 = create_simple_function();
+    auto net3 = create_simple_model();
     net3->remove_result(net3->get_results().front());
     ASSERT_NE(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
     ASSERT_EQ(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
-// Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
+// Verify all internal hash calculations are thread-safe (like ov::Model serialization)
 TEST(NetworkContext, HashOfSameMultiThreading) {
-    auto net1 = create_simple_function();
-    auto net2 = create_simple_function();
+    auto net1 = create_simple_model();
+    auto net2 = create_simple_model();
     std::atomic_bool fail{false};
     const auto TEST_DURATION_MS = 1000;
     auto start = high_resolution_clock::now();
