@@ -6,14 +6,14 @@
 
 #include <cmath>
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -30,11 +30,11 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool FakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
     const auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
     if (!layer || !QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
@@ -59,7 +59,7 @@ static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const
     if ((shape.size() > 1ul) && (shape.size() < static_cast<size_t>(targetShape.rank().get_length()))) {
         constantOp = fold<opset1::Unsqueeze>(
             constantOp,
-            std::make_shared<opset1::Constant>(ngraph::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
+            std::make_shared<opset1::Constant>(ov::element::i32, Shape{ 1 }, std::vector<size_t>({ 0ul })));
     }
     return constantOp;
 }
@@ -230,4 +230,4 @@ bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> laye
 }
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

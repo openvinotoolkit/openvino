@@ -66,7 +66,7 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
 }
 
 typedef std::
-    tuple<ov::element::Type, std::pair<ngraph::PartialShape, ngraph::PartialShape>, MatMullTransformationTestValues>
+    tuple<ov::element::Type, std::pair<ov::PartialShape, ov::PartialShape>, MatMullTransformationTestValues>
         MatMulTransformationParams;
 
 class MatMulTransformation : public LayerTransformation,
@@ -74,7 +74,7 @@ class MatMulTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes = std::get<1>(GetParam());
+        const std::pair<ov::PartialShape, ov::PartialShape> shapes = std::get<1>(GetParam());
         const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction =
@@ -87,7 +87,7 @@ public:
                                                                    testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ov::pass::low_precision::MatMulTransformation, ov::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = (testValues.expected.precisionBeforeOperation1 == ov::element::f32) &&
@@ -113,7 +113,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ov::element::Type precision;
-        std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+        std::pair<ov::PartialShape, ov::PartialShape> shapes;
         MatMullTransformationTestValues testValues;
         std::tie(precision, shapes, testValues) = obj.param;
 
@@ -134,7 +134,7 @@ TEST_P(MatMulTransformation, CompareFunctions) {
 const std::vector<ov::element::Type> precisions = {ov::element::f32, ov::element::f16};
 
 namespace testValues1 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapes = {
     {{-1, -1, -1, -1}, {-1, -1, -1, -1}},
     {{1, 16, 384, 64}, {1, 16, 64, 384}},
     {{1, 1, 4, 16, 384, 64}, {1, 1, 4, 16, 64, 384}},
@@ -349,7 +349,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapes = {
     {{-1, -1, -1, -1}, {-1, -1, -1, -1}},
     {{1, 3, 384, 64}, {1, 3, 64, 384}},
 };
@@ -399,7 +399,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesWithDynamicChannels = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapesWithDynamicChannels = {
     {PartialShape::dynamic(), PartialShape::dynamic()}};
 
 std::vector<MatMullTransformationTestValues> testValuesWithPerChannelDq = {

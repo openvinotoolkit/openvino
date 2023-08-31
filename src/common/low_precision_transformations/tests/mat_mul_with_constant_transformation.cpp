@@ -68,7 +68,7 @@ inline std::ostream& operator<<(std::ostream& out, const MatMullTransformationTe
     return out << "_" << values.actual << "_" << values.expected;
 }
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, MatMullTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, MatMullTransformationTestValues>
     MatMulTransformationParams;
 
 class MatMulWithConstantTransformation : public LayerTransformation,
@@ -76,7 +76,7 @@ class MatMulWithConstantTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         const ov::element::Type precision = std::get<0>(GetParam());
-        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
+        const ov::PartialShape inputShape = std::get<1>(GetParam());
         MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction =
@@ -89,7 +89,7 @@ public:
                                                                    testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ov::pass::low_precision::MatMulTransformation, ov::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =
@@ -113,7 +113,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape inputShape;
+        ov::PartialShape inputShape;
         MatMullTransformationTestValues testValues;
         std::tie(precision, inputShape, testValues) = obj.param;
 
@@ -137,7 +137,7 @@ const std::vector<ov::element::Type> precisions = {
 };
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 384, 1024},
     {4, 384, 1024},
     {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}};
@@ -184,7 +184,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes = {{1, 3, 4},
+const std::vector<ov::PartialShape> inputShapes = {{1, 3, 4},
                                                        {4, 3, 4},
                                                        {Dimension::dynamic(), 3, Dimension::dynamic()}};
 
@@ -348,7 +348,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapes = {{1, 2048},
+const std::vector<ov::PartialShape> inputShapes = {{1, 2048},
                                                        {4, 2048},
                                                        {Dimension::dynamic(), Dimension::dynamic()}};
 
@@ -467,7 +467,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace testValues4 {
-const std::vector<ngraph::PartialShape> inputShapes = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> inputShapes = {PartialShape::dynamic()};
 
 std::vector<MatMullTransformationTestValues> testValues = {
     {LayerTransformation::createParamsU8I8(),

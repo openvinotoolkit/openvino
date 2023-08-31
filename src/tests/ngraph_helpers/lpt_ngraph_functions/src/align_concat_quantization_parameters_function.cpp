@@ -136,7 +136,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
     {
         FakeQuantizeOnData onData = { 256, {}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f }, ngraph::element::u8};
         parent1 = makeFakeQuantizeTypeRelaxed(input1, element::f32, onData);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent1, element::u8);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent1, element::u8);
         parent1->set_friendly_name("fakeQuantizeOnActivations1");
 
         parent1 = std::make_shared<ngraph::opset1::AvgPool>(
@@ -171,7 +171,7 @@ std::shared_ptr<ngraph::Function> AlignConcatQuantizationParametersFunction::get
     {
         FakeQuantizeOnData onData = { 256, {}, { -0.64f }, { 0.635f }, { 64.f }, { 192.f }, element::u8};
         parent2 = makeFakeQuantizeTypeRelaxed(input2, element::f32, onData);
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent2, element::u8);
+        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(parent2, element::u8);
         parent2->set_friendly_name("fakeQuantizeOnActivations2");
 
         parent2 = std::make_shared<ngraph::opset1::AvgPool>(

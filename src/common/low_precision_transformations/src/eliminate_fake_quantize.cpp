@@ -6,12 +6,12 @@
 
 #include <memory>
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -25,7 +25,7 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
             pattern::wrap_type<ov::opset1::Constant>()
         });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         const auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -33,11 +33,11 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
         return transform(*context, m);
     };
 
-    const auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    const auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto root = m.get_match_root();
     if (!canBeTransformed(context, root)) {
         return false;
@@ -130,4 +130,4 @@ bool EliminateFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<N
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

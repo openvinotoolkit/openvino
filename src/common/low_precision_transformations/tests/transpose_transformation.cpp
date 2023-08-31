@@ -44,13 +44,13 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ngraph::PartialShape, TransposeTransformationTestValues> TransposeTransformationParams;
+typedef std::tuple<ov::PartialShape, TransposeTransformationTestValues> TransposeTransformationParams;
 
 class TransposeTransformation : public LayerTransformation,
                                 public testing::WithParamInterface<TransposeTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
+        const ov::PartialShape inputShape = std::get<0>(GetParam());
         const TransposeTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction =
@@ -60,7 +60,7 @@ public:
                                                                       testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::TransposeTransformation, ov::op::v1::Transpose>(testValues.params);
+        transformer.add<ov::pass::low_precision::TransposeTransformation, ov::op::v1::Transpose>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::TransposeFunction::getReference(
@@ -73,7 +73,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj) {
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
+        const ov::PartialShape inputShape = std::get<0>(obj.param);
         const TransposeTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
@@ -94,7 +94,7 @@ TEST_P(TransposeTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes4D = {{1, 3, 16, 16}, {-1, -1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes4D = {{1, 3, 16, 16}, {-1, -1, -1, -1}};
 
 const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapes3D = {{1, 16, 512}, {-1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes3D = {{1, 16, 512}, {-1, -1, -1}};
 
 const std::vector<TransposeTransformationTestValues> testValues = {
     {{0, 2, 1},
@@ -188,7 +188,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {PartialShape::dynamic()};
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {PartialShape::dynamic()};
 
 const std::vector<TransposeTransformationTestValues> testValues = {
     {{0, 1, 3, 2},
@@ -209,7 +209,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues3
 
 namespace testValues4 {
-const std::vector<ngraph::PartialShape> inputShapes6D = {{-1, -1, -1, -1, -1, -1}};
+const std::vector<ov::PartialShape> inputShapes6D = {{-1, -1, -1, -1, -1, -1}};
 
 const std::vector<TransposeTransformationTestValues> testValues = {
     {{0, 1, 2, 3, 4, 5},

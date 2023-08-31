@@ -56,7 +56,7 @@ public:
 
 TEST_P(TransformerIsFunctionQuantized, isFunctionQuantized) {
     actualFunction->validate_nodes_and_infer_types();
-    const bool isFunctionQuantized = ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
+    const bool isFunctionQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(actualFunction);
 
     const TestValues testValues = GetParam();
     const bool expected = !testValues.fqOnData.empty() || !testValues.fqOnWeights.empty();

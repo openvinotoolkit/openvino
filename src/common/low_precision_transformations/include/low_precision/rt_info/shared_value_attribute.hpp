@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <ngraph/node.hpp>
+#include <openvino/core/node.hpp>
 
 #include <low_precision/lpt_visibility.hpp>
 

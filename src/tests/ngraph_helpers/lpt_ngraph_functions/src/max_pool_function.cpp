@@ -55,7 +55,7 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::get(
         Shape{ 2, 2 },
         op::RoundingType::FLOOR);
     parent = maxPool;
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, precisionAfterOperation);
+    ov::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, precisionAfterOperation);
 
     parent = makeDequantization(maxPool, dequantizationAfter);
     maxPool->set_friendly_name("maxPool");

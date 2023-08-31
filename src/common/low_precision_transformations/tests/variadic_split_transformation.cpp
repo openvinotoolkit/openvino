@@ -6,7 +6,7 @@
 
 #include <low_precision/variadic_split.hpp>
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -36,7 +36,7 @@ public:
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t axis;
     std::vector<size_t> splitLengths;
     TestTransformationParams params;
@@ -58,7 +58,7 @@ public:
             testValues.splitLengths);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::VariadicSplitTransformation, ov::op::v1::VariadicSplit>(
+        transformer.add<ov::pass::low_precision::VariadicSplitTransformation, ov::op::v1::VariadicSplit>(
             testValues.params);
         transformer.transform(actualFunction);
 

@@ -12,7 +12,7 @@
 using namespace ov;
 
 TEST(smoke_LPT_DataPrecision, check) {
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
 
     const std::vector<element::Type> type_items = {
         element::i4,

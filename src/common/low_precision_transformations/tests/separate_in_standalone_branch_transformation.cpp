@@ -59,13 +59,13 @@ public:
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
             const auto dequantizationsNode = ngraph::builder::subgraph::makeDequantization(relu, dequantizations);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 dequantizationsNode,
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
@@ -81,7 +81,7 @@ public:
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
         const auto result = actualFunction->get_results()[0];
-        ngraph::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
+        ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
 
         const auto createReferenceFunction = [](
             const ov::element::Type precision,
@@ -90,13 +90,13 @@ public:
             const std::shared_ptr<ov::op::v0::Parameter> input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
             const auto relu = std::make_shared<ov::op::v0::Relu>(input);
 
-            const std::shared_ptr<ngraph::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);
             reshape1->set_friendly_name("reshape1");
 
-            const std::shared_ptr<ngraph::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
+            const std::shared_ptr<ov::Node> reshape2 = std::make_shared<ov::op::v1::Reshape>(
                 ngraph::builder::subgraph::makeDequantization(relu, dequantization),
                 std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{ 2 }, std::vector<double>({0, -1})),
                 true);

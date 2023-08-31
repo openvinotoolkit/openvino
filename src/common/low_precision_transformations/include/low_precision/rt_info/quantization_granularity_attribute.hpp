@@ -9,7 +9,7 @@
 #include "low_precision/layer_transformation.hpp"
 #include "attribute_parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 /**
  * @ingroup ie_transformation_common_api
  * @brief QuantizationGranularityAttribute defines quantization granularity of operation inputs.
@@ -38,4 +38,4 @@ public:
 
     Granularity granularity;
 };
-} // namespace ngraph
+} // namespace ov

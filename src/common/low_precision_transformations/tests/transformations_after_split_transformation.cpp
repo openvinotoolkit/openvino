@@ -53,7 +53,7 @@ void getTransformerWithTransformationByName(
     SimpleLowPrecisionTransformer& transformer,
     const TestTransformationParams& params,
     const std::string name) {
-    using namespace ngraph::pass::low_precision;
+    using namespace ov::pass::low_precision;
 
     if (name == "AddTransformationWithoutConcat" || name == "AddTransformationWithConcat") {
         transformer.add<AddTransformation, ov::op::v1::Add>(params);
@@ -96,7 +96,7 @@ void getTransformerWithTransformationByName(
         return;
     }
     if (name == "MVNTransformation") {
-        transformer.add<MVNTransformation, ngraph::op::MVN>(params);
+        transformer.add<MVNTransformation, ov::op::v0::MVN>(params);
         return;
     }
     if (name == "NormalizeL2Transformation") {

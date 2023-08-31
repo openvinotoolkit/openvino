@@ -5,7 +5,7 @@
 #pragma once
 
 #include <low_precision/lpt_visibility.hpp>
-#include <ngraph/node.hpp>
+#include <openvino/core/node.hpp>
 #include <openvino/core/runtime_attribute.hpp>
 
 namespace ov {

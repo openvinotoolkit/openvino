@@ -53,7 +53,7 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<std::pair<ngraph::PartialShape, ngraph::PartialShape>,  // inputShape - outputShape
+typedef std::tuple<std::pair<ov::PartialShape, ov::PartialShape>,  // inputShape - outputShape
                    GroupConvolutionTestValues>
     ConvolutionTransformationParams;
 
@@ -81,12 +81,12 @@ public:
                                                                      testValues.addReshape);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
+        transform.add<ov::pass::low_precision::GroupConvolutionTransformation, ov::opset1::GroupConvolution>(
             testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
-            transform.get_pass_config()->set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
-                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-                    return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
+            transform.get_pass_config()->set_callback<ov::pass::low_precision::GroupConvolutionTransformation>(
+                [](const std::shared_ptr<const ov::Node>& node) -> bool {
+                    return ov::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
                 });
         }
         transform.transform(actualFunction);
@@ -136,7 +136,7 @@ TEST_P(GroupConvolutionTransformation, CompareFunctions) {
 // clang-format off
 namespace testValues1 {
 
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesForGroupConv = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapesForGroupConv = {
     {{1, 6, 224, 224}, {1, 24, 218, 218}},
     {{-1, -1, -1, -1}, {-1, -1, -1, -1}}
 };
@@ -721,7 +721,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues1
 
 namespace testValues2 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesForDepthWiseConv = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapesForDepthWiseConv = {
     {{1, 6, 224, 224}, {1, 6, 218, 218}},
     {{-1, 6, -1, -1}, {-1, 6, -1, -1}},
 };
@@ -933,7 +933,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT,
 }  // namespace testValues2
 
 namespace testValues3 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesWithDynamicChannel = {
+const std::vector<std::pair<ov::PartialShape, ov::PartialShape>> shapesWithDynamicChannel = {
     {PartialShape::dynamic(), PartialShape::dynamic()}
 };
 

@@ -11,7 +11,7 @@
 #include "low_precision/rt_info/attribute_parameters.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -19,7 +19,7 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -29,7 +29,7 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
  * [PropagatePrecisions](@ref openvino_docs_OV_UG_lpt_PropagatePrecisions) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::PropagatePrecisions : public ov::pass::ModelPass {
+class ov::pass::low_precision::PropagatePrecisions : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("PropagatePrecisions", "0");
     PropagatePrecisions(const AttributeParameters& params = AttributeParameters());

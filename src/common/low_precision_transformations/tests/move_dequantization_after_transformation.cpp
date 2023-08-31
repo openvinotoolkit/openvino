@@ -62,8 +62,8 @@ public:
             testValues.actual.dequantization);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(targetNode);
-        ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+        ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(
             targetNode,
             dequantization,
             testValues.updatePrecision,

@@ -50,7 +50,7 @@ public:
 
 typedef std::tuple<
     element::Type,
-    ngraph::PartialShape,
+    ov::PartialShape,
     ConvolutionTransformationTestValues> ConvolutionTransformationParams;
 
 class ConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<ConvolutionTransformationParams> {
@@ -69,11 +69,11 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::opset1::Convolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
-            transform.get_pass_config()->set_callback<ngraph::pass::low_precision::ConvolutionTransformation>(
-                [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
-                    return ngraph::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
+            transform.get_pass_config()->set_callback<ov::pass::low_precision::ConvolutionTransformation>(
+                [](const std::shared_ptr<const ov::Node>& node) -> bool {
+                    return ov::pass::low_precision::LayerTransformation::isAsymmetricQuantization(node);
                 });
         }
         transform.transform(actualFunction);
@@ -130,11 +130,11 @@ const std::vector<element::Type> netPrecisions = {
     element::f16
 };
 
-const std::vector<ngraph::PartialShape> suitablePartialShapes = {
-    ngraph::PartialShape({ 1, 3, 72, 48 }),
-    ngraph::PartialShape({ 4, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, 3, 72, 48 }),
-    ngraph::PartialShape({ -1, -1, -1, -1 }),
+const std::vector<ov::PartialShape> suitablePartialShapes = {
+    ov::PartialShape({ 1, 3, 72, 48 }),
+    ov::PartialShape({ 4, 3, 72, 48 }),
+    ov::PartialShape({ -1, 3, 72, 48 }),
+    ov::PartialShape({ -1, -1, -1, -1 }),
 };
 
 const std::vector<ConvolutionTransformationTestValues> testValues = {
@@ -453,8 +453,8 @@ const std::vector<element::Type> netPrecisions = {
     element::f16
 };
 
-const std::vector<ngraph::PartialShape> unsuitablePartialShapes = {
-    ngraph::PartialShape::dynamic()
+const std::vector<ov::PartialShape> unsuitablePartialShapes = {
+    ov::PartialShape::dynamic()
 };
 
 const std::vector<ConvolutionTransformationTestValues> testValues = {

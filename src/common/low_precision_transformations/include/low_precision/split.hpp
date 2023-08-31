@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "layer_transformation.hpp"
-#include "ngraph/node.hpp"
+#include "openvino/core/node.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -30,9 +30,9 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     void updateOutputs(
         TransformationContext& context,
-        std::vector<std::shared_ptr<ngraph::Node>> lastNodes,
-        std::shared_ptr<ngraph::Node> originalNode) const;
+        std::vector<std::shared_ptr<ov::Node>> lastNodes,
+        std::shared_ptr<ov::Node> originalNode) const;
 };
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

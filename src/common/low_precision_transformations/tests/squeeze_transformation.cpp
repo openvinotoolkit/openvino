@@ -40,7 +40,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<float> axes;
     TestTransformationParams params;
     Actual actual;
@@ -59,7 +59,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::SqueezeTransformation, ov::op::v0::Squeeze>(testValues.params);
+        transform.add<ov::pass::low_precision::SqueezeTransformation, ov::op::v0::Squeeze>(testValues.params);
 
         transform.transform(actualFunction);
 
