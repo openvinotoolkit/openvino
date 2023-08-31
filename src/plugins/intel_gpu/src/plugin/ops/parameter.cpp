@@ -105,6 +105,9 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         p.inputLayouts.insert({ op->get_friendly_name(), input_layout });
 
         p.add_primitive(*op, cldnn::input_layout(input_name, input_layout));
+        // Techically this reorder is not needed, but for some reason it impacts layout propagation logic
+        // TODO: Remove it and fix layout assignment & propagation passes
+        p.add_primitive(*op, cldnn::reorder(reorder_name, cldnn::input_info(input_name), input_layout), {input_name});
     }
 }
 
