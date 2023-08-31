@@ -157,6 +157,7 @@ jobs:
           ccache --version || exit 1
           python3 --version || exit 1
           cmake --version || exit 1
+          ccache --version || exit 1
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
