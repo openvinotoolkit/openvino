@@ -204,7 +204,7 @@ a time and this vector will just consist of ones.
 We use OpenVINO Converter (OVC) below to convert the PyTorch model to
 the OpenVINO Intermediate Representation format (IR), which you can
 infer later with `OpenVINO
-runtime <https://docs.openvino.ai/latest/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__
+runtime <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html#doxid-openvino-docs-o-v-u-g-o-v-runtime-user-guide>`__
 
 .. code:: ipython3
 
@@ -362,7 +362,7 @@ Embedding the converted models into the original pipeline `⇑ <#top>`__
 
 OpenVINO™ Runtime Python API is used to compile the model in OpenVINO IR
 format. The
-`Core <https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
+`Core <https://docs.openvino.ai/2023.1/api/ie_python_api/_autosummary/openvino.runtime.Core.html>`__
 class provides access to the OpenVINO Runtime API. The ``core`` object,
 which is an instance of the ``Core`` class represents the API and it is
 used to compile the model.

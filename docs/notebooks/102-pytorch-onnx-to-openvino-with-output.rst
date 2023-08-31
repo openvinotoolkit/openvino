@@ -206,7 +206,7 @@ Convert ONNX Model to OpenVINO IR Format `⇑ <#top>`__
 To convert the ONNX model to OpenVINO IR with ``FP16`` precision, use
 model conversion API. The models are saved inside the current directory.
 For more information on how to convert models, see this
-`page <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__.
 
 .. code:: ipython3
 
@@ -448,7 +448,7 @@ Performance Comparison `⇑ <#top>`__
 Measure the time it takes to do inference on twenty images. This gives
 an indication of performance. For more accurate benchmarking, use the
 `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
+Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__.
 Keep in mind that many optimizations are possible to improve the
 performance.
 
@@ -545,6 +545,6 @@ References `⇑ <#top>`__
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion API
-   documentation <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   documentation <https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html>`__
 -  `Converting Pytorch
-   model <https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+   model <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
