@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include <map>
 #include <memory>
 #include <ngraph/function.hpp>
@@ -129,7 +129,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
         auto matmul = std::make_shared<ngraph::opset4::MatMul>(transpose, data_B, false, false);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{data_A, data_B});
 
-        ngraph::pass::Manager m;
+        ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);

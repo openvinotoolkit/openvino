@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
+
 #include <gtest/gtest.h>
 
 #include <fstream>
 #include <map>
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/pass/constant_folding.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
-#include <transformations/common_optimizations/optimize_strided_slice.hpp>
-#include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -116,6 +117,43 @@ TEST_F(TransformationTestsF, OptimizeSS_SkipUselessDeletionRevertCase) {
         auto relu = std::make_shared<opset3::Relu>(ss);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, UselessSlice) {
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        auto begin = opset1::Constant::create(element::i64, Shape{2}, {0, 0});
+        auto end = opset1::Constant::create(element::i64, Shape{2}, {5, 5});
+        auto stride = opset1::Constant::create(element::i64, Shape{2}, {1, 1});
+        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+
+        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+
+        model = std::make_shared<ov::Model>(slice, ParameterVector{data});
+        manager.register_pass<ov::pass::UselessSliceEraser>();
+    }
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        model_ref = std::make_shared<ov::Model>(relu, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, NegativeUselessSliceWithNegativeStrides) {
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+        auto relu = std::make_shared<opset1::Relu>(data);
+        auto begin = opset1::Constant::create(element::i64, Shape{2}, {4, 0});
+        auto end = opset1::Constant::create(element::i64, Shape{2}, {INT32_MIN, 5});
+        auto stride = opset1::Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto axis = opset1::Constant::create(element::i64, Shape{2}, {1, 3});
+
+        auto slice = std::make_shared<opset8::Slice>(relu, begin, end, stride, axis);
+
+        model = std::make_shared<ov::Model>(slice, ParameterVector{data});
+        manager.register_pass<ov::pass::UselessSliceEraser>();
     }
 }
 
