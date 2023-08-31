@@ -440,6 +440,9 @@ inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
 }
 
+using optional_data_type = optional_value<data_types>;
+using optional_layout = optional_value<layout>;
+
 /// @}
 /// @}
 }  // namespace cldnn

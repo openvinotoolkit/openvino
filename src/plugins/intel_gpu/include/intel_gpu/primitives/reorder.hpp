@@ -65,6 +65,7 @@ struct WeightsReorderParams {
         ib >> _transposed;
         ib >> _grouped;
     }
+    virtual ~WeightsReorderParams() = default;
 
 protected:
     layout _in_layout;
