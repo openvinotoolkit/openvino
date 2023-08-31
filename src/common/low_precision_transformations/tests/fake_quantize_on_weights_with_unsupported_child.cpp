@@ -62,11 +62,11 @@ public:
             testValues.actual.fakeQuantizeOnWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         ov::pass::Manager cleanupManager;
-        cleanupManager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>();
+        cleanupManager.register_pass<ov::pass::low_precision::FoldFakeQuantizeTransformation>();
         cleanupManager.register_pass<ov::pass::ConstantFolding>();
         cleanupManager.run_passes(actualFunction);
 

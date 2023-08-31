@@ -43,15 +43,15 @@ public:
             if (addIntervalsAlignment) {
                 addAttributes(
                     {fq_before, fq_after},
-                    {ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
-                addAttributes({fq_after, relu}, {ngraph::QuantizationAlignmentAttribute(true)});
+                    {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)});
+                addAttributes({fq_after, relu}, {ov::QuantizationAlignmentAttribute(true)});
             }
             ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
             actualFunction = std::make_shared<Model>(results, ParameterVector{input}, "FakeQuantizeFunction");
         }
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
+        transform.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             LayerTransformation::createParamsU8I8());
         transform.transform(actualFunction);
 

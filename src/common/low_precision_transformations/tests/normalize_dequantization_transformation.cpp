@@ -11,7 +11,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <low_precision/network_helper.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -51,8 +51,8 @@ public:
             testValues.actual.dequantization);
 
         const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
-        const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(targetNode);
-        ngraph::pass::low_precision::NetworkHelper::normalizeDequantization(dequantization);
+        const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
+        ov::pass::low_precision::NetworkHelper::normalizeDequantization(dequantization);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeDequantizationFunction::getOriginal(
             testValues.expected.precisionBeforeDequantization,

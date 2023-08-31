@@ -27,7 +27,7 @@ TEST(DISABLED_LPT, isQuantizedTransformation) {
     // TODO: FIXME
     EXPECT_EQ(1, 0);
 
-    //const auto transformations = ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
+    //const auto transformations = ov::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
 
     //for (const auto& transformation : transformations.transformations) {
     //    ASSERT_NO_THROW(transformation.second->isQuantized(layer));

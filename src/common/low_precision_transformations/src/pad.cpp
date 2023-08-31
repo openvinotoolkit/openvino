@@ -5,15 +5,15 @@
 #include "low_precision/pad.hpp"
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
+
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include "low_precision/network_helper.hpp"
 #include <openvino/op/util/pad_base.hpp>
 #include "openvino/opsets/opset12.hpp"
 #include "itt.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -25,7 +25,7 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
     auto padsValue = pattern::wrap_type<ov::opset1::Constant>();
     auto matcher = pattern::wrap_type<ov::op::util::PadBase>({ mul, padsBegin, padsEnd, padsValue });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -33,11 +33,11 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool PadTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool PadTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -295,4 +295,4 @@ bool PadTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const 
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov

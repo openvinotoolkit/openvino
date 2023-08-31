@@ -13,7 +13,7 @@
 #include <openvino/itt.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 namespace itt {

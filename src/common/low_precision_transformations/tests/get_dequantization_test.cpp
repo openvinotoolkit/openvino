@@ -41,7 +41,7 @@ public:
                                                                                            subDataInput,
                                                                                            mulDataInput);
         auto dequantization =
-            ngraph::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
+            ov::pass::low_precision::NetworkHelper::getDequantization(actualFunction->get_result());
         referenceFunction = ngraph::builder::subgraph::GetDequantizationFunction::getReference(dequantization);
     }
 

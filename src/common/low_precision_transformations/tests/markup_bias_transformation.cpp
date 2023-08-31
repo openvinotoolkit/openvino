@@ -63,7 +63,7 @@ TEST_P(MarkupBiasTests, CompareFunctions) {
     EXPECT_EQ(1ul, addOps.size()) << "unexpected addOps size";
 
     const bool is_bias = std::get<1>(GetParam()).is_bias;
-    auto biasAttr = ngraph::pass::low_precision::getAttribute<ov::BiasAttribute>(addOps[0]);
+    auto biasAttr = ov::pass::low_precision::getAttribute<ov::BiasAttribute>(addOps[0]);
     EXPECT_EQ(!biasAttr.empty(), is_bias) << "Bias markup failed";
 }
 

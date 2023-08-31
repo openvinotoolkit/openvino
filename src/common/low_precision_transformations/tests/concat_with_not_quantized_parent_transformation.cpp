@@ -155,43 +155,43 @@ public:
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);
 
-        auto precisionsRestrictions = std::vector<ngraph::pass::low_precision::PrecisionsRestriction>({
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
+        auto precisionsRestrictions = std::vector<ov::pass::low_precision::PrecisionsRestriction>({
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::Convolution>({
                 {{0}, {ov::element::u8}},
                 {{1}, {ov::element::i8}}
             }),
-            ngraph::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
+            ov::pass::low_precision::PrecisionsRestriction::create<ov::op::v1::AvgPool>({{{0}, testValues.params.precisionsOnActivations}})
         });
 
-        auto quantizationRestrictions = std::vector<ngraph::pass::low_precision::QuantizationGranularityRestriction>({
-            ngraph::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})
+        auto quantizationRestrictions = std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>({
+            ov::pass::low_precision::QuantizationGranularityRestriction::create<ov::op::v1::Convolution>({0})
         });
 
         const auto params = TestTransformationParams(testValues.params.updatePrecisions);
         const auto legacyParams = TestTransformationParams::toParams(params);
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
-        manager.register_pass<ngraph::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
-        manager.register_pass<ngraph::pass::low_precision::PropagatePrecisions>();
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
-        manager.register_pass<ngraph::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
+        manager.register_pass<ov::pass::low_precision::MarkupPrecisions>(precisionsRestrictions);
+        manager.register_pass<ov::pass::low_precision::MarkupQuantizationGranularity>(quantizationRestrictions);
+        manager.register_pass<ov::pass::low_precision::MarkupAvgPoolPrecisionPreserved>(params.defaultPrecisions);
+        manager.register_pass<ov::pass::low_precision::PropagatePrecisions>();
+        manager.register_pass<ov::pass::low_precision::AlignQuantizationIntervals>(params.defaultPrecisions);
+        manager.register_pass<ov::pass::low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
 
         std::shared_ptr<ov::pass::GraphRewrite> common = manager.register_pass<ov::pass::GraphRewrite>();
-        common->add_matcher<ngraph::pass::low_precision::ConcatTransformation>(legacyParams);
-        common->add_matcher<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation>(legacyParams);
+        common->add_matcher<ov::pass::low_precision::ConcatTransformation>(legacyParams);
+        common->add_matcher<ov::pass::low_precision::FakeQuantizeDecompositionTransformation>(legacyParams);
         manager.run_passes(actualFunction);
 
         {
             ov::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager.register_pass<ngraph::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseSubtractToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
         {
             ov::pass::Manager standaloneCleanupManager;
-            standaloneCleanupManager.register_pass<ngraph::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
+            standaloneCleanupManager.register_pass<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
             standaloneCleanupManager.run_passes(actualFunction);
         }
 
@@ -218,9 +218,9 @@ public:
             testValues.result.dequantization2,
             true,
             {
-                ngraph::PrecisionPreservedAttribute(true),
-                ngraph::IntervalsAlignmentAttribute(ngraph::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
-                ngraph::QuantizationAlignmentAttribute(false)
+                ov::PrecisionPreservedAttribute(true),
+                ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul),
+                ov::QuantizationAlignmentAttribute(false)
             },
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter,
@@ -258,15 +258,15 @@ TEST_P(ConcatWithNotQuantizedParentTransformation, CompareFunctions) {
             break;
         }
     }
-    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ngraph::PrecisionsAttribute>(actualFakeQuantizes)) <<
-        "ngraph::PrecisionsAttribute are not the same";
+    ASSERT_TRUE(checkIfOutputAttributesSharedValuesAreTheSame<ov::PrecisionsAttribute>(actualFakeQuantizes)) <<
+        "ov::PrecisionsAttribute are not the same";
 
     ConcatWithNotQuantizedParentTransformationTestValues testValues = std::get<2>(GetParam());
     if (testValues.checkIntervalsAlignmentAttributes) {
         auto operations = LayerTransformation::get<ov::op::v0::Concat>(actualFunction);
         operations.insert(operations.end(), actualFakeQuantizes.begin(), actualFakeQuantizes.end());
-        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ngraph::IntervalsAlignmentAttribute>(operations)) <<
-            "ngraph::IntervalsAlignmentAttribute are not the same";
+        ASSERT_TRUE(checkIfAttributesSharedValuesAreTheSame<ov::IntervalsAlignmentAttribute>(operations)) <<
+            "ov::IntervalsAlignmentAttribute are not the same";
     }
 }
 

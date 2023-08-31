@@ -33,7 +33,7 @@ class ReduceMaxTransformation : public ReduceTransformation<ov::op::v1::ReduceMa
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceMaxTransformation, ov::op::v1::ReduceMax>(transformationParams);
+        transform.add<ov::pass::low_precision::ReduceMaxTransformation, ov::op::v1::ReduceMax>(transformationParams);
         transform.transform(actualFunction);
     }
 };
@@ -47,7 +47,7 @@ TEST_P(ReduceMaxTransformation, CompareFunctions) {
 }
 
 namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
+const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 16, 16},
     {4, 3, 16, 16},
     {-1, -1, -1, -1}
@@ -314,7 +314,7 @@ INSTANTIATE_TEST_SUITE_P(
 } // namespace testValues1
 
 namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
+const std::vector<ov::PartialShape> inputShapesWithDynamicRank = {
     PartialShape::dynamic()
 };
 

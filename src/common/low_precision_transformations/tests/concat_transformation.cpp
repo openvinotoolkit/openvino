@@ -65,7 +65,7 @@ public:
             testValues.concatAxis);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
+        transformer.add<ov::pass::low_precision::ConcatTransformation, ov::op::v0::Concat>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ConcatFunction::get(

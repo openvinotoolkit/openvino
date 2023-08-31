@@ -62,7 +62,7 @@ public:
             testValues.actual.dequantizationAfter);
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>();
+        manager.register_pass<ov::pass::low_precision::ConvertSubtractConstant>();
         manager.run_passes(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(

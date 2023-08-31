@@ -43,7 +43,7 @@ public:
     Expected expected;
 };
 
-typedef std::tuple<ov::element::Type, ngraph::PartialShape, AvgPoolWithChildTransformationTestValues>
+typedef std::tuple<ov::element::Type, ov::PartialShape, AvgPoolWithChildTransformationTestValues>
     AvgPoolWithChildTransformationParams;
 
 class AvgPoolWithChildTransformation : public LayerTransformation,
@@ -51,7 +51,7 @@ class AvgPoolWithChildTransformation : public LayerTransformation,
 public:
     void SetUp() override {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
@@ -63,8 +63,8 @@ public:
                                                                                  testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
+        transform.add<ov::pass::low_precision::AvgPoolTransformation, ov::op::v1::AvgPool>(testValues.params);
+        transform.add<ov::pass::low_precision::ConvolutionTransformation, ov::op::v1::Convolution>(
             testValues.params);
         transform.transform(actualFunction);
 
@@ -82,7 +82,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {
         ov::element::Type precision;
-        ngraph::PartialShape shape;
+        ov::PartialShape shape;
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = obj.param;
@@ -115,7 +115,7 @@ TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
 
 const std::vector<ov::element::Type> precisions = {ov::element::f32};
 
-const std::vector<ngraph::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
+const std::vector<ov::PartialShape> shapes = {{1, 3, 72, 48}, {4, 3, 72, 48}};
 
 const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
     // U8 per tensor quantization

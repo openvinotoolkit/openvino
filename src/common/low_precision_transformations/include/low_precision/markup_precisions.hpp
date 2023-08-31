@@ -12,7 +12,7 @@
 #include "low_precision/common/precisions_restriction.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -20,7 +20,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
 
 }  // namespace low_precision
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 // Transformation is used to add customization options runtime
 /**
@@ -34,7 +34,7 @@ class LP_TRANSFORMATIONS_API MarkupPrecisions;
  * [MarkupPrecisions](@ref openvino_docs_OV_UG_lpt_MarkupPrecisions) page
  * in the Inference Engine Developer Guide.
  */
-class ngraph::pass::low_precision::MarkupPrecisions : public ov::pass::ModelPass {
+class ov::pass::low_precision::MarkupPrecisions : public ov::pass::ModelPass {
 public:
     class Restriction {
     public:
@@ -67,12 +67,12 @@ public:
 
     OPENVINO_RTTI("MarkupPrecisions", "0");
     explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
-        const std::vector<ngraph::element::Type>& defaultPrecisions = { ngraph::element::u8, ngraph::element::i8 });
+        const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 });
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     static bool isPrecisionPreserved(const std::shared_ptr<Node>& node);
     static bool isSupported(const std::shared_ptr<Node>& node);
     std::unordered_map<std::string, Restriction> restrictionsByOperation;
-    std::vector<ngraph::element::Type> defaultPrecisions;
+    std::vector<ov::element::Type> defaultPrecisions;
 };

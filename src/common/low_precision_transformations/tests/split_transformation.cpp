@@ -6,7 +6,7 @@
 
 #include <low_precision/split.hpp>
 #include <memory>
-#include <ngraph/ngraph.hpp>
+
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -36,7 +36,7 @@ public:
         std::vector<ngraph::builder::subgraph::DequantizationOperations> dequantizationAfter;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::int64_t splitedAxis;
     size_t numSplits;
     TestTransformationParams params;
@@ -61,7 +61,7 @@ public:
                                                                   testValues.numSplits);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
+        transformer.add<ov::pass::low_precision::SplitTransformation, ov::op::v1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction =

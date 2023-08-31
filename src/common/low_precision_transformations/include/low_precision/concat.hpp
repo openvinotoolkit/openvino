@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
+
 
 #include "layer_transformation.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 namespace low_precision {
 
@@ -31,7 +31,7 @@ class LP_TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     OPENVINO_RTTI("ConcatTransformation", "0");
     ConcatTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    bool transform(TransformationContext& context, ov::pass::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
@@ -39,4 +39,4 @@ public:
 
 } // namespace low_precision
 } // namespace pass
-} // namespace ngraph
+} // namespace ov
