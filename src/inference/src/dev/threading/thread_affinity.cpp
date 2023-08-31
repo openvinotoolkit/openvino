@@ -16,12 +16,6 @@
 #    include <unistd.h>
 #endif
 
-#if defined(_WIN32)
-#    include <windows.h>
-
-#    include <thread>
-#endif
-
 namespace ov {
 namespace threading {
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
@@ -118,8 +112,12 @@ bool pin_current_thread_to_socket(int socket) {
 }
 #elif defined(_WIN32)
 std::tuple<CpuSet, int> get_process_mask() {
-    CpuSet mask(new void(0));
-    return std::make_tuple(std::move(mask), 0);
+    DWORD_PTR pro_mask, sys_mask;
+    if (0 != GetProcessAffinityMask(GetCurrentProcess(), &pro_mask, &sys_mask)) {
+        CpuSet mask(new DWORD_PTR(pro_mask));
+        return std::make_tuple(std::move(mask), 0);
+    }
+    return std::make_tuple(nullptr, 0);
 }
 void release_process_mask(cpu_set_t*) {}
 
@@ -132,7 +130,8 @@ bool pin_thread_to_vacant_core(int thrIdx,
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
-    return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(0));
+    DWORD_PTR mask = static_cast<DWORD_PTR>(*procMask.get());
+    return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
 bool pin_current_thread_to_socket(int socket) {
     return false;
