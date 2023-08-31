@@ -108,8 +108,10 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
-
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         std::shared_ptr<ngraph::Node> poolInput = params[0];
         if (isInt8) {
             ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
@@ -194,7 +196,10 @@ protected:
 
         init_input_shapes({inputShapes});
 
-        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0], stride, dilation, padBegin, padEnd,
                                                                                   kernel, roundingType, padType,
                                                                                   indexElementType, axis);

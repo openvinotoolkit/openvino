@@ -75,7 +75,10 @@ protected:
 
         init_input_shapes({ inputShape });
 
-        auto paramRegionYolo = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+        ov::ParameterVector paramRegionYolo;
+        for (auto&& shape : inputDynamicShapes) {
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+        }
 
         const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,

@@ -15,7 +15,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     # Apply transformations
-    apply_moc_transformations(ngraph_function, cf=True, smart_reshape=True)
+    apply_moc_transformations(ngraph_function, cf=False, smart_reshape=True)
     compress_quantize_weights_transformation(ngraph_function)
 
     if argv.framework == "onnx":  # TODO: Consider removing

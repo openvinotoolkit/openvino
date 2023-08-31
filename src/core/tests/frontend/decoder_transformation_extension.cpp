@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/manager.hpp>
+#include <gtest/gtest.h>
 
-#include "gtest/gtest.h"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ov::frontend;
 

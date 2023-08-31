@@ -5,9 +5,9 @@
 #include "ov_ops/nms_ie_internal.hpp"
 
 #include <memory>
-#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset5.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,8 +19,8 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& score_threshold,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type,
-                                                                       const ngraph::element::Type& score_output_type)
+                                                                       const ov::element::Type& output_type,
+                                                                       const ov::element::Type& score_output_type)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}),
       m_center_point_box(center_point_box),
       m_sort_result_descending(sort_result_descending),
@@ -37,8 +37,8 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
                                                                        const Output<Node>& soft_nms_sigma,
                                                                        int center_point_box,
                                                                        bool sort_result_descending,
-                                                                       const ngraph::element::Type& output_type,
-                                                                       const ngraph::element::Type& score_output_type)
+                                                                       const ov::element::Type& output_type,
+                                                                       const ov::element::Type& score_output_type)
     : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
       m_center_point_box(center_point_box),
       m_sort_result_descending(sort_result_descending),
@@ -48,7 +48,7 @@ op::internal::NonMaxSuppressionIEInternal::NonMaxSuppressionIEInternal(const Out
 }
 
 std::shared_ptr<Node> op::internal::NonMaxSuppressionIEInternal::clone_with_new_inputs(
-    const ngraph::OutputVector& new_args) const {
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_clone_with_new_inputs);
     if (new_args.size() == 6) {
         return make_shared<NonMaxSuppressionIEInternal>(new_args.at(0),

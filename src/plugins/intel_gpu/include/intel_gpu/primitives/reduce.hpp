@@ -63,7 +63,7 @@ struct reduce : public primitive_base<reduce> {
     /// @brief List of axes to reduce
     std::vector<int64_t> axes;
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
-    bool keep_dims;
+    bool keep_dims = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
