@@ -105,7 +105,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     const auto& loop_end_expr = linear_ir.create_expression(loop_end, loop_end_inputs);
     const auto& it = linear_ir.insert(loop_end_pos, loop_end_expr);
     //
-    // const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(*perf_count_begin);
+    // const auto& perf_count_end = std::make_shared<op::PerfCountEnd>(perf_count_begin->output(0));
     // const auto& perf_count_end_expr = linear_ir.create_expression(perf_count_end, std::vector<PortConnectorPtr>{});
     // linear_ir.insert(loop_end_pos, perf_count_end_expr);
     //

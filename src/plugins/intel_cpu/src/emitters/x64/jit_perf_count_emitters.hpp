@@ -20,10 +20,6 @@ private:
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     mutable std::chrono::high_resolution_clock::time_point* m_current_time = nullptr;
-
-    void align_rsp() const;
-
-    void restore_rsp() const;
 };
 
 class jit_perf_count_end_emitter : public jit_emitter {
@@ -39,10 +35,6 @@ private:
     mutable std::chrono::high_resolution_clock::time_point* m_start = nullptr;
     mutable uint64_t* m_accumulation = nullptr;
     mutable uint32_t* m_iteration = nullptr;
-
-    void align_rsp() const;
-
-    void restore_rsp() const;
 };
 
 }   // namespace intel_cpu

@@ -36,41 +36,33 @@ size_t jit_perf_count_start_emitter::get_inputs_num() const {
     return 0;
 }
 
-// ABI requires 16-bype stack alignment before a call
-void jit_perf_count_start_emitter::align_rsp() const {
-    constexpr int alignment = 16;
-    h->mov(h->r15, h->rsp);
-    h->and_(h->rsp, ~(alignment - 1));
-}
-
-void jit_perf_count_start_emitter::restore_rsp() const {
-    h->mov(h->rsp, h->r15);
-}
-
 void jit_perf_count_start_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    h->push(rax);
+    internal_call_preamble();
+
+    h->push(h->rax);
     h->push(abi_param1);
 
     h->mov(abi_param1, reinterpret_cast<size_t>(m_current_time));
-    // auto gpr_to_func = Reg64(aux_gpr_idxs[0]);
-    // h->mov(gpr_to_func, reinterpret_cast<size_t>(&get_current_time));
-    h->mov(rax, reinterpret_cast<size_t>(&get_current_time));
+    h->mov(h->rax, reinterpret_cast<size_t>(&get_current_time));
 
-    align_rsp();
-    h->call(rax);
-    restore_rsp();
+    internal_call_rsp_align();
+    h->call(h->rax);
+    internal_call_rsp_restore();
 
     h->pop(abi_param1);
-    h->pop(rax);
+    h->pop(h->rax);
+
+   internal_call_postamble();
 }
 
-///////////////end/////////////////
+///////////////////jit_perf_count_end_emitter////////////////////////////////////
 jit_perf_count_end_emitter::jit_perf_count_end_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
     const std::shared_ptr<ov::Node>& n) : jit_emitter(host, host_isa, n) {
         auto end_op = ov::as_type_ptr<snippets::op::PerfCountEnd>(n);
         m_accumulation = &(end_op->accumulation);
         m_iteration = &(end_op->iteration);
-        m_start = &(end_op->perf_count_start.start_time_stamp);
+        auto start_op = end_op->get_perf_count_start();
+        m_start = &(start_op->start_time_stamp);
 }
 
 size_t jit_perf_count_end_emitter::get_inputs_num() const {
@@ -78,7 +70,9 @@ size_t jit_perf_count_end_emitter::get_inputs_num() const {
 }
 
 void jit_perf_count_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    h->push(rax);
+    internal_call_preamble();
+
+    h->push(h->rax);
     h->push(abi_param1);
     h->push(abi_param2);
     h->push(abi_param3);
@@ -86,27 +80,18 @@ void jit_perf_count_end_emitter::emit_impl(const std::vector<size_t> &in_idxs, c
     h->mov(abi_param1, reinterpret_cast<size_t>(m_start));
     h->mov(abi_param2, reinterpret_cast<size_t>(m_accumulation));
     h->mov(abi_param3, reinterpret_cast<size_t>(m_iteration));
-    h->mov(rax, reinterpret_cast<size_t>(&get_accumulated_time));
+    h->mov(h->rax, reinterpret_cast<size_t>(&get_accumulated_time));
 
-    align_rsp();
-    h->call(rax);
-    restore_rsp();
+    internal_call_rsp_align();
+    h->call(h->rax);
+    internal_call_rsp_restore();
 
     h->pop(abi_param3);
     h->pop(abi_param2);
     h->pop(abi_param1);
-    h->pop(rax);
-}
+    h->pop(h->rax);
 
-// ABI requires 16-bype stack alignment before a call
-void jit_perf_count_end_emitter::align_rsp() const {
-    constexpr int alignment = 16;
-    h->mov(h->r15, h->rsp);
-    h->and_(h->rsp, ~(alignment - 1));
-}
-
-void jit_perf_count_end_emitter::restore_rsp() const {
-    h->mov(h->rsp, h->r15);
+    internal_call_postamble();
 }
 
 }   // namespace intel_cpu

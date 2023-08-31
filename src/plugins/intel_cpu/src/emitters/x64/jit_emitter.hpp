@@ -106,6 +106,8 @@ protected:
     mutable std::vector<size_t> aux_gpr_idxs;
 
     static constexpr int k_mask_size = 8;
+    static constexpr int k_mask_num = 8;
+    static constexpr int gpr_size = 8;
 
     Xbyak::Address table_val(std::string key, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
@@ -129,6 +131,11 @@ protected:
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
+
+    virtual void internal_call_preamble() const;
+    virtual void internal_call_postamble() const;
+    virtual void internal_call_rsp_align() const;
+    virtual void internal_call_rsp_restore() const;
 
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
