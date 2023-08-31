@@ -129,9 +129,9 @@ jobs:
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
           save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
-          key: ${{ github.job }}-linux
+          key: linux-ubuntu
           restore-keys: |
-            ${{ github.job }}-linux
+            linux-ubuntu
 
       - name: Get tools versions
         run: |
