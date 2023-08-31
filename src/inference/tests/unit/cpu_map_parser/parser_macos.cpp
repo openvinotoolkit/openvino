@@ -53,18 +53,18 @@ public:
 };
 
 MacOSCpuMapTestCase test_case_arm = {
-    8,
-    1,
-    1,
-    8,
-    {{8, 4, 4, 0, 0, 0}},
+    8,                     // param[expected out]: total 8 logcial processors on this simulated platform
+    1,                     // param[expected out]: total 1 numa nodes on this simulated platform
+    1,                     // param[expected out]: total 1 sockets on this simulated platform
+    8,                     // param[expected out]: total 8 CPU cores on this simulated platform
+    {{8, 4, 4, 0, 0, 0}},  // param[expected out]: The proc_type_table of this simulated platform
     {
         {"hw.ncpu", 8},
         {"hw.physicalcpu", 8},
         {"hw.optional.arm64", 1},
         {"hw.perflevel0.physicalcpu", 4},
         {"hw.perflevel1.physicalcpu", 4},
-    },
+    },  // param[in]: The system information table of this simulated platform
 };
 
 MacOSCpuMapTestCase test_case_x86 = {
