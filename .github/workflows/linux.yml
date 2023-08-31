@@ -308,7 +308,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: akashchi/ubuntu:python_311
+      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -508,7 +508,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: akashchi/ubuntu:python_311
+      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
@@ -777,7 +777,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-4-cores
     container:
-      image: akashchi/ubuntu:python_311
+      image: openvino.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount/caches:/mount/caches
     env:
