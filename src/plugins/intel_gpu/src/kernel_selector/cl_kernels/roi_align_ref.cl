@@ -23,6 +23,9 @@ KERNEL(roi_align_ref)
 
     const __global INPUT1_TYPE* roi_ptr = &src_rois[INPUT1_GET_INDEX(r, 0, 0, 0)];
 
+    const INPUT2_TYPE batch_indices = src_batches[INPUT2_GET_INDEX(r, 0, 0, 0)];
+    unsigned int b = (unsigned int)batch_indices;
+
     // Get ROI`s corners
     const INPUT1_TYPE x1 =
         (roi_ptr[0] + (INPUT1_TYPE)OFFSET_SRC) * (INPUT1_TYPE)SPATIAL_SCALE + (INPUT1_TYPE)OFFSET_DST;
@@ -45,8 +48,6 @@ KERNEL(roi_align_ref)
 
     const INPUT1_TYPE sample_distance_x = bin_width / (INPUT1_TYPE)sampling_ratio_x;
     const INPUT1_TYPE sample_distance_y = bin_height / (INPUT1_TYPE)sampling_ratio_y;
-
-    const __global INPUT0_TYPE* data = src_data + INPUT0_GET_INDEX(r, c, 0, 0);
 
     OUTPUT_TYPE pooled_value = 0;
     for (unsigned int y_sample_ind = 0; y_sample_ind < sampling_ratio_y; y_sample_ind++) {
@@ -91,10 +92,10 @@ KERNEL(roi_align_ref)
                 weight_right = INPUT1_VAL_ONE - weight_left;
             }
 
-            const INPUT0_TYPE top_left = data[INPUT0_GET_INDEX(0, 0, sample_y_low, sample_x_low)];
-            const INPUT0_TYPE top_right = data[INPUT0_GET_INDEX(0, 0, sample_y_low, sample_x_high)];
-            const INPUT0_TYPE bottom_left = data[INPUT0_GET_INDEX(0, 0, sample_y_high, sample_x_low)];
-            const INPUT0_TYPE bottom_right = data[INPUT0_GET_INDEX(0, 0, sample_y_high, sample_x_high)];
+            const INPUT0_TYPE top_left = src_data[INPUT0_GET_INDEX(b, c, sample_y_low, sample_x_low)];
+            const INPUT0_TYPE top_right = src_data[INPUT0_GET_INDEX(b, c, sample_y_low, sample_x_high)];
+            const INPUT0_TYPE bottom_left = src_data[INPUT0_GET_INDEX(b, c, sample_y_high, sample_x_low)];
+            const INPUT0_TYPE bottom_right = src_data[INPUT0_GET_INDEX(b, c, sample_y_high, sample_x_high)];
 
             const INPUT0_TYPE interpolated_value =
                 weight_bottom * weight_right * top_left + weight_bottom * weight_left * top_right +
