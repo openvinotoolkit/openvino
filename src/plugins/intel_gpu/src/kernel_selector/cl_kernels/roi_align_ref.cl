@@ -9,11 +9,11 @@
 #define POOLED_WIDTH  OUTPUT_SIZE_X
 #define POOLED_HEIGHT OUTPUT_SIZE_Y
 
-KERNEL(roi_align_ref)
-(const __global INPUT0_TYPE* src_data,
- __global OUTPUT_TYPE* dst_data,
- const __global INPUT1_TYPE* src_rois,
- const __global INPUT2_TYPE* src_batches) {
+KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
+                            __global OUTPUT_TYPE* dst_data,
+                      const __global INPUT1_TYPE* src_rois,
+                      const __global INPUT2_TYPE* src_batches)
+{
     const size_t i = get_global_id(0);
 
     const uint x = i % POOLED_WIDTH;
@@ -23,8 +23,12 @@ KERNEL(roi_align_ref)
 
     const __global INPUT1_TYPE* roi_ptr = &src_rois[INPUT1_GET_INDEX(r, 0, 0, 0)];
 
-    const INPUT2_TYPE batch_indices = src_batches[INPUT2_GET_INDEX(r, 0, 0, 0)];
-    unsigned int b = (unsigned int)batch_indices;
+    // Get the batch index of feature map
+#if INPUT2_FEATURE_NUM == NUM_ROIS
+    const uint b = (uint)src_batches[INPUT2_GET_INDEX(0, r, 0, 0)];
+#else
+    const uint b = (uint)src_batches[INPUT2_GET_INDEX(r, 0, 0, 0)];
+#endif
 
     // Get ROI`s corners
     const INPUT1_TYPE x1 =
