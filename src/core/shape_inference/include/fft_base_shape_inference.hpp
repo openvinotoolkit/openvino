@@ -23,11 +23,11 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     using DimType = typename TRShape::value_type;
 
     if (const auto output_bounds = get_input_bounds<TRShape, int64_t>(op, 2, ta)) {
-        const auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
+        constexpr auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
         auto labels =
             op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_label() : TensorLabel();
         const bool propagate_labels = !labels.empty();
-        size_t num_of_axes = axes.size();
+        const auto num_of_axes = axes.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
             if ((*output_bounds)[i] != minus_one_bound) {
                 output_shape[(axes)[i]] = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
@@ -52,7 +52,7 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     using DimType = typename TRShape::value_type;
 
     if (const auto output_dim_vals = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-        size_t num_of_axes = axes.size();
+        const auto num_of_axes = axes.size();
         for (size_t i = 0; i < num_of_axes; ++i) {
             if ((*output_dim_vals)[i] != dim::inf_bound) {
                 output_shape[(axes)[i]] = DimType((*output_dim_vals)[i]);
