@@ -596,7 +596,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         ov::Shape input_shape;
         for (auto& shape : targetInputStaticShapes) {
-            if (shape.size() > 1) {
+            if (shape.size() >= 1) {
                 input_shape = shape;
                 break;
             }
