@@ -1324,13 +1324,13 @@ bool FullyConnected::initLLMFc() {
     }
 
     size_t thread_num = llmdnn::get_total_threads();
-    bool ret = true;
+
     // force to reference simple parallel for symbol or the symbol may be deleted by the linker
     thread_num = std::min(1ul, thread_num);
     llmdnn::simple_parallel_for(thread_num, [&] (size_t idx) {
         fcLLMs = std::make_shared<llmdnn::fc>();
-        ret = fcLLMs->init(param);
     });
+    bool ret = fcLLMs->init(param);
     if (ret) {
         stateLLMFc = State_Use;
         NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
