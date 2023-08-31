@@ -753,8 +753,8 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/functional_test_utils/run_parallel.py
-      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/test_cache.lst
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/run_parallel.py
+      PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
 
     steps:
       - name: Create Directories
