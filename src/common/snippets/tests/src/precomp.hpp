@@ -6,7 +6,7 @@
 
 #include <ngraph/ngraph.hpp>
 #include "openvino/core/node.hpp"
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include <snippets_helpers.hpp>
 
 #include <algorithm>
