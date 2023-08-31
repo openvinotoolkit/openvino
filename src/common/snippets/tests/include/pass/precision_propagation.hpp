@@ -46,7 +46,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj);
 
 protected:
-    std::shared_ptr<SnippetsFunctionBase> snippets_function;
+    std::shared_ptr<SnippetsFunctionBase> snippets_model;
 };
 
 }  // namespace snippets

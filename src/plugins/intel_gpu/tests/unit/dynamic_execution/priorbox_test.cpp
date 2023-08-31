@@ -4,7 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "ngraph/runtime/reference/prior_box.hpp"
+#include "openvino/reference/prior_box.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/prior_box.hpp>

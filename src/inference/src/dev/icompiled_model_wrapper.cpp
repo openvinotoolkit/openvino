@@ -10,7 +10,7 @@
 
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
-    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin)),
+    : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin), nullptr, nullptr),
       m_model(model) {
     std::vector<ov::Output<const ov::Node>> inputs, outputs;
     for (const auto& input : m_model->getInputs()) {

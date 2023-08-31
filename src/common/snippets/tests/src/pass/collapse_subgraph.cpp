@@ -15,7 +15,7 @@ namespace test {
 namespace snippets {
 
 void CollapseSubgraphTests::run() {
-    ASSERT_TRUE(function);
+    ASSERT_TRUE(model);
     std::string name;
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeSnippets>();
@@ -36,50 +36,50 @@ public:
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_Eltwise) {
     const auto& f = EltwiseFunction(std::vector<PartialShape> {{2, 3}, {1, 3}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_MatMulWithEltwise) {
     const auto& f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_AvoidLoopEltwise) {
     const auto& f = EltwiseLogLoopFunction(std::vector<PartialShape> {{2, 5}, {2, 1}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_OneConvert) {
     const auto& f = ConvertFunction(std::vector<PartialShape>{{2, 5}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertInput) {
     const auto& f = ConvertInputFunction(std::vector<PartialShape>{{2, 5}, {1, 5}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertOutput) {
     const auto& f = ConvertOutputFunction(std::vector<PartialShape>{{2, 5}, {1, 5}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertStub) {
     const auto& f = ConvertStubFunction(std::vector<PartialShape>{{2, 5, 2}, {1, 5, 1}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
@@ -87,23 +87,23 @@ TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertPartia
     const auto& f = ConvertPartialInputsAndResultsFunction(std::vector<PartialShape>{{2, 5, 1}, {1, 5, 1}, {2, 1, 10}},
                                                            std::vector<ov::element::Type>{ov::element::i8, ov::element::bf16, ov::element::f32},
                                                            std::vector<ov::element::Type>{ov::element::f32, ov::element::i8});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
     const auto& f = EltwiseTwoResultsFunction(std::vector<PartialShape>{{2, 5}, {2, 1}});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     comparator.enable(FunctionsComparator::CmpValues::NAMES);
     run();
 }
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
     const auto& f = ThreeFQFunction(std::vector<PartialShape>{});
-    function = f.getOriginal();
-    function_ref = f.getReference();
+    model = f.getOriginal();
+    model_ref = f.getReference();
     run();
 }
 

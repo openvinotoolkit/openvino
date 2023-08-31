@@ -28,7 +28,7 @@ class ConvertRNNSequenceMatcher;
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertLSTMSequenceMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertLSTMSequenceMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertLSTMSequenceMatcher", "0");
     ConvertLSTMSequenceMatcher();
@@ -41,7 +41,7 @@ public:
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertGRUSequenceMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertGRUSequenceMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertGRUSequenceMatcher", "0");
     ConvertGRUSequenceMatcher();
@@ -54,7 +54,7 @@ public:
  * We squeeze num_direction dimension for all corresponding inputs and unsqueeze them after the SequenceIE op.
  */
 
-class ngraph::pass::ConvertRNNSequenceMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertRNNSequenceMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertRNNSequenceMatcher", "0");
     ConvertRNNSequenceMatcher();

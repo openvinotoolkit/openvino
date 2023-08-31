@@ -7,7 +7,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
-#include "ngraph/runtime/reference/non_zero.hpp"
+#include "openvino/reference/non_zero.hpp"
 
 #include "non_zero_inst.h"
 #include "test_utils.h"

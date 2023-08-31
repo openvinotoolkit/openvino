@@ -8,21 +8,21 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <memory>
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset4.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <openvino/core/model.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
+#include <openvino/opsets/opset4.hpp>
+#include <openvino/pass/constant_folding.hpp>
+#include <openvino/pass/manager.hpp>
 #include <queue>
 #include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
+using namespace ov;
 
 TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
     {
@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
 
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(
             boxes,
             scores,
             max_output_boxes_per_class,
@@ -63,7 +63,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEStatic) {
             0,
             true);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -82,7 +82,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic1) {
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
     }
@@ -93,7 +93,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic1) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(
             boxes,
             scores,
             max_output_boxes_per_class,
@@ -102,7 +102,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic1) {
             0,
             true);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic2) {
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
     }
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic2) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE>(
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(
             boxes,
             scores,
             max_output_boxes_per_class,
@@ -141,7 +141,7 @@ TEST_F(TransformationTestsF, ConvertNMSToNMSIEDynamic2) {
             0,
             true);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -160,7 +160,7 @@ TEST_F(TransformationTestsF, ConvertNMST1oNMSIE) {
                                                                op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     }
@@ -171,17 +171,17 @@ TEST_F(TransformationTestsF, ConvertNMST1oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i64, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              max_output_boxes_per_class,
-                                                              iou_threshold,
-                                                              score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      max_output_boxes_per_class,
+                                                                      iou_threshold,
+                                                                      score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
         auto convert = std::make_shared<opset1::Convert>(nms->output(0), element::i64);
 
-        function_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{convert}, ParameterVector{boxes, scores});
     }
 }
 
@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, ConvertNMST3oNMSIE) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     }
@@ -212,16 +212,16 @@ TEST_F(TransformationTestsF, ConvertNMST3oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              max_output_boxes_per_class,
-                                                              iou_threshold,
-                                                              score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      max_output_boxes_per_class,
+                                                                      iou_threshold,
+                                                                      score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -241,7 +241,7 @@ TEST_F(TransformationTestsF, ConvertNMST4oNMSIE) {
                                                                true,
                                                                element::i32);
 
-        function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     }
@@ -252,15 +252,15 @@ TEST_F(TransformationTestsF, ConvertNMST4oNMSIE) {
         auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
         auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::NonMaxSuppressionIE3>(boxes,
-                                                              scores,
-                                                              max_output_boxes_per_class,
-                                                              iou_threshold,
-                                                              score_threshold,
-                                                              0,
-                                                              true,
-                                                              element::i32);
+        auto nms = std::make_shared<ngraph::op::NonMaxSuppressionIE3>(boxes,
+                                                                      scores,
+                                                                      max_output_boxes_per_class,
+                                                                      iou_threshold,
+                                                                      score_threshold,
+                                                                      0,
+                                                                      true,
+                                                                      element::i32);
 
-        function_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
 }

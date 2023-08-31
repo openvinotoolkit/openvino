@@ -30,7 +30,7 @@ namespace pass {
  *   Transpose (NCHW -> NHWC)               Transpose (NCHW -> NHWC)
  *
  */
-class ConvertPaddedToValidConv : public ngraph::pass::MatcherPass {
+class ConvertPaddedToValidConv : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertPaddedToValidConv", "0");
     ConvertPaddedToValidConv();

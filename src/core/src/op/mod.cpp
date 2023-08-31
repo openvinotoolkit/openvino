@@ -5,7 +5,7 @@
 #include "ngraph/op/mod.hpp"
 
 #include "itt.hpp"
-#include "ngraph/runtime/reference/mod.hpp"
+#include "openvino/reference/mod.hpp"
 
 using namespace std;
 using namespace ngraph;

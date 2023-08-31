@@ -19,7 +19,10 @@ protected:
         init_input_shapes({input_shape});
 
 
-        auto params = ngraph::builder::makeDynamicParams(precision, inputDynamicShapes);
+        ov::ParameterVector params;
+        for (auto&& shape : inputDynamicShapes) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, shape));
+        }
         auto conv_weights = ngraph::builder::makeConstant(precision, std::vector<size_t>{32, 32, 1, 1}, std::vector<float>{}, true);
         auto conv = ngraph::builder::makeConvolution(params[0],
                                                      conv_weights,
