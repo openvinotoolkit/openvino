@@ -10,7 +10,7 @@
 #include <openvino/opsets/opset9.hpp>
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "execution_graph_tests/normalize_l2_decomposition.hpp"
 

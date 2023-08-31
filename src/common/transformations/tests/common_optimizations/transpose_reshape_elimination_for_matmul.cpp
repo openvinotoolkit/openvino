@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <openvino/core/model.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/pass/manager.hpp>
 #include <queue>
-#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/op_conversions/einsum_decomposition.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/einsum_decomposition.hpp"
 
 using namespace testing;
 using namespace ov;
