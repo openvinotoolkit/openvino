@@ -116,7 +116,28 @@ bool pin_current_thread_to_socket(int socket) {
     }
     return res;
 }
-#else   // no threads pinning/binding on Win/MacOS
+#elif defined(_WIN32)
+std::tuple<CpuSet, int> get_process_mask() {
+    CpuSet mask(new void(0));
+    return std::make_tuple(std::move(mask), 0);
+}
+void release_process_mask(cpu_set_t*) {}
+
+bool pin_thread_to_vacant_core(int thrIdx,
+                               int hyperthreads,
+                               int ncores,
+                               const CpuSet& procMask,
+                               const std::vector<int>& cpu_ids,
+                               int cpuIdxOffset) {
+    return false;
+}
+bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
+    return false;
+}
+bool pin_current_thread_to_socket(int socket) {
+    return false;
+}
+#else // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
 }
@@ -131,7 +152,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
     return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
-    return false;
+    return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(0));
 }
 bool pin_current_thread_to_socket(int socket) {
     return false;

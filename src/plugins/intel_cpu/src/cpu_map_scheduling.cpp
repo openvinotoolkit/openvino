@@ -79,18 +79,28 @@ bool get_cpu_pinning(bool& input_value,
     int num_sockets = get_default_latency_streams(latency_threading_mode);
     bool latency = num_streams <= num_sockets && num_streams > 0;
 
-    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
-        proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
-        result_value =
-            input_changed
-                ? input_value
-                : ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
+    if (input_changed) {
+        result_value = input_value;
     } else {
-        result_value = input_changed
-                           ? input_value
-                           : (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
+        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+            proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
+            result_value =
+                ((latency || bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA) ? false : true);
+        } else {
+            result_value = (bind_type == threading::IStreamsExecutor::ThreadBindingType::NUMA ? false : true);
+        }
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(_WIN32)
+        result_value = false;
+#    endif
+#endif
     }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if defined(_WIN32)
+    if (proc_type_table.size() > 1) {
+        result_value = false;
+    }
+#    endif
 #    if defined(__APPLE__)
     result_value = false;
 #    endif
