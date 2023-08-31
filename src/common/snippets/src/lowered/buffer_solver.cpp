@@ -5,6 +5,8 @@
 
 #include "snippets/lowered/buffer_solver.hpp"
 
+#include "snippets/lowered/pass/identify_buffers.hpp"
+#include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/memory_access.hpp"
@@ -24,6 +26,8 @@ int64_t BufferSolver::solve(lowered::LinearIR& linear_ir) {
     identify_buffers(linear_ir);
     const auto buffer_clusters = init_clusters(linear_ir);
     const auto scratchpad_size = allocate(buffer_clusters);
+    lowered::pass::CleanRepeatedDataPointerShifts pass;
+    pass.run(linear_ir);
     return scratchpad_size;
 }
 
@@ -34,7 +38,13 @@ void BufferSolver::enumerate(const lowered::LinearIR& linear_ir) {
     }
 }
 
-void BufferSolver::identify_buffers(const lowered::LinearIR& linear_ir) {
+void BufferSolver::identify_buffers(lowered::LinearIR& linear_ir) {
+    if (ReusingBufferIDBit & m_mode) {
+        lowered::pass::IdentifyBuffers pass;
+        pass.run(linear_ir);
+        return;
+    }
+
     size_t buffer_id = 0;
     for (const auto& expr : linear_ir) {
         const auto op = expr->get_node();
@@ -81,8 +91,18 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
         }
         return false;
     };
+    auto get_cluster_buffer_id = [](const BufferCluster& cluster) {
+        OPENVINO_ASSERT(!cluster.empty(), "Buffer cluster is empty!");
+        const auto id = (ov::as_type_ptr<op::Buffer>(cluster.cbegin()->get()->get_node()))->get_id();
+        if (std::all_of(cluster.cbegin(), cluster.cend(),
+                        [&id](const ExpressionPtr& expr) { return (ov::as_type_ptr<op::Buffer>(expr->get_node()))->get_id() == id; })) {
+            return id;
+        }
+        return SIZE_MAX;
+    };
 
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
+        const auto expr = *expr_it;
         const auto op = expr->get_node();
         if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(op)) {
             const auto ptr_increments = loop_end->get_ptr_increments();
@@ -91,7 +111,9 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
             const auto out_count = loop_end->get_output_num();
             const auto connectors = expr->get_input_port_connectors();
 
+            std::set<ExpressionPtr> visited_buffers;
             std::unordered_map<ExpressionPtr, std::set<size_t>> input_buffers;
+            std::unordered_map<ExpressionPtr, size_t> output_buffers;
             for (size_t i = 0; i < in_count; ++i) {
                 const auto source_expr = connectors[i]->get_source().get_expr();
                 const auto is_buffer = create_cluster(source_expr, expr);
@@ -111,6 +133,8 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
                         bool has_been_added = false;
                         for (const auto& input_buffer : input_buffers) {
                             const auto& input_buffer_expr = input_buffer.first;
+                            if (visited_buffers.count(input_buffer_expr) > 0)
+                                continue;
                             const auto input_buffer_node = ov::as_type_ptr<op::Buffer>(input_buffer_expr->get_node());
                             const auto& input_buffer_idxs = input_buffer.second;
                             for (const auto& input_buffer_idx : input_buffer_idxs) {
@@ -124,7 +148,7 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
                                     has_been_added = cluster_it->insert(consumer_expr).second;
                                     OPENVINO_ASSERT(has_been_added, "Buffer has not been saved in cluster");
                                     // Remove input buffer because we have already use its memory
-                                    input_buffers.erase(input_buffer_expr);
+                                    visited_buffers.insert(input_buffer_expr);
                                     break;
                                 }
                             }
@@ -133,9 +157,91 @@ BufferSolver::BufferClusters BufferSolver::init_inplace_clusters(const lowered::
                         if (!has_been_added) {
                             buffer_clusters.push_back(BufferCluster{consumer_expr});
                         }
+                        output_buffers[consumer_expr] = i;
                     }
                 }
             }
+
+            if ((m_mode & InPlaceMultiLevelBit) && (!input_buffers.empty() || !output_buffers.empty())) {
+                const auto loop_begin = loop_end->get_loop_begin();
+                for (auto it = std::reverse_iterator<LinearIR::constExprIt>(expr_it); (*it)->get_node() != loop_begin; ++it) {
+                    const auto inner_expr = *it;
+                    if (const auto inner_buffer = ov::as_type_ptr<op::Buffer>(inner_expr->get_node())) {
+                        auto inner_cluster_it = find_cluster(inner_expr);
+                        OPENVINO_ASSERT(inner_cluster_it != buffer_clusters.cend(), "Buffer cluster has not been found");
+                        const auto inner_cluster_id = get_cluster_buffer_id(*inner_cluster_it);
+                        if (inner_cluster_id == SIZE_MAX) continue;
+
+                        std::set<int64_t> final_offsets;
+                        // life finish time - order of LoopEnd / MemoryAccess ops
+                        const auto buffer_outs = inner_expr->get_output_port_connectors();
+                        for (const auto& buffer_out : buffer_outs) {
+                            const auto consumers = buffer_out->get_consumers();
+                            for (const auto& consumer : consumers) {
+                                const auto consumer_expr = consumer.get_expr();
+                                const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(consumer_expr->get_node());
+                                if (loop_end && consumer_expr->get_loop_ids() == inner_expr->get_loop_ids()) {
+                                    const auto loop_inputs = consumer_expr->get_input_port_connectors();
+                                    final_offsets.insert(
+                                        loop_end->get_finalization_offsets()[
+                                            std::distance(loop_inputs.cbegin(), std::find(loop_inputs.cbegin(), loop_inputs.cend(), buffer_out))]);
+                                }
+                            }
+                        }
+
+                        for (const auto& in : input_buffers) {
+                            const auto cluster_it = find_cluster(in.first);
+                            OPENVINO_ASSERT(cluster_it != buffer_clusters.cend(), "Buffer cluster has not been found");
+                            if (cluster_it == inner_cluster_it) continue;
+
+                            if (std::none_of(cluster_it->cbegin(), cluster_it->cend(),
+                                             [inner_cluster_id](const ExpressionPtr& expr)
+                                             { return (ov::as_type_ptr<op::Buffer>(expr->get_node()))->get_id() == inner_cluster_id; } )) {
+                                continue;
+                            }
+
+                            bool can_be_reused = true;
+                            for (const auto idx : in.second) {
+                                const auto ptr_increment = loop_end->get_ptr_increments()[idx];
+                                can_be_reused = can_be_reused && (ptr_increment != 0);
+                                can_be_reused = can_be_reused &&
+                                    std::all_of(final_offsets.cbegin(), final_offsets.cend(),
+                                                [&ptr_increment](int64_t offset) { return (offset * -1) == ptr_increment; });
+                            }
+                            if (!can_be_reused)
+                                continue;
+
+                            cluster_it->insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
+                            buffer_clusters.erase(inner_cluster_it);
+                            inner_cluster_it = buffer_clusters.end();
+                            break;
+                        }
+                        if (inner_cluster_it == buffer_clusters.end()) continue;
+
+                        for (const auto& out : output_buffers) {
+                            const auto cluster_it = find_cluster(out.first);
+                            OPENVINO_ASSERT(cluster_it != buffer_clusters.cend(), "Buffer cluster has not been found");
+                            if (cluster_it == inner_cluster_it) continue;
+
+                            if (std::none_of(cluster_it->cbegin(), cluster_it->cend(),
+                                             [inner_cluster_id](const ExpressionPtr& expr)
+                                             { return (ov::as_type_ptr<op::Buffer>(expr->get_node()))->get_id() == inner_cluster_id; } )) {
+                                continue;
+                            }
+                            const auto ptr_increment = loop_end->get_ptr_increments()[out.second];
+                            if (ptr_increment == 0 ||
+                                !std::all_of(final_offsets.cbegin(), final_offsets.cend(),
+                                            [&ptr_increment](int64_t offset) { return (offset * -1) == ptr_increment; }))
+                                continue;
+
+                            cluster_it->insert(inner_cluster_it->cbegin(), inner_cluster_it->cend());
+                            buffer_clusters.erase(inner_cluster_it);
+                            break;
+                        }
+                    }
+                }
+            }
+
             continue;
         }
         // TODO: Some full MemoryAccess ops can have inplace inputs and outputs in general.

@@ -31,7 +31,7 @@ private:
 
     void enumerate(const lowered::LinearIR& linear_ir);
 
-    void identify_buffers(const lowered::LinearIR& linear_ir);
+    void identify_buffers(lowered::LinearIR& linear_ir);
 
     BufferClusters init_clusters(const lowered::LinearIR& linear_ir);
     BufferClusters init_default_clusters(const lowered::LinearIR& linear_ir);
@@ -50,7 +50,7 @@ private:
         ReusingBufferIDBit = 1u << 4,     // Reusing Buffer IDs
     };
 
-    unsigned m_mode = OptimizationsBit::MemorySolverBit | OptimizationsBit::InPlaceOneLevelBit;
+    unsigned m_mode = OptimizationsBit::MemorySolverBit | OptimizationsBit::ReusingBufferIDBit | OptimizationsBit::InPlaceMultiLevelBit;
     constexpr static int64_t m_alignment = 32; // 32 bytes
 };
 
