@@ -151,6 +151,13 @@ using ov::with_cpu_x86_avx512_core_amx_int8;
 using ov::with_cpu_x86_avx512_core_amx_bf16;
 
 /**
+ * @brief      Checks whether CPU supports AMX fp16 capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is tAMX_FP16 instructions are available, `false` otherwise
+ */
+using ov::with_cpu_x86_avx512_core_amx_fp16;
+
+/**
  * @brief      Checks whether CPU supports AMX capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is tAMX_INT8 or tAMX_BF16 instructions are available, `false` otherwise

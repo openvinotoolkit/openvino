@@ -8,6 +8,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::test;

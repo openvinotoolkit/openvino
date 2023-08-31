@@ -7,6 +7,7 @@
 #include <openvino/pass/serialize.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
 

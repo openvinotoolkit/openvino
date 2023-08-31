@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/parameter_result.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace SubgraphTestsDefinitions;
 using namespace InferenceEngine;

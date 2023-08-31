@@ -5,6 +5,9 @@
 #include <vector>
 #include "subgraph_tests/reshape_permute_conv_permute_reshape_act.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "test_utils/cpu_test_utils.hpp"
+
+using namespace CPUTestUtils;
 
 std::vector<std::array<size_t, 4>> input_shapes {
     {1, 1, 166, 2},

@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include <ngraph/opsets/opset8.hpp>
 #include <exec_graph_info.hpp>
+#include "test_utils/cpu_test_utils.hpp"
 
 
 namespace SubgraphTestsDefinitions {
