@@ -189,7 +189,8 @@ bool ov::Plugin::supports_model_caching(bool check_old_api) const {
     }
     if (!supported) {
         supported = util::contains(get_property(ov::supported_properties), ov::device::capabilities) &&
-                    util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
+                    util::contains(get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT) &&
+                    get_property(ov::device::capability::EXPORT_IMPORT, {}).as<bool>();
     }
     if (supported) {
         supported = util::contains(get_property(ov::internal::supported_properties), ov::internal::caching_properties);
