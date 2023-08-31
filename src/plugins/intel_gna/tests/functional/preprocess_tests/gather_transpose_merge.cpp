@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"

@@ -13,7 +13,7 @@
 #include <low_precision/fake_quantize.hpp>
 #include <low_precision/low_precision.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/convolution_function.hpp"
