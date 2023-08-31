@@ -55,6 +55,12 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         return ov::is_type<op::Buffer>(port.get_expr()->get_node());
     };
 
+    auto update_ptr_shift = [](int64_t& lhs, const int64_t& rhs) {
+        OPENVINO_ASSERT(lhs == rhs || lhs == 0 || rhs == 0,
+                        "Invalid data pointer shifts: If Buffer has several consumers, this consumers must have the same shifts or zero");
+        if (rhs != 0) lhs = rhs;
+    };
+
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
         if (const auto brgemm = ov::as_type_ptr<op::Brgemm>(expr->get_node())) {
@@ -100,6 +106,11 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
         for (size_t i = 0; i < input_count; ++i) {
             const auto& parent_output = expr->get_input_port_connector(i)->get_source().get_expr();
             if (const auto buffer = ov::as_type_ptr<op::Buffer>(parent_output->get_node())) {
+                if (buffer_neighbours.count(buffer) > 0) {
+                    update_ptr_shift(buffer_neighbours[buffer].first, ptr_increments[i]);
+                    update_ptr_shift(buffer_neighbours[buffer].second, finalization_offsets[i]);
+                    continue;
+                }
                 buffer_neighbours[buffer] = { ptr_increments[i], finalization_offsets[i] };
             }
         }
