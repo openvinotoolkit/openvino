@@ -1,0 +1,153 @@
+name: Linux nGraph ONNX (Ubuntu 20.04, Python 3.11)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+  push:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}-linux-ngraph-onnx
+  cancel-in-progress: true
+
+jobs:
+  OpenVINO_ONNX_CI:
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        include:
+#          - BUILD_TYPE: 'Release'
+#            TOX_COMMAND: 'tox && tox -e zoo_models'
+          - BUILD_TYPE: 'Debug'
+            TOX_COMMAND: 'tox'
+    defaults:
+      run:
+        shell: bash
+    runs-on: ubuntu-20.04-8-cores
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_DIR: ${{ github.workspace }}/install
+      OV_TEMP: ${{ github.workspace }}/openvino_temp
+      DATA_PATH: ${{ github.workspace }}/testdata
+      MODELS_PATH: ${{ github.workspace }}/testdata
+      VSTS_HTTP_RETRY: 5
+      VSTS_HTTP_TIMEOUT: 200
+      ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v3
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Create Directories
+        run: |
+          mkdir -p ${{ env.BUILD_DIR }}
+          mkdir -p ${{ env.INSTALL_DIR }}
+          mkdir -p ${{ env.MODELS_PATH }}
+          mkdir -p ${{ env.MODELS_PATH }}/models_data
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      #
+      # Dependencies
+      #
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt-get update
+          sudo -E apt-get -y --no-install-recommends install lsb-release \
+            curl \
+            unzip \
+            libtbb-dev \
+            libpugixml-dev \
+            wget
+                    
+          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+          unzip ninja-linux.zip
+          sudo cp -v ninja /usr/local/bin/
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: "2000M"
+          # Should save cache only if run in the master branch of the base repo
+          # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
+          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          verbose: 2
+          key: linux-ngraph-onnx-${{ matrix.BUILD_TYPE }}
+          restore-keys: |
+            linux-ngraph-onnx-${{ matrix.BUILD_TYPE }}
+
+      - name: Get tools versions
+        run: |
+          ninja --version || exit 1
+          ccache --version || exit 1
+          python3 --version || exit 1
+          cmake --version || exit 1
+
+      #
+      # Build
+      #
+
+      - name: Update models
+        if: ${{ matrix.BUILD_TYPE == 'Release' }}
+        run: ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${{ env.MODELS_PATH }}/models_data -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
+
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+
+      # Docker build
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker (${{ matrix.BUILD_TYPE }})
+        uses: docker/build-push-action@v4
+        with:
+          context: ./openvino
+          load: true
+          file: ${{ env.OPENVINO_REPO }}/.ci/openvino-onnx/Dockerfile
+          tags: openvino-onnx-ci-image:latest
+
+      - name: Create swap
+        run: sudo fallocate -l 64G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+
+      - name: Check directories
+        run: |
+          ls -laR ${{ env.MODELS_PATH }}
+
+      - name: Run tests via tox
+        run: |
+          sudo docker run \
+            --name openvino-onnx-ci-container \
+            --volume ${{ env.MODELS_PATH }}/models_data/model_zoo/onnx_model_zoo_${{ env.ONNX_MODEL_ZOO_SHA }}:/root/.onnx/model_zoo/onnx_model_zoo \
+            --volume ${{ env.MODELS_PATH }}/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image:latest \
+            /bin/bash -c "${{ matrix.TOX_COMMAND }}"
