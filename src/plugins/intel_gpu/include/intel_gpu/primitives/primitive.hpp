@@ -29,6 +29,8 @@ using primitive_type_id = struct primitive_type *;
 /// @brief Unique @p id of a primitive within a topology.
 using primitive_id = std::string;
 
+using optional_data_type = optional_value<data_types>;
+
 struct primitive_info;
 
 /// @brief Describes information of inputs.

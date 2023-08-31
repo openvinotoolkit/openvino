@@ -51,6 +51,8 @@ struct WeightsReorderParams {
     void set_input_layout(const layout& layout) { _in_layout = layout; }
     void set_output_layout(const layout& layout) { _out_layout = layout; }
 
+    virtual ~WeightsReorderParams() = default;
+
 protected:
     layout _in_layout;
     layout _out_layout;
