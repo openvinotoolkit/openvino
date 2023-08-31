@@ -39,6 +39,8 @@ void ReshapeTransformation::SetUp() {
     ReshapeTransformationParam param;
     std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(param.inputShape);
+
     function = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
         param.inputShape,
         param.reshapeConstValues,
@@ -46,8 +48,8 @@ void ReshapeTransformation::SetUp() {
         param.fakeQuantize);
 }
 
-void ReshapeTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReshapeTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
     auto actualPrecision = getRuntimePrecisionByType(params.layerType);
@@ -59,8 +61,7 @@ void ReshapeTransformation::Run() {
 }
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

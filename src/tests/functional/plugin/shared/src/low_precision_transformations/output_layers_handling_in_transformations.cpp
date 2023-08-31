@@ -12,6 +12,7 @@
 #include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -31,19 +32,18 @@ std::string OutputLayers::getTestCaseName(const testing::TestParamInfo<LayerTest
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayers::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+ov::test::utils::InputsMap OutputLayers::get_input_map() {
+    auto generate_default = [](const std::shared_ptr<ngraph::Node>& node,
+                               size_t port,
+                               const ov::element::Type& elemType,
+                               const ov::Shape& targetShape) -> ov::runtime::Tensor {
+        const double low = 0.0;
+        const double high = 255.0;
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, static_cast<uint32_t>(high - low), low);
+    };
 
-    const float k = 1.f;
-    const float low = 0.f / k;
-    const float hight = 255.f / k;
-
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    return input;
+    static ov::test::utils::InputsMap inputs_map{{ov::op::Op::get_type_info_static(), generate_default}};
+    return inputs_map;
 }
 
 void OutputLayers::SetUp() {
@@ -51,6 +51,9 @@ void OutputLayers::SetUp() {
     InferenceEngine::Precision netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+
+    init_input_shapes(ov::PartialShape(inputShape));
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
@@ -90,7 +93,7 @@ void OutputLayers::SetUp() {
 }
 
 TEST_P(OutputLayers, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

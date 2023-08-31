@@ -84,9 +84,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
 
     if (!fqOnData1.empty()) {
         parent1 = makeFakeQuantize(parent1, precision, fqOnData1);
+        parent1->set_friendly_name("fakeQuantize1");
     }
     if (!dequantization1.empty()) {
         parent1 = makeDequantization(parent1, dequantization1);
+        parent1->set_friendly_name("dequantization1");
     }
 
     std::shared_ptr<Node> parent2;
@@ -101,9 +103,11 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
 
     if (!fqOnData2.empty()) {
         parent2 = makeFakeQuantize(parent2, precision, fqOnData2);
+        parent2->set_friendly_name("fakeQuantize2");
     }
     if (!dequantization2.empty()) {
         parent2 = makeDequantization(parent2, dequantization2);
+        parent1->set_friendly_name("dequantization2");
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
@@ -683,10 +687,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecis
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = makeFakeQuantize(input2, precision, fqOnData2);
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const auto concat = std::make_shared<opset1::Concat>(OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, axis);
 

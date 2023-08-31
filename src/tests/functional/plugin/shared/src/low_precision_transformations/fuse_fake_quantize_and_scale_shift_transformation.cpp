@@ -34,6 +34,8 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
         netPrecision,
         inputShape,
@@ -43,7 +45,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

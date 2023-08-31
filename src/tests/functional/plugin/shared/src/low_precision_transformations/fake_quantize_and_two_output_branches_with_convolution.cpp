@@ -36,12 +36,14 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1f;
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeAndTwoOutputBranchesWithConvolution testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         netPrecision,
@@ -52,7 +54,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

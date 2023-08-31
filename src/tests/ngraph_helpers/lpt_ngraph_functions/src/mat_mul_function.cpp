@@ -101,8 +101,8 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     input2->set_friendly_name("input2");
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        makeFakeQuantize(input1, precision, fqOnData1),
-        makeFakeQuantize(input2, precision, fqOnData2),
+        makeFakeQuantize(input1, precision, fqOnData1, 1),
+        makeFakeQuantize(input2, precision, fqOnData2, 2),
         false,
         false);
     matMul->set_friendly_name("matMul");
@@ -306,14 +306,14 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input1");
 
-    const auto dequantizationOnData = makeFakeQuantize(input, precision, fqOnData);
+    const auto dequantizationOnData = makeFakeQuantize(input, precision, fqOnData, false, 1);
 
     const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
         weights.outPrecision.is_real() ? precision : weights.outPrecision,
         weights.shape,
         weights.values);
 
-    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights, false, 2);
 
     auto deqStructure = deqOnWeights;
     deqStructure.setPrecision(precision);

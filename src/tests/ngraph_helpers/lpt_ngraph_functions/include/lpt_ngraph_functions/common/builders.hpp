@@ -77,25 +77,29 @@ std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& r
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type precision,
-    const FakeQuantizeOnData& fqOnData);
+    const FakeQuantizeOnData& fqOnData,
+    const int index = -1);
 
 std::shared_ptr<ov::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
-    const FakeQuantizeOnData& fqOnData);
+    const FakeQuantizeOnData& fqOnData,
+    const int index = -1);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
-    const bool subgraphOnConstantPath = false);
+    const bool subgraphOnConstantPath = false,
+    const int index = -1);
 
 std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type constantPrecision,
-    const FakeQuantizeOnDataWithConstant& fqOnData);
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const int index = -1);
 
 void addAttributes(std::vector<std::shared_ptr<ngraph::Node>> nodes, std::vector<ov::Any> attributes);
 

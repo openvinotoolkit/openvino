@@ -11,6 +11,7 @@
 
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "low_precision_transformations/squeeze_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/squeeze_function.hpp"
@@ -29,21 +30,28 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
-InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    SqueezeTransformationParam squeezeParam;
-    std::string targetDevice;
+ov::test::utils::InputsMap SqueezeTransformation::get_input_map() {
+    auto generate_default = [this](const std::shared_ptr<ngraph::Node>&node,
+                               size_t port,
+                               const ov::element::Type & elemType,
+                               const ov::Shape & targetShape) -> ov::runtime::Tensor {
+        ngraph::element::Type netPrecision;
+        ngraph::pass::low_precision::LayerTransformation::Params params;
+        SqueezeTransformationParam squeezeParam;
+        std::string targetDevice;
 
-    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
+        std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
+        const auto range = static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]);
+        const double start_from = fqOnData.empty() ? -12.5 : fqOnData.outputLowValues[0];
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, range, start_from);
+    };
 
-    return FuncTestUtils::createAndFillBlobConsistently(
-        info.getTensorDesc(),
-        static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
-        static_cast<int32_t>(fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0]),
-        1ul);
+    static ov::test::utils::InputsMap inputs_map{
+        { ov::op::Op::get_type_info_static(), generate_default }
+    };
+    return inputs_map;
 }
 
 std::string SqueezeTransformation::getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj) {
@@ -69,6 +77,8 @@ void SqueezeTransformation::SetUp() {
 
     std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
+    init_input_shapes(squeezeParam.shape);
+
     function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
         netPrecision,
         squeezeParam.shape,
@@ -79,7 +89,7 @@ void SqueezeTransformation::SetUp() {
 }
 
 TEST_P(SqueezeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

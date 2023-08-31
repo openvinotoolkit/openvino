@@ -32,6 +32,8 @@ void EliminateFakeQuantizeTransformation::SetUp() {
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     // Convolution is used in a model as operation with specific precision requirements on data branch
     // to test the transformation place in LPT pipeline:
     // markup transformations and FakeQuantize operation decomposition transformation have to handle FakeQuantize as usual
@@ -46,13 +48,12 @@ void EliminateFakeQuantizeTransformation::SetUp() {
 }
 
 TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 
     EliminateFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
-    const auto& rtInfo = LayerTestsCommon::getRuntimeInfo();
+    const auto& rtInfo = LayerTransformation::getRuntimeInfo();
 
     auto exist = testValues.expected.exist;
     auto absent = testValues.expected.absent;

@@ -143,5 +143,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Plugin version was changed to ov::Version
             R"(.*VersionTest.*pluginCurrentVersionIsCorrect.*)",
 #endif
+            // Issue: 119648
+            R"(.*smoke_LPT/InterpolateTransformation.*)"
     };
 }

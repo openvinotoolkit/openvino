@@ -56,6 +56,27 @@ void MultiplyTransformation::SetUp() {
     MultiplyTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
+    auto inputShape1 = inputShape;
+    if (param.broadcast1) {
+        inputShape1[2] = 1;
+        inputShape1[3] = 1;
+    }
+
+    ngraph::PartialShape inputShape2;
+    if (param.secondInputIsConstant) {
+        inputShape2 = {};
+    } else {
+        inputShape2 = inputShape;
+        if (param.broadcast2) {
+            inputShape2[2] = 1;
+            inputShape2[3] = 1;
+        }
+    }
+    init_input_shapes(
+        param.secondInputIsConstant ?
+            std::vector<ov::PartialShape>{ inputShape1 } :
+            std::vector<ov::PartialShape>{ inputShape1, inputShape2 });
+
     function = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
         precision,
         inputShape,
@@ -69,8 +90,8 @@ void MultiplyTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MultiplyTransformation::Run() {
-    LayerTestsCommon::Run();
+void MultiplyTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
 
@@ -97,8 +118,7 @@ void MultiplyTransformation::Run() {
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

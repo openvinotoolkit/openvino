@@ -45,6 +45,8 @@ void RecurrentCellTransformation::SetUp() {
 
     std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(activations_shapes);
+
     function = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
@@ -69,11 +71,8 @@ void RecurrentCellTransformation::SetUp() {
                                                                       });
 }
 
-void RecurrentCellTransformation::Run() {
-    LayerTestsCommon::Run();
-
-    if (!executableNetwork)
-        return;
+void RecurrentCellTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -85,7 +84,7 @@ void RecurrentCellTransformation::Run() {
 }
 
 TEST_P(RecurrentCellTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

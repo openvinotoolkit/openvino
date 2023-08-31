@@ -49,11 +49,12 @@ std::string InterpolateTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void InterpolateTransformation::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::IE);
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     interpAttributes attributes;
     std::tie(precision, shapes, targetDevice, attributes) = this->GetParam();
+
+    init_input_shapes(shapes.first);
 
     ngraph::op::InterpolateAttrs interpAttrs;
     interpAttrs.axes = attributes.axes;
@@ -67,7 +68,7 @@ void InterpolateTransformation::SetUp() {
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -34,6 +34,8 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
         precision,
         inputShape,
@@ -43,7 +45,7 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

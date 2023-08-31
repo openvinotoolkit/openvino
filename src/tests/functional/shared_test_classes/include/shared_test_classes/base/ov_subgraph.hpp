@@ -10,6 +10,8 @@
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 namespace ov {
 namespace test {
@@ -35,6 +37,8 @@ protected:
     virtual void compile_model();
     virtual void init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
+    virtual ov::test::utils::InputsMap get_input_map();
+    virtual ov::test::utils::CompareMap get_compare_map();
     virtual void infer();
     virtual void validate();
 

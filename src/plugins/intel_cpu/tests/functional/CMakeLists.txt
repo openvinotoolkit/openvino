@@ -25,6 +25,7 @@ if(X86_64)
     ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations
          ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/x64
          ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
     # temporary disable all custom tests for ARM

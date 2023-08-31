@@ -43,6 +43,8 @@ void MVNTransformation::SetUp() {
     bool normalizeVariance;
     std::tie(precision, shape, targetDevice, reductionAxes, normalizeVariance) = this->GetParam();
 
+    init_input_shapes(shape);
+
     function = ngraph::builder::subgraph::MVNFunction::getOriginal(
         precision,
         shape,
@@ -51,7 +53,7 @@ void MVNTransformation::SetUp() {
 }
 
 TEST_P(MVNTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

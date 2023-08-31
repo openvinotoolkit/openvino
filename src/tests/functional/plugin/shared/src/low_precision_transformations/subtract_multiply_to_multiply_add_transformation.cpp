@@ -33,6 +33,8 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::SubtractMultiplyToMultiplyAddFunction::getOriginal(
         testValues.inputShape,
         testValues.precision,
@@ -40,7 +42,7 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
 }
 
 TEST_P(SubtractMultiplyToMultiplyAddTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

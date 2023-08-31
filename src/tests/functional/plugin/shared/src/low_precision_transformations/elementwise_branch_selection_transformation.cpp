@@ -54,6 +54,8 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     std::string elementwiseType;
     std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
 
+    init_input_shapes({ inputShape, inputShape });
+
     function = ngraph::builder::subgraph::AddFunction::getOriginalSubgraphWithConvolutions(
         precision,
         inputShape,
@@ -70,15 +72,15 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void ElementwiseBranchSelectionTransformation::Run() {
-    LayerTestsCommon::Run();
+void ElementwiseBranchSelectionTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<3>(GetParam());
     const auto elementwiseType = std::get<4>(GetParam());
 
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
     if (!expectedReorders.empty()) {
-        auto rtInfo = LayerTestsCommon::getRuntimeInfo();
+        auto rtInfo = LayerTransformation::getRuntimeInfo();
         for (auto it : rtInfo) {
             const auto& typeIt = it.second.find("layerType");
             const auto type = typeIt->second.as<std::string>();
@@ -114,8 +116,7 @@ void ElementwiseBranchSelectionTransformation::Run() {
 }
 
 TEST_P(ElementwiseBranchSelectionTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

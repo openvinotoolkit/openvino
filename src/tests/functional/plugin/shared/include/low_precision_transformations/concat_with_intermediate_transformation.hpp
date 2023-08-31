@@ -25,7 +25,7 @@ class ConcatWithIntermediateTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatWithIntermediateTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
+    ov::test::utils::InputsMap get_input_map() override;
 
 protected:
     void SetUp() override;

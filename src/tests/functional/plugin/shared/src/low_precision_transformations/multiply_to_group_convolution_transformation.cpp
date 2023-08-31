@@ -45,6 +45,8 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
     MultiplyToGroupConvolutionTransformationParam param;
     std::tie(precision, shape, targetDevice, param) = this->GetParam();
 
+    init_input_shapes(shape);
+
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
@@ -53,8 +55,8 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
         param.parentHasOneConsumer);
 }
 
-void MultiplyToGroupConvolutionTransformation::Run() {
-    LayerTestsCommon::Run();
+void MultiplyToGroupConvolutionTransformation::run() {
+    LayerTransformation::run();
 
     const auto param = std::get<3>(GetParam());
     const auto actualPrecision = getRuntimePrecision(param.layerName);
@@ -66,8 +68,7 @@ void MultiplyToGroupConvolutionTransformation::Run() {
 }
 
 TEST_P(MultiplyToGroupConvolutionTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

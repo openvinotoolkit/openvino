@@ -35,6 +35,8 @@ void ClampTransformation::SetUp() {
     ClampTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::ClampFunction::getOriginal(
         netPrecision,
         inputShape,
@@ -44,7 +46,7 @@ void ClampTransformation::SetUp() {
 }
 
 TEST_P(ClampTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

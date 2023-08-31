@@ -31,7 +31,7 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, bool> inputShapeAndHandling;
@@ -43,6 +43,8 @@ void ConvolutionBackpropDataTransformation::SetUp() {
     std::shared_ptr<ngraph::Node> weights;
 
     const auto inputShape = inputShapeAndHandling.first;
+    init_input_shapes(inputShape);
+
     ngraph::Shape weightsShape(4, 1ul);
     weightsShape[0] = inputShape[1].get_length();
     weightsShape[1] = inputShape[1].get_length() / 2;
@@ -67,8 +69,8 @@ void ConvolutionBackpropDataTransformation::SetUp() {
         weights);
 }
 
-void ConvolutionBackpropDataTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionBackpropDataTransformation::run() {
+    LayerTransformation::run();
 
     const auto inputShape = std::get<1>(GetParam());
     if (inputShape.second) {
@@ -79,8 +81,7 @@ void ConvolutionBackpropDataTransformation::Run() {
 }
 
 TEST_P(ConvolutionBackpropDataTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

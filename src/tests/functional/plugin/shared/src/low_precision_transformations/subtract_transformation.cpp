@@ -33,11 +33,13 @@ void SubtractTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

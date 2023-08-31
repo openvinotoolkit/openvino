@@ -44,6 +44,8 @@ void FullyConnectedTransformation::SetUp() {
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
+    init_input_shapes({ shapes.inputA, shapes.inputB });
+
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
         shapes.inputA,
@@ -53,7 +55,7 @@ void FullyConnectedTransformation::SetUp() {
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

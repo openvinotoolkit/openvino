@@ -40,13 +40,15 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    threshold = 0.01f;
+    rel_threshold = 0.01f;
 
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(precision, shapes, targetDevice, param) = this->GetParam();
+
+    init_input_shapes({ shapes.first, shapes.second });
 
     function = ngraph::builder::subgraph::MatMulWithOptimizedConstantFakeQuantizeFunction::getOriginal(
         precision,
@@ -57,7 +59,7 @@ void MatMulWithOptimizedConstantFq::SetUp() {
 }
 
 TEST_P(MatMulWithOptimizedConstantFq, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

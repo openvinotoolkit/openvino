@@ -28,12 +28,14 @@ std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing:
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
-    threshold = 0.5f;
+    rel_threshold = 0.5f;
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
         precision,
@@ -44,7 +46,7 @@ void FakeQuantizeAndAvgPoolTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizeAndAvgPoolTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

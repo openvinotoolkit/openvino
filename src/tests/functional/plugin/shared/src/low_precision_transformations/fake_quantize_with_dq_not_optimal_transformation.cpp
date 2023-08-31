@@ -11,6 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "lpt_ngraph_functions/fake_quantize_and_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
@@ -29,12 +30,13 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ngraph::PartialShape inputShape;
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
@@ -49,16 +51,18 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
         testValues.dequantizationAfter);
 }
 
-void FakeQuantizeWithNotOptimalTransformation::Run() {
-    LayerTestsCommon::Run();
+void FakeQuantizeWithNotOptimalTransformation::run() {
+    LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecisionByType("Convolution");
-    EXPECT_EQ(actualType, params.expectedPrecision);
+    if (!FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        const auto params = std::get<4>(GetParam());
+        const auto actualType = getRuntimePrecisionByType("Convolution");
+        EXPECT_EQ(actualType, params.expectedPrecision);
+    }
 }
 
 TEST_P(FakeQuantizeWithNotOptimalTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

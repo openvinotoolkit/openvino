@@ -13,6 +13,7 @@
 
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/mat_mul_function.hpp"
@@ -21,10 +22,9 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
+    std::tie(precision, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
     result <<
@@ -38,31 +38,39 @@ std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<M
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected layer name " << info.name();
-    }
+ov::test::utils::InputsMap MatMulTransformation::get_input_map() {
+    auto generate_default = [](const std::shared_ptr<ngraph::Node>&node,
+                               size_t port,
+                               const ov::element::Type & elemType,
+                               const ov::Shape & targetShape) -> ov::runtime::Tensor {
+        const auto name = node->get_friendly_name();
+        double low;
+        double high;
+        if (name == "fake_quantize1") {
+            low = 1.0;
+            high = 5.0;
+        } else if (name == "fake_quantize2") {
+            low = 5.0;
+            high = 10.0;
+        } else {
+            IE_THROW() << "unexpected input name " << name;
+        }
 
-    size_t low;
-    size_t high;
-    if (info.name() == "input1") {
-        low = 1ul;
-        high = 5ul;
-    } else if (info.name() == "input2") {
-        low = 5ul;
-        high = 10ul;
-    } else {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, static_cast<uint32_t>(high - low), low);
+    };
 
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
+    static ov::test::utils::InputsMap inputs_map{
+        { ov::op::Op::get_type_info_static(), generate_default }
+    };
+    return inputs_map;
 }
 
 void MatMulTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
@@ -74,19 +82,17 @@ void MatMulTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulTransformation::Run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+void MatMulTransformation::run() {
+    LayerTransformation::run();
 
-    LayerTestsCommon::Run();
-
-    const auto params = std::get<3>(GetParam());
+    const auto params = std::get<2>(GetParam());
     const auto actualType = getRuntimePrecision(params.expectedKernelName);
 
     EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

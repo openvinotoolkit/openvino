@@ -24,7 +24,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
@@ -158,7 +157,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                                const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
-    auto compareMap = utils::getCompareMap();
+    auto compareMap = get_compare_map();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
         const auto result = results[j];
@@ -170,7 +169,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
                     inputNode = nextNodePtr;
                 }
             }
-            auto it = compareMap.find(inputNode->get_type_info());
+            auto it = compareMap.size() == 1 ? compareMap.begin() : compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
@@ -226,7 +225,7 @@ void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, co
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    auto inputMap = utils::getInputMap();
+    auto inputMap = get_input_map();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
         std::shared_ptr<ov::Node> inputNode = param;
@@ -240,7 +239,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                         nodePtr = nextNodePtr;
                     }
                 }
-                auto it = inputMap.find(nodePtr->get_type_info());
+                auto it = inputMap.size() == 1 ? inputMap.begin() : inputMap.find(nodePtr->get_type_info());
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
@@ -251,6 +250,14 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
             }
         }
     }
+}
+
+ov::test::utils::InputsMap SubgraphBaseTest::get_input_map() {
+    return utils::getInputMap();
+}
+
+ov::test::utils::CompareMap SubgraphBaseTest::get_compare_map() {
+    return utils::getCompareMap();
 }
 
 void SubgraphBaseTest::infer() {

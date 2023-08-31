@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <ngraph/ngraph.hpp>
-
+#include <ngraph/opsets/opset1.hpp>
 #include "lpt_ngraph_functions/reduce_function.hpp"
 
 namespace LayerTestsDefinitions {
@@ -37,11 +37,13 @@ void ReduceSumTransformation::SetUp() {
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
+    init_input_shapes(inputShape);
+
     ngraph::builder::subgraph::DequantizationOperations::Convert convert;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ngraph::opset1::ReduceSum>(
+    function = ngraph::builder::subgraph::ReduceFunction::get<ov::opset1::ReduceSum>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
@@ -52,8 +54,8 @@ void ReduceSumTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceSumTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceSumTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -61,8 +63,7 @@ void ReduceSumTransformation::Run() {
 }
 
 TEST_P(ReduceSumTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

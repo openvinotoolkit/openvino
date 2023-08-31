@@ -58,6 +58,13 @@ void AddTransformation::SetUp() {
     AddTestValues param;
     std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
 
+    ngraph::PartialShape inputShape2 = inputShape;
+    if (param.broadcast) {
+        inputShape2[2] = 1;
+        inputShape2[3] = 1;
+    }
+    init_input_shapes({ inputShape, inputShape2 });
+
     function = ngraph::builder::subgraph::AddFunction::getOriginal(
         precision, inputShape, param.broadcast,
         param.fakeQuantize1, param.fakeQuantize2);
@@ -66,7 +73,7 @@ void AddTransformation::SetUp() {
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

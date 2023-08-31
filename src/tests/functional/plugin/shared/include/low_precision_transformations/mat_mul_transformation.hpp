@@ -25,7 +25,6 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
     std::string,
     MatMulTransformationTestValues> MatMulTransformationParams;
 
@@ -34,11 +33,11 @@ class MatMulTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    ov::test::utils::InputsMap get_input_map() override;
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

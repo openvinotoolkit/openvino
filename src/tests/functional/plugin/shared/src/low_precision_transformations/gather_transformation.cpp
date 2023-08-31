@@ -38,6 +38,8 @@ void GatherTransformation::SetUp() {
     int opset_version;
     std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::GatherFunction::getOriginal(
         testValues.inputShape,
         testValues.gatherIndicesShape,
@@ -50,7 +52,7 @@ void GatherTransformation::SetUp() {
 }
 
 TEST_P(GatherTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

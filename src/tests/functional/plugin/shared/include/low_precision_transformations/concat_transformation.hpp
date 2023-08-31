@@ -7,6 +7,8 @@
 #include <string>
 #include <memory>
 
+#include "ngraph/opsets/opset1.hpp"
+
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -34,7 +36,7 @@ class ConcatTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    ov::test::utils::InputsMap get_input_map() override;
 
 protected:
     void SetUp() override;

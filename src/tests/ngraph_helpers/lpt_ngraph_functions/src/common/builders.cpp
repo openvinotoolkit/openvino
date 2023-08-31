@@ -195,8 +195,9 @@ std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& t
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type constantType,
-    const FakeQuantizeOnData& fqOnData) {
-    return ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    const FakeQuantizeOnData& fqOnData,
+    const int index) {
+    const auto fake_quantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
         output,
         constantType,
         fqOnData.quantizationLevel,
@@ -205,6 +206,10 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
         fqOnData.inputHighValues,
         fqOnData.outputLowValues,
         fqOnData.outputHighValues));
+    if (index != -1) {
+        fake_quantize->set_friendly_name("fake_quantize" + std::to_string(index));
+    }
+    return fake_quantize;
 }
 
 std::shared_ptr<ngraph::opset1::Convolution> makeConvolution(const Output<Node>& output, const Convolution& convolution) {
@@ -240,8 +245,9 @@ std::shared_ptr<ngraph::opset1::Convolution> makeConvolution(const Output<Node>&
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
-    const FakeQuantizeOnData& fqOnData) {
-    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData);
+    const FakeQuantizeOnData& fqOnData,
+    const int index) {
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData, index);
     return std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
         *fq,
         fqOnData.outputPrecision == element::undefined ? precision : fqOnData.outputPrecision);
@@ -251,7 +257,8 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
-    const bool subgraphOnConstantPath) {
+    const bool subgraphOnConstantPath,
+    const int index) {
     std::shared_ptr<Node> inputLowNode;
     std::shared_ptr<Node> inputHighNode;
 
@@ -323,6 +330,9 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     }
 
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fqOnData.quantizationLevel);
+    if (index != -1) {
+        fq->set_friendly_name("fake_quantize" + std::to_string(index));
+    }
 
     auto& rt = fq->get_rt_info();
     for (auto& attribute : fqOnData.attributes) {
@@ -337,8 +347,9 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type constantPrecision,
-    const FakeQuantizeOnDataWithConstant& fqOnData) {
-    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, constantPrecision, fqOnData);
+    const FakeQuantizeOnDataWithConstant& fqOnData,
+    const int index) {
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, constantPrecision, fqOnData, false, index);
     return std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
         *fq,
         fqOnData.outputPrecision == ngraph::element::undefined ? constantPrecision : fqOnData.outputPrecision);

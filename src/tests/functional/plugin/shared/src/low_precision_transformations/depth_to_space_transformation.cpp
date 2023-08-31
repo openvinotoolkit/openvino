@@ -59,6 +59,8 @@ void DepthToSpaceTransformation::SetUp() {
     size_t blockSize;
     std::tie(precision, inputShape, targetDevice, mode, blockSize) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     if (inputShape.rank().is_dynamic() || inputShape.rank().get_length() != 4) {
         IE_THROW() << "not supported input shape size " << inputShape.rank();
     }
@@ -67,7 +69,7 @@ void DepthToSpaceTransformation::SetUp() {
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

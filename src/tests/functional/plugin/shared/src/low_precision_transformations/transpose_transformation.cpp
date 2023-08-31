@@ -35,6 +35,8 @@ void TransposeTransformation::SetUp() {
     TransposeTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
 
+    init_input_shapes(testValues.inputShape);
+
     function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,
         testValues.transposeConstValues,
@@ -43,7 +45,7 @@ void TransposeTransformation::SetUp() {
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

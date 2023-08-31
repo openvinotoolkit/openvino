@@ -190,6 +190,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_AutoBatching_CPU/AutoBatching_Test_DetectionOutput.*)",
         // Issue: 117837
         R"(.*smoke_4D_out_of_range/GatherInPlaceLayerTestCPU.*_indices=\(\-15\).*)",
+        // Issue: 119648
+        R"(.*smoke_LPT/InterpolateTransformation.*)"
     };
 
 #if defined(OPENVINO_ARCH_X86)

@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <ngraph/ngraph.hpp>
-
+#include <ngraph/opsets/opset1.hpp>
 #include "lpt_ngraph_functions/reduce_function.hpp"
 
 namespace LayerTestsDefinitions {
@@ -37,6 +37,8 @@ void ReduceMinTransformation::SetUp() {
     ReduceMinTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
+    init_input_shapes(inputShape);
+
     ngraph::builder::subgraph::DequantizationOperations::Convert convert;
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
     ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
@@ -52,8 +54,8 @@ void ReduceMinTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceMinTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceMinTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualType = getRuntimePrecision(params.layerName);
@@ -61,8 +63,7 @@ void ReduceMinTransformation::Run() {
 }
 
 TEST_P(ReduceMinTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

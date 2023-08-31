@@ -60,7 +60,7 @@ struct InputGenerateData {
             auto max_ref = ConstRanges::max;
             if (min_orig < min_ref || min_orig == 0)
                 start_from = min_ref;
-            range = (max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from;
+            range = static_cast<uint32_t>((max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from);
         }
     }
 };

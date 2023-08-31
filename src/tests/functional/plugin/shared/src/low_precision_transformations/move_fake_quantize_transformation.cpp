@@ -44,6 +44,25 @@ void MoveFakeQuantizeTransformation::SetUp() {
     MoveFakeQuantizeTransformationParam param;
     std::tie(netPrecision, inputShapes, targetDevice, params, oneInputWithSplit, param) = this->GetParam();
 
+    if (oneInputWithSplit) {
+        auto newInputShape = inputShapes[0];
+        int channels = 0;
+        bool channelsWasIdentified = false;
+        for (const auto inputShape : inputShapes) {
+            if (inputShape[param.axis].is_static()) {
+                channels += inputShape[param.axis].get_length();
+                channelsWasIdentified = true;
+            }
+        }
+
+        if (channelsWasIdentified) {
+            newInputShape[param.axis] = channels;
+        }
+        init_input_shapes(newInputShape);
+    } else {
+        init_input_shapes(inputShapes);
+    }
+
     function = ngraph::builder::subgraph::MoveFakeQuantize::get(
         netPrecision,
         inputShapes,
@@ -61,8 +80,8 @@ void MoveFakeQuantizeTransformation::SetUp() {
         oneInputWithSplit);
 }
 
-void MoveFakeQuantizeTransformation::Run() {
-    LayerTestsCommon::Run();
+void MoveFakeQuantizeTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -74,8 +93,7 @@ void MoveFakeQuantizeTransformation::Run() {
 }
 
 TEST_P(MoveFakeQuantizeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

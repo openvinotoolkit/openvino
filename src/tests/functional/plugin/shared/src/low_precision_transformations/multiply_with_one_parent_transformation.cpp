@@ -29,7 +29,7 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 }
 
 void MultiplyWithOneParentTransformation::SetUp() {
-    threshold = 0.01f;
+    rel_threshold = 0.01f;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
@@ -37,11 +37,13 @@ void MultiplyWithOneParentTransformation::SetUp() {
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -42,7 +42,7 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 }
 
 void PullReshapeThroughDequantizationTransformation::SetUp() {
-    // threshold = 0.1f;
+    // rel_threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
@@ -50,6 +50,8 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
     ngraph::Shape elementwiseConstantShapes;
     PullReshapeThroughDequantizationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     // to prevent test cases increasing let's parameterize test by dequantization shape and
     // initialize values here
@@ -79,8 +81,8 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         "GroupConvolution");
 }
 
-void PullReshapeThroughDequantizationTransformation::Run() {
-    LayerTestsCommon::Run();
+void PullReshapeThroughDequantizationTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
     const auto actualType = getRuntimePrecision(params.operationName);
@@ -88,8 +90,7 @@ void PullReshapeThroughDequantizationTransformation::Run() {
 }
 
 TEST_P(PullReshapeThroughDequantizationTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

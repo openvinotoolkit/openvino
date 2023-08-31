@@ -11,6 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "lpt_ngraph_functions/concat_function.hpp"
 
@@ -26,26 +27,37 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testin
     return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+ov::test::utils::InputsMap ConcatWithNeighborsGraphTransformation::get_input_map() {
+    auto generate_default = [](const std::shared_ptr<ngraph::Node>&node,
+                               size_t port,
+                               const ov::element::Type & elemType,
+                               const ov::Shape & targetShape) -> ov::runtime::Tensor {
+        const auto name = node->get_friendly_name();
+        if ((name != "fakeQuantize1") && (name != "fakeQuantize2") && (name != "fakeQuantize3")) {
+            OPENVINO_THROW("unknown name: " + name);
+        }
+        const double k = (name == "fakeQuantize1") ? 1.0 : (name == "fakeQuantize2" ? 2.0 : 3.0);
+        const auto interval = LayerTestsUtils::LayerTransformation::getQuantizationInterval(ngraph::element::u8);
+        const double low = interval.first / k;
+        const double high = interval.second / k;
 
-    if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, static_cast<uint32_t>(high - low), low);
+    };
+
+    static ov::test::utils::InputsMap inputs_map{
+        { ov::op::Op::get_type_info_static(), generate_default }
+    };
+    return inputs_map;
 }
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
-    threshold = 2.e-2;
+    rel_threshold = 2.e-2;
     ngraph::element::Type ngPrecision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
+
+    init_input_shapes({ inputShape, inputShape, inputShape });
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
@@ -58,7 +70,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 }
 
 TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

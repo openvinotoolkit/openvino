@@ -35,6 +35,8 @@ void AssignAndReadValueTransformation::SetUp() {
     AssignAndReadValueTransformationParam param;
     std::tie(netPrecision, inputShape, opset, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::AssignAndReadValueFunction::getOriginal(
         netPrecision,
         inputShape,
@@ -43,7 +45,7 @@ void AssignAndReadValueTransformation::SetUp() {
 }
 
 TEST_P(AssignAndReadValueTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

@@ -12,6 +12,7 @@
 #include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
@@ -39,24 +40,27 @@ std::string OutputLayersConcatMultiChannel::getTestCaseName(
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
-InferenceEngine::Blob::Ptr OutputLayersConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+ov::test::utils::InputsMap OutputLayersConcatMultiChannel::get_input_map() {
+    auto generate_default = [](const std::shared_ptr<ngraph::Node>&node,
+                               size_t port,
+                               const ov::element::Type & elemType,
+                               const ov::Shape & targetShape) -> ov::runtime::Tensor {
+        const auto name = node->get_friendly_name();
+        if ((name != "fakeQuantize1") && (name != "fakeQuantize2")) {
+            OPENVINO_THROW("unknown name: " + name);
+        }
+        const double k = (name == "fakeQuantize1") ? 1.f : 2.f;
+        const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval({ ngraph::element::u8, ngraph::element::i8 });
+        const double low = interval.first / k;
+        const double high = interval.second / k;
+        const int seed = 1;
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, static_cast<uint32_t>(high - low), low);
+    };
 
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-
-    const auto interval = outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval({ ngraph::element::u8, ngraph::element::i8 });
-    const float low = interval.first / k;
-    const float hight = interval.second / k;
-
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    return input;
+    static ov::test::utils::InputsMap inputs_map{
+        { ov::op::Op::get_type_info_static(), generate_default }
+    };
+    return inputs_map;
 }
 
 /*
@@ -73,12 +77,15 @@ InferenceEngine::Blob::Ptr OutputLayersConcatMultiChannel::GenerateInput(const I
 */
 
 void OutputLayersConcatMultiChannel::SetUp() {
-    threshold = 0.05;
+    rel_threshold = 0.05;
 
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+
+    const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
+    init_input_shapes({ov::PartialShape(inputShape1), ov::PartialShape(inputShape1)});
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -89,7 +96,7 @@ void OutputLayersConcatMultiChannel::SetUp() {
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     ASSERT_EQ(4ul, inputShape1.size()) << "unexpected input layout";
-    const InferenceEngine::SizeVector inputShape2 = { inputShape1[0], inputShape1[1] * 2ul, inputShape1[2], inputShape1[3] };
+
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
 
@@ -114,7 +121,7 @@ void OutputLayersConcatMultiChannel::SetUp() {
 }
 
 TEST_P(OutputLayersConcatMultiChannel, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

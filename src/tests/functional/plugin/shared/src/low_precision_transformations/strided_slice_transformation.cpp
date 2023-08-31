@@ -47,6 +47,8 @@ void StridedSliceTransformation::SetUp() {
     StridedSliceTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     function = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
         netPrecision,
         inputShape,
@@ -62,7 +64,7 @@ void StridedSliceTransformation::SetUp() {
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

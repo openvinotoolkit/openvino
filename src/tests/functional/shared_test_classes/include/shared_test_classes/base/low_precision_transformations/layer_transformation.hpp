@@ -15,7 +15,7 @@
 #include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/layer_transformation.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsUtils {
 
@@ -30,16 +30,16 @@ public:
 class LayerTransformationParamsFactory : public LayerTransformationParamsNGraphFactory {
 };
 
-class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
+class LayerTransformation : virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::pair<double, double> getQuantizationInterval(const ngraph::element::Type precision);
+
 protected:
     LayerTransformation();
 
-    static InferenceEngine::Blob::Ptr GenerateInput(
-        const ngraph::element::Type precision,
-        const InferenceEngine::TensorDesc& tensorDesc,
-        const float k = 1.f);
+    ov::test::utils::InputsMap get_input_map() override;
 
-    static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
+    ov::test::utils::CompareMap get_compare_map() override;
 
     static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
@@ -54,6 +54,21 @@ protected:
         const ngraph::PartialShape& inputShapes,
         const std::string& targetDevice,
         const ngraph::pass::low_precision::LayerTransformation::Params& params);
+
+    // get runtime precision by operation friendly name
+    std::string getRuntimePrecision(const std::string& layerName);
+
+    // get runtime precision by operation type
+    std::string getRuntimePrecisionByType(const std::string& layerType);
+
+    // get runtime precision by operation friendly name which can be fused
+    std::string getRuntimePrecisionByFusedName(const std::string& layerName);
+
+    std::map<std::string, ngraph::Node::RTMap> getRuntimeInfo();
+
+    void init_input_shapes(const ov::PartialShape& shape);
+
+    void init_input_shapes(const std::vector<ov::PartialShape>& shapes);
 };
 
 typedef std::tuple<

@@ -13,6 +13,7 @@
 
 #include "ngraph/op/op.hpp"
 #include <transformations/init_node_info.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/mat_mul_function.hpp"
@@ -37,30 +38,37 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if ((info.name() != "input1") && (info.name() != "input2")) {
-        IE_THROW() << "unexpected layer name " << info.name();
-    }
+ov::test::utils::InputsMap MatMulWithConstantTransformation::get_input_map() {
+    auto generate_default = [](const std::shared_ptr<ngraph::Node>& node,
+                               size_t port,
+                               const ov::element::Type& elemType,
+                               const ov::Shape& targetShape) -> ov::runtime::Tensor {
+        const auto name = node->get_friendly_name();
+        double low;
+        double high;
+        if (name == "fake_quantize1") {
+            low = 1.0;
+            high = 5.0;
+        } else if (name == "fake_quantize2") {
+            low = 5.0;
+            high = 10.0;
+        } else {
+            IE_THROW() << "unexpected input name " << name;
+        }
 
-    size_t low;
-    size_t high;
-    if (info.name() == "input1") {
-        low = 1ul;
-        high = 5ul;
-    } else if (info.name() == "input2") {
-        low = 5ul;
-        high = 10ul;
-    } else {
-        IE_THROW() << "unexpected input name " << info.name();
-    }
+        return ov::test::utils::create_and_fill_tensor(elemType, targetShape, static_cast<uint32_t>(high - low), low);
+    };
 
-    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
+    static ov::test::utils::InputsMap inputs_map{{ov::op::Op::get_type_info_static(), generate_default}};
+    return inputs_map;
 }
 
 void MatMulWithConstantTransformation::SetUp() {
     ngraph::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    init_input_shapes(testValues.inputShape);
 
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
         precision,
@@ -73,8 +81,8 @@ void MatMulWithConstantTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void MatMulWithConstantTransformation::Run() {
-    LayerTestsCommon::Run();
+void MatMulWithConstantTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<2>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -86,8 +94,7 @@ void MatMulWithConstantTransformation::Run() {
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

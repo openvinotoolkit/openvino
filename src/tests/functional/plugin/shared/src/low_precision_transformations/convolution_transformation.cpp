@@ -37,13 +37,15 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void ConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
+    rel_threshold = 0.1f;
 
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+
+    init_input_shapes(inputShape);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
@@ -53,8 +55,8 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnWeights);
 }
 
-void ConvolutionTransformation::Run() {
-    LayerTestsCommon::Run();
+void ConvolutionTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -63,11 +65,11 @@ void ConvolutionTransformation::Run() {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
+    std::cout << "op: " << params.layerName << ", actualPrecision: " << actualPrecision << std::endl;
 }
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

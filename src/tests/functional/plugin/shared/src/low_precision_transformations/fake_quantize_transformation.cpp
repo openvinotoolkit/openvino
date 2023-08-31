@@ -40,6 +40,8 @@ void FakeQuantizeTransformation::SetUp() {
     bool isConvertOnConstants;
     std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = this->GetParam();
 
+    init_input_shapes(inputShape);
+
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
     function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
@@ -52,8 +54,8 @@ void FakeQuantizeTransformation::SetUp() {
     ov::pass::InitNodeInfo().run_on_model(function);
 }
 
-void FakeQuantizeTransformation::Run() {
-    LayerTestsCommon::Run();
+void FakeQuantizeTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
     const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
@@ -66,8 +68,7 @@ void FakeQuantizeTransformation::Run() {
 }
 
 TEST_P(FakeQuantizeTransformation, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions
