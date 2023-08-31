@@ -36,7 +36,7 @@ jobs:
       matrix:
         include:
           - BUILD_TYPE: 'static'
-          - BUILD_TYPE: 'dynamic'
+#          - BUILD_TYPE: 'dynamic'
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
@@ -134,7 +134,7 @@ jobs:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
           # github.ref_name is 'ref/PR_#' in case of the PR, and 'branch_name' when executed on push
-          # save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
+          save: ${{ github.ref_name == 'master' && 'true' || 'false'  }}
           verbose: 2
           key: linux-${{ matrix.BUILD_TYPE }}
           restore-keys: |
@@ -303,7 +303,7 @@ jobs:
       matrix:
         include:
           - BUILD_TYPE: 'static'
-          - BUILD_TYPE: 'dynamic'
+#          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -506,7 +506,7 @@ jobs:
       matrix:
         include:
           - BUILD_TYPE: 'static'
-          - BUILD_TYPE: 'dynamic'
+#          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
@@ -778,7 +778,7 @@ jobs:
       matrix:
         include:
           - BUILD_TYPE: 'static'
-          - BUILD_TYPE: 'dynamic'
+#          - BUILD_TYPE: 'dynamic'
     runs-on: ubuntu-22.04
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
