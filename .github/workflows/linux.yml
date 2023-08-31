@@ -88,13 +88,6 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          echo ${GITHUB_WORKSPACE}
-          ls -la ${GITHUB_WORKSPACE}
-          echo ${OPENVINO_REPO}
-          ls -la ${OPENVINO_REPO}
-          echo ${OPENVINO_CONTRIB_REPO}
-          ls -la ${OPENVINO_CONTRIB_REPO}
-          # chmod +x ${OPENVINO_REPO}/install_build_dependencies.sh
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           apt update
           apt --assume-yes install openjdk-11-jdk libbz2-dev clang unzip libpugixml-dev libtbb-dev intel-opencl-icd ocl-icd-opencl-dev opencl-headers
