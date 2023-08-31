@@ -8,7 +8,6 @@
 #include "conversion.hpp"
 
 using namespace ov;
-using ConversionTypes = ngraph::helpers::ConversionTypes;
 
 namespace reference_tests {
 namespace ConversionOpsRefTestDefinitions {
@@ -101,9 +100,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::i4, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::i4,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::i4,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::i4, std::vector<float> {-1, -2, 2, 3},
                       std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
         // destination i8
@@ -130,9 +129,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::i8, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<int8_t> {-1, -2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::i8,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<int8_t> {-1, -2, 0, 3}),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<int8_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::i8,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<int8_t> {-1, -2, 0, 3}),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<int8_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::i8, std::vector<float> {-1, -2, 2, 3},
                       std::vector<int8_t> {-1, -2, 2, 3}),
         // destination i16
@@ -159,9 +158,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::i16, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<int16_t> {-1, -2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::i16,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<int16_t> {-1, -2, 0, 3}),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<int16_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::i16,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<int16_t> {-1, -2, 0, 3}),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<int16_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::i16, std::vector<float> {-1, -2, 2, 3},
                       std::vector<int16_t> {-1, -2, 2, 3}),
         // destination i32
@@ -188,9 +187,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::i32, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<int32_t> {-1, -2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::i32,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<int32_t> {-1, -2, 0, 3}),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<int32_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::i32,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<int32_t> {-1, -2, 0, 3}),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<int32_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::i32, std::vector<float> {-1, -2, 2, 3},
                       std::vector<int32_t> {-1, -2, 2, 3}),
         // destination i64
@@ -217,9 +216,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::i64, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<int64_t> {-1, -2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::i64,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<int64_t> {-1, -2, 0, 3}),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<int64_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::i64,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<int64_t> {-1, -2, 0, 3}),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<int64_t> {-1, -2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::i64, std::vector<float> {-1, -2, 2, 3},
                       std::vector<int64_t> {-1, -2, 2, 3}),
 
@@ -247,9 +246,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {8}, ov::element::i64, ov::element::u1,
                       std::vector<int64_t> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {8}, ov::element::f16, ov::element::u1,
-                      std::vector<ngraph::float16> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
+                      std::vector<ov::float16> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {8}, ov::element::bf16, ov::element::u1,
-                      std::vector<ngraph::bfloat16> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
+                      std::vector<ov::bfloat16> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {8}, ov::element::f32, ov::element::u1,
                       std::vector<float> {1, 0, 1, 0, 0, 0, 0, 1}, std::vector<uint8_t> {0xA1}, 8, 8),
 
@@ -277,9 +276,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::u4, std::vector<int64_t> {-1, -2, 2, 3},
                       std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::u4,
-                      std::vector<ngraph::float16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+                      std::vector<ov::float16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::u4,
-                      std::vector<ngraph::bfloat16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
+                      std::vector<ov::bfloat16> {-1, -2, 0, 3}, std::vector<uint8_t> {0xFE, 0x03}, 4, 4),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::u4, std::vector<float> {-1, -2, 2, 3},
                       std::vector<uint8_t> {0xFE, 0x23}, 4, 4),
 
@@ -307,9 +306,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::u8, std::vector<int64_t> {1, 2, 2, 3},
                       std::vector<uint8_t> {1, 2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::u8,
-                      std::vector<ngraph::float16> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
+                      std::vector<ov::float16> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::u8,
-                      std::vector<ngraph::bfloat16> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
+                      std::vector<ov::bfloat16> {1, 2, 0, 3}, std::vector<uint8_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::u8, std::vector<float> {1, 2, 2, 3},
                       std::vector<uint8_t> {1, 2, 2, 3}),
 
@@ -337,9 +336,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::u16, std::vector<int64_t> {1, 2, 2, 3},
                       std::vector<uint16_t> {1, 2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::u16,
-                      std::vector<ngraph::float16> {1, 2, 0, 3}, std::vector<uint16_t> {1, 2, 0, 3}),
+                      std::vector<ov::float16> {1, 2, 0, 3}, std::vector<uint16_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::u16,
-                      std::vector<ngraph::bfloat16> {1, 2, 0, 3}, std::vector<uint16_t> {1, 2, 0, 3}),
+                      std::vector<ov::bfloat16> {1, 2, 0, 3}, std::vector<uint16_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::u16, std::vector<float> {1, 2, 2, 3},
                       std::vector<uint16_t> {1, 2, 2, 3}),
 
@@ -367,9 +366,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::u32, std::vector<int64_t> {1, 2, 2, 3},
                       std::vector<uint32_t> {1, 2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::u32,
-                      std::vector<ngraph::float16> {1, 2, 0, 3}, std::vector<uint32_t> {1, 2, 0, 3}),
+                      std::vector<ov::float16> {1, 2, 0, 3}, std::vector<uint32_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::u32,
-                      std::vector<ngraph::bfloat16> {1, 2, 0, 3}, std::vector<uint32_t> {1, 2, 0, 3}),
+                      std::vector<ov::bfloat16> {1, 2, 0, 3}, std::vector<uint32_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::u32, std::vector<float> {1, 2, 2, 3},
                       std::vector<uint32_t> {1, 2, 2, 3}),
         // destination u64
@@ -396,9 +395,9 @@ INSTANTIATE_TEST_SUITE_P(
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::i64, ov::element::u64, std::vector<int64_t> {1, 2, 2, 3},
                       std::vector<uint64_t> {1, 2, 2, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f16, ov::element::u64,
-                      std::vector<ngraph::float16> {1, 2, 0, 3}, std::vector<uint64_t> {1, 2, 0, 3}),
+                      std::vector<ov::float16> {1, 2, 0, 3}, std::vector<uint64_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::bf16, ov::element::u64,
-                      std::vector<ngraph::bfloat16> {1, 2, 0, 3}, std::vector<uint64_t> {1, 2, 0, 3}),
+                      std::vector<ov::bfloat16> {1, 2, 0, 3}, std::vector<uint64_t> {1, 2, 0, 3}),
         ConvertParams(ConversionTypes::CONVERT_LIKE, ov::PartialShape {4}, ov::element::f32, ov::element::u64, std::vector<float> {1, 2, 2, 3},
                       std::vector<uint64_t> {1, 2, 2, 3})),
     ReferenceConversionLayerTest::getTestCaseName);
