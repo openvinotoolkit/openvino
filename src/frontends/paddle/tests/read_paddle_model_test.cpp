@@ -11,7 +11,7 @@
 #include <set>
 #include <string>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "frontend/shared/include/utils.hpp"
 #include "openvino/openvino.hpp"

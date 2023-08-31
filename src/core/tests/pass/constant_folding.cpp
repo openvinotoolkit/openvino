@@ -7,7 +7,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/all_close_f.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/op/acosh.hpp"
 #include "openvino/op/constant.hpp"
