@@ -31,7 +31,7 @@ TEST(type_prop, static_value_propagation) {
     ASSERT_EQ(r->get_shape(), (Shape{1, 2, 3}));
 }
 
-TEST(type_prop, tricky_label_propagation_for_auto_batch_case) {
+TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_case) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
     ov::DimensionTracker::set_label(shape[0], 1);
     auto param = make_shared<op::Parameter>(element::f32, shape);
@@ -40,7 +40,7 @@ TEST(type_prop, tricky_label_propagation_for_auto_batch_case) {
 
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1, 1280}));
-    ASSERT_EQ(1, ov::DimensionTracker::get_label(r->get_output_partial_shape(0)[0]));
+    ASSERT_EQ(ov::no_label, ov::DimensionTracker::get_label(r->get_output_partial_shape(0)[0]));
 }
 
 TEST(type_prop, interval_value_propagation) {
