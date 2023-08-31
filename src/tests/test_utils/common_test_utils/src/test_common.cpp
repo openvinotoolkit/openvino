@@ -30,10 +30,12 @@ TestsCommon::TestsCommon()
     : PGLink(new utils::PostgreSQLLink(this))
 #endif
 {
+#ifndef __APPLE__  // TODO: add getVmSizeInKB() for Apple platform
     auto memsize = ov::test::utils::getVmSizeInKB();
     if (memsize != 0) {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
+#endif
     ov::threading::executor_manager()->clear();
 }
 
