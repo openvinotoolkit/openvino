@@ -15,7 +15,7 @@ def convert_model(
         input_model: [str, pathlib.Path, Any, list],    # TODO: Instead of list just accept arbitrary number of positional arguments
 
         # Framework-agnostic parameters
-        input: [list, dict] = None,
+        input: [list, dict, str] = None,
         output: [str, list] = None,
         example_input: Any = None,
         extension: [str, pathlib.Path, list, Any] = None,
