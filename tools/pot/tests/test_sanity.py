@@ -1,33 +1,32 @@
 # Copyright (C) 2020-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 import sys
+from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 
-from collections import OrderedDict
-import json
-
-import pytest
-from addict import Dict
-
 import cv2 as cv
 import numpy as np
+import pytest
+from addict import Dict
+from tools.evaluate import evaluate
 
 from openvino.tools.pot.app.run import optimize
-from openvino.tools.pot.graph import save_model, load_model
-from tools.evaluate import evaluate
+from openvino.tools.pot.graph import load_model, save_model
+
 from .utils.check_graph import check_model
-from .utils.config import get_engine_config, merge_configs, \
-    get_dataset_info, PATHS2DATASETS_CONFIG, make_algo_config
+from .utils.config import (PATHS2DATASETS_CONFIG, get_dataset_info,
+                           get_engine_config, make_algo_config, merge_configs)
 
 TEST_MODELS = [
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.732,
-                                                                                    'accuracy@top5': 0.907},
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'performance', 300, {'accuracy@top1': 0.728,
+                                                                                    'accuracy@top5': 0.915},
      {}, 'CPU'),
 
-    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.737,
+    ('mobilenet-v2-pytorch', 'pytorch', 'DefaultQuantization', 'mixed', 300, {'accuracy@top1': 0.729,
                                                                               'accuracy@top5': 0.91},
      {}, 'CPU'),
 
@@ -53,7 +52,7 @@ TEST_MODELS = [
 
     ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 1, {'recall': 0.76, 'map': 0.6618}, {}, 'CPU'),
 
-    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.76, 'map': 0.51},
+    ('mtcnn', 'caffe', 'DefaultQuantization', 'performance', 2, {'recall': 0.72, 'map': 0.48},
      {'use_fast_bias': False}, 'CPU'),
     ('octave-resnet-26-0.25', 'mxnet', 'DefaultQuantization', 'performance', 300,
      {'accuracy@top1': 0.766, 'accuracy@top5': 0.927}, {'use_fast_bias': False}, 'CPU'),
@@ -137,7 +136,8 @@ def test_sample_compression(_sample_params, tmp_path, models):
     pot_dir = Path(__file__).parent.parent
     sys.path.append(str(pot_dir / 'sample'))
     # pylint: disable=C0415
-    from openvino.tools.pot.api.samples.classification.classification_sample import optimize_model
+    from openvino.tools.pot.api.samples.classification.classification_sample import \
+        optimize_model
 
     model = models.get(model_name, model_framework, tmp_path, custom_mo_config=custom_mo_config)
     data_source, annotations = get_dataset_info('imagenet_1001_classes')

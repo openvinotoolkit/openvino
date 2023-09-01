@@ -52,7 +52,7 @@ def convert_custom_command_line(config):
     executable = MO_PATH.joinpath('mo.py').as_posix()
     cli_args = ' --model_name ' + config.name
     cli_args += ' --output_dir ' + config.model_params.output_dir
-    cli_args += ' --data_type ' + config.precision
+    cli_args += ' --compress_to_fp16=' + "False" if config.precision == "FP32" else "True"
     cli_args += ' '.join([' --' + key for key, value in config.mo_args.items() if value == 'True'])
     cli_args += ' '.join(
         [' --' + key + '=' + value.replace(' ', '') for key, value in config.mo_args.items() if value != 'True'])
