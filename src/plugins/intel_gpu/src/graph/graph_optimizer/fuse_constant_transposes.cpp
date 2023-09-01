@@ -12,14 +12,14 @@ using namespace cldnn;
 
 format fuse_constant_transposes::convert_weights_format_by_order(format fmt, const std::vector<uint16_t>& order) const {
     format weights_fmt = from_weights_layout(to_weights_layout(fmt, false));
-    std::string old_order = weights_fmt.order();
-    std::string new_order = old_order;
+    const auto& old_order = weights_fmt.dims_order();
+    auto new_order = old_order;
 
     for (size_t i = 0; i < order.size(); ++i) {
         new_order[i] = old_order[order[i]];
     }
 
-    return format::find_format(new_order, fmt.block_sizes());
+    return format::find_format(new_order, fmt.block_sizes(), true);
 }
 
 void fuse_constant_transposes::run(program& p) {

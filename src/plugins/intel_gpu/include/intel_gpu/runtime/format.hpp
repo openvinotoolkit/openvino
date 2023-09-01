@@ -352,7 +352,13 @@ struct format {
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
-    static format find_format(std::string order, const std::vector<std::pair<size_t, int>>& block_sizes);
+    static format find_format(const std::vector<uint64_t>& order,
+                              const std::vector<std::pair<size_t, int>>& block_sizes,
+                              bool is_weights = false,
+                              bool is_grouped = false,
+                              bool is_image_2d = false,
+                              bool is_winograd = false,
+                              bool is_nv12 = false);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
@@ -375,6 +381,8 @@ struct format {
     size_t spatial_num() const { return traits(value).spatial_num; }
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits(value).group_num; }
+    /// @brief Returns an order of dimensions.
+    const std::vector<uint64_t>& dims_order() const { return traits(value)._order; }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits(value).order; }
     /// @brief Returns an internal orders of dimensions form of string.

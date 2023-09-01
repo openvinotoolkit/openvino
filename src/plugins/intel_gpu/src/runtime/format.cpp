@@ -45,7 +45,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(bfuwzyx,               1, 1, 5, 0, {0, 1, 2, 3, 4, 5, 6},    "bfuwzyx",  "bfxyzwu",  {}),
         FMT_TRAITS(bfvuwzyx,              1, 1, 6, 0, {0, 1, 2, 3, 4, 5, 6, 7}, "bfvuwzyx", "bfxyzwuv", {}),
         FMT_TRAITS(fs_b_yx_fsv32,         1, 1, 2, 0, {1, 0, 2, 3},             "fbyx",     "bfxy",     {{1, 32}}),
-        FMT_TRAITS(b_fs_yx_32fp,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {}),
+        FMT_TRAITS(b_fs_yx_32fp,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 32}}),
         FMT_TRAITS(b_fs_zyx_fsv16,        1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{1, 16}}),
         FMT_TRAITS(bs_fs_zyx_bsv16_fsv32, 1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 32}}),
         FMT_TRAITS(bs_fs_zyx_bsv16_fsv16, 1, 1, 3, 0, {0, 1, 2, 3, 4},          "bfzyx",    "bfxyz",    {{0, 16 }, {1, 16}}),
@@ -93,9 +93,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(image_2d_weights_c4_fyx_b,                    1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {}),
         FMT_TRAITS(image_2d_weights_c1_b_fyx,                    1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {}),
         FMT_TRAITS(lstm_weights_dio,                             1, 1, 2, 0, {0, 1, 3, 2},    "oixy",   "oixy",  {}),
-        FMT_TRAITS(os_is_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_yx_isa8_osv16_isv4,                     1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 8}, {0, 16}, {1, 4}}),
-        FMT_TRAITS(os_is_yx_isa8_osv8_isv4_swizzled_by_4,        1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {}),
         FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv2,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv4,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv2,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
@@ -112,9 +110,9 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(is_os_yx_isa2_osa8_isv8_osv2,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 2}, {0, 8}, {1, 8}, {0, 2}}),
         FMT_TRAITS(is_os_yx_isa4_osa8_isv8_osv4,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 4}, {0, 8}, {1, 8}, {0, 4}}),
         FMT_TRAITS(is_o_yx_isv32,                                1, 1, 2, 0, {1, 0, 2, 3},    "oyxi",   "oixy",  {{1, 32}}),
-        FMT_TRAITS(is_o32_yx_isv32_swizzled_by_4,                1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {}),
-        FMT_TRAITS(os_is_y_x8_osv8_isv4,                         1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {}),
-        FMT_TRAITS(os_is_y_x8_osv8_isv4_swizzled_by_4,           1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {}),
+        FMT_TRAITS(is_o32_yx_isv32_swizzled_by_4,                1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 32}, {1, 32}}),
+        FMT_TRAITS(os_is_y_x8_osv8_isv4,                         1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 8}, {1, 4}, {2, 8}}),
+        FMT_TRAITS(os_is_y_x8_osv8_isv4_swizzled_by_4,           1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy",  {{0, 8}, {1, 4}, {2, 8}}),
         FMT_TRAITS(os_is_yx_osv16_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv8_isv4,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osv8_isv4,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 8}, {1, 4}}),
@@ -124,7 +122,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(os_is_yx_osv32_isv4_swizzled_by_2,            1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv32_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osv32_isv4,                         1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 4}}),
-        FMT_TRAITS(os_is_yx_osv32_isv32p,                        1, 1, 1, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {}),
+        FMT_TRAITS(os_is_yx_osv32_isv32p,                        1, 1, 1, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_zyx_isv16_osv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 16}, {0, 16}}),
         FMT_TRAITS(is_os_zyx_isv16_osv16,                        1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "oixyz", {{1, 16}, {0, 16}}),
         FMT_TRAITS(is_os_yx_isv16_osv16,                         1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 16}}),
@@ -140,6 +138,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(is_os_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(is_os_yx_osa8_isv16_osv4,                     1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{0, 8}, {1, 16}, {0, 4}}),
         FMT_TRAITS(os_is_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_isa8_osv8_isv4_swizzled_by_4,        1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 32}, {0, 32}}),
         FMT_TRAITS(os_is_yx_isa8_osv8_isv2,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(os_is_osv32_isv32_swizzled_by_4,              1, 1, 0, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_zyx_isv8_osv16_isv2,                    1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 16}, {1, 2}}),
@@ -345,14 +344,29 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
     return sizes_for_dims;
 }
 
-format format::find_format(std::string order, const std::vector<std::pair<size_t, int>>& block_sizes) {
-    const auto& suited_format = std::find_if(format_traits_map.begin(), format_traits_map.end(),
-                                             [&](const std::pair<cldnn::format::type, cldnn::format_traits>& trait) -> bool {
-                                                 return trait.second.order == order &&
-                                                        trait.second.block_sizes == block_sizes;
-                                             });
-    OPENVINO_ASSERT(suited_format != format_traits_map.end(), "[GPU] Cannot find a format with the specified parameters");
-    return suited_format->first;
+format format::find_format(const std::vector<uint64_t>& order,
+                           const std::vector<std::pair<size_t, int>>& block_sizes,
+                           bool is_weights,
+                           bool is_grouped,
+                           bool is_image_2d,
+                           bool is_winograd,
+                           bool is_nv12) {
+    auto filter = [&](const std::pair<cldnn::format::type, cldnn::format_traits>& trait) -> bool {
+        return trait.second._order == order &&
+               trait.second.block_sizes == block_sizes &&
+               format::is_weights_format(trait.first) == is_weights &&
+               format::is_grouped(trait.first) == is_grouped &&
+               format::is_image_2d(trait.first) == is_image_2d &&
+               format::is_winograd(trait.first) == is_winograd &&
+               format::is_nv12(trait.first) == is_nv12;
+    };
+    const auto& finded_format = std::find_if(format_traits_map.begin(), format_traits_map.end(), filter);
+    OPENVINO_ASSERT(finded_format != format_traits_map.end(), "[GPU] Cannot find a format with the specified parameters");
+
+    const auto& finded_format_from_end = std::find_if(format_traits_map.rbegin(), format_traits_map.rend(), filter);
+    OPENVINO_ASSERT(finded_format->first == finded_format_from_end->first, "[GPU] Cannot find a format. Specified parameters are ambiguous");
+
+    return finded_format->first;
 }
 
 }  // namespace cldnn
