@@ -6,7 +6,6 @@
    :description: Learn how to convert a model from the
                  PaddlePaddle format to the OpenVINO Model.
 
-
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using OpenVINO model conversion API. The instructions are different depending on PaddlePaddle model format.
 
 .. note:: PaddlePaddle model serialized in a file can be loaded by `openvino.Core.read_model` or `openvino.Core.compile_model` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
@@ -16,9 +15,7 @@ Converting PaddlePaddle Model Files
 
 PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 
-
 To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` and specify the path to the input ``.pdmodel`` model file:
-
 
 
 .. tab-set::
@@ -33,7 +30,6 @@ To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` a
       :sync: cli
 
          ovc your_model_file.pdmodel
-
 
 **For example**, this command converts a yolo v3 PaddlePaddle network to OpenVINO IR network:
 
@@ -114,7 +110,7 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
      :force:
 
      import paddle
-     from openvino.tools.mo import convert_model
+     import openvino as ov
 
      paddle.enable_static()
 
@@ -129,7 +125,7 @@ Converting certain PaddlePaddle models may require setting ``example_input`` or 
      exe.run(paddle.static.default_startup_program())
 
      # convert to OpenVINO IR format
-     ov_model = convert_model(exe, example_input=[x], output=[y])
+     ov_model = ov.convert_model(exe, example_input=[x], output=[y])
 
 Supported PaddlePaddle Layers
 #############################
@@ -191,11 +187,9 @@ The following PaddlePaddle models have been officially validated and confirmed t
      - language representation
      -  Models are exported from `PaddleNLP <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`_. Refer to `README.md <https://github.com/PaddlePaddle/PaddleNLP/tree/develop/examples/language_model/bert#readme>`_.
 
-
 Additional Resources
 ####################
 
 **TODO: LINK TO NOTEBOOKS** page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
 
 @endsphinxdirective
-

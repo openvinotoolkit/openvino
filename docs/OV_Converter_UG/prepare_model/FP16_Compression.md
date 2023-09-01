@@ -30,7 +30,6 @@ To disable compression, use the ``compress_to_fp16=False`` option:
 
           ovc path_to_your_model --compress_to_fp16=False
 
-
 For details on how plugins handle compressed ``FP16`` models, see
 :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
 
@@ -40,5 +39,6 @@ For details on how plugins handle compressed ``FP16`` models, see
    Refer to the :doc:`Post-training optimization <**TODO: LINK TO NNCF>` guide for more
    information about that.
 
-
 @endsphinxdirective
+
+
