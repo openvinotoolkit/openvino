@@ -81,8 +81,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop, cons
             streamExecutorConfig.SetConfig(key, val);
             if (key == ov::affinity.name()) {
                 const auto affinity_val = ov::util::from_string(val, ov::affinity);
-                if (affinity_val == ov::Affinity::CORE) {
+                if (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) {
                     enableCpuPinning = true;
+                    changedCpuPinning = true;
+                } else if (affinity_val == ov::Affinity::NUMA) {
+                    enableCpuPinning = false;
                     changedCpuPinning = true;
                 }
             }

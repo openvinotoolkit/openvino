@@ -161,6 +161,16 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
     ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::HYBRID_AWARE;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(true, value);
+
+    affinity = ov::Affinity::NUMA;
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    ASSERT_EQ(false, value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
