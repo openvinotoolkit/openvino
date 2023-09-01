@@ -486,11 +486,11 @@ Subgraph::NgraphShapeInfer::NgraphShapeInfer(const std::shared_ptr<ov::Model>& b
 IShapeInferSnippets::Result Subgraph::NgraphShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < m_parameters.size(); ++i)
-        m_parameters[i]->set_partial_shape(utils::vector_dims_to_partial_shape(input_shapes[i].get()));
+        m_parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
     m_ngraph_body->validate_nodes_and_infer_types();
     std::vector<VectorDims> outputDims;
     for (const auto& res : m_results)
-        outputDims.emplace_back(utils::partial_shape_to_vector_dims(res->get_input_partial_shape(0)));
+        outputDims.emplace_back(utils::pshape_to_vdims(res->get_input_partial_shape(0)));
     m_last_result = {outputDims, ShapeInferStatus::success};
     return m_last_result;
 }

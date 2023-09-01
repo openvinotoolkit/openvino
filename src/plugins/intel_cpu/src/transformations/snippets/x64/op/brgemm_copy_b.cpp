@@ -57,15 +57,15 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
-    const auto pshape = snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_input);
+    const auto pshape = snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_input);
     validate(pshape, element_type);
 }
 
 void BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
 
-    const auto element_type = get_input_element_type(0);
-    const auto pshape = snippets::utils::get_port_planar_shape(input(0));
+    const auto& element_type = get_input_element_type(0);
+    const auto& pshape = snippets::utils::get_planar_pshape(input(0));
     validate(pshape, element_type);
 }
 
@@ -93,7 +93,7 @@ void BrgemmCopyB::validate(const ov::PartialShape& pshape, const ov::element::Ty
 }
 
 void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape = snippets::utils::get_port_planar_shape(input(0)).get_shape();
+    const auto& input_shape = snippets::utils::get_planar_pshape(input(0)).get_shape();
     m_K_blk = blk_size_k != 0 ? blk_size_k : *(input_shape.rbegin() + 1);
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
 }

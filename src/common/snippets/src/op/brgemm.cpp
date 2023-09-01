@@ -56,10 +56,10 @@ void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> lay
     // During ctor call, Brgemm doesn't know his port descriptors.
     // So we use explicit layouts from parameters
     const auto planar_input_shapes =
-            std::vector<ov::PartialShape>{ ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(0), layout_a),
-                                           ov::snippets::utils::get_reordered_planar_shape(get_input_partial_shape(1), layout_b) };
+            std::vector<ov::PartialShape>{ ov::snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+                                           ov::snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
     auto output_shape = get_output_partial_shape(planar_input_shapes);
-    set_output_type(0, get_output_type(), ov::snippets::utils::get_reordered_planar_shape(output_shape, layout_c));
+    set_output_type(0, get_output_type(), ov::snippets::utils::get_planar_pshape(output_shape, layout_c));
 }
 
 void Brgemm::validate_inputs() const {
@@ -114,14 +114,14 @@ ov::element::Type Brgemm::get_output_type() const {
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const {
     OPENVINO_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
-    return { utils::get_port_planar_shape(inputs[0]), utils::get_port_planar_shape(inputs[1]) };
+    return {utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1]) };
 }
 
 ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_shape) const {
     // This method can be safely called from validate_and_infer_types() before output creation
     const auto& out_layout  = get_output_layout(shared_from_this());
     if (!out_layout.empty())
-        return utils::get_reordered_planar_shape(output_shape, out_layout);
+        return utils::get_planar_pshape(output_shape, out_layout);
 
     return output_shape;
 }
@@ -201,8 +201,8 @@ IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDi
     OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
-    const auto arg0_shape = snippets::utils::lowered::get_planar_shape(input_shapes[0].get(), m_io_layouts[0]);
-    const auto arg1_shape = snippets::utils::lowered::get_planar_shape(input_shapes[1].get(), m_io_layouts[1]);
+    const auto& arg0_shape = snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);
+    const auto& arg1_shape = snippets::utils::get_planar_vdims(input_shapes[1].get(), m_io_layouts[1]);
 
     size_t arg0_rank = arg0_shape.size(), arg1_rank = arg1_shape.size();
 
@@ -255,7 +255,7 @@ IShapeInferSnippets::Result Brgemm::ShapeInfer::infer(const std::vector<VectorDi
     if (arg1_shape.size() == 1) {
         output_shape.erase(output_shape.begin() + output_shape.size() - 1);
     }
-    output_shape = snippets::utils::lowered::get_planar_shape(output_shape, m_io_layouts[2]);
+    output_shape = snippets::utils::get_planar_vdims(output_shape, m_io_layouts[2]);
     return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 

@@ -77,7 +77,7 @@ LoadReshape::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
 }
 IShapeInferSnippets::Result LoadReshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
-    return {{utils::lowered::get_planar_shape(input_shapes[0], m_order)}, ShapeInferStatus::success};
+    return {{utils::get_planar_vdims(input_shapes[0], m_order)}, ShapeInferStatus::success};
 }
 
 }// namespace op
