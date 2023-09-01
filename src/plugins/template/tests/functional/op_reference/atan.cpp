@@ -56,8 +56,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Atan_With_Hardcoded_Refs, ReferenceAtanLayerTest,
     ::testing::Values(
         Builder{}
-            .input({{11}, element::f16, std::vector<ngraph::float16>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16>{-1.32581766f,
+            .input({{11}, element::f16, std::vector<ov::float16>{-4.f, -2.f, -1.f, -0.5f, -0.25f, 0.f, 0.25f, 0.5f, 1.f, 2.f, 4.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16>{-1.32581766f,
                                                                        -1.10714872f,
                                                                        -0.78539816f,
                                                                        -0.46364761f,
