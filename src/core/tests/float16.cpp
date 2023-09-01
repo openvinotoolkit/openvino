@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/type/float16.hpp"
+#include "openvino/core/type/float16.hpp"
+
+#include <gtest/gtest.h>
 
 #include <climits>
 #include <random>
 
 #include "common_test_utils/float_util.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/runtime/aligned_buffer.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 TEST(float16, conversions) {
     float16 f16;
