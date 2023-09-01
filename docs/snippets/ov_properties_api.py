@@ -24,7 +24,7 @@ cpu_device_name = core.get_property("CPU", props.device.full_name())
 model = get_model()
 # [compile_model_with_property]
 config = {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT,
-          hints.inference_precision: ov.Type.f32}
+          hints.inference_precision(): ov.Type.f32}
 compiled_model = core.compile_model(model, "CPU", config)
 # [compile_model_with_property]
 
@@ -47,7 +47,7 @@ compiled_model_thrp = core.compile_model(model, "CPU", config)
 
 # [inference_num_threads]
 compiled_model = core.compile_model(model, "CPU")
-nthreads = compiled_model.get_property(props.inference_num_threads)
+nthreads = compiled_model.get_property(props.inference_num_threads())
 # [inference_num_threads]
 
 # [multi_device]

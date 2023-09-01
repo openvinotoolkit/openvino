@@ -9,7 +9,7 @@ import importlib
 import openvino as ov
 
 #skip_snippets = ["main.py", "__init__.py"]
-skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_python_exclusives.py", "ov_preprocessing.py"]
+skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_common.py", "ov_python_exclusives.py", "ov_preprocessing.py"]
 
 def import_python_modules(directory, subdirectory=""):
     for item in os.listdir(directory):
