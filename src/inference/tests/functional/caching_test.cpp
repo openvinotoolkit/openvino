@@ -177,7 +177,7 @@ public:
         m_dirCreator = std::unique_ptr<MkDirGuard>(new MkDirGuard(m_cacheDir));
     }
 
-    static std::shared_ptr<MockICompiledModelImpl> createMockICompiledModel(
+    static std::shared_ptr<MockICompiledModelImpl> create_mock_compiled_model(
         const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<ov::IPlugin>& plugin) {
         auto mock = std::make_shared<MockICompiledModelImpl>(model, plugin);
@@ -340,7 +340,7 @@ private:
                     char space;
                     istr.read(&space, 1);
                     std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                    return createMockICompiledModel(m_models[name], mockPlugin);
+                    return create_mock_compiled_model(m_models[name], mockPlugin);
                 }));
 
         ON_CALL(plugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
@@ -352,7 +352,7 @@ private:
             char space;
             istr.read(&space, 1);
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockICompiledModel(m_models[name], mockPlugin);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
         }));
 
         ON_CALL(plugin, compile_model(_, _, _))
@@ -363,7 +363,7 @@ private:
                     m_checkConfigCb(config);
                 }
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                auto comp_model = createMockICompiledModel(model, mockPlugin);
+                auto comp_model = create_mock_compiled_model(model, mockPlugin);
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*comp_model);
                 }
@@ -378,7 +378,7 @@ private:
                     m_checkConfigCb(config);
                 }
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                auto comp_model = createMockICompiledModel(model, mockPlugin);
+                auto comp_model = create_mock_compiled_model(model, mockPlugin);
                 for (const auto& cb : m_post_mock_net_callbacks) {
                     cb(*comp_model);
                 }
@@ -506,7 +506,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
             std::string name;
             s >> name;
             std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return createMockICompiledModel(m_models[name], mockPlugin);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
         }));
 
     ON_CALL(*mockPlugin, import_model(_, _)).WillByDefault(Invoke([&](std::istream& s, const ov::AnyMap&) {
@@ -516,7 +516,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         std::string name;
         s >> name;
         std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return createMockICompiledModel(m_models[name], mockPlugin);
+        return create_mock_compiled_model(m_models[name], mockPlugin);
     }));
 
     m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
@@ -2175,7 +2175,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
                 std::string name;
                 s >> name;
                 std::lock_guard<std::mutex> lock(mock_creation_mutex);
-                return createMockICompiledModel(m_models[name], mockPlugin);
+                return create_mock_compiled_model(m_models[name], mockPlugin);
             }));
         m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
             EXPECT_CALL(net, export_model(_)).Times(1);  // each net will be exported once
