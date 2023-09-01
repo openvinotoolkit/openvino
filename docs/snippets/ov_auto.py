@@ -1,7 +1,7 @@
 import sys
 import openvino as ov
 from openvino.inference_engine import IECore
-from snippets import get_model, get_ngraph_model
+from utils import get_model, get_ngraph_model
 
 model = get_model()
 net = get_ngraph_model()

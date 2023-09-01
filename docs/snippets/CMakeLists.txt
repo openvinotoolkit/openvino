@@ -100,6 +100,7 @@ if(ENABLE_PYTHON AND NOT CMAKE_CROSSCOMPILING)
 
     file(GLOB_RECURSE PYTHON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
     set(PYTHON_SNIPPETS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/python_snippets")
+    set(DOCS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../")
 
     if(OV_GENERATOR_MULTI_CONFIG)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python)
@@ -107,10 +108,16 @@ if(ENABLE_PYTHON AND NOT CMAKE_CROSSCOMPILING)
         set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python)
     endif()
 
+    if(WIN32)
+        set(PATHSEP ";")
+    else()
+        set(PATHSEP ":")
+    endif()
+
     foreach(python_snippet IN LISTS PYTHON_SOURCES)
         string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}" "${PYTHON_SNIPPETS_OUTPUT_DIR}" output_file ${python_snippet})
         add_custom_command(OUTPUT ${output_file}
-            COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_BRIDGE_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_BRIDGE_OUTPUT_DIRECTORY}${PATHSEP}${DOCS_DIRECTORY}
                 ${PYTHON_EXECUTABLE} ${python_snippet}
             COMMAND ${CMAKE_COMMAND} -E touch ${output_file}
             DEPENDS ${python_snippet} ie_api pyopenvino ov_frontends ov_plugins

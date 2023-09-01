@@ -173,10 +173,7 @@ ppp.output("result").postprocess()\
 # ! [ov:preprocess:save_headers]
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 from openvino import Core, Layout, Type, set_batch
-# First method - imports
 from openvino import serialize
-# Second method - imports
-from openvino.runtime.passes import Manager, Serialize
 # ! [ov:preprocess:save_headers]
 
 model_path = get_path_to_model()

@@ -1,5 +1,5 @@
 import openvino as ov
-from snippets import get_model
+from utils import get_model
 
 model = get_model()
 core = ov.Core()
