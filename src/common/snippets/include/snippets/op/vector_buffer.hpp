@@ -5,7 +5,7 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include "snippets/lowered/shape_inference/shape_inference.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace snippets {

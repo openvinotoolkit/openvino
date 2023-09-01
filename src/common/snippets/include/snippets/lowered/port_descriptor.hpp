@@ -6,7 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "shape_types.hpp"
+#include "snippets/shape_types.hpp"
 
 
 namespace ov {

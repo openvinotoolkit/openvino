@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "snippets/lowered/shape_inference/shape_infer_instances.hpp"
+#include "snippets/shape_inference/shape_infer_instances.hpp"
 #include <snippets/op/memory_access.hpp>
 #include "openvino/op/op.hpp"
 

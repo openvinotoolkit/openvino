@@ -3,7 +3,7 @@
 //
 
 #include "shape_inference.hpp"
-#include <snippets/lowered/shape_inference/shape_infer_instances.hpp>
+#include <snippets/shape_inference/shape_infer_instances.hpp>
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
 #include "op/fused_mul_add.hpp"

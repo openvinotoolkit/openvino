@@ -5,7 +5,7 @@
 #pragma once
 
 #include "snippets/op/memory_access.hpp"
-#include <snippets/lowered/shape_inference/shape_inference.hpp>
+#include <snippets/shape_inference/shape_inference.hpp>
 
 namespace ov {
 namespace intel_cpu {

@@ -1,7 +1,7 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "snippets/lowered/shape_inference/shape_infer_instances.hpp"
+#include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "openvino/op/select.hpp"
 namespace ov {

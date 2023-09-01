@@ -11,7 +11,7 @@
 #include "openvino/op/op.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "snippets/pass_manager.hpp"
-#include "snippets/lowered/shape_inference/shape_inference.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 #include "snippets/generator.hpp"
 

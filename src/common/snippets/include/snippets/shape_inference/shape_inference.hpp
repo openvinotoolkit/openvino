@@ -5,7 +5,7 @@
 #pragma once
 
 #include <openvino/core/core.hpp>
-#include "snippets/lowered/shape_types.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov {
 namespace snippets {

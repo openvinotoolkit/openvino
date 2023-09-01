@@ -1,8 +1,8 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "snippets/lowered/shape_inference/shape_inference.hpp"
-#include "snippets/lowered/shape_inference/shape_infer_instances.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_inference/shape_infer_instances.hpp"
 #include <openvino/op/util/unary_elementwise_arithmetic.hpp>
 #include <openvino/op/util/binary_elementwise_arithmetic.hpp>
 #include <openvino/op/util/binary_elementwise_comparison.hpp>
