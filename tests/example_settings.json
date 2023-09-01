@@ -1,0 +1,5 @@
+{
+    "hints": ["latency", "throughput"],
+    "quantizations": ["FP16", "FP16-INT8", "FP32"],
+    "devices": ["CPU", "GPU"]
+}
