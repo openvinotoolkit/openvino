@@ -287,7 +287,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
         streams = config.streamExecutorConfig._streams == 1 ? 0 : config.streamExecutorConfig._streams;
     }
 
-    get_num_streams(streams, ngraphFunc, config);
+    get_num_streams(streams, ngraphFunc, config, shared_from_this());
 
     config._config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(config.streamExecutorConfig._streams);
 }

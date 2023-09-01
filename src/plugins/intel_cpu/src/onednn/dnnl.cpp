@@ -148,5 +148,35 @@ unsigned get_cache_size(int level, bool per_core) {
     DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
 }
 
+unsigned get_cache_size_for_current_core(int level, bool per_core) {
+    auto cpu_ = Xbyak::util::Cpu();
+    auto guess = [](int level) {
+        switch (level) {
+            case 1: return 32U * 1024;
+            case 2: return 512U * 1024;
+            case 3: return 1024U * 1024;
+            default: return 0U;
+        }
+    };
+    using namespace dnnl::impl::cpu::x64;
+
+    // this function can return stub values in case of unknown CPU type
+    if (cpu_.getDataCacheLevels() == 0)
+        return guess(level);
+
+    if (level > 0 && (unsigned)level <= cpu_.getDataCacheLevels()) {
+        unsigned l = level - 1;
+        if (per_core) {
+            return cpu_.getDataCacheSize(l) / cpu_.getCoresSharingDataCache(l);
+        } else {
+            return cpu_.getDataCacheSize(l);
+        }
+    } else {
+        return 0U;
+    }
+
+    DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
+}
+
 }  // namespace utils
 }  // namespace dnnl
