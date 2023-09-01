@@ -10,9 +10,10 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition
-   Supported_Model_Formats
    openvino_docs_OV_Converter_UG_Deep_Learning_Model_Optimizer_DevGuide
+   Supported_Model_Formats
+   openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition
+   openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
 
 
 Every deep learning workflow begins with obtaining a model. You can choose to prepare a custom one, use a ready-made solution and adjust it to your needs, or even download and run a pre-trained network from an online database, such as `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, `Torchvision models <https://pytorch.org/hub/>`__.
@@ -21,22 +22,21 @@ OpenVINO™ :doc:`supports several model representations <Supported_Model_Format
 
 .. note::
 
-   Prior OpenVINO 2023.1 release of OpenVINO, model conversion API was exposed as `openvino.tools.mo.convert_model` function and `mo` command line tool.
+   Prior OpenVINO 2023.1 release, model conversion API was exposed as `openvino.tools.mo.convert_model` function and `mo` command line tool.
    Starting from 2023.1 release, a new simplified API was introduced: `openvino.convert_model` function and `ovc` command line tool as a replacement for `openvino.tools.mo.convert_model`
    and `mo` correspondingly, which are considered to be legacy now. All new users are recommended to use these new methods instead of the old methods. Please note that the new API and old API do not
-   provide the same level of features, that means the new tools are not always backward compatible with the old ones. Please consult with <TODO: LINK TO TRANSITION GUIDE>.
+   provide the same level of features, that means the new tools are not always backward compatible with the old ones. Please consult with `Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
 
 
 Convert a model in Python: `convert_model`
 ##########################################
 
-Model conversion API is exposed in Python by means of ``openvino.convert_model`` function which converts a model from original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupiter Notebook) or saved into a file with `openvino.save_model` for later use. Here is a couple of examples based on quite popular Torchvision and TensorFlow Hub model repositories:
+Model conversion API is exposed in Python by means of ``openvino.convert_model`` function which converts a model from original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupiter Notebook) or saved into a file with `openvino.save_model` for later use. There are several examples of using ``openvino.convert_model`` below based on popular public model repositories.
 
 
 .. tab-set::
 
    .. tab-item:: Torchvision
-      :sync: py
 
       .. code-block:: py
          :force:
@@ -66,7 +66,6 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
             result = compiled_model(input_data)
 
    .. tab-item:: HuggingFace Transformers
-      :sync: py
 
       .. code-block:: py
 
@@ -97,7 +96,6 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
             result = compiled_model({**encoded_input})
 
    .. tab-item:: Keras Applications
-      :sync: cli
 
       .. code-block:: py
 
@@ -125,7 +123,6 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          result = compiled_model(input_data)
 
    .. tab-item:: ONNX Model Hub
-      :sync: cli
 
       .. code-block:: py
 
@@ -177,7 +174,7 @@ The figure below illustrates the typical workflow for deploying a trained deep l
 **TODO: Update BASIC_FLOW_MO_simplified.svg and replace 'mo' with 'ovc'**
 .. image:: _static/images/BASIC_FLOW_MO_simplified.svg
 
-The results of both ``ovc`` and ``ov.convert_model()`` conversion methods described above are the same. You can choose one of them, depending on what is most convenient for you. Keep in mind that there should not be any differences in the results of model conversion if the same set of parameters is used and model is saved into OpenVINO IR.
+The results of both ``ovc`` and ``openvino.convert_model``/``openvino.save_model`` conversion methods described above are the same. You can choose one of them, depending on what is most convenient for you. Keep in mind that there should not be any differences in the results of model conversion if the same set of parameters is used and model is saved into OpenVINO IR.
 
 
 Cases when Model Preparation is not Required
@@ -185,13 +182,13 @@ Cases when Model Preparation is not Required
 
 If model is represented as a single file from ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), then it doesn't not require a separate step for model conversion and saving to IR, that is ``openvino.convert_model`` and ``openvino.save_model``, or `ovc`. OpenVINO provides C++ and Python APIs for reading such models by just calling the ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods. These methods perform conversion of the model from the original representation. Besides this conversion takes some extra time in comparison to reading the same model from prepared OpenVINO IR, it may be convenient in cases when it is required to read a model in the original format in C++ as `openvino.convert_model` is available in Python only. Preparing OpenVINO IR as a dedicated step and then using this IR in an application dedicated for inference is still recommend way for the efficient model deployment for OpenVINO runtime.
 
-<TODO: Reorginize the following links>
+**TODO: Reorginize the following links**
 
 This section describes how to obtain and prepare your model for work with OpenVINO to get the best inference results:
 
 * :doc:`See the supported formats and how to use them in your project <Supported_Model_Formats>`.
 * :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter _UG_Deep_Learning_Model_Optimizer_DevGuide>`.
-* :doc:`Transition guide from MO / ov.tools.mo.convert_model() to OVC / openvino.convert_model() <openvino_docs_MO_DG_prepare_model_convert_model_MO_OVC_transition>`
+* :doc:`Transition guide from mo / ov.tools.mo.convert_model to OVC / openvino.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
 
 @endsphinxdirective
 

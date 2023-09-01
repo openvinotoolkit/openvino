@@ -1,4 +1,4 @@
-# Convert a Model {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
+# Legacy Model Convertion API {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
 
 @sphinxdirective
 
@@ -16,10 +16,12 @@
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 .. meta::
-   :description: Model conversion (MO) furthers the transition between training and 
-                 deployment environments, it adjusts deep learning models for 
+   :description: Model conversion (MO) furthers the transition between training and
+                 deployment environments, it adjusts deep learning models for
                  optimal execution on target devices.
 
+.. note::
+   :description: This part of documentation describes a legacy way for model conversion. Starting with OpenVINO 2023.1 an alternative API for model conversion is provided as a simpler alternative: `openvino.convert_model` and OpenVINO Model Converter `ovc` CLI tool, please refer to `Model preparation <openvino_docs_model_processing_introduction>` for more details. If you are existing user of `openvino.tools.mo.convert_model` or `mo` CLI tool you can continue using this documentation. Also consider reffering to XYZ to learn how to migrate from the legacy conversion API to the new conversion API, depending on the model toplogy, the new API can be a better alternative for you.
 
 To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 
