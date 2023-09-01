@@ -111,7 +111,7 @@ Benchmark Model Performance `⇑ <#top>`__
 ###############################################################################################################################
 
 To measure the inference performance of the IR model, use 
-`Benchmark Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
+`Benchmark Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__ 
 - an inference performance measurement tool in OpenVINO. Benchmark tool
 is a command-line application that can be run in the notebook with
 ``! benchmark_app`` or ``%sx benchmark_app`` commands.
@@ -295,7 +295,7 @@ model will be cached, so after the first time model loading will be
 faster. For more information on OpenVINO Runtime, including Model
 Caching, refer to the `OpenVINO API tutorial <002-openvino-api-with-output.html>`__.
 
-We will use `AsyncInferQueue <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+We will use `AsyncInferQueue <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
 to perform asynchronous inference. It can be instantiated with compiled
 model and a number of jobs - parallel execution threads. If you don’t
 pass a number of jobs or pass ``0``, then OpenVINO will pick the optimal

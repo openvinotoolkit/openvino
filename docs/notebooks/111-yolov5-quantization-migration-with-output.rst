@@ -4,7 +4,7 @@ Migrate quantization from POT API to NNCF API
 .. _top:
 
 This tutorial demonstrates how to migrate quantization pipeline written
-using the OpenVINO `Post-Training Optimization Tool (POT) <https://docs.openvino.ai/2023.0/pot_introduction.html>`__ to
+using the OpenVINO `Post-Training Optimization Tool (POT) <https://docs.openvino.ai/2023.1/pot_introduction.html>`__ to
 `NNCF Post-Training Quantization API <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__.
 This tutorial is based on `Ultralytics YOLOv5 <https://github.com/ultralytics/yolov5>`__ model and additionally
 it compares model accuracy between the FP32 precision and quantized INT8
