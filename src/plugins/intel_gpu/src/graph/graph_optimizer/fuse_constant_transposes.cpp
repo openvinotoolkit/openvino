@@ -4,8 +4,6 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-
-#include "permute_inst.h"
 #include "fully_connected_inst.h"
 
 using namespace cldnn;
@@ -23,20 +21,24 @@ format fuse_constant_transposes::convert_weights_format_by_order(format fmt, con
 }
 
 void fuse_constant_transposes::run(program& p) {
-    std::function<bool(const cldnn::program_node*)> is_matmul_weights_path =
-        [&is_matmul_weights_path](const cldnn::program_node* node) {
+    std::function<bool(const cldnn::program_node*)> is_weights_path =
+        [&is_weights_path](const cldnn::program_node* node) {
         if (node->get_users().empty())
             return false;
 
         const auto* next_node = node->get_users().front();
 
-        if (next_node->is_type<fully_connected>()) {
+        if (next_node->is_type<fully_connected>() ||
+            next_node->is_type<deconvolution>() ||
+            next_node->is_type<convolution>() ||
+            next_node->is_type<binary_convolution>() ||
+            next_node->is_type<deformable_conv>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
             return &next_node->get_dependency(weights_offset) == node;
         }
 
         if (node->is_constant() && node->get_users().size() == 1)
-            return is_matmul_weights_path(next_node);
+            return is_weights_path(next_node);
 
         return false;
     };
@@ -50,7 +52,7 @@ void fuse_constant_transposes::run(program& p) {
 
         auto& permute_node = node->as<permute>();
 
-        if (!is_matmul_weights_path(&permute_node) || !permute_node.get_dependency(0).is_type<data>())
+        if (!is_weights_path(&permute_node) || !permute_node.get_dependency(0).is_type<data>())
             continue;
 
         auto& prev_const = permute_node.get_dependency(0).as<data>();
