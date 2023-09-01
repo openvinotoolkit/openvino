@@ -122,9 +122,11 @@ memory::ptr TestRunnerProposal<Dtype, ImInfoType>::Run(std::vector<Dtype>& cls_s
     memory::ptr image_info = engine.allocate_memory(_image_info_layout);
     tests::set_values(image_info, image_info_vals);
 
-    _network->set_input_data(cls_scores_name, cls_scores);
-    _network->set_input_data(bbox_pred_name, bbox_pred);
-    _network->set_input_data(image_info_name, image_info);
+    std::vector<event::ptr> events;
+    events.push_back(_network->set_input_data(cls_scores_name, cls_scores));
+    events.push_back(_network->set_input_data(bbox_pred_name, bbox_pred));
+    events.push_back(_network->set_input_data(image_info_name, image_info));
+    _network->get_stream().wait_for_events(events);
 
     std::map<primitive_id, network_output> network_output = _network->execute();
     EXPECT_EQ(network_output.begin()->first, layer_name);
