@@ -57,8 +57,8 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Asin_With_Hardcoded_Refs, ReferenceAsinLayerTest,
     ::testing::Values(
         Builder {}
-            .input({{11}, element::f16, std::vector<ngraph::float16> {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f}})
-            .expected({{11}, element::f16, std::vector<ngraph::float16> {-1.57079633f,
+            .input({{11}, element::f16, std::vector<ov::float16> {-1.f, -0.75f, -0.5f, -0.25f, -0.125f, 0.f, 0.125f, 0.25f, 0.5f, 0.75f, 1.f}})
+            .expected({{11}, element::f16, std::vector<ov::float16> {-1.57079633f,
                             -0.84806208f,
                             -0.52359878f,
                             -0.25268026f,

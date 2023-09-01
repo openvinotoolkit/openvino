@@ -13,7 +13,7 @@
 #include <utility>
 #include <transformations/utils/utils.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 #include <low_precision/reduce_mean.hpp>

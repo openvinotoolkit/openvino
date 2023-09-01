@@ -10,14 +10,9 @@
 
 #include "openvino/op/round.hpp"
 #include "openvino/reference/round_guard.hpp"
+#include "openvino/reference/utils/type_util.hpp"
 
 namespace ov {
-template <class T>
-constexpr bool is_floating_point() {
-    using U = typename std::decay<T>::type;
-    return std::is_floating_point<U>::value || std::is_same<float16, U>::value || std::is_same<bfloat16, U>::value;
-}
-
 namespace reference {
 /**
  * @brief Rounding algorithm for ov::op::v5::Round::RoundMode::HALF_TO_EVEN.
