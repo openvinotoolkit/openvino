@@ -21,6 +21,17 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         const auto x_size = input.LogicalSize() / input.Batch().v;
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
     }
+
+    if (params.compressed) {
+        jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_TERM", 1)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE", params.decompression_scale)});
+        if (params.has_decompression_zp) {
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_TERM", 1)});
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
+        }
+    }
+
     return jit;
 }
 
@@ -93,13 +104,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    uint32_t fused_deps_total = 0;
-    for (auto& fused_dep : newParams.fused_ops) {
-        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            fused_deps_total++;
-        }
-    }
-
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
                      dispatchData,
@@ -111,9 +115,23 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      true,
                      !orgParams.bias.empty(),
                      1,
-                     fused_deps_total,
+                     0,
                      1,
                      orgParams.outputs[0].is_dynamic());
+
+    if (newParams.compressed) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        if (newParams.has_decompression_zp)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    }
+
+    uint32_t fused_deps_total = 0;
+    for (const auto& fused_dep : newParams.fused_ops) {
+        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
+            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
+            fused_deps_total++;
+        }
+    }
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;
@@ -176,10 +194,10 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
         return Datatype::INT32;
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
-    if (quantized_inputs || quantized_weights)
+    if ((quantized_inputs || quantized_weights) && !params.compressed)
         return Datatype::F32;
 
-    return params.inputs[0].GetDType();
+    return in_dt;
 }
 
 Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {

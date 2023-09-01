@@ -262,3 +262,4 @@ REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
 REGISTER_FACTORY(internal, NmsStaticShapeIE8);
 REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
+REGISTER_FACTORY(internal, FullyConnectedCompressed);

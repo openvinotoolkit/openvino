@@ -13,6 +13,12 @@ KERNEL(fc)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
+#if DECOMPRESSION_SCALE_TERM
+    , const __global DECOMPRESSION_SCALE_TYPE* decompression_scale
+#endif
+#if DECOMPRESSION_ZP_TERM
+    , const __global DECOMPRESSION_ZP_TYPE* decompression_zp
+#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -31,7 +37,19 @@ KERNEL(fc)(
         {
             const uint input0_idx = INPUT0_GET_INDEX(b, ofm, y, x);
             const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, oym, y, 0, 0);
-            dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
+            #if COMPRESSED_WEIGHTS
+                ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(weights[filter_idx]);
+                #if DECOMPRESSION_ZP_TERM
+                    ACCUMULATOR_TYPE zp = TO_ACCUMULATOR_TYPE(decompression_zp[DECOMPRESSION_ZP_GET_INDEX_SAFE(0, oym, 0, 0)]);
+                #else
+                    ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
+                #endif
+                DECOMPRESSION_SCALE_TYPE scale = decompression_scale[DECOMPRESSION_SCALE_GET_INDEX_SAFE(0, oym, 0, 0)];
+                ACCUMULATOR_TYPE filter_val = (TO_ACCUMULATOR_TYPE(filter_compressed) - TO_ACCUMULATOR_TYPE(zp)) * scale;
+                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(filter_val);
+            #else
+                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
+            #endif
         }
     }
 
@@ -50,7 +68,20 @@ KERNEL(fc)(
             {
                 const uint input0_idx = INPUT0_GET_INDEX(b, ifm, y, x);
                 const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, y, x);
-                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
+                #if COMPRESSED_WEIGHTS
+                    FILTER_TYPE filter_compressed = weights[filter_idx];
+                    #if DECOMPRESSION_ZP_TERM
+                        ACCUMULATOR_TYPE zp = decompression_zp[DECOMPRESSION_ZP_GET_INDEX_SAFE(0, ofm, 0, 0)];
+                    #else
+                        ACCUMULATOR_TYPE zp = ACCUMULATOR_VAL_ZERO;
+                    #endif
+
+                    DECOMPRESSION_SCALE_TYPE scale = decompression_scale[DECOMPRESSION_SCALE_GET_INDEX_SAFE(0, ofm, 0, 0)];
+                    ACCUMULATOR_TYPE filter_val = (TO_ACCUMULATOR_TYPE(filter_compressed) - TO_ACCUMULATOR_TYPE(zp)) * scale;
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(filter_val);
+                #else
+                    dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * (ACCUMULATOR_TYPE)(weights[filter_idx]);
+                #endif
             }
         }
     }

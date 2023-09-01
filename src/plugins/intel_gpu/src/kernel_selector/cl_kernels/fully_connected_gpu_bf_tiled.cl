@@ -39,14 +39,15 @@
 #endif
 
 // Macros for vectorized types.
-#define INPUT_VEC_TYPE            MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
-#define ACCUMULATOR_VEC_TYPE      MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
-#define FILTER_VEC_TYPE           MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_K_OFM)
-#define BIAS_VEC_TYPE             MAKE_VECTOR_TYPE(BIAS_TYPE, TILE_OFM)
-#define OUTPUT_VEC_TYPE           MAKE_VECTOR_TYPE(OUTPUT_TYPE, TILE_OFM)
-#define ACTIVATION_VEC_TYPE       MAKE_VECTOR_TYPE(ACTIVATION_TYPE, TILE_OFM)
-#define TO_OUTPUT_VEC_TYPE(x)     CAT(convert_, OUTPUT_VEC_TYPE)(x)
-#define TO_ACTIVATION_VEC_TYPE(x) CAT(convert_, ACTIVATION_VEC_TYPE)(x)
+#define INPUT_VEC_TYPE             MAKE_VECTOR_TYPE(INPUT0_TYPE, TILE_IFM)
+#define ACCUMULATOR_VEC_TYPE       MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_OFM)
+#define FILTER_VEC_TYPE            MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, TILE_K_OFM)
+#define BIAS_VEC_TYPE              MAKE_VECTOR_TYPE(BIAS_TYPE, TILE_OFM)
+#define OUTPUT_VEC_TYPE            MAKE_VECTOR_TYPE(OUTPUT_TYPE, TILE_OFM)
+#define ACTIVATION_VEC_TYPE        MAKE_VECTOR_TYPE(ACTIVATION_TYPE, TILE_OFM)
+#define TO_OUTPUT_VEC_TYPE(x)      CAT(convert_, OUTPUT_VEC_TYPE)(x)
+#define TO_ACTIVATION_VEC_TYPE(x)  CAT(convert_, ACTIVATION_VEC_TYPE)(x)
+#define TO_FILTER_VEC_TYPE(x)      CAT(convert_, FILTER_VEC_TYPE)(x)
 
 #define INPUT_BLOCK_READ(ptr, offset)        BLOCK_READN(INPUT0_TYPE, TILE_IFM, ptr, offset)
 #define FILTER_BLOCK_READ(ptr, offset)       BLOCK_READN(FILTER_TYPE, TILE_K_OFM, ptr, offset)
@@ -86,6 +87,12 @@ KERNEL(fc)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
+#if DECOMPRESSION_SCALE_TERM
+    , const __global DECOMPRESSION_SCALE_TYPE* decompression_scale
+#endif
+#if DECOMPRESSION_ZP_TERM
+    , const __global DECOMPRESSION_ZP_TYPE* decompression_zp
+#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
@@ -113,13 +120,48 @@ KERNEL(fc)(
     uint input_offset = out_b * TILE_IN_B_PITCH + INPUT0_OFFSET;
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 
+#if COMPRESSED_WEIGHTS
+    #if DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % SIMD == 0
+        ACCUMULATOR_VEC_TYPE d_scale = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_scale, out_f);
+    #elif DECOMPRESSION_SCALE_LENGTH > 1 && DECOMPRESSION_SCALE_LENGTH % SIMD != 0
+        ACCUMULATOR_VEC_TYPE d_scale = 0;
+        unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+            uint offset = out_f + of*SIMD + get_sub_group_local_id();
+            if (offset < DECOMPRESSION_SCALE_LENGTH)
+                ((ACCUMULATOR_TYPE*)(&d_scale))[of] = decompression_scale[offset];
+        }
+    #else
+        ACCUMULATOR_VEC_TYPE d_scale = decompression_scale[0];
+    #endif
+
+    #if !DECOMPRESSION_ZP_TERM
+        ACCUMULATOR_VEC_TYPE d_zp = 0;
+    #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % SIMD == 0
+        ACCUMULATOR_VEC_TYPE d_zp = BLOCK_READN(ACCUMULATOR_TYPE, TILE_OFM, decompression_zp, out_f);
+    #elif DECOMPRESSION_ZP_LENGTH > 1 && DECOMPRESSION_ZP_LENGTH % SIMD != 0
+        ACCUMULATOR_VEC_TYPE d_zp = 0;
+        unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+            uint offset = out_f + of*SIMD + get_sub_group_local_id();
+            if (offset < DECOMPRESSION_ZP_LENGTH)
+                ((ACCUMULATOR_TYPE*)(&d_zp))[of] = decompression_zp[offset];
+        }
+    #else
+        ACCUMULATOR_VEC_TYPE d_zp = decompression_zp[0];
+    #endif
+
+    ACCUMULATOR_TYPE* ds = (ACCUMULATOR_TYPE*)(&d_scale);
+    ACCUMULATOR_TYPE* dzp = (ACCUMULATOR_TYPE*)(&d_zp);
+#endif
+
 #if REALIGN_FP16_OFFSET
     // For fp16 we need to ensure that all block reads are aligned to 4 byte (2 words) boundary.
     // To do this solve first input feature separately.
     {
         INPUT0_TYPE tmp_input = input[input_offset + get_sub_group_local_id() % TILE_B * TILE_IN_B_PITCH];
-        MAKE_VECTOR_TYPE(FILTER_TYPE, TILE_OFM) tmp_wei = BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset);
-
+        ACCUMULATOR_VEC_TYPE tmp_wei = TO_ACCUMULATOR_VEC_TYPE(BLOCK_READN(FILTER_TYPE, TILE_OFM, weights, weights_offset));
+        #if COMPRESSED_WEIGHTS
+            tmp_wei = (tmp_wei - d_zp) * d_scale;
+        #endif
         unroll_for(uint bi = 0; bi < TILE_B; ++bi) {
             acc[bi] = _sub_group_shuffle(tmp_input, bi) * tmp_wei;
         }
@@ -146,7 +188,15 @@ KERNEL(fc)(
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
         unroll_for(uint ki = 0; ki < (TILE_IFM * SIMD) / TILE_K; ++ki) {
-            wei = FILTER_BLOCK_READ(weights, weights_offset);
+            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if COMPRESSED_WEIGHTS
+                ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
+                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        w[kii * TILE_OFM + fi] = (w[kii * TILE_OFM + fi] - dzp[fi]) * ds[fi];
+                    }
+                }
+            #endif
             weights_offset += TILE_K_OFM * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
@@ -154,7 +204,7 @@ KERNEL(fc)(
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
                     INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
                     unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
+                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                     }
                 }
             }
@@ -175,7 +225,15 @@ KERNEL(fc)(
         #undef LOAD_IN_0
         input_offset += TILE_IFM * SIMD - TILE_IN_B_PITCH * TILE_B;
         unroll_for(uint ki = 0; ki < CEIL_DIV(LEFTOVER_IFM, TILE_K); ++ki) {
-            wei = FILTER_BLOCK_READ(weights, weights_offset);
+            wei = TO_FILTER_VEC_TYPE(FILTER_BLOCK_READ(weights, weights_offset));
+            #if COMPRESSED_WEIGHTS
+                ACCUMULATOR_TYPE* w = (ACCUMULATOR_TYPE*)(&wei);
+                unroll_for(uint kii = 0; kii < TILE_K; ++kii) {
+                    unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                        w[kii * TILE_OFM + fi] = (w[kii * TILE_OFM + fi] - dzp[fi]) * ds[fi];
+                    }
+                }
+            #endif
             weights_offset += TILE_K_OFM * SIMD;
 
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
@@ -184,7 +242,7 @@ KERNEL(fc)(
                         const uint total_k = ki * TILE_K + kii;
                         if (total_k < LEFTOVER_IFM) {
                             INPUT0_TYPE in_val = _sub_group_shuffle(((INPUT0_TYPE*)(&in_0[bi]))[total_k / SIMD], total_k % SIMD);
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((FILTER_TYPE*)(&wei))[kii * TILE_OFM + fi];
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[kii * TILE_OFM + fi];
                         }
                     }
                 }

@@ -35,6 +35,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/core/deprecated.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/decompose_reduce_for_false_keepdims.hpp"
@@ -46,6 +47,7 @@
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -55,6 +57,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/compress_float_constants.hpp"
 
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -106,6 +109,7 @@
 
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "plugin/transformations/convert_fc_to_compressed.hpp"
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
@@ -147,6 +151,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager;
+        auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
@@ -213,6 +218,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // decompose MVNs that sre not supported in GPU, so that they will be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::MVN6Decomposition>();
 
+        auto is_matmul_output = [](const_node_ptr &node) -> bool {
+            const auto outputs = node->get_output_target_inputs(0);
+            return !is_type<ov::op::v0::MatMul>(outputs.begin()->get_node());
+        };
+
+        manager.register_pass<ov::pass::KeepConstAndDecompression>();
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8}, true);
+        pass_config->set_callback<ov::pass::KeepConstAndDecompression>(is_matmul_output);
+
         const bool keep_precision_sensitive_in_fp32_1 = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -269,7 +283,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map);
 
-        auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
 
         // disable conversion to legacy and use the new mixed precision
@@ -614,6 +627,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager;
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         manager.run_passes(func);
     }
