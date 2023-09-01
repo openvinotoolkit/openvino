@@ -27,8 +27,6 @@ public:
      */
     Emitter() {}
 
-    Emitter(std::vector<std::pair<std::shared_ptr<Emitter>, RegInfo>>& region) {}
-
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
      * @param in vector of vector argument registers
@@ -50,8 +48,6 @@ public:
 
     virtual ~Emitter() = default;
 };
-
-using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ov::snippets::RegInfo>;
 
 } // namespace snippets
 } // namespace ov

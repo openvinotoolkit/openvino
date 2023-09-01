@@ -5,7 +5,6 @@
 #pragma once
 #include <common_test_utils/ov_test_utils.hpp>
 #include "snippets/op/subgraph.hpp"
-#include "snippets/target_machine.hpp"
 #include "snippets_helpers.hpp"
 
 namespace ov {

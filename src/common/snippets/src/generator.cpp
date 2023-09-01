@@ -8,7 +8,6 @@
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/insert_tail_loop.hpp"
 
-#include "snippets/target_machine.hpp"
 #include "snippets/op/kernel.hpp"
 
 #include "snippets/itt.hpp"
@@ -33,8 +32,10 @@ Generator::LoweringResult Generator::generate(lowered::LinearIR& linear_ir, cons
     linear_ir.init_emitters(target);
 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
-    auto loops2DKernel = linear_ir.create_kernel(compile_params);
-    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernel);
+    auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
+    loops2DKernel->compile_params = compile_params;
+    auto loops2DKernelExpr = linear_ir.create_expression(loops2DKernel, std::vector<lowered::PortConnectorPtr>{});
+    std::shared_ptr<Emitter> kernel = target->get(op::Kernel::get_type_info_static())(loops2DKernelExpr);
 
     kernel->emit_code({}, {});
 

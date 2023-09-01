@@ -47,13 +47,13 @@ public:
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
      */
     std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> get(const ov::DiscreteTypeInfo& type) const;
-    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo type) const;
+    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo& type) const;
 
     /**
      * @brief checks if emitter for a specific operation is supported
      * @return true, if supported
      */
-    bool has(const ov::DiscreteTypeInfo type) const;
+    bool has(const ov::DiscreteTypeInfo& type) const;
     virtual ~TargetMachine() = default;
 
 protected:

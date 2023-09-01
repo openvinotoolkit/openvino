@@ -20,6 +20,10 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
+using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
+using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
+
 namespace {
 constexpr size_t gpr_size = 8;
 } // namespace
@@ -29,9 +33,7 @@ inline static void transform_idxs_to_regs(const std::vector<size_t>& idxs, std::
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
 }
 
-jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                             const ov::snippets::lowered::ExpressionPtr& expr)
+jit_container_emitter::jit_container_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -94,9 +96,7 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
     }
 }
 
-KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const ov::snippets::lowered::ExpressionPtr& expr)
+KernelEmitter::KernelEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_container_emitter(h, isa, expr),
       reg_indexes_idx(abi_param1.getIdx()),
       reg_const_params_idx(abi_param2.getIdx()) {
@@ -315,10 +315,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     h->postamble();
 }
 
-LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+LoopBeginEmitter::LoopBeginEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     if (!loop_begin)
         IE_THROW() << "LoopBeginEmitter invoked with invalid op argument";
@@ -363,10 +360,7 @@ void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
     loop_begin->begin_address = h->getCurr();
 }
 
-LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                               dnnl::impl::cpu::x64::cpu_isa_t isa,
-                               const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+LoopEndEmitter::LoopEndEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     if (!loop_end)
         IE_THROW() << "LoopEndEmitter invoked with invalid op argument";
@@ -431,30 +425,20 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-NopEmitter::NopEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                       dnnl::impl::cpu::x64::cpu_isa_t isa,
-                       const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+NopEmitter::NopEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-ParameterEmitter::ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const ov::snippets::lowered::ExpressionPtr& expr)
+ParameterEmitter::ParameterEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : NopEmitter(h, isa, expr) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-ResultEmitter::ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const ov::snippets::lowered::ExpressionPtr& expr)
-    : NopEmitter(h, isa, expr) {
+ResultEmitter::ResultEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : NopEmitter(h, isa, expr) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
-BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                           const ov::snippets::lowered::ExpressionPtr& expr)
+BroadcastMoveEmitter::BroadcastMoveEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     if (n->get_input_element_type(0) != n->get_output_element_type(0))
@@ -476,7 +460,7 @@ void BroadcastMoveEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
@@ -491,10 +475,7 @@ void BroadcastMoveEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+ScalarEmitter::ScalarEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
     switch (precision) {
@@ -527,7 +508,7 @@ void ScalarEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
@@ -535,19 +516,13 @@ void ScalarEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<si
     h->uni_vbroadcastss(vmm_dst, table_val("scalar"));
 }
 
-MemoryEmitter::MemoryEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+MemoryEmitter::MemoryEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     src_prc = InferenceEngine::details::convertPrecision(n->get_input_element_type(0));
     dst_prc = InferenceEngine::details::convertPrecision(n->get_output_element_type(0));
 }
 
-StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                           dnnl::impl::cpu::x64::cpu_isa_t isa,
-                           const ov::snippets::lowered::ExpressionPtr& expr)
-    : MemoryEmitter(h, isa, expr) {
+StoreEmitter::StoreEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         IE_THROW() << "StoreEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
@@ -571,7 +546,7 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
         IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
@@ -582,10 +557,7 @@ void StoreEmitter::emit_data() const {
     store_emitter->emit_data();
 }
 
-LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                         dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const ov::snippets::lowered::ExpressionPtr& expr)
-    : MemoryEmitter(h, isa, expr) {
+LoadEmitter::LoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         IE_THROW() << "LoadEmitter supports only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
 
@@ -609,7 +581,7 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
         IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
@@ -620,9 +592,7 @@ void LoadEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                           const ov::snippets::lowered::ExpressionPtr& expr)
+BroadcastLoadEmitter::BroadcastLoadEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     if (src_prc != dst_prc)
         IE_THROW() << "BroadcastEmitters support only equal input and output types but gets: " << src_prc.name() << " and " << dst_prc.name();
@@ -645,7 +615,7 @@ void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
@@ -662,9 +632,7 @@ void BroadcastLoadEmitter::emit_isa(const std::vector<size_t> &in, const std::ve
     }
 }
 
-LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                       const ov::snippets::lowered::ExpressionPtr& expr)
+LoadConvertEmitter::LoadConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
     count = load->get_count();
@@ -686,7 +654,7 @@ void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void LoadConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!load_emitter)
         IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
@@ -697,9 +665,7 @@ void LoadConvertEmitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                         const ov::snippets::lowered::ExpressionPtr& expr)
+StoreConvertEmitter::StoreConvertEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : MemoryEmitter(h, isa, expr) {
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     count = store->get_count();
@@ -726,7 +692,7 @@ void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void StoreConvertEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     if (!store_emitter)
         IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
@@ -740,10 +706,7 @@ size_t BrgemmEmitter::getBrgIdx(size_t kIdx, size_t nIdx) {
     return kIdx * BRGEMM_N_KERNEL_NUM + nIdx;
 }
 
-BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                             dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+BrgemmEmitter::BrgemmEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr) : jit_emitter(h, isa) {
     m_brgCtxs.fill(brgemmCtx());
     std::generate(m_brgKernels.begin(), m_brgKernels.end(), [](){ return nullptr; });
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -1228,9 +1191,7 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel,
     (*brg_kernel)(&brgemm_p);
 }
 
-BrgemmCopyBEmitter::BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                       const ov::snippets::lowered::ExpressionPtr& expr)
+BrgemmCopyBEmitter::BrgemmCopyBEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
@@ -1482,9 +1443,7 @@ void BrgemmCopyBEmitter::execute(matmul::jit_brgemm_matmul_copy_b_t *kernel, con
     (*kernel)(&ctx);
 }
 
-HorizonEmitter::HorizonEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                               dnnl::impl::cpu::x64::cpu_isa_t isa,
-                               const ov::snippets::lowered::ExpressionPtr& expr)
+HorizonEmitter::HorizonEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     if (ov::is_type<const snippets::op::HorizonMax>(expr->get_node())) {
         m_op_type = OpType::max;
@@ -1508,7 +1467,7 @@ void HorizonEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void HorizonEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
@@ -1552,9 +1511,7 @@ void HorizonEmitter::perform_op(const Vmm &vmm1, const Vmm &vmm2, const Vmm &vmm
     }
 }
 
-FillEmitter::FillEmitter(dnnl::impl::cpu::x64::jit_generator* h,
-                         dnnl::impl::cpu::x64::cpu_isa_t isa,
-                         const ov::snippets::lowered::ExpressionPtr& expr)
+FillEmitter::FillEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_emitter(h, isa, Precision::FP32, emitter_in_out_map::vec_to_vec) {
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     if (fill->get_element_type().size() != 4) {
@@ -1592,7 +1549,7 @@ void FillEmitter::emit_impl(const std::vector<size_t>& in,
     }
 }
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+template <cpu_isa_t isa>
 void FillEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
             Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
