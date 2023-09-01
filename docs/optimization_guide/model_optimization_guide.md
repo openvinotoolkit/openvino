@@ -18,7 +18,9 @@ Model optimization is an optional offline step of improving the final model perf
 
 .. note:: OpenVINO also supports optimized models (for example, quantized) from source frameworks such as PyTorch, TensorFlow, and ONNX (in Q/DQ; Quantize/DeQuantize format). No special steps are required in this case and optimized models can be converted to the OpenVINO Intermediate Representation format (IR) right away.
 
-Post-training Quantization is the fastest way to optimize a model and should be applied first, but it is limited in terms of achievable accuracy-performance trade-off. In case of poor accuracy or performance after Post-training Quantization, Training-time Optimization can be used as an option.
+Post-training Quantization is the fastest way to optimize a model and should be applied first, but it is limited in terms of achievable accuracy-performance trade-off. The recommended approach to obtain OpenVINO quantized model is to convert a model from original framework to ``ov.Model`` and ensure that the model works correctly in OpenVINO, for example, by calculating the model metrics. Then, ``ov.Model`` can be used as input for the ``nncf.quantize()`` method to get the quantized model (see the diagram below).
+
+In case of unsatisfactory accuracy or performance after Post-training Quantization, Training-time Optimization can be used as an option.
 
 .. image:: _static/images/DEVELOPMENT_FLOW_V3_crunch.svg
 
