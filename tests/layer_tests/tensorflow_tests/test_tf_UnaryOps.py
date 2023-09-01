@@ -88,7 +88,7 @@ class TestUnaryOps(CommonTFLayerTest):
             'LogicalNot': tf.math.logical_not,
             # 'Mish': tfa.activations.mish,  # temporarily moved to `create_net_with_mish()`
             'Negative': tf.math.negative,
-            'Selu': tf.raw_ops.Selu,
+            'Selu': tf.nn.selu,
             'Sigmoid': tf.nn.sigmoid,
             'Sign': tf.math.sign,
             'Sin': tf.math.sin,
