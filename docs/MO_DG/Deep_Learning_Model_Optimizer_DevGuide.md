@@ -16,7 +16,7 @@
    openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ
 
 .. meta::
-   :description: Model conversion (OVC) furthers the transition between training and 
+   :description: Model conversion (MO) furthers the transition between training and 
                  deployment environments, it adjusts deep learning models for 
                  optimal execution on target devices.
 
@@ -31,7 +31,7 @@ To convert a model to OpenVINO model format (``ov.Model``), you can use the foll
        .. code-block:: py
           :force:
 
-          from openvino import convert_model
+          from openvino.tools.mo import convert_model
           ov_model = convert_model(INPUT_MODEL)
 
     .. tab-item:: CLI
@@ -39,13 +39,12 @@ To convert a model to OpenVINO model format (``ov.Model``), you can use the foll
 
        .. code-block:: sh
 
-          ovc --input_model INPUT_MODEL
+          mo --input_model INPUT_MODEL
 
 
-If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use convert_model from openvino.tools.mo (mo.convert_model()). 
-mo.convert_model() provides a wide range of parameters for model preprocessing, which are described below.
+If the out-of-the-box conversion (only the ``input_model`` parameter is specified) is not successful, use the parameters mentioned below to override input shapes and cut the model:
 
-- mo.convert_model() provides two parameters to override original input shapes for model conversion: ``input`` and ``input_shape``.
+- model conversion API provides two parameters to override original input shapes for model conversion: ``input`` and ``input_shape``.
   For more information about these parameters, refer to the :doc:`Setting Input Shapes <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
 
 - To cut off unwanted parts of a model (such as unsupported operations and training sub-graphs),
@@ -56,7 +55,7 @@ You can also insert additional input pre-processing sub-graphs into the converte
 the ``mean_values``, ``scales_values``, ``layout``, and other parameters described
 in the :doc:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` article.
 
-The ``compress_to_fp16`` compression parameter in ``ovc`` and ``mo`` command-line tool allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type. For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
+The ``compress_to_fp16`` compression parameter in ``mo`` command-line tool allows generating IR with constants (for example, weights for convolutions and matrix multiplications) compressed to ``FP16`` data type. For more details, refer to the :doc:`Compression of a Model to FP16 <openvino_docs_MO_DG_FP16_Compression>` guide.
 
 To get the full list of conversion parameters, run the following command:
 
@@ -78,7 +77,6 @@ To get the full list of conversion parameters, run the following command:
 
           mo --help
 
-# TODO: Update examples to most topical and arrange in following order: PyTorch, TF, ONNX, Paddle
 
 Examples of model conversion parameters
 #######################################
