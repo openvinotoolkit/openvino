@@ -14,7 +14,7 @@ Representation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_IR_and_opset
 (OpenVINO IR) format, using `Model
 Optimizer <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__.
 After creating the OpenVINO IR, load the model in `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+Runtime <https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
 and do inference with a sample image. 
 
 **Table of contents**:
