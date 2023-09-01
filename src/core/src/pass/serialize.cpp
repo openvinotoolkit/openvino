@@ -99,11 +99,16 @@ public:
                        ov::element::Type src_type = ov::element::dynamic) {
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
+        size_t aligned_size_offset = (size + sizeof(float) - 1) / sizeof(float) * sizeof(float) - size;
+        const char* aligned_context = "00000000";
         *new_size = size;
 
         if (!m_enable_compression || compress_to_fp16) {
             write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
-            return offset;
+            if (aligned_size_offset) {
+                m_binary_output.write(aligned_context, aligned_size_offset);
+            }
+            return offset + aligned_size_offset;
         }
         // TODO: Find a way to keep both types of compression (m_enable_compression and compress_to_fp16)
         // simultaneously. Disabled usual compression by m_enable_compression for those constants that are requested to
@@ -127,8 +132,10 @@ public:
 
         write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
         m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-
-        return offset;
+        if (aligned_size_offset) {
+            m_binary_output.write(aligned_context, aligned_size_offset);
+        }
+        return offset + aligned_size_offset;
     }
 
 private:
