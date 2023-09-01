@@ -1,0 +1,556 @@
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 44.46 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 111.39 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.25 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            33817 iterations
+[ INFO ] Duration:         60002.59 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.70 ms
+[ INFO ]    Average:       1.70 ms
+[ INFO ]    Min:           1.38 ms
+[ INFO ]    Max:           6.10 ms
+[ INFO ] Throughput:   563.59 FPS
+
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 26.69 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2310.80 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 5.82 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            17673 iterations
+[ INFO ] Duration:         60005.98 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.25 ms
+[ INFO ]    Average:       3.28 ms
+[ INFO ]    Min:           3.04 ms
+[ INFO ]    Max:           3.93 ms
+[ INFO ] Throughput:   294.52 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.76 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 73.27 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.18 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            33476 iterations
+[ INFO ] Duration:         60003.61 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.72 ms
+[ INFO ]    Average:       1.72 ms
+[ INFO ]    Min:           1.34 ms
+[ INFO ]    Max:           3.00 ms
+[ INFO ] Throughput:   557.90 FPS
+
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 28.15 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2255.92 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 6.41 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            16726 iterations
+[ INFO ] Duration:         60005.16 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.49 ms
+[ INFO ]    Average:       3.47 ms
+[ INFO ]    Min:           3.25 ms
+[ INFO ]    Max:           3.91 ms
+[ INFO ] Throughput:   278.74 FPS
+
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 45.18 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 185.99 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.22 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            94760 iterations
+[ INFO ] Duration:         60026.32 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        10.50 ms
+[ INFO ]    Average:       12.58 ms
+[ INFO ]    Min:           5.48 ms
+[ INFO ]    Max:           98.82 ms
+[ INFO ] Throughput:   1578.64 FPS
+
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 28.30 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2311.17 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 5.74 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            25620 iterations
+[ INFO ] Duration:         60018.42 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        9.24 ms
+[ INFO ]    Average:       9.24 ms
+[ INFO ]    Min:           5.60 ms
+[ INFO ]    Max:           11.34 ms
+[ INFO ] Throughput:   426.87 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 61.77 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 225.32 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 4.33 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            94460 iterations
+[ INFO ] Duration:         60017.20 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        10.52 ms
+[ INFO ]    Average:       12.61 ms
+[ INFO ]    Min:           4.69 ms
+[ INFO ]    Max:           38.27 ms
+[ INFO ] Throughput:   1573.88 FPS
+
+--------------------
+
+Benchmark results for smartlab-action-recognition-0001/smartlab-action-recognition-0001-encoder-top FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 28.26 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : f32 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_image (node: input_image) : u8 / [N,C,H,W] / [1,3,224,224]
+[ INFO ]     shifted_input (node: shifted_input) : f32 / [C] / [85066]
+[ INFO ] Model outputs:
+[ INFO ]     output_feature (node: output_feature) : f32 / [...] / [1,576]
+[ INFO ]     shifted_output (node: shifted_output) : f32 / [...] / [85066]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2306.43 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_image'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'shifted_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_image' with random values 
+[ INFO ] Fill input 'shifted_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 6.33 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            25152 iterations
+[ INFO ] Duration:         60015.60 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        9.41 ms
+[ INFO ]    Average:       9.41 ms
+[ INFO ]    Min:           6.37 ms
+[ INFO ]    Max:           11.66 ms
+[ INFO ] Throughput:   419.09 FPS
+
+--------------------
+

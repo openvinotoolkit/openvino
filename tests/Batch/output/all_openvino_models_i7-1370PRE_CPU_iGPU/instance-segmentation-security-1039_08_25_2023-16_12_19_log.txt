@@ -1,0 +1,504 @@
+Benchmark results for instance-segmentation-security-1039 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 162.41 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     3523 , boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3524 , 3594 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     3523 , boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3524 , 3594 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 544.59 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 23.41 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2373 iterations
+[ INFO ] Duration:         60030.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        24.82 ms
+[ INFO ]    Average:       25.18 ms
+[ INFO ]    Min:           18.00 ms
+[ INFO ]    Max:           40.09 ms
+[ INFO ] Throughput:   39.53 FPS
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 137.55 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     boxes , 3523 (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels , 3524 , 3594 (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     boxes , 3523 (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels , 3524 , 3594 (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4878.12 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 31.70 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2279 iterations
+[ INFO ] Duration:         60043.30 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        26.20 ms
+[ INFO ]    Average:       26.17 ms
+[ INFO ]    Min:           25.63 ms
+[ INFO ]    Max:           26.81 ms
+[ INFO ] Throughput:   37.96 FPS
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:2029 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 160.79 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     3523 , boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3524 , 3594 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     3523 , boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3524 , 3594 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 660.57 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 35.58 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2964 iterations
+[ INFO ] Duration:         60137.28 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        99.86 ms
+[ INFO ]    Average:       121.50 ms
+[ INFO ]    Min:           58.26 ms
+[ INFO ]    Max:           243.60 ms
+[ INFO ] Throughput:   49.29 FPS
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 143.05 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     boxes , 3523 (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3594 , 3524 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,480,480]
+[ INFO ] Model outputs:
+[ INFO ]     boxes , 3523 (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     3594 , 3524 , labels (node: labels) : i64 / [...] / [?]
+[ INFO ]     masks (node: masks) : f32 / [...] / [?,14,14]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5030.94 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 32.13 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2712 iterations
+[ INFO ] Duration:         60165.96 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        88.58 ms
+[ INFO ]    Average:       88.55 ms
+[ INFO ]    Min:           46.78 ms
+[ INFO ]    Max:           93.27 ms
+[ INFO ] Throughput:   45.08 FPS
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for instance-segmentation-security-1039 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_1755 id:1767 from unsupported opset: opset11
+
+
+--------------------
+

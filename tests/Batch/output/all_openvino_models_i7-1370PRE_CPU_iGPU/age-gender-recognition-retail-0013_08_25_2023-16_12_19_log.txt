@@ -1,0 +1,732 @@
+Benchmark results for age-gender-recognition-retail-0013 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 10.63 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 63.86 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            133595 iterations
+[ INFO ] Duration:         60000.49 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.34 ms
+[ INFO ]    Average:       0.40 ms
+[ INFO ]    Min:           0.26 ms
+[ INFO ]    Max:           4.63 ms
+[ INFO ] Throughput:   2226.57 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 6.57 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1133.86 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.52 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            83917 iterations
+[ INFO ] Duration:         60000.76 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.64 ms
+[ INFO ]    Average:       0.65 ms
+[ INFO ]    Min:           0.55 ms
+[ INFO ]    Max:           1.16 ms
+[ INFO ] Throughput:   1398.60 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 17.56 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 39.73 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.93 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            294787 iterations
+[ INFO ] Duration:         60000.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.18 ms
+[ INFO ]    Average:       0.19 ms
+[ INFO ]    Min:           0.13 ms
+[ INFO ]    Max:           0.61 ms
+[ INFO ] Throughput:   4913.10 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 5.90 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1004.20 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.83 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            211693 iterations
+[ INFO ] Duration:         60000.43 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.28 ms
+[ INFO ]    Average:       0.27 ms
+[ INFO ]    Min:           0.22 ms
+[ INFO ]    Max:           0.63 ms
+[ INFO ] Throughput:   3528.19 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.24 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 18.86 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.91 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            133399 iterations
+[ INFO ] Duration:         60000.78 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.34 ms
+[ INFO ]    Average:       0.40 ms
+[ INFO ]    Min:           0.25 ms
+[ INFO ]    Max:           4.63 ms
+[ INFO ] Throughput:   2223.29 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.80 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 909.75 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.91 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            111624 iterations
+[ INFO ] Duration:         60000.51 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.48 ms
+[ INFO ]    Average:       0.49 ms
+[ INFO ]    Min:           0.45 ms
+[ INFO ]    Max:           0.88 ms
+[ INFO ] Throughput:   1860.38 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 8.12 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 62.87 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.51 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            281920 iterations
+[ INFO ] Duration:         60005.85 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.67 ms
+[ INFO ]    Average:       4.22 ms
+[ INFO ]    Min:           1.82 ms
+[ INFO ]    Max:           57.56 ms
+[ INFO ] Throughput:   4698.21 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 6.19 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2252.54 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 748.05 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            519168 iterations
+[ INFO ] Duration:         60134.74 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        118.34 ms
+[ INFO ]    Average:       118.19 ms
+[ INFO ]    Min:           29.52 ms
+[ INFO ]    Max:           122.37 ms
+[ INFO ] Throughput:   8633.41 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 8.08 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 64.37 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.84 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            684000 iterations
+[ INFO ] Duration:         60003.54 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.18 ms
+[ INFO ]    Average:       1.50 ms
+[ INFO ]    Min:           0.42 ms
+[ INFO ]    Max:           18.43 ms
+[ INFO ] Throughput:   11399.33 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 5.94 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2231.11 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 719.36 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            954368 iterations
+[ INFO ] Duration:         60081.00 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        64.29 ms
+[ INFO ]    Average:       64.04 ms
+[ INFO ]    Min:           17.08 ms
+[ INFO ]    Max:           65.78 ms
+[ INFO ] Throughput:   15884.69 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 9.45 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     age_conv3 , fc3_a (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 51.09 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.46 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            277880 iterations
+[ INFO ] Duration:         60007.35 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.76 ms
+[ INFO ]    Average:       4.28 ms
+[ INFO ]    Min:           1.54 ms
+[ INFO ]    Max:           33.68 ms
+[ INFO ] Throughput:   4630.77 FPS
+
+--------------------
+
+Benchmark results for age-gender-recognition-retail-0013 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.63 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,62,62]
+[ INFO ] Model outputs:
+[ INFO ]     prob (node: prob) : f32 / [...] / [1,2,1,1]
+[ INFO ]     fc3_a , age_conv3 (node: age_conv3) : f32 / [...] / [1,1,1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2175.20 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: age_gender
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 734.43 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            397312 iterations
+[ INFO ] Duration:         60244.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        155.27 ms
+[ INFO ]    Average:       154.86 ms
+[ INFO ]    Min:           38.23 ms
+[ INFO ]    Max:           1129.46 ms
+[ INFO ] Throughput:   6594.99 FPS
+
+--------------------
+

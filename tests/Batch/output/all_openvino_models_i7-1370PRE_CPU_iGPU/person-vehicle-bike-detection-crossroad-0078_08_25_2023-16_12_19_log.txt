@@ -1,0 +1,744 @@
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 29.83 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 139.06 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 23.64 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2012 iterations
+[ INFO ] Duration:         60044.52 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        27.54 ms
+[ INFO ]    Average:       29.74 ms
+[ INFO ]    Min:           21.81 ms
+[ INFO ]    Max:           40.53 ms
+[ INFO ] Throughput:   33.51 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.58 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2847.54 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 12.01 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            6327 iterations
+[ INFO ] Duration:         60018.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        9.40 ms
+[ INFO ]    Average:       9.39 ms
+[ INFO ]    Min:           9.07 ms
+[ INFO ]    Max:           9.77 ms
+[ INFO ] Throughput:   105.42 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 54.09 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 317.06 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.79 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5002 iterations
+[ INFO ] Duration:         60016.59 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        11.75 ms
+[ INFO ]    Average:       11.89 ms
+[ INFO ]    Min:           8.94 ms
+[ INFO ]    Max:           20.31 ms
+[ INFO ] Throughput:   83.34 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 36.06 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3876.32 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 20.32 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3700 iterations
+[ INFO ] Duration:         60020.37 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        16.05 ms
+[ INFO ]    Average:       16.06 ms
+[ INFO ]    Min:           15.59 ms
+[ INFO ]    Max:           16.66 ms
+[ INFO ] Throughput:   61.65 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.76 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 118.16 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.28 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3129 iterations
+[ INFO ] Duration:         60035.38 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        18.76 ms
+[ INFO ]    Average:       19.07 ms
+[ INFO ]    Min:           13.99 ms
+[ INFO ]    Max:           33.02 ms
+[ INFO ] Throughput:   52.12 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 17.40 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2554.12 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.02 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4744 iterations
+[ INFO ] Duration:         60013.08 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        12.50 ms
+[ INFO ]    Average:       12.49 ms
+[ INFO ]    Min:           11.95 ms
+[ INFO ]    Max:           13.93 ms
+[ INFO ] Throughput:   79.05 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 33.10 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 209.72 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.88 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3672 iterations
+[ INFO ] Duration:         60136.36 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        86.12 ms
+[ INFO ]    Average:       98.01 ms
+[ INFO ]    Min:           57.84 ms
+[ INFO ]    Max:           150.05 ms
+[ INFO ] Throughput:   61.06 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 20.36 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2740.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.46 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            8720 iterations
+[ INFO ] Duration:         60038.07 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        27.38 ms
+[ INFO ]    Average:       27.37 ms
+[ INFO ]    Min:           15.03 ms
+[ INFO ]    Max:           30.63 ms
+[ INFO ] Throughput:   145.24 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.50 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 385.86 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.69 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            6144 iterations
+[ INFO ] Duration:         60123.46 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        48.79 ms
+[ INFO ]    Average:       58.56 ms
+[ INFO ]    Min:           30.93 ms
+[ INFO ]    Max:           102.15 ms
+[ INFO ] Throughput:   102.19 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 33.62 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3899.35 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 19.84 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4764 iterations
+[ INFO ] Duration:         60067.18 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        50.26 ms
+[ INFO ]    Average:       50.25 ms
+[ INFO ]    Min:           15.99 ms
+[ INFO ]    Max:           54.06 ms
+[ INFO ] Throughput:   79.31 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 25.04 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 193.80 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.35 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3642 iterations
+[ INFO ] Duration:         60139.76 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        87.03 ms
+[ INFO ]    Average:       98.86 ms
+[ INFO ]    Min:           52.94 ms
+[ INFO ]    Max:           153.08 ms
+[ INFO ] Throughput:   60.56 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-0078 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 17.14 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,1024,1024]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2579.96 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_SSD
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.76 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5880 iterations
+[ INFO ] Duration:         60078.53 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        40.67 ms
+[ INFO ]    Average:       40.69 ms
+[ INFO ]    Min:           21.50 ms
+[ INFO ]    Max:           43.20 ms
+[ INFO ] Throughput:   97.87 FPS
+
+--------------------
+

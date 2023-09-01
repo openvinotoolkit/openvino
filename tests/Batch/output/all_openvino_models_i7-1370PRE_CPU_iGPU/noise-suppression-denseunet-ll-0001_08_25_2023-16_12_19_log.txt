@@ -1,0 +1,252 @@
+Benchmark results for noise-suppression-denseunet-ll-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:419 from unsupported opset: opset11
+
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for noise-suppression-denseunet-ll-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer Resize_649 id:318 from unsupported opset: opset11
+
+
+--------------------
+

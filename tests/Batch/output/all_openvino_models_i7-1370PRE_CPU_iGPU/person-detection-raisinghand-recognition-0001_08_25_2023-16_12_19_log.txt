@@ -1,0 +1,888 @@
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 50.90 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 200.19 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 16.23 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3120 iterations
+[ INFO ] Duration:         60025.70 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        18.90 ms
+[ INFO ]    Average:       19.13 ms
+[ INFO ]    Min:           13.48 ms
+[ INFO ]    Max:           33.02 ms
+[ INFO ] Throughput:   51.98 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 33.45 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4191.07 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.47 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4964 iterations
+[ INFO ] Duration:         60014.44 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        11.96 ms
+[ INFO ]    Average:       11.95 ms
+[ INFO ]    Min:           11.69 ms
+[ INFO ]    Max:           12.55 ms
+[ INFO ] Throughput:   82.71 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 80.55 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 536.74 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.06 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5701 iterations
+[ INFO ] Duration:         60020.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        10.35 ms
+[ INFO ]    Average:       10.47 ms
+[ INFO ]    Min:           7.68 ms
+[ INFO ]    Max:           18.20 ms
+[ INFO ] Throughput:   94.98 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 62.17 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5577.63 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 12.70 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            6198 iterations
+[ INFO ] Duration:         60016.75 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        9.56 ms
+[ INFO ]    Average:       9.55 ms
+[ INFO ]    Min:           9.19 ms
+[ INFO ]    Max:           11.62 ms
+[ INFO ] Throughput:   103.27 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 44.41 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 194.12 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.30 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3016 iterations
+[ INFO ] Duration:         60035.39 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        19.37 ms
+[ INFO ]    Average:       19.81 ms
+[ INFO ]    Min:           13.86 ms
+[ INFO ]    Max:           33.54 ms
+[ INFO ] Throughput:   50.24 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.38 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4205.79 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 18.40 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3640 iterations
+[ INFO ] Duration:         60022.17 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        16.33 ms
+[ INFO ]    Average:       16.32 ms
+[ INFO ]    Min:           15.75 ms
+[ INFO ]    Max:           16.85 ms
+[ INFO ] Throughput:   60.64 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 41.74 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 319.92 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.30 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3582 iterations
+[ INFO ] Duration:         60116.62 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        89.88 ms
+[ INFO ]    Average:       100.47 ms
+[ INFO ]    Min:           55.13 ms
+[ INFO ]    Max:           145.23 ms
+[ INFO ] Throughput:   59.58 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 31.54 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4253.66 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.54 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5700 iterations
+[ INFO ] Duration:         60044.52 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        42.06 ms
+[ INFO ]    Average:       42.00 ms
+[ INFO ]    Min:           18.12 ms
+[ INFO ]    Max:           56.01 ms
+[ INFO ] Throughput:   94.93 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 75.04 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 639.05 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.62 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7116 iterations
+[ INFO ] Duration:         60131.10 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        41.45 ms
+[ INFO ]    Average:       50.54 ms
+[ INFO ]    Min:           24.03 ms
+[ INFO ]    Max:           101.65 ms
+[ INFO ] Throughput:   118.34 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 55.06 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5591.63 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.08 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7772 iterations
+[ INFO ] Duration:         60056.98 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        30.80 ms
+[ INFO ]    Average:       30.78 ms
+[ INFO ]    Min:           12.71 ms
+[ INFO ]    Max:           40.33 ms
+[ INFO ] Throughput:   129.41 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 40.58 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 294.24 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.65 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3528 iterations
+[ INFO ] Duration:         60061.02 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        91.12 ms
+[ INFO ]    Average:       101.95 ms
+[ INFO ]    Min:           50.70 ms
+[ INFO ]    Max:           149.36 ms
+[ INFO ] Throughput:   58.74 FPS
+
+--------------------
+
+Benchmark results for person-detection-raisinghand-recognition-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.23 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,400,680]
+[ INFO ] Model outputs:
+[ INFO ]     mbox_loc1/out/conv/flat (node: mbox_loc1/out/conv/flat) : f32 / [...] / [1,17200]
+[ INFO ]     mbox_main_conf/out/conv/flat/softmax/flat (node: mbox_main_conf/out/conv/flat/softmax/flat) : f32 / [...] / [1,8600]
+[ INFO ]     mbox/priorbox (node: mbox/priorbox) : f32 / [...] / [1,2,17200]
+[ INFO ]     out/anchor1 (node: out/anchor1) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor2 (node: out/anchor2) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor3 (node: out/anchor3) : f32 / [...] / [1,25,43,2]
+[ INFO ]     out/anchor4 (node: out/anchor4) : f32 / [...] / [1,25,43,2]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4243.49 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: RMNet_LReLU with SSD head for Action Detection and Action Recognition
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 18.46 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3880 iterations
+[ INFO ] Duration:         60068.84 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        61.83 ms
+[ INFO ]    Average:       61.77 ms
+[ INFO ]    Min:           22.79 ms
+[ INFO ]    Max:           81.09 ms
+[ INFO ] Throughput:   64.59 FPS
+
+--------------------
+

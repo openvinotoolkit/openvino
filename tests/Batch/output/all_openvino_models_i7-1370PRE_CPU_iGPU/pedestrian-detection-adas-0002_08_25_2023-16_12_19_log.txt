@@ -1,0 +1,744 @@
+Benchmark results for pedestrian-detection-adas-0002 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 24.49 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 90.06 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 11.12 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7424 iterations
+[ INFO ] Duration:         60014.05 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        7.76 ms
+[ INFO ]    Average:       7.96 ms
+[ INFO ]    Min:           6.21 ms
+[ INFO ]    Max:           14.43 ms
+[ INFO ] Throughput:   123.70 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.17 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2098.54 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 6.33 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            11564 iterations
+[ INFO ] Duration:         60005.93 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        5.03 ms
+[ INFO ]    Average:       5.01 ms
+[ INFO ]    Min:           4.66 ms
+[ INFO ]    Max:           5.32 ms
+[ INFO ] Throughput:   192.71 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 46.44 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 142.75 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.82 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            16116 iterations
+[ INFO ] Duration:         60005.06 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.56 ms
+[ INFO ]    Average:       3.64 ms
+[ INFO ]    Min:           2.70 ms
+[ INFO ]    Max:           5.77 ms
+[ INFO ] Throughput:   268.58 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 18.80 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2292.28 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 4.40 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            19873 iterations
+[ INFO ] Duration:         60005.38 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.90 ms
+[ INFO ]    Average:       2.87 ms
+[ INFO ]    Min:           2.58 ms
+[ INFO ]    Max:           3.29 ms
+[ INFO ] Throughput:   331.19 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 30.46 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 76.22 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 8.15 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7327 iterations
+[ INFO ] Duration:         60009.66 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        7.87 ms
+[ INFO ]    Average:       8.07 ms
+[ INFO ]    Min:           6.42 ms
+[ INFO ]    Max:           14.13 ms
+[ INFO ] Throughput:   122.10 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 13.47 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1864.80 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 7.81 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            8766 iterations
+[ INFO ] Duration:         60008.85 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        6.70 ms
+[ INFO ]    Average:       6.69 ms
+[ INFO ]    Min:           6.30 ms
+[ INFO ]    Max:           7.07 ms
+[ INFO ] Throughput:   146.08 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 24.46 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 130.71 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 12.45 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            9060 iterations
+[ INFO ] Duration:         60047.47 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        35.36 ms
+[ INFO ]    Average:       39.61 ms
+[ INFO ]    Min:           20.98 ms
+[ INFO ]    Max:           71.16 ms
+[ INFO ] Throughput:   150.88 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.19 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2151.10 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 6.39 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            14420 iterations
+[ INFO ] Duration:         60024.93 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        16.93 ms
+[ INFO ]    Average:       16.47 ms
+[ INFO ]    Min:           9.17 ms
+[ INFO ]    Max:           17.80 ms
+[ INFO ] Throughput:   240.23 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 23.21 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 171.44 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 8.28 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            22254 iterations
+[ INFO ] Duration:         60032.82 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        13.10 ms
+[ INFO ]    Average:       16.08 ms
+[ INFO ]    Min:           7.31 ms
+[ INFO ]    Max:           68.74 ms
+[ INFO ] Throughput:   370.70 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 17.79 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2363.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 4.30 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            27720 iterations
+[ INFO ] Duration:         60012.64 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        8.99 ms
+[ INFO ]    Average:       8.49 ms
+[ INFO ]    Min:           5.11 ms
+[ INFO ]    Max:           10.44 ms
+[ INFO ] Throughput:   461.90 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 16.69 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 115.59 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.02 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            8928 iterations
+[ INFO ] Duration:         60073.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        35.89 ms
+[ INFO ]    Average:       40.20 ms
+[ INFO ]    Min:           23.65 ms
+[ INFO ]    Max:           79.57 ms
+[ INFO ] Throughput:   148.62 FPS
+
+--------------------
+
+Benchmark results for pedestrian-detection-adas-0002 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.61 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,384,672]
+[ INFO ] Model outputs:
+[ INFO ]     detection_out (node: detection_out) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1919.07 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: icv-pedestrian-detection-mobilenet-ssd-v2.0
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 7.73 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            9236 iterations
+[ INFO ] Duration:         60044.69 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        25.82 ms
+[ INFO ]    Average:       25.81 ms
+[ INFO ]    Min:           12.05 ms
+[ INFO ]    Max:           27.86 ms
+[ INFO ] Throughput:   153.82 FPS
+
+--------------------
+

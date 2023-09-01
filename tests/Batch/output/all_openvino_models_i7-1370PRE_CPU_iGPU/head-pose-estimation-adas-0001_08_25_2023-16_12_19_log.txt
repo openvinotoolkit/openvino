@@ -1,0 +1,756 @@
+Benchmark results for head-pose-estimation-adas-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 23.61 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 50.66 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.66 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            127877 iterations
+[ INFO ] Duration:         60000.97 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.34 ms
+[ INFO ]    Average:       0.41 ms
+[ INFO ]    Min:           0.26 ms
+[ INFO ]    Max:           1.80 ms
+[ INFO ] Throughput:   2131.25 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.12 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1460.25 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.95 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            41824 iterations
+[ INFO ] Duration:         60002.06 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.33 ms
+[ INFO ]    Average:       1.36 ms
+[ INFO ]    Min:           1.20 ms
+[ INFO ]    Max:           1.84 ms
+[ INFO ] Throughput:   697.04 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.27 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 39.57 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.18 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            197750 iterations
+[ INFO ] Duration:         60000.36 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.25 ms
+[ INFO ]    Average:       0.28 ms
+[ INFO ]    Min:           0.19 ms
+[ INFO ]    Max:           4.38 ms
+[ INFO ] Throughput:   3295.81 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.60 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1037.82 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 0.94 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            156716 iterations
+[ INFO ] Duration:         60000.50 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.36 ms
+[ INFO ]    Average:       0.35 ms
+[ INFO ]    Min:           0.29 ms
+[ INFO ]    Max:           0.78 ms
+[ INFO ] Throughput:   2611.91 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.96 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 28.74 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.54 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            128386 iterations
+[ INFO ] Duration:         60000.73 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.35 ms
+[ INFO ]    Average:       0.41 ms
+[ INFO ]    Min:           0.25 ms
+[ INFO ]    Max:           4.34 ms
+[ INFO ] Throughput:   2139.74 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 8.66 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 965.73 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            83145 iterations
+[ INFO ] Duration:         60000.68 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.61 ms
+[ INFO ]    Average:       0.66 ms
+[ INFO ]    Min:           0.56 ms
+[ INFO ]    Max:           1.04 ms
+[ INFO ] Throughput:   1385.73 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 10.00 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 76.86 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.07 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            282260 iterations
+[ INFO ] Duration:         60007.56 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.78 ms
+[ INFO ]    Average:       4.21 ms
+[ INFO ]    Min:           1.09 ms
+[ INFO ]    Max:           20.07 ms
+[ INFO ] Throughput:   4703.74 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.23 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2668.46 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 640.33 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            362496 iterations
+[ INFO ] Duration:         60244.68 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        170.14 ms
+[ INFO ]    Average:       169.93 ms
+[ INFO ]    Min:           41.73 ms
+[ INFO ]    Max:           177.02 ms
+[ INFO ] Throughput:   6017.06 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 11.86 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 64.87 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.41 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            428940 iterations
+[ INFO ] Duration:         60005.67 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.32 ms
+[ INFO ]    Average:       2.76 ms
+[ INFO ]    Min:           0.84 ms
+[ INFO ]    Max:           28.71 ms
+[ INFO ] Throughput:   7148.32 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.05 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     fc_r , angle_r_fc (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2480.51 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 612.99 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            593920 iterations
+[ INFO ] Duration:         60168.96 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        104.08 ms
+[ INFO ]    Average:       103.59 ms
+[ INFO ]    Min:           26.65 ms
+[ INFO ]    Max:           108.33 ms
+[ INFO ] Throughput:   9870.87 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 10.44 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_p_fc , fc_p (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_y , angle_y_fc (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 55.46 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.96 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            274900 iterations
+[ INFO ] Duration:         60004.14 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.82 ms
+[ INFO ]    Average:       4.32 ms
+[ INFO ]    Min:           1.64 ms
+[ INFO ]    Max:           20.75 ms
+[ INFO ] Throughput:   4581.35 FPS
+
+--------------------
+
+Benchmark results for head-pose-estimation-adas-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 8.19 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,60,60]
+[ INFO ] Model outputs:
+[ INFO ]     angle_r_fc , fc_r (node: angle_r_fc) : f32 / [...] / [1,1]
+[ INFO ]     fc_p , angle_p_fc (node: angle_p_fc) : f32 / [...] / [1,1]
+[ INFO ]     angle_y_fc , fc_y (node: angle_y_fc) : f32 / [...] / [1,1]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2338.27 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1024
+[ INFO ]   NETWORK_NAME: head-pose-estimation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1024 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 634.93 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            276480 iterations
+[ INFO ] Duration:         60370.72 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        223.85 ms
+[ INFO ]    Average:       223.20 ms
+[ INFO ]    Min:           54.56 ms
+[ INFO ]    Max:           226.73 ms
+[ INFO ] Throughput:   4579.70 FPS
+
+--------------------
+

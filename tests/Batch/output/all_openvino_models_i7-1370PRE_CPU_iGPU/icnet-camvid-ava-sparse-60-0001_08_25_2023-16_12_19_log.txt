@@ -1,0 +1,708 @@
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 76.44 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 585.78 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 140.24 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            337 iterations
+[ INFO ] Duration:         60301.95 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        178.33 ms
+[ INFO ]    Average:       178.84 ms
+[ INFO ]    Min:           133.88 ms
+[ INFO ]    Max:           230.96 ms
+[ INFO ] Throughput:   5.59 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.40 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2637.26 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 59.35 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1028 iterations
+[ INFO ] Duration:         60063.56 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        58.09 ms
+[ INFO ]    Average:       58.26 ms
+[ INFO ]    Min:           57.63 ms
+[ INFO ]    Max:           60.74 ms
+[ INFO ] Throughput:   17.12 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 58.62 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 280.21 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 78.70 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1007 iterations
+[ INFO ] Duration:         60113.42 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        59.26 ms
+[ INFO ]    Average:       59.59 ms
+[ INFO ]    Min:           44.54 ms
+[ INFO ]    Max:           97.28 ms
+[ INFO ] Throughput:   16.75 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.92 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3193.51 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 45.81 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1393 iterations
+[ INFO ] Duration:         60053.87 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        42.93 ms
+[ INFO ]    Average:       42.93 ms
+[ INFO ]    Min:           42.56 ms
+[ INFO ]    Max:           43.45 ms
+[ INFO ] Throughput:   23.20 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 86.40 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 263.18 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 173.84 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            339 iterations
+[ INFO ] Duration:         60306.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        177.27 ms
+[ INFO ]    Average:       177.81 ms
+[ INFO ]    Min:           159.17 ms
+[ INFO ]    Max:           228.89 ms
+[ INFO ] Throughput:   5.62 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 54.41 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2596.67 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 83.74 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            699 iterations
+[ INFO ] Duration:         60088.98 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        85.68 ms
+[ INFO ]    Average:       85.79 ms
+[ INFO ]    Min:           81.88 ms
+[ INFO ]    Max:           87.89 ms
+[ INFO ] Throughput:   11.63 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 48.32 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 619.76 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 229.42 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            390 iterations
+[ INFO ] Duration:         61031.08 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        843.33 ms
+[ INFO ]    Average:       936.42 ms
+[ INFO ]    Min:           728.61 ms
+[ INFO ]    Max:           1241.07 ms
+[ INFO ] Throughput:   6.39 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 41.80 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4848.97 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 59.40 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1008 iterations
+[ INFO ] Duration:         60263.22 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        238.93 ms
+[ INFO ]    Average:       238.75 ms
+[ INFO ]    Min:           115.41 ms
+[ INFO ]    Max:           299.59 ms
+[ INFO ] Throughput:   16.73 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 48.36 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 335.83 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 82.35 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1122 iterations
+[ INFO ] Duration:         60678.31 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        259.09 ms
+[ INFO ]    Average:       323.21 ms
+[ INFO ]    Min:           205.42 ms
+[ INFO ]    Max:           665.67 ms
+[ INFO ] Throughput:   18.49 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 41.40 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output:0 , segmentation_output (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4364.90 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 46.46 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1388 iterations
+[ INFO ] Duration:         60300.82 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        173.60 ms
+[ INFO ]    Average:       173.43 ms
+[ INFO ]    Min:           57.12 ms
+[ INFO ]    Max:           219.42 ms
+[ INFO ] Throughput:   23.02 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 62.58 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 299.85 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 557.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            390 iterations
+[ INFO ] Duration:         61045.38 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        847.13 ms
+[ INFO ]    Average:       938.08 ms
+[ INFO ]    Min:           715.83 ms
+[ INFO ]    Max:           1240.22 ms
+[ INFO ] Throughput:   6.39 FPS
+
+--------------------
+
+Benchmark results for icnet-camvid-ava-sparse-60-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 55.15 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,720,960,3]
+[ INFO ] Model outputs:
+[ INFO ]     segmentation_output , segmentation_output:0 (node: segmentation_output) : i32 / [...] / [1,720,960]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4331.58 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 83.61 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            680 iterations
+[ INFO ] Duration:         60497.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        355.84 ms
+[ INFO ]    Average:       355.13 ms
+[ INFO ]    Min:           138.27 ms
+[ INFO ]    Max:           442.53 ms
+[ INFO ] Throughput:   11.24 FPS
+
+--------------------
+

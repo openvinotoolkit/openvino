@@ -3,7 +3,7 @@
 The Batch class is a library for engineers to automate the running and logging of [OpenVINO Deep Learning Inference benchmark tests](https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html). To use the Batch class, please follow these four simple steps:<br/>
 
  1. <pre>pip install -r requirements.txt</pre>
- 2. Set the environment variable <b>OPENVINO_PATH</b> to the folder where OpenVINO is installed on your machine. On Linux machines this will usually be <b>"/opt/intel/openvino_2022"</b> but with your specific version. This is necessary for initializing the OpenVINO environment, otherwise all benchmarks will fail.
+ 2. Set the environment variable <b>OPENVINO_PATH</b> to the folder where [OpenVINO](https://docs.openvino.ai/2023.0/openvino_docs_install_guides_overview.html) is installed on your machine. On Linux machines this will usually be <b>"/opt/intel/openvino_2022"</b> but with your specific version. This is necessary for initializing the OpenVINO environment, otherwise all benchmarks will fail.
  3. <pre>python3 main.py [MODEL_FOLDER] [CONFIG_FILE]</pre> Replace <b>MODEL_FOLDER</b> with the path of your machine's OpenVINO model folder and <b>CONFIG_FILE</b> with the path to a JSON file containing your benchmark settings. On Linux machines the model folders will usually be <b>"~/public"</b> or <b>"~/intel"</b>. You can find examples for both in this repository in the <b>example_model</b> folder and <b>example_settings.json</b> file. If these two arguments are omitted in the command line, it will automatically select the example paths.
  4. Open the output folder to view a timestamped subfolder containing all benchmark results, including full text logs and a summary CSV.
 <br/><br/><br/>

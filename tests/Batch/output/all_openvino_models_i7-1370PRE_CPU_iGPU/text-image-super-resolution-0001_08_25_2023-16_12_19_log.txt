@@ -1,0 +1,708 @@
+Benchmark results for text-image-super-resolution-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.82 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 12.61 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 41.04 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1882 iterations
+[ INFO ] Duration:         60052.75 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        31.27 ms
+[ INFO ]    Average:       31.81 ms
+[ INFO ]    Min:           28.78 ms
+[ INFO ]    Max:           48.12 ms
+[ INFO ] Throughput:   31.34 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.20 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 825.67 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 18.92 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3232 iterations
+[ INFO ] Duration:         60021.88 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        18.48 ms
+[ INFO ]    Average:       18.47 ms
+[ INFO ]    Min:           18.30 ms
+[ INFO ]    Max:           18.75 ms
+[ INFO ] Throughput:   53.85 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.60 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 23.01 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 20.81 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3928 iterations
+[ INFO ] Duration:         60029.49 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        15.01 ms
+[ INFO ]    Average:       15.18 ms
+[ INFO ]    Min:           13.25 ms
+[ INFO ]    Max:           26.56 ms
+[ INFO ] Throughput:   65.43 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.68 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 770.77 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 21.42 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2923 iterations
+[ INFO ] Duration:         60021.03 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        20.42 ms
+[ INFO ]    Average:       20.39 ms
+[ INFO ]    Min:           19.71 ms
+[ INFO ]    Max:           20.81 ms
+[ INFO ] Throughput:   48.70 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 13.66 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 14.68 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 41.36 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1865 iterations
+[ INFO ] Duration:         60058.50 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        31.50 ms
+[ INFO ]    Average:       32.10 ms
+[ INFO ]    Min:           28.94 ms
+[ INFO ]    Max:           48.50 ms
+[ INFO ] Throughput:   31.05 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.37 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 835.22 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 17.03 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3567 iterations
+[ INFO ] Duration:         60032.31 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        16.70 ms
+[ INFO ]    Average:       16.67 ms
+[ INFO ]    Min:           16.44 ms
+[ INFO ]    Max:           16.97 ms
+[ INFO ] Throughput:   59.42 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 4.06 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 16.54 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 71.00 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2904 iterations
+[ INFO ] Duration:         60094.67 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        122.52 ms
+[ INFO ]    Average:       123.91 ms
+[ INFO ]    Min:           84.41 ms
+[ INFO ]    Max:           150.04 ms
+[ INFO ] Throughput:   48.32 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.53 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1270.49 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 19.05 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3312 iterations
+[ INFO ] Duration:         60108.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        72.51 ms
+[ INFO ]    Average:       72.48 ms
+[ INFO ]    Min:           19.25 ms
+[ INFO ]    Max:           73.56 ms
+[ INFO ] Throughput:   55.10 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.47 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 29.56 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 36.88 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4734 iterations
+[ INFO ] Duration:         60171.00 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        69.63 ms
+[ INFO ]    Average:       76.02 ms
+[ INFO ]    Min:           48.72 ms
+[ INFO ]    Max:           110.14 ms
+[ INFO ] Throughput:   78.68 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.91 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1382.79 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 20.93 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3020 iterations
+[ INFO ] Duration:         60083.20 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        79.45 ms
+[ INFO ]    Average:       79.41 ms
+[ INFO ]    Min:           21.17 ms
+[ INFO ]    Max:           80.75 ms
+[ INFO ] Throughput:   50.26 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 6.25 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 22.98 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 71.86 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2898 iterations
+[ INFO ] Duration:         60131.78 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        122.88 ms
+[ INFO ]    Average:       124.22 ms
+[ INFO ]    Min:           90.75 ms
+[ INFO ]    Max:           157.03 ms
+[ INFO ] Throughput:   48.19 FPS
+
+--------------------
+
+Benchmark results for text-image-super-resolution-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 3.10 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     0 (node: 0) : f32 / [N,C,H,W] / [1,1,360,640]
+[ INFO ] Model outputs:
+[ INFO ]     14 (node: 14) : f32 / [...] / [1,1,1080,1920]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1507.49 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input '0'!. This input will be filled with random values!
+[ INFO ] Fill input '0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 17.17 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3688 iterations
+[ INFO ] Duration:         60089.86 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        65.00 ms
+[ INFO ]    Average:       64.98 ms
+[ INFO ]    Min:           17.43 ms
+[ INFO ]    Max:           66.24 ms
+[ INFO ] Throughput:   61.37 FPS
+
+--------------------
+

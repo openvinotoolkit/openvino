@@ -1,0 +1,484 @@
+Benchmark results for image-retrieval-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.51 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize:0 , model/tf_op_layer_l2_normalize/l2_normalize (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize:0 , model/tf_op_layer_l2_normalize/l2_normalize (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 129.73 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 10.84 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            24824 iterations
+[ INFO ] Duration:         60004.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.22 ms
+[ INFO ]    Average:       2.33 ms
+[ INFO ]    Min:           1.66 ms
+[ INFO ]    Max:           3.61 ms
+[ INFO ] Throughput:   413.70 FPS
+
+--------------------
+
+Benchmark results for image-retrieval-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 16.42 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1493.50 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.55 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            35400 iterations
+[ INFO ] Duration:         60002.81 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.56 ms
+[ INFO ]    Average:       1.56 ms
+[ INFO ]    Min:           1.31 ms
+[ INFO ]    Max:           1.91 ms
+[ INFO ] Throughput:   589.97 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for image-retrieval-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 26.34 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 88.09 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.60 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            25258 iterations
+[ INFO ] Duration:         60003.02 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.23 ms
+[ INFO ]    Average:       2.29 ms
+[ INFO ]    Min:           1.57 ms
+[ INFO ]    Max:           6.35 ms
+[ INFO ] Throughput:   420.95 FPS
+
+--------------------
+
+Benchmark results for image-retrieval-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 15.45 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1515.95 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.28 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            25454 iterations
+[ INFO ] Duration:         60004.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.24 ms
+[ INFO ]    Average:       2.23 ms
+[ INFO ]    Min:           1.95 ms
+[ INFO ]    Max:           2.84 ms
+[ INFO ] Throughput:   424.20 FPS
+
+--------------------
+
+Benchmark results for image-retrieval-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 30.97 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize:0 , model/tf_op_layer_l2_normalize/l2_normalize (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize:0 , model/tf_op_layer_l2_normalize/l2_normalize (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 159.81 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.38 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            38358 iterations
+[ INFO ] Duration:         60019.88 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        8.30 ms
+[ INFO ]    Average:       9.26 ms
+[ INFO ]    Min:           4.42 ms
+[ INFO ]    Max:           48.42 ms
+[ INFO ] Throughput:   639.09 FPS
+
+--------------------
+
+Benchmark results for image-retrieval-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 15.56 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3728.59 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 32
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 32 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 991.64 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            73184 iterations
+[ INFO ] Duration:         60027.25 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        25.98 ms
+[ INFO ]    Average:       26.00 ms
+[ INFO ]    Min:           13.76 ms
+[ INFO ]    Max:           26.86 ms
+[ INFO ] Throughput:   1219.18 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for image-retrieval-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 32.22 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 91.73 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            38496 iterations
+[ INFO ] Duration:         60014.36 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        8.29 ms
+[ INFO ]    Average:       9.23 ms
+[ INFO ]    Min:           4.34 ms
+[ INFO ]    Max:           22.51 ms
+[ INFO ] Throughput:   641.45 FPS
+
+--------------------
+
+Benchmark results for image-retrieval-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 15.31 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,224,224,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/tf_op_layer_l2_normalize/l2_normalize , model/tf_op_layer_l2_normalize/l2_normalize:0 (node: model/tf_op_layer_l2_normalize/l2_normalize) : f32 / [...] / [1,256]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3352.74 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 16
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 16 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 997.07 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            43232 iterations
+[ INFO ] Duration:         60027.66 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        21.95 ms
+[ INFO ]    Average:       22.02 ms
+[ INFO ]    Min:           10.73 ms
+[ INFO ]    Max:           1022.49 ms
+[ INFO ] Throughput:   720.20 FPS
+
+--------------------
+

@@ -1,0 +1,840 @@
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 55.34 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 225.85 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 27.75 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2282 iterations
+[ INFO ] Duration:         60036.52 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        25.76 ms
+[ INFO ]    Average:       26.18 ms
+[ INFO ]    Min:           18.74 ms
+[ INFO ]    Max:           41.01 ms
+[ INFO ] Throughput:   38.01 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 26.87 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3250.04 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 57.09 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1101 iterations
+[ INFO ] Duration:         60073.18 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        54.38 ms
+[ INFO ]    Average:       54.38 ms
+[ INFO ]    Min:           53.50 ms
+[ INFO ]    Max:           55.09 ms
+[ INFO ] Throughput:   18.33 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 64.93 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 539.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: forward_tacotron_regression
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 22.64 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3809 iterations
+[ INFO ] Duration:         60025.05 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        15.52 ms
+[ INFO ]    Average:       15.58 ms
+[ INFO ]    Min:           11.40 ms
+[ INFO ]    Max:           22.24 ms
+[ INFO ] Throughput:   63.46 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 45.66 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4394.49 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: forward_tacotron_regression
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 17.90 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4138 iterations
+[ INFO ] Duration:         60019.25 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        14.36 ms
+[ INFO ]    Average:       14.34 ms
+[ INFO ]    Min:           13.78 ms
+[ INFO ]    Max:           16.29 ms
+[ INFO ] Throughput:   68.94 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 48.08 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 177.83 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 37.30 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2273 iterations
+[ INFO ] Duration:         60037.45 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        25.99 ms
+[ INFO ]    Average:       26.29 ms
+[ INFO ]    Min:           22.33 ms
+[ INFO ]    Max:           40.79 ms
+[ INFO ] Throughput:   37.86 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.74 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3138.91 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 64.63 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            978 iterations
+[ INFO ] Duration:         60072.64 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        61.31 ms
+[ INFO ]    Average:       61.24 ms
+[ INFO ]    Min:           60.36 ms
+[ INFO ]    Max:           61.90 ms
+[ INFO ] Throughput:   16.28 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 44.19 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 307.21 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 39.27 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2928 iterations
+[ INFO ] Duration:         60228.46 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        109.43 ms
+[ INFO ]    Average:       123.25 ms
+[ INFO ]    Min:           70.56 ms
+[ INFO ]    Max:           180.78 ms
+[ INFO ] Throughput:   48.61 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.18 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3197.20 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 58.31 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1156 iterations
+[ INFO ] Duration:         60309.91 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        208.50 ms
+[ INFO ]    Average:       208.23 ms
+[ INFO ]    Min:           72.91 ms
+[ INFO ]    Max:           211.50 ms
+[ INFO ] Throughput:   19.17 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 70.63 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 670.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: forward_tacotron_regression
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 29.36 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5262 iterations
+[ INFO ] Duration:         60120.08 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        56.82 ms
+[ INFO ]    Average:       68.33 ms
+[ INFO ]    Min:           35.28 ms
+[ INFO ]    Max:           124.47 ms
+[ INFO ] Throughput:   87.52 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 43.74 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4433.76 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: forward_tacotron_regression
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 18.25 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5100 iterations
+[ INFO ] Duration:         60081.41 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        46.94 ms
+[ INFO ]    Average:       46.94 ms
+[ INFO ]    Min:           21.69 ms
+[ INFO ]    Max:           49.84 ms
+[ INFO ] Throughput:   84.88 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 34.83 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 245.07 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 40.40 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2904 iterations
+[ INFO ] Duration:         60148.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        109.51 ms
+[ INFO ]    Average:       124.09 ms
+[ INFO ]    Min:           73.01 ms
+[ INFO ]    Max:           185.73 ms
+[ INFO ] Throughput:   48.28 FPS
+
+--------------------
+
+Benchmark results for text-to-speech-en-0001/text-to-speech-en-0001-regression FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.03 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H] / [1,512,256]
+[ INFO ]     data_mask (node: data_mask) : f32 / [N,D,C] / [1,1,512]
+[ INFO ]     pos_mask (node: pos_mask) : f32 / [N,D,C,W] / [1,1,512,512]
+[ INFO ] Model outputs:
+[ INFO ]     mel (node: mel) : f32 / [...] / [80,512]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3202.90 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'data_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'pos_mask'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[ INFO ] Fill input 'data_mask' with random values 
+[ INFO ] Fill input 'pos_mask' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 65.16 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1028 iterations
+[ INFO ] Duration:         60401.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        234.84 ms
+[ INFO ]    Average:       234.49 ms
+[ INFO ]    Min:           106.72 ms
+[ INFO ]    Max:           237.78 ms
+[ INFO ] Throughput:   17.02 FPS
+
+--------------------
+

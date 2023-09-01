@@ -1,0 +1,744 @@
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 21.35 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 , MobilenetV2/input:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 , MobilenetV2/input:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 92.31 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.32 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            32372 iterations
+[ INFO ] Duration:         60003.95 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.70 ms
+[ INFO ]    Average:       1.76 ms
+[ INFO ]    Min:           1.31 ms
+[ INFO ]    Max:           3.38 ms
+[ INFO ] Throughput:   539.50 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.87 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 , MobilenetV2/input:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 , MobilenetV2/input:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2235.81 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.29 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            29443 iterations
+[ INFO ] Duration:         60004.05 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.91 ms
+[ INFO ]    Average:       1.93 ms
+[ INFO ]    Min:           1.73 ms
+[ INFO ]    Max:           2.45 ms
+[ INFO ] Throughput:   490.68 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 39.81 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , MobilenetV2/input:0 , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , MobilenetV2/input:0 , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 139.99 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.66 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            45624 iterations
+[ INFO ] Duration:         60001.46 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.22 ms
+[ INFO ]    Average:       1.24 ms
+[ INFO ]    Min:           0.86 ms
+[ INFO ]    Max:           2.77 ms
+[ INFO ] Throughput:   760.38 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 20.72 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2417.60 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.09 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            37877 iterations
+[ INFO ] Duration:         60001.86 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.49 ms
+[ INFO ]    Average:       1.50 ms
+[ INFO ]    Min:           1.24 ms
+[ INFO ]    Max:           2.15 ms
+[ INFO ] Throughput:   631.26 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 24.70 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 55.10 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 2.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            32773 iterations
+[ INFO ] Duration:         60003.17 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.70 ms
+[ INFO ]    Average:       1.74 ms
+[ INFO ]    Min:           1.15 ms
+[ INFO ]    Max:           4.76 ms
+[ INFO ] Throughput:   546.19 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 11.48 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder , MobilenetV2/input:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder , MobilenetV2/input:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1875.67 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 4.10 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            22501 iterations
+[ INFO ] Duration:         60004.42 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        2.50 ms
+[ INFO ]    Average:       2.52 ms
+[ INFO ]    Min:           2.27 ms
+[ INFO ]    Max:           2.84 ms
+[ INFO ] Throughput:   374.99 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 30.82 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 130.54 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.23 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            48774 iterations
+[ INFO ] Duration:         60010.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        6.76 ms
+[ INFO ]    Average:       7.21 ms
+[ INFO ]    Min:           3.72 ms
+[ INFO ]    Max:           17.37 ms
+[ INFO ] Throughput:   812.75 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.56 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2134.09 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.63 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            45468 iterations
+[ INFO ] Duration:         60006.27 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        5.18 ms
+[ INFO ]    Average:       5.19 ms
+[ INFO ]    Min:           3.49 ms
+[ INFO ]    Max:           6.71 ms
+[ INFO ] Throughput:   757.72 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 22.94 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 204.08 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.92 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            88548 iterations
+[ INFO ] Duration:         60005.38 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.28 ms
+[ INFO ]    Average:       3.98 ms
+[ INFO ]    Min:           1.86 ms
+[ INFO ]    Max:           38.20 ms
+[ INFO ] Throughput:   1475.67 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 23.95 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     MobilenetV2/input:0 , Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2395.95 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.19 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            71536 iterations
+[ INFO ] Duration:         60003.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.24 ms
+[ INFO ]    Average:       3.25 ms
+[ INFO ]    Min:           2.27 ms
+[ INFO ]    Max:           5.13 ms
+[ INFO ] Throughput:   1192.19 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.67 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , MobilenetV2/input:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_:0 , DetectionOutput_ (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 118.20 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 3.33 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            48228 iterations
+[ INFO ] Duration:         60008.18 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        6.84 ms
+[ INFO ]    Average:       7.29 ms
+[ INFO ]    Min:           3.49 ms
+[ INFO ]    Max:           20.80 ms
+[ INFO ] Throughput:   803.69 FPS
+
+--------------------
+
+Benchmark results for vehicle-license-plate-detection-barrier-0106 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 11.36 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , MobilenetV2/input:0 , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , MobilenetV2/input:0 , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,300,300,3]
+[ INFO ] Model outputs:
+[ INFO ]     DetectionOutput_ , DetectionOutput_:0 (node: DetectionOutput_) : f32 / [...] / [1,1,200,7]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1849.66 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: vehicle-license-plate-detection-barrier-0106
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'MobilenetV2/input:0'!. This input will be filled with random values!
+[ INFO ] Fill input 'MobilenetV2/input:0' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 4.16 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            31568 iterations
+[ INFO ] Duration:         60010.05 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        6.90 ms
+[ INFO ]    Average:       7.45 ms
+[ INFO ]    Min:           4.60 ms
+[ INFO ]    Max:           8.52 ms
+[ INFO ] Throughput:   526.05 FPS
+
+--------------------
+

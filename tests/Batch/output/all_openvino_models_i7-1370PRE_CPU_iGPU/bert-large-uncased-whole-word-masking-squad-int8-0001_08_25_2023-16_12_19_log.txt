@@ -1,0 +1,312 @@
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for bert-large-uncased-whole-word-masking-squad-int8-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 239.45 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1188.34 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_ids' with random values 
+[ INFO ] Fill input 'attention_mask' with random values 
+[ INFO ] Fill input 'token_type_ids' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 168.65 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            266 iterations
+[ INFO ] Duration:         60359.42 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        226.96 ms
+[ INFO ]    Average:       226.69 ms
+[ INFO ]    Min:           156.19 ms
+[ INFO ]    Max:           255.08 ms
+[ INFO ] Throughput:   4.41 FPS
+
+--------------------
+
+Benchmark results for bert-large-uncased-whole-word-masking-squad-int8-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 182.26 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 6092.62 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_ids' with random values 
+[ INFO ] Fill input 'attention_mask' with random values 
+[ INFO ] Fill input 'token_type_ids' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 92.50 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            610 iterations
+[ INFO ] Duration:         60128.80 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        98.43 ms
+[ INFO ]    Average:       98.48 ms
+[ INFO ]    Min:           89.10 ms
+[ INFO ]    Max:           103.06 ms
+[ INFO ] Throughput:   10.14 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for bert-large-uncased-whole-word-masking-squad-int8-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 187.59 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1495.39 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_ids' with random values 
+[ INFO ] Fill input 'attention_mask' with random values 
+[ INFO ] Fill input 'token_type_ids' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 307.41 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            306 iterations
+[ INFO ] Duration:         62269.61 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        977.54 ms
+[ INFO ]    Average:       1211.06 ms
+[ INFO ]    Min:           887.46 ms
+[ INFO ]    Max:           2342.52 ms
+[ INFO ] Throughput:   4.91 FPS
+
+--------------------
+
+Benchmark results for bert-large-uncased-whole-word-masking-squad-int8-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 174.44 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     input_ids (node: input_ids) : i64 / [N,C] / [1,384]
+[ INFO ]     attention_mask (node: attention_mask) : i64 / [N,C] / [1,384]
+[ INFO ]     token_type_ids (node: token_type_ids) : i64 / [N,C] / [1,384]
+[ INFO ] Model outputs:
+[ INFO ]     output_s (node: output_s) : f32 / [...] / [1,384]
+[ INFO ]     output_e (node: output_e) : f32 / [...] / [1,384]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 6104.51 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
+[ INFO ] Fill input 'input_ids' with random values 
+[ INFO ] Fill input 'attention_mask' with random values 
+[ INFO ] Fill input 'token_type_ids' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 92.59 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            616 iterations
+[ INFO ] Duration:         60709.20 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        393.85 ms
+[ INFO ]    Average:       393.08 ms
+[ INFO ]    Min:           151.90 ms
+[ INFO ]    Max:           398.32 ms
+[ INFO ] Throughput:   10.15 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+

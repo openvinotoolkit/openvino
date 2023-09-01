@@ -1,0 +1,484 @@
+Benchmark results for text-recognition-0012 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 40.43 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 207.27 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 12.97 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            9746 iterations
+[ INFO ] Duration:         60010.59 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        5.91 ms
+[ INFO ]    Average:       6.05 ms
+[ INFO ]    Min:           4.48 ms
+[ INFO ]    Max:           9.37 ms
+[ INFO ] Throughput:   162.40 FPS
+
+--------------------
+
+Benchmark results for text-recognition-0012 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 18.79 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 8430.92 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 45.73 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2248 iterations
+[ INFO ] Duration:         60031.27 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        26.92 ms
+[ INFO ]    Average:       26.69 ms
+[ INFO ]    Min:           24.94 ms
+[ INFO ]    Max:           29.74 ms
+[ INFO ] Throughput:   37.45 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for text-recognition-0012 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 47.64 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 59.30 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.43 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            9625 iterations
+[ INFO ] Duration:         60007.49 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        5.95 ms
+[ INFO ]    Average:       6.13 ms
+[ INFO ]    Min:           4.60 ms
+[ INFO ]    Max:           9.68 ms
+[ INFO ] Throughput:   160.40 FPS
+
+--------------------
+
+Benchmark results for text-recognition-0012 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 27.15 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 8339.22 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 50.26 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2071 iterations
+[ INFO ] Duration:         60057.20 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        28.80 ms
+[ INFO ]    Average:       28.85 ms
+[ INFO ]    Min:           26.66 ms
+[ INFO ]    Max:           32.90 ms
+[ INFO ] Throughput:   34.48 FPS
+
+--------------------
+
+Benchmark results for text-recognition-0012 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 36.41 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 430.27 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 29.50 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            16780 iterations
+[ INFO ] Duration:         60109.60 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        61.06 ms
+[ INFO ]    Average:       71.51 ms
+[ INFO ]    Min:           38.49 ms
+[ INFO ]    Max:           179.82 ms
+[ INFO ] Throughput:   279.16 FPS
+
+--------------------
+
+Benchmark results for text-recognition-0012 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 18.03 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 8488.44 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 48.61 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3396 iterations
+[ INFO ] Duration:         60090.85 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        70.68 ms
+[ INFO ]    Average:       70.65 ms
+[ INFO ]    Min:           36.37 ms
+[ INFO ]    Max:           80.95 ms
+[ INFO ] Throughput:   56.51 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for text-recognition-0012 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 40.76 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major:0 , shadow/LSTMLayers/transpose_time_major (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 284.04 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 20
+[ INFO ]   NUM_STREAMS: 20
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 20
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 20 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 29.91 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            16580 iterations
+[ INFO ] Duration:         60101.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        61.94 ms
+[ INFO ]    Average:       72.37 ms
+[ INFO ]    Min:           39.10 ms
+[ INFO ]    Max:           112.33 ms
+[ INFO ] Throughput:   275.87 FPS
+
+--------------------
+
+Benchmark results for text-recognition-0012 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 25.69 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,32,120,1]
+[ INFO ] Model outputs:
+[ INFO ]     shadow/LSTMLayers/transpose_time_major , shadow/LSTMLayers/transpose_time_major:0 (node: shadow/LSTMLayers/transpose_time_major) : f32 / [...] / [30,1,37]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 8298.57 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: text-recognition-0012
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 52.39 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3064 iterations
+[ INFO ] Duration:         60095.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        78.39 ms
+[ INFO ]    Average:       78.34 ms
+[ INFO ]    Min:           39.58 ms
+[ INFO ]    Max:           102.91 ms
+[ INFO ] Throughput:   50.99 FPS
+
+--------------------
+

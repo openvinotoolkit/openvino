@@ -1,0 +1,708 @@
+Benchmark results for road-segmentation-adas-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 35.29 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 144.68 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.47 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3398 iterations
+[ INFO ] Duration:         60029.72 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        17.37 ms
+[ INFO ]    Average:       17.56 ms
+[ INFO ]    Min:           14.26 ms
+[ INFO ]    Max:           30.41 ms
+[ INFO ] Throughput:   56.61 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.93 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2679.31 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.24 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4800 iterations
+[ INFO ] Duration:         60015.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        12.41 ms
+[ INFO ]    Average:       12.43 ms
+[ INFO ]    Min:           12.21 ms
+[ INFO ]    Max:           13.08 ms
+[ INFO ] Throughput:   79.98 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 53.87 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 304.33 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 15.11 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5275 iterations
+[ INFO ] Duration:         60020.65 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        11.02 ms
+[ INFO ]    Average:       11.29 ms
+[ INFO ]    Min:           8.48 ms
+[ INFO ]    Max:           19.74 ms
+[ INFO ] Throughput:   87.89 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 37.29 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3423.12 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.58 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            8398 iterations
+[ INFO ] Duration:         60011.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        7.00 ms
+[ INFO ]    Average:       6.99 ms
+[ INFO ]    Min:           6.74 ms
+[ INFO ]    Max:           7.22 ms
+[ INFO ] Throughput:   139.94 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 32.24 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 132.38 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 16.02 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3247 iterations
+[ INFO ] Duration:         60035.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        18.01 ms
+[ INFO ]    Average:       18.38 ms
+[ INFO ]    Min:           13.87 ms
+[ INFO ]    Max:           29.19 ms
+[ INFO ] Throughput:   54.09 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 17.57 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2681.18 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 19.62 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3322 iterations
+[ INFO ] Duration:         60028.69 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        17.91 ms
+[ INFO ]    Average:       17.92 ms
+[ INFO ]    Min:           17.64 ms
+[ INFO ]    Max:           19.22 ms
+[ INFO ] Throughput:   55.34 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 18.72 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 188.58 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 24.95 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3312 iterations
+[ INFO ] Duration:         60098.22 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        97.66 ms
+[ INFO ]    Average:       108.64 ms
+[ INFO ]    Min:           81.40 ms
+[ INFO ]    Max:           164.68 ms
+[ INFO ] Throughput:   55.11 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.53 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3910.33 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.09 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5380 iterations
+[ INFO ] Duration:         60082.43 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        44.47 ms
+[ INFO ]    Average:       44.46 ms
+[ INFO ]    Min:           20.38 ms
+[ INFO ]    Max:           46.38 ms
+[ INFO ] Throughput:   89.54 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 49.65 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 338.31 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 14.96 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7044 iterations
+[ INFO ] Duration:         60102.90 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        42.29 ms
+[ INFO ]    Average:       51.02 ms
+[ INFO ]    Min:           25.05 ms
+[ INFO ]    Max:           91.09 ms
+[ INFO ] Throughput:   117.20 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 36.89 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight , L0317_ReWeight_SoftMax (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4228.41 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.86 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            10488 iterations
+[ INFO ] Duration:         60038.33 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        22.86 ms
+[ INFO ]    Average:       22.70 ms
+[ INFO ]    Min:           7.31 ms
+[ INFO ]    Max:           23.73 ms
+[ INFO ] Throughput:   174.69 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 20.96 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 203.11 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.43 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3312 iterations
+[ INFO ] Duration:         60069.39 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        97.37 ms
+[ INFO ]    Average:       108.56 ms
+[ INFO ]    Min:           43.30 ms
+[ INFO ]    Max:           163.98 ms
+[ INFO ] Throughput:   55.14 FPS
+
+--------------------
+
+Benchmark results for road-segmentation-adas-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 16.54 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,512,896]
+[ INFO ] Model outputs:
+[ INFO ]     L0317_ReWeight_SoftMax , L0317_ReWeight (node: L0317_ReWeight_SoftMax) : f32 / [...] / [1,4,512,896]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3502.07 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: road-segmentation-adas-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 19.93 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3504 iterations
+[ INFO ] Duration:         60124.53 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        68.54 ms
+[ INFO ]    Average:       68.38 ms
+[ INFO ]    Min:           31.23 ms
+[ INFO ]    Max:           70.51 ms
+[ INFO ] Throughput:   58.28 FPS
+
+--------------------
+

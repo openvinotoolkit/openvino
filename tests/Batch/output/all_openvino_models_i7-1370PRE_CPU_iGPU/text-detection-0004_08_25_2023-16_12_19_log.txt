@@ -1,0 +1,500 @@
+Benchmark results for text-detection-0004 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 31.81 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add , model/segm_logits/add:0 (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add , model/segm_logits/add:0 (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 181.63 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 53.85 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            937 iterations
+[ INFO ] Duration:         60076.86 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        63.65 ms
+[ INFO ]    Average:       63.99 ms
+[ INFO ]    Min:           53.04 ms
+[ INFO ]    Max:           104.12 ms
+[ INFO ] Throughput:   15.60 FPS
+
+--------------------
+
+Benchmark results for text-detection-0004 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.85 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2159.36 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 31.69 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1946 iterations
+[ INFO ] Duration:         60035.74 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        30.68 ms
+[ INFO ]    Average:       30.69 ms
+[ INFO ]    Min:           30.32 ms
+[ INFO ]    Max:           32.01 ms
+[ INFO ] Throughput:   32.41 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for text-detection-0004 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 35.78 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 102.11 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 55.64 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            937 iterations
+[ INFO ] Duration:         60092.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        63.64 ms
+[ INFO ]    Average:       64.01 ms
+[ INFO ]    Min:           55.62 ms
+[ INFO ]    Max:           106.01 ms
+[ INFO ] Throughput:   15.59 FPS
+
+--------------------
+
+Benchmark results for text-detection-0004 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 20.42 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2072.43 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 49.84 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1225 iterations
+[ INFO ] Duration:         60067.26 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        48.84 ms
+[ INFO ]    Average:       48.87 ms
+[ INFO ]    Min:           47.61 ms
+[ INFO ]    Max:           50.34 ms
+[ INFO ] Throughput:   20.39 FPS
+
+--------------------
+
+Benchmark results for text-detection-0004 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 23.75 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add , model/link_logits_/add:0 (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 208.99 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 91.79 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1038 iterations
+[ INFO ] Duration:         60275.17 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        307.45 ms
+[ INFO ]    Average:       347.68 ms
+[ INFO ]    Min:           174.15 ms
+[ INFO ]    Max:           501.95 ms
+[ INFO ] Throughput:   17.22 FPS
+
+--------------------
+
+Benchmark results for text-detection-0004 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 18.52 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder:0 , Placeholder (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4960.04 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 32.24 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1956 iterations
+[ INFO ] Duration:         60125.73 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        122.40 ms
+[ INFO ]    Average:       122.68 ms
+[ INFO ]    Min:           59.97 ms
+[ INFO ]    Max:           126.67 ms
+[ INFO ] Throughput:   32.53 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for text-detection-0004 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 24.31 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add:0 , model/segm_logits/add (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 152.34 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 96.34 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1038 iterations
+[ INFO ] Duration:         60611.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        309.01 ms
+[ INFO ]    Average:       349.66 ms
+[ INFO ]    Min:           276.80 ms
+[ INFO ]    Max:           518.37 ms
+[ INFO ] Throughput:   17.13 FPS
+
+--------------------
+
+Benchmark results for text-detection-0004 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 19.22 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : f32 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add , model/segm_logits/add:0 (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     Placeholder , Placeholder:0 (node: Placeholder) : u8 / [N,H,W,C] / [1,768,1280,3]
+[ INFO ] Model outputs:
+[ INFO ]     model/segm_logits/add , model/segm_logits/add:0 (node: model/segm_logits/add) : f32 / [...] / [1,192,320,2]
+[ INFO ]     model/link_logits_/add:0 , model/link_logits_/add (node: model/link_logits_/add) : f32 / [...] / [1,192,320,16]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5234.47 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: TensorFlow_Frontend_IR
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'Placeholder'!. This input will be filled with random values!
+[ INFO ] Fill input 'Placeholder' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 48.72 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1220 iterations
+[ INFO ] Duration:         60273.79 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        197.41 ms
+[ INFO ]    Average:       197.16 ms
+[ INFO ]    Min:           96.03 ms
+[ INFO ]    Max:           199.68 ms
+[ INFO ] Throughput:   20.24 FPS
+
+--------------------
+

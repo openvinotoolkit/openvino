@@ -1,0 +1,500 @@
+Benchmark results for human-pose-estimation-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 23.21 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 122.32 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 25.53 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1847 iterations
+[ INFO ] Duration:         60046.32 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        32.33 ms
+[ INFO ]    Average:       32.43 ms
+[ INFO ]    Min:           25.68 ms
+[ INFO ]    Max:           63.31 ms
+[ INFO ] Throughput:   30.76 FPS
+
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.80 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1752.74 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 10.87 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            5618 iterations
+[ INFO ] Duration:         60014.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        10.55 ms
+[ INFO ]    Average:       10.52 ms
+[ INFO ]    Min:           10.03 ms
+[ INFO ]    Max:           10.90 ms
+[ INFO ] Throughput:   93.61 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 39.66 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 63.37 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 27.22 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1798 iterations
+[ INFO ] Duration:         60033.22 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        32.95 ms
+[ INFO ]    Average:       33.29 ms
+[ INFO ]    Min:           27.97 ms
+[ INFO ]    Max:           62.93 ms
+[ INFO ] Throughput:   29.95 FPS
+
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.66 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1889.88 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 16.79 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3450 iterations
+[ INFO ] Duration:         60021.13 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        17.29 ms
+[ INFO ]    Average:       17.24 ms
+[ INFO ]    Min:           15.80 ms
+[ INFO ]    Max:           17.99 ms
+[ INFO ] Throughput:   57.48 FPS
+
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.09 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 153.53 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 46.45 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2004 iterations
+[ INFO ] Duration:         60154.53 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        164.08 ms
+[ INFO ]    Average:       179.77 ms
+[ INFO ]    Min:           119.49 ms
+[ INFO ]    Max:           244.63 ms
+[ INFO ] Throughput:   33.31 FPS
+
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 12.59 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4639.32 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 16
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 16 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 997.48 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            6400 iterations
+[ INFO ] Duration:         60290.10 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        150.90 ms
+[ INFO ]    Average:       150.34 ms
+[ INFO ]    Min:           65.67 ms
+[ INFO ]    Max:           153.55 ms
+[ INFO ] Throughput:   106.15 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 16.76 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 85.38 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 42.51 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1980 iterations
+[ INFO ] Duration:         60304.47 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        165.49 ms
+[ INFO ]    Average:       182.43 ms
+[ INFO ]    Min:           96.74 ms
+[ INFO ]    Max:           252.01 ms
+[ INFO ] Throughput:   32.83 FPS
+
+--------------------
+
+Benchmark results for human-pose-estimation-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 14.20 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : f32 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data (node: data) : u8 / [N,C,H,W] / [1,3,256,456]
+[ INFO ] Model outputs:
+[ INFO ]     Mconv7_stage2_L1 (node: Mconv7_stage2_L1) : f32 / [...] / [1,38,32,57]
+[ INFO ]     Mconv7_stage2_L2 (node: Mconv7_stage2_L2) : f32 / [...] / [1,19,32,57]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2376.60 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: human-pose-estimation-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 16.71 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3492 iterations
+[ INFO ] Duration:         60101.88 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        68.51 ms
+[ INFO ]    Average:       68.64 ms
+[ INFO ]    Min:           17.60 ms
+[ INFO ]    Max:           70.87 ms
+[ INFO ] Throughput:   58.10 FPS
+
+--------------------
+

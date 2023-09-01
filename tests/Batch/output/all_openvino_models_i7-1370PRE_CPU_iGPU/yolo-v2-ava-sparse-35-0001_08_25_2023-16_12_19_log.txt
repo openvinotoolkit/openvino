@@ -1,0 +1,708 @@
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 81.44 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 876.64 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 76.10 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            952 iterations
+[ INFO ] Duration:         60104.55 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        62.36 ms
+[ INFO ]    Average:       63.02 ms
+[ INFO ]    Min:           44.58 ms
+[ INFO ]    Max:           108.34 ms
+[ INFO ] Throughput:   15.84 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 45.16 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1860.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.70 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4470 iterations
+[ INFO ] Duration:         60019.14 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        13.23 ms
+[ INFO ]    Average:       13.25 ms
+[ INFO ]    Min:           12.50 ms
+[ INFO ]    Max:           14.82 ms
+[ INFO ] Throughput:   74.48 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 45.96 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data , data:0 (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 112.14 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 23.12 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3047 iterations
+[ INFO ] Duration:         60025.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        19.34 ms
+[ INFO ]    Average:       19.60 ms
+[ INFO ]    Min:           16.10 ms
+[ INFO ]    Max:           32.05 ms
+[ INFO ] Throughput:   50.76 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 28.72 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1411.49 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 7.94 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            7889 iterations
+[ INFO ] Duration:         60011.00 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        7.44 ms
+[ INFO ]    Average:       7.46 ms
+[ INFO ]    Min:           6.84 ms
+[ INFO ]    Max:           8.06 ms
+[ INFO ] Throughput:   131.46 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 114.99 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 221.63 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 46.04 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            951 iterations
+[ INFO ] Duration:         60065.53 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        62.95 ms
+[ INFO ]    Average:       62.99 ms
+[ INFO ]    Min:           45.34 ms
+[ INFO ]    Max:           94.71 ms
+[ INFO ] Throughput:   15.83 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 81.80 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1408.16 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 24.56 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2279 iterations
+[ INFO ] Duration:         60045.56 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        26.02 ms
+[ INFO ]    Average:       26.18 ms
+[ INFO ]    Min:           24.04 ms
+[ INFO ]    Max:           27.26 ms
+[ INFO ] Throughput:   37.95 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 49.17 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 898.87 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 78.42 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1074 iterations
+[ INFO ] Duration:         60476.95 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        307.88 ms
+[ INFO ]    Average:       336.63 ms
+[ INFO ]    Min:           182.03 ms
+[ INFO ]    Max:           451.90 ms
+[ INFO ] Throughput:   17.76 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 42.65 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 4429.35 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 16
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 16 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1002.05 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            4048 iterations
+[ INFO ] Duration:         60331.70 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        239.02 ms
+[ INFO ]    Average:       237.92 ms
+[ INFO ]    Min:           100.91 ms
+[ INFO ]    Max:           241.72 ms
+[ INFO ] Throughput:   67.10 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 35.36 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 140.33 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 24.45 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3696 iterations
+[ INFO ] Duration:         60131.85 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        78.22 ms
+[ INFO ]    Average:       97.46 ms
+[ INFO ]    Min:           43.93 ms
+[ INFO ]    Max:           210.80 ms
+[ INFO ] Throughput:   61.46 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 26.62 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3220.43 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 32
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 32 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 988.02 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            9312 iterations
+[ INFO ] Duration:         60236.58 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        207.49 ms
+[ INFO ]    Average:       206.50 ms
+[ INFO ]    Min:           92.15 ms
+[ INFO ]    Max:           209.54 ms
+[ INFO ] Throughput:   154.59 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 86.06 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion:0 , yolo_out_postprocess/YoloRegion (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 226.65 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 78.44 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1068 iterations
+[ INFO ] Duration:         60563.39 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        312.35 ms
+[ INFO ]    Average:       339.57 ms
+[ INFO ]    Min:           178.56 ms
+[ INFO ]    Max:           451.36 ms
+[ INFO ] Throughput:   17.63 FPS
+
+--------------------
+
+Benchmark results for yolo-v2-ava-sparse-35-0001 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 73.63 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     data:0 , data (node: data) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     yolo_out_postprocess/YoloRegion , yolo_out_postprocess/YoloRegion:0 (node: yolo_out_postprocess/YoloRegion) : f32 / [...] / [1,21125]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 1821.37 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: yolo-v2-ava-sparse-35-0001
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'data'!. This input will be filled with random values!
+[ INFO ] Fill input 'data' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 24.73 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            2264 iterations
+[ INFO ] Duration:         60192.52 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        106.30 ms
+[ INFO ]    Average:       106.13 ms
+[ INFO ]    Min:           43.23 ms
+[ INFO ]    Max:           110.19 ms
+[ INFO ] Throughput:   37.61 FPS
+
+--------------------
+

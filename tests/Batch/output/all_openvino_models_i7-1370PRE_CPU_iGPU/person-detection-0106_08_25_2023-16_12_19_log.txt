@@ -1,0 +1,496 @@
+Benchmark results for person-detection-0106 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 136.91 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 531.36 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 360.80 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            135 iterations
+[ INFO ] Duration:         60451.33 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        445.35 ms
+[ INFO ]    Average:       447.60 ms
+[ INFO ]    Min:           418.85 ms
+[ INFO ]    Max:           496.05 ms
+[ INFO ] Throughput:   2.23 FPS
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 138.69 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5649.16 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 218.19 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            286 iterations
+[ INFO ] Duration:         60411.96 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        211.02 ms
+[ INFO ]    Average:       211.07 ms
+[ INFO ]    Min:           208.10 ms
+[ INFO ]    Max:           213.19 ms
+[ INFO ] Throughput:   4.73 FPS
+
+--------------------
+
+Benchmark results for person-detection-0106 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:448 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 146.94 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 673.44 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 635.14 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            162 iterations
+[ INFO ] Duration:         62142.86 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1898.99 ms
+[ INFO ]    Average:       2286.02 ms
+[ INFO ]    Min:           1618.07 ms
+[ INFO ]    Max:           4174.73 ms
+[ INFO ] Throughput:   2.61 FPS
+
+--------------------
+
+Benchmark results for person-detection-0106 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 127.90 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : f32 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image (node: image) : u8 / [N,C,H,W] / [1,3,800,1344]
+[ INFO ] Model outputs:
+[ INFO ]     boxes (node: boxes) : f32 / [...] / [?,5]
+[ INFO ]     labels (node: labels) : i64 / [...] / [?]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 5903.41 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image'!. This input will be filled with random values!
+[ INFO ] Fill input 'image' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 217.62 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            292 iterations
+[ INFO ] Duration:         61180.98 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        838.27 ms
+[ INFO ]    Average:       835.05 ms
+[ INFO ]    Min:           404.75 ms
+[ INFO ]    Max:           841.82 ms
+[ INFO ] Throughput:   4.77 FPS
+
+--------------------
+
+Benchmark results for person-detection-0106 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+
+
+--------------------
+
+Benchmark results for person-detection-0106 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ ERROR ] Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+Traceback (most recent call last):
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/main.py", line 368, in main
+    model = benchmark.read_model(args.path_to_model)
+  File "/home/henry/.local/lib/python3.10/site-packages/openvino/tools/benchmark/benchmark.py", line 69, in read_model
+    return self.core.read_model(model_filename, weights_filename)
+RuntimeError: Check 'false' failed at src/frontends/common/src/frontend.cpp:53:
+Converting input model
+Cannot create Interpolate layer 576 id:331 from unsupported opset: opset11
+
+
+--------------------
+

@@ -1,0 +1,756 @@
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 122.62 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 475.08 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 100.18 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            435 iterations
+[ INFO ] Duration:         60188.74 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        138.19 ms
+[ INFO ]    Average:       138.20 ms
+[ INFO ]    Min:           98.88 ms
+[ INFO ]    Max:           169.98 ms
+[ INFO ] Throughput:   7.23 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 84.83 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2535.51 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 32.02 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1737 iterations
+[ INFO ] Duration:         60066.31 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        34.72 ms
+[ INFO ]    Average:       34.45 ms
+[ INFO ]    Min:           31.02 ms
+[ INFO ]    Max:           35.13 ms
+[ INFO ] Throughput:   28.92 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16-INT8 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 85.00 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 234.28 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 31.05 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1393 iterations
+[ INFO ] Duration:         60062.81 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        42.71 ms
+[ INFO ]    Average:       42.92 ms
+[ INFO ]    Min:           30.80 ms
+[ INFO ]    Max:           70.55 ms
+[ INFO ] Throughput:   23.19 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16-INT8 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 45.02 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2514.93 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 17.03 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3617 iterations
+[ INFO ] Duration:         60020.63 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        16.41 ms
+[ INFO ]    Average:       16.43 ms
+[ INFO ]    Min:           15.56 ms
+[ INFO ]    Max:           17.54 ms
+[ INFO ] Throughput:   60.26 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 153.93 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 115.10 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 105.64 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            431 iterations
+[ INFO ] Duration:         60272.29 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        139.39 ms
+[ INFO ]    Average:       139.62 ms
+[ INFO ]    Min:           126.04 ms
+[ INFO ]    Max:           184.06 ms
+[ INFO ] Throughput:   7.15 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 98.01 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 2447.33 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 55.16 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            967 iterations
+[ INFO ] Duration:         60085.39 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        61.77 ms
+[ INFO ]    Average:       61.96 ms
+[ INFO ]    Min:           54.30 ms
+[ INFO ]    Max:           64.14 ms
+[ INFO ] Throughput:   16.09 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 80.39 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 542.90 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 415.22 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            480 iterations
+[ INFO ] Duration:         60438.63 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        689.18 ms
+[ INFO ]    Average:       753.07 ms
+[ INFO ]    Min:           337.92 ms
+[ INFO ]    Max:           981.01 ms
+[ INFO ] Throughput:   7.94 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 80.54 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3638.07 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 32.16 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1724 iterations
+[ INFO ] Duration:         60155.95 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        139.90 ms
+[ INFO ]    Average:       139.28 ms
+[ INFO ]    Min:           55.77 ms
+[ INFO ]    Max:           142.73 ms
+[ INFO ] Throughput:   28.66 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16-INT8 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 49.62 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 354.37 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 58.52 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            1662 iterations
+[ INFO ] Duration:         60234.60 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        171.87 ms
+[ INFO ]    Average:       216.75 ms
+[ INFO ]    Min:           96.25 ms
+[ INFO ]    Max:           468.61 ms
+[ INFO ] Throughput:   27.59 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP16-INT8 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 37.27 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input , image_input:0 (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion , conv2d_58/Conv2D/YoloRegion:0 (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion:0 , conv2d_74/Conv2D/YoloRegion (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 6149.03 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 16
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 16 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 976.73 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            3872 iterations
+[ INFO ] Duration:         60282.07 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        249.41 ms
+[ INFO ]    Average:       248.50 ms
+[ INFO ]    Min:           105.74 ms
+[ INFO ]    Max:           251.68 ms
+[ INFO ] Throughput:   64.23 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 88.17 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion:0 , conv2d_66/Conv2D/YoloRegion (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 190.94 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 172.72 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            480 iterations
+[ INFO ] Duration:         61107.88 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        697.10 ms
+[ INFO ]    Average:       761.99 ms
+[ INFO ]    Min:           430.41 ms
+[ INFO ]    Max:           1004.16 ms
+[ INFO ] Throughput:   7.85 FPS
+
+--------------------
+
+Benchmark results for person-vehicle-bike-detection-crossroad-yolov3-1020 FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 92.70 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : f32 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     image_input:0 , image_input (node: image_input) : u8 / [N,H,W,C] / [1,416,416,3]
+[ INFO ] Model outputs:
+[ INFO ]     conv2d_58/Conv2D/YoloRegion:0 , conv2d_58/Conv2D/YoloRegion (node: conv2d_58/Conv2D/YoloRegion) : f32 / [...] / [1,255,13,13]
+[ INFO ]     conv2d_66/Conv2D/YoloRegion , conv2d_66/Conv2D/YoloRegion:0 (node: conv2d_66/Conv2D/YoloRegion) : f32 / [...] / [1,255,26,26]
+[ INFO ]     conv2d_74/Conv2D/YoloRegion , conv2d_74/Conv2D/YoloRegion:0 (node: conv2d_74/Conv2D/YoloRegion) : f32 / [...] / [1,255,52,52]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 3297.45 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   NETWORK_NAME: person-vehicle-bike-detection-crossroad-yolov3-1020
+[ INFO ]   AUTO_BATCH_TIMEOUT: 1000
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'image_input'!. This input will be filled with random values!
+[ INFO ] Fill input 'image_input' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 55.15 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            952 iterations
+[ INFO ] Duration:         60320.15 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        253.44 ms
+[ INFO ]    Average:       252.91 ms
+[ INFO ]    Min:           105.07 ms
+[ INFO ]    Max:           255.77 ms
+[ INFO ] Throughput:   15.78 FPS
+
+--------------------
+

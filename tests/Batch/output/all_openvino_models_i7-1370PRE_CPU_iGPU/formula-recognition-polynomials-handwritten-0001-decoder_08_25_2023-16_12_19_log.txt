@@ -1,0 +1,684 @@
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP16 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 20.26 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 74.18 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 11.47 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            54871 iterations
+[ INFO ] Duration:         60001.15 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.98 ms
+[ INFO ]    Average:       1.02 ms
+[ INFO ]    Min:           0.70 ms
+[ INFO ]    Max:           4.89 ms
+[ INFO ] Throughput:   914.50 FPS
+
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP16 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.38 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 898.53 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.42 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            83731 iterations
+[ INFO ] Duration:         60001.39 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.61 ms
+[ INFO ]    Average:       0.65 ms
+[ INFO ]    Min:           0.51 ms
+[ INFO ]    Max:           1.05 ms
+[ INFO ] Throughput:   1395.48 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP32 latency CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 21.23 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 25.37 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 6
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.13 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            54638 iterations
+[ INFO ] Duration:         60001.19 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.99 ms
+[ INFO ]    Average:       1.02 ms
+[ INFO ]    Min:           0.64 ms
+[ INFO ]    Max:           4.90 ms
+[ INFO ] Throughput:   910.62 FPS
+
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP32 latency GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 9.32 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 869.12 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 1
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.LATENCY
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 1
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 1 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.38 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            69923 iterations
+[ INFO ] Duration:         60000.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        0.76 ms
+[ INFO ]    Average:       0.76 ms
+[ INFO ]    Min:           0.58 ms
+[ INFO ]    Max:           1.05 ms
+[ INFO ] Throughput:   1165.36 FPS
+
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP16 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 10.11 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 61.24 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 9.32 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            85362 iterations
+[ INFO ] Duration:         60010.02 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.27 ms
+[ INFO ]    Average:       4.12 ms
+[ INFO ]    Min:           1.55 ms
+[ INFO ]    Max:           20.14 ms
+[ INFO ] Throughput:   1422.46 FPS
+
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP16 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 7.13 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 903.28 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.24 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            154408 iterations
+[ INFO ] Duration:         60002.74 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.51 ms
+[ INFO ]    Average:       1.51 ms
+[ INFO ]    Min:           0.89 ms
+[ INFO ]    Max:           2.31 ms
+[ INFO ] Throughput:   2573.35 FPS
+
+--------------------
+
+Error benchmarking model
+--------------------
+
+Error benchmarking model
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP32 throughput CPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] CPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 9.77 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 34.45 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+[ INFO ]   NUM_STREAMS: 6
+[ INFO ]   AFFINITY: Affinity.HYBRID_AWARE
+[ INFO ]   INFERENCE_NUM_THREADS: 18
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 13.12 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            84126 iterations
+[ INFO ] Duration:         60003.94 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        3.30 ms
+[ INFO ]    Average:       4.18 ms
+[ INFO ]    Min:           1.91 ms
+[ INFO ]    Max:           35.41 ms
+[ INFO ] Throughput:   1402.01 FPS
+
+--------------------
+
+Benchmark results for formula-recognition-polynomials-handwritten-0001/formula-recognition-polynomials-handwritten-0001-decoder FP32 throughput GPU:
+[Step 1/11] Parsing and validating input arguments
+[ INFO ] Parsing input parameters
+[Step 2/11] Loading OpenVINO Runtime
+[ INFO ] OpenVINO:
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] Device info:
+[ INFO ] GPU
+[ INFO ] Build ................................. 2022.3.0-9052-9752fafe8eb-releases/2022/3
+[ INFO ] 
+[ INFO ] 
+[Step 3/11] Setting device configuration
+[Step 4/11] Reading model files
+[ INFO ] Loading model files
+[ INFO ] Read model took 8.87 ms
+[ INFO ] Original model I/O parameters:
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 5/11] Resizing model to match image sizes and given batch
+[ INFO ] Model batch size: 1
+[Step 6/11] Configuring input of the model
+[ INFO ] Model inputs:
+[ INFO ]     dec_st_h (node: dec_st_h) : f32 / [N,D] / [1,512]
+[ INFO ]     dec_st_c (node: dec_st_c) : f32 / [N,D] / [1,512]
+[ INFO ]     output_prev (node: output_prev) : f32 / [N,C] / [1,256]
+[ INFO ]     row_enc_out (node: row_enc_out) : f32 / [N,H,W,D] / [1,6,62,512]
+[ INFO ]     tgt (node: tgt) : i64 / [N,D] / [1,1]
+[ INFO ] Model outputs:
+[ INFO ]     dec_st_h_t (node: dec_st_h_t) : f32 / [...] / [1,512]
+[ INFO ]     dec_st_c_t (node: dec_st_c_t) : f32 / [...] / [1,512]
+[ INFO ]     output (node: output) : f32 / [...] / [1,256]
+[ INFO ]     logit (node: logit) : f32 / [...] / [1,47]
+[Step 7/11] Loading the model to the device
+[ INFO ] Compile model took 896.77 ms
+[Step 8/11] Querying optimal runtime parameters
+[ INFO ] Model:
+[ INFO ]   NETWORK_NAME: torch-jit-export
+[ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 4
+[ INFO ]   PERF_COUNT: False
+[ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_HOST_TASK_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_PRIORITY: Priority.MEDIUM
+[ INFO ]   GPU_QUEUE_THROTTLE: Priority.MEDIUM
+[ INFO ]   GPU_ENABLE_LOOP_UNROLLING: True
+[ INFO ]   CACHE_DIR: 
+[ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+[ INFO ]   COMPILATION_NUM_THREADS: 20
+[ INFO ]   NUM_STREAMS: 2
+[ INFO ]   PERFORMANCE_HINT_NUM_REQUESTS: 0
+[ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'undefined'>
+[ INFO ]   DEVICE_ID: 0
+[Step 9/11] Creating infer requests and preparing input tensors
+[ WARNING ] No input files were given for input 'dec_st_h'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'dec_st_c'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'output_prev'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'row_enc_out'!. This input will be filled with random values!
+[ WARNING ] No input files were given for input 'tgt'!. This input will be filled with random values!
+[ INFO ] Fill input 'dec_st_h' with random values 
+[ INFO ] Fill input 'dec_st_c' with random values 
+[ INFO ] Fill input 'output_prev' with random values 
+[ INFO ] Fill input 'row_enc_out' with random values 
+[ INFO ] Fill input 'tgt' with random values 
+[Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
+[ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+[ INFO ] First inference took 1.54 ms
+[Step 11/11] Dumping statistics report
+[ INFO ] Count:            131008 iterations
+[ INFO ] Duration:         60002.12 ms
+[ INFO ] Latency:
+[ INFO ]    Median:        1.78 ms
+[ INFO ]    Average:       1.78 ms
+[ INFO ]    Min:           1.28 ms
+[ INFO ]    Max:           2.68 ms
+[ INFO ] Throughput:   2183.39 FPS
+
+--------------------
+
