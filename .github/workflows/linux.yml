@@ -531,6 +531,11 @@ jobs:
         run: |
           mkdir -p ${INSTALL_DIR} ${INSTALL_TEST_DIR}
 
+      - name: Install git
+        run: |
+          apt update
+          apt --assume-yes install git git-lfs
+
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
