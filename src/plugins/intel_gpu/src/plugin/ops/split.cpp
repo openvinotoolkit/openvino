@@ -27,6 +27,13 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
             ov::Shape start_offset(input_pshape.size());
             for (size_t i = 0; i < op->get_output_size(); i++) {
                 const auto outPartialShape = op->get_output_partial_shape(i);
+                // op->is_dynamic() does not check if output shape is dynamic. it only check dynamism for input shapes
+                // Even if op->is_dynamic() is false, output shape can be dynamic.
+                // Thus, it is necessary to check if output shape is dynamic.
+                if (outPartialShape.is_dynamic()) {
+                    offsets.clear();
+                    break;
+                }
                 auto offsetTensor = tensor_from_dims(start_offset, 0);
                 offsets.push_back(offsetTensor);
 
@@ -49,7 +56,7 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
             auto cropPrim = cldnn::crop(get_layer_name(i),
                                         inputs,
                                         cldnn::tensor(1),
-                                        (op->is_dynamic() ? cldnn::tensor(0) : offsets[i]),
+                                        (offsets.empty() ? cldnn::tensor(0) : offsets[i]),
                                         op_mode,
                                         static_cast<int>(i),
                                         num_splits);
