@@ -415,6 +415,8 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ngraph::Function>& ngraphFunc,
                              Config& config) {
     const int sockets = get_default_latency_streams(config.latencyThreadingMode);
+    ov::MemBandwidthPressure networkToleranceForLowCache;
+
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
         const auto isa = dnnl::get_effective_cpu_isa();
@@ -440,7 +442,7 @@ int get_model_prefer_threads(const int num_streams,
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-        ov::MemBandwidthPressure networkToleranceForLowCache =
+        networkToleranceForLowCache =
             ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
         config.modelPreferThreads = ov::threading::IStreamsExecutor::Config::StreamMode::DEFAULT;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -476,7 +478,10 @@ int get_model_prefer_threads(const int num_streams,
             model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                  (fp_intesive ? fp32_threshold : int8_threshold))
                                ? proc_type_table[0][MAIN_CORE_PROC]
-                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+                               : (((networkToleranceForLowCache.max_mem_tolerance > 190) ||
+                                   (networkToleranceForLowCache.ratio_mem_limited_convs > 0.9))
+                                      ? proc_type_table[0][MAIN_CORE_PROC]
+                                      : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]);
 #endif
         }
     } else {  // throughput
