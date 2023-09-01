@@ -52,7 +52,7 @@ def get_image(shape = (1, 3, 32, 32), dtype = "float32"):
 def get_path_to_image():
     path_to_img = tempfile.NamedTemporaryFile(suffix="_image.bmp").name
     import cv2 as cv
-    cv.imread(path_to_img, get_image())
+    cv.imwrite(path_to_img, get_image())
     return path_to_img
 
 

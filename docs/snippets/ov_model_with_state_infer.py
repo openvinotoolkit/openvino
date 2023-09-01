@@ -82,7 +82,3 @@ def main():
     log.info("Execution successful")
 
     return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())

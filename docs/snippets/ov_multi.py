@@ -116,7 +116,3 @@ def main():
     available_devices_1()
     available_devices_2()
     MULTI_4()
-
-
-if __name__ == "__main__":
-    sys.exit(main())

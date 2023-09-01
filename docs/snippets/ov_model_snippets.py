@@ -81,7 +81,7 @@ def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
 
 
-if __name__ == '__main__':
+def main():
     ov_api_examples()
     create_simple_model()
     model = create_advanced_model()
