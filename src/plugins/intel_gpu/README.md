@@ -73,7 +73,7 @@ The software dependencies are:
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
-- [python™](https://www.python.org/downloads/) 3.7 or later.
+- [python™](https://www.python.org/downloads/) 3.8 or later.
 
 ## Trademark Information
 
