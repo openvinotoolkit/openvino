@@ -33,20 +33,17 @@ pr:
 
 resources:
   repositories:
-  - repository: openvino
-    type: github
-    endpoint: openvinotoolkit
-    name: openvinotoolkit/openvino
-
   - repository: openvino_contrib
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: master
 
 jobs:
 - job: CUDAPlugin_Lin
