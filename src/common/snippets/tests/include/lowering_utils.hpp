@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include <common_test_utils/ov_test_utils.hpp>
 #include "snippets/op/subgraph.hpp"
 #include "snippets_helpers.hpp"
 
@@ -50,13 +50,13 @@ public:
 
 protected:
     static std::shared_ptr<ov::snippets::op::Subgraph> getSubgraph(const std::shared_ptr<Model>& f);
-    static std::shared_ptr<ov::snippets::op::Subgraph> getLoweredSubgraph(const std::shared_ptr<Model>& f,
-                                                                              const ov::PartialShape& master_shape,
-                                                                              ov::pass::Manager pre_dialect = {},
-                                                                              ov::pass::Manager post_dialect = {},
-                                                                              ov::pass::Manager post_precision = {},
-                                                                              ov::snippets::lowered::pass::PassPipeline lowered_pipeline = {},
-                                                                              const std::shared_ptr<ov::snippets::Generator> generator = nullptr);
+    static std::shared_ptr<ov::snippets::op::Subgraph>
+            getLoweredSubgraph(const std::shared_ptr<Model>& f,
+                               const ov::PartialShape& master_shape,
+                               const std::vector<ov::snippets::pass::Manager::PositionedPass>& backend_passes = {},
+                               const ov::snippets::lowered::pass::PassPipeline& lowered_pre_common = {},
+                               const ov::snippets::lowered::pass::PassPipeline& lowered_post_common = {},
+                               const std::shared_ptr<ov::snippets::Generator>& generator = nullptr);
     static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
     ov::PartialShape master_shape{};
 };

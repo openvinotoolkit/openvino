@@ -7,7 +7,7 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset11.hpp"

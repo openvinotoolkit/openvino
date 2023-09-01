@@ -74,7 +74,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertFqRnnToQuantizedRnn: public ngraph::pass::MatcherPass {
+class ConvertFqRnnToQuantizedRnn: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertFqRnnToQuantizedRnn", "0");
     ConvertFqRnnToQuantizedRnn();
