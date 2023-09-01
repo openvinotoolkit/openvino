@@ -38,13 +38,13 @@ using namespace ::testing;
 using namespace std::placeholders;
 using namespace std::chrono;
 
-enum class TestLoadType { ECNN, EContext, EModelName };
+enum class TestLoadType { EModel, EContext, EModelName };
 
 using TestParam = std::tuple<TestLoadType, std::string, bool>;
 
 //  GCC4.8 limitation: have to specify type of each element in list
 static const std::vector<TestParam> loadVariants = {
-    TestParam{TestLoadType::ECNN, std::string("ByModel"), false},
+    TestParam{TestLoadType::EModel, std::string("ByModel"), false},
     TestParam{TestLoadType::EContext, std::string("ByRemoteContext"), true},
     TestParam{TestLoadType::EModelName, std::string("ByModelName"), false},
 };
@@ -144,7 +144,7 @@ public:
     using ExeNetCallback = std::function<void(MockICompiledModelImpl&)>;
     std::vector<ExeNetCallback> m_post_mock_net_callbacks = {};
     std::unique_ptr<MkDirGuard> m_dirCreator;
-    TestLoadType m_type = TestLoadType::ECNN;
+    TestLoadType m_type = TestLoadType::EModel;
     std::string m_cacheDir;
     using LoadFunction = std::function<ov::CompiledModel(ov::Core&)>;
     using LoadFunctionWithCfg = std::function<void(ov::Core&, const ov::AnyMap&)>;
@@ -241,7 +241,7 @@ public:
 
     LoadFunction getLoadFunction(TestLoadType type) const {
         switch (type) {
-        case TestLoadType::ECNN:
+        case TestLoadType::EModel:
             return [&](ov::Core& core) {
                 return performReadAndLoad(core);
             };
@@ -259,7 +259,7 @@ public:
 
     LoadFunctionWithCfg getLoadFunctionWithCfg(TestLoadType type) const {
         switch (type) {
-        case TestLoadType::ECNN:
+        case TestLoadType::EModel:
             return std::bind(&CachingTest::performReadAndLoad, this, _1, _2);
         case TestLoadType::EContext:
             return std::bind(&CachingTest::performReadAndLoadWithContext, this, _1, _2);
@@ -1731,7 +1731,7 @@ TEST_P(CachingTest, LoadHetero_NoCacheMetric) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_OneDevice) {
+TEST_P(CachingTest, LoadHetero_OneDevice) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     deviceToLoad = ov::test::utils::DEVICE_HETERO + std::string(":mock");
@@ -1770,7 +1770,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_OneDevice) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_TargetFallbackFromCore) {
+TEST_P(CachingTest, LoadHetero_TargetFallbackFromCore) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     deviceToLoad = ov::test::utils::DEVICE_HETERO;
@@ -1811,7 +1811,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_TargetFallbackFromCore) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs) {
+TEST_P(CachingTest, LoadHetero_MultiArchs) {
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
 
@@ -1896,7 +1896,7 @@ TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs) {
     }
 }
 
-TEST_P(CachingTest, DISABLED_LoadHetero_MultiArchs_TargetFallback_FromCore) {
+TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
@@ -2226,7 +2226,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
             .Times(TEST_DEVICE_MAX_COUNT);
         // Load model from file shall not be called by Multi plugin for devices with caching supported
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile())
-            .Times(m_type == TestLoadType::ECNN ? 0 : TEST_DEVICE_MAX_COUNT);
+            .Times(m_type == TestLoadType::EModel ? 0 : TEST_DEVICE_MAX_COUNT);
         EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(0);
         for (auto& net : comp_models) {
@@ -2248,7 +2248,7 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
 #if defined(ENABLE_AUTO_BATCH)
 // BATCH-DEVICE test
 // load model with config
-TEST_P(CachingTest, DISABLED_LoadBATCHWithConfig) {
+TEST_P(CachingTest, LoadBATCHWithConfig) {
     const auto TEST_COUNT = 2;
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
