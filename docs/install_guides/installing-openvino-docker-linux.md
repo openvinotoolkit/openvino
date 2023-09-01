@@ -32,7 +32,7 @@ To start using Dockerfiles the following conditions must be met:
 
 .. note::
 
-   OpenVINO's `Docker <https://docs.docker.com/>`__ and Bare Metal distributions are identical, so the documentation applies to both. 
+   OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <openvino_docs_install_guides_overview>` distributions are identical, so the documentation applies to both. 
 
 .. note:: 
 
