@@ -24,7 +24,7 @@ To convert a PyTorch model to the OpenVINO IR format, use the OVC API (supersedi
 
    import torchvision
    import torch
-   from openvino.tools.ovc import convert_model
+   from openvino.tools.mo import convert_model
    
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model)
@@ -43,7 +43,7 @@ parameter to be set, for example:
 
    import torchvision
    import torch
-   from openvino.tools.ovc import convert_model
+   from openvino.tools.mo import convert_model
    
    model = torchvision.models.resnet50(pretrained=True)
    ov_model = convert_model(model, example_input=torch.randn(1, 3, 100, 100))
