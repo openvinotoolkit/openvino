@@ -4,7 +4,6 @@
 import argparse
 import logging
 import os
-import pypandoc
 import re
 import shutil
 
@@ -18,9 +17,9 @@ REFERENCE_IMAGES_PATTERN = r'\[.+\]\:\s*?([\w\/\-\.]+\.(?:png|jpg|jpeg|gif|svg))
 LABEL_PATTERN = r'\{\#(.+)\}'
 DEFAULT_EXCLUDES = '^.*(thirdparty|bin|tests|temp|docs/ops/internal).*$'
 
-class MarkdownRSTConverter:
-    def __init__(self, md_file, label, input_dir, output_dir):
-        self.md_file = md_file
+class RSTHelper:
+    def __init__(self, rst_file, label, input_dir, output_dir):
+        self.rst_file = rst_file
         self.label = label
         self.parent_folder = self.get_parent_folder()
         self.content = self.get_content()
@@ -30,21 +29,20 @@ class MarkdownRSTConverter:
 
     def get_parent_folder(self):
         """
-        Get parent folder of a markdown file
+        Get parent folder of a rst file
         """
-        return self.md_file.parents[0]
+        return self.rst_file.parents[0]
 
     def get_content(self):
         """
-        Read Markdown File
+        Read rst file
         """
-        with open(self.md_file, 'r', encoding='utf-8') as f:
+        with open(self.rst_file, 'r', encoding='utf-8') as f:
             return f.read()
 
     def replace_image_links(self):
         """
-        Replace relative image links with absolute paths.
-        This is needed for doxygen.
+        Replace image links
         """
         for image in self.image_links:
             self.content = self.content.replace(image, self.parent_folder.joinpath(image).name)
@@ -68,17 +66,21 @@ class MarkdownRSTConverter:
         except FileNotFoundError:
             logging.warning('{}: image not found'.format(path))
 
-    def convert(self):
+    def copy(self):
+        """
+        Save processed content of rst file in output_dir
+        """
         output = os.path.join(self.output_dir, f'{self.label}.rst')
-        pypandoc.convert_text(self.content, 'rst', format='md', outputfile=output)
+        with open(output, 'w', encoding='utf-8') as f:
+            f.write(self.content)
 
     def run(self):
         """
-        Do all processing operations on a markdown file
+        Do all processing operations on a rst file
         """
         self.replace_image_links()
         self.copy_images()
-        self.convert()
+        self.copy()
 
     def get_image_links(self):
         """
@@ -93,10 +95,10 @@ class MarkdownRSTConverter:
 
 def get_label(file):
     """
-    Read lines of a file and try to find a doxygen label.
+    Read lines of a file and try to find a label.
     If the label is not found return None.
     Assume the label is in the first line
-    :return: A doxygen label
+    :return: A label
     """
     with open(file, 'r', encoding='utf-8') as f:
         line = f.readline()
@@ -105,35 +107,34 @@ def get_label(file):
             return label.group(1)
     
 
-def filter_paths(md_files, exclude_dirs):
+def filter_paths(rst_files, exclude_dirs):
     """
     Exclude paths presented in exclude_dirs
-    :param md_files: A list of md files
+    :param rst_files: A list of rst files
     :param exclude_dirs: A list of directories to be excluded from processing
-    :return: A list of md files to be process after excluded paths
+    :return: A list of rst files to be process after excluded paths
     """
-    #md_files = filter(lambda x: not re.match(DEFAULT_EXCLUDES, str(x.parent)), md_files)
-    return filter(lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), md_files)
+    #rst_files = filter(lambda x: not re.match(DEFAULT_EXCLUDES, str(x.parent)), rst_files)
+    return filter(lambda x: not any(ex_path in x.parents for ex_path in exclude_dirs), rst_files)
 
 
 def process(input_dir, output_dir, exclude_dirs):
     """
-    Recursively find markdown files in docs_folder and
-    replace links to markdown files with doxygen labels (ex. @ref label_name).
+    Recursively find rst files and process them accordingly
     """
-    md_files = input_dir.glob('**/*.md')
-    md_files = filter_paths(md_files, exclude_dirs)
-    for md_file in md_files:
-        label = get_label(md_file)
-        if label and not re.match(DEFAULT_EXCLUDES, str(md_file.parent)):
-            logging.info("Processing {} file".format(md_file))
-            converter = MarkdownRSTConverter(md_file=md_file,
-                                             label=label,
-                                             input_dir=input_dir,
-                                             output_dir=output_dir)
-            converter.run()
+    rst_files = input_dir.glob('**/*.rst')
+    rst_files = filter_paths(rst_files, exclude_dirs)
+    for rst_file in rst_files:
+        label = get_label(rst_file)
+        if label and not re.match(DEFAULT_EXCLUDES, str(rst_file.parent)):
+            logging.info("Processing {} file".format(rst_file))
+            helper = RSTHelper(rst_file=rst_file,
+                               label=label,
+                               input_dir=input_dir,
+                               output_dir=output_dir)
+            helper.run()
         else:
-            logging.info("Skipped {} file - no label or matched excludes".format(md_file))
+            logging.info("Skipped {} file - no label or matched excludes".format(rst_file))
 
 
 def main():
