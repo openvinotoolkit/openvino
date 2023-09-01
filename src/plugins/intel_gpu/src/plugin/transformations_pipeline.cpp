@@ -39,6 +39,7 @@
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/decompose_reduce_for_false_keepdims.hpp"
 #include "transformations/convert_shapeof.hpp"
+#include "transformations/fp16_compression/mark_precision_sensitive_matmuls.hpp"
 
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
@@ -212,6 +213,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::BroadcastTransition>();
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveMatmuls>();
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1);
