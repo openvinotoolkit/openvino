@@ -4,12 +4,11 @@
 
 #include <memory>
 
-#include "openvino/reference/utils/coordinate_transform.hpp"
-
 #include "mask_attribute.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "pruning.hpp"
 
 ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,

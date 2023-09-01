@@ -13,7 +13,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "inference_engine.hpp"
 #include "mask_attribute.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/pad_base.hpp"
@@ -22,6 +21,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
 

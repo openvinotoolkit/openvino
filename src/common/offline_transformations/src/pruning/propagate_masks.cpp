@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "mask_attribute.hpp"
-#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
 
