@@ -45,14 +45,28 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion() {
 
             nodes_to_delete.push_back(squeeze);
 
-            auto split_to_check =
-                std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze->input_value(0).get_node_shared_ptr());
-            auto squeeze_axes =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
-            if (!squeeze_axes || !split_to_check)
+            auto split_to_check = std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze->get_input_node_shared_ptr(0));
+            if (!split_to_check)
                 return false;
+            std::vector<int64_t> squeeze_axes_vec;
+            if (squeeze->get_input_size() < 2) {
+                const auto& shape = squeeze->get_input_partial_shape(0);
+                if (shape.is_dynamic()) {
+                    return false;
+                }
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i].get_length() == 1)
+                        squeeze_axes_vec.push_back(static_cast<int64_t>(i));
+                }
 
-            auto squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
+            } else {
+                auto squeeze_axes =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+                if (!squeeze_axes)
+                    return false;
+                squeeze_axes_vec = squeeze_axes->cast_vector<int64_t>();
+            }
+
             if (squeeze_axes_vec.size() != 1)
                 return false;
 
