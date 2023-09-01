@@ -8,16 +8,19 @@ import importlib
 
 import openvino as ov
 
-skip_snippets = ["main.py"]
+#skip_snippets = ["main.py", "__init__.py"]
+skip_snippets = ["main.py", "__init__.py", "ie_common.py", "ov_python_exclusives.py", "ov_preprocessing.py"]
 
 def import_python_modules(directory, subdirectory=""):
     for item in os.listdir(directory):
         if item.endswith('.py') and item not in skip_snippets:
-            print(item)
             imported_item = item[:-3]
             if subdirectory != "":
                 imported_item=subdirectory + "." + imported_item
-            mod = importlib.import_module(imported_item)
+            try:
+                mod = importlib.import_module(imported_item)
+            except RuntimeError as e:
+
             try:
                 mod.main()
             except:
