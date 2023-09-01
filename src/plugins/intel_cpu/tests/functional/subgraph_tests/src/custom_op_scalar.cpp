@@ -2,26 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/op.hpp>
-#include <shape_util.hpp>
-#include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <openvino/op/op.hpp>
+#include <shared_test_classes/base/ov_subgraph.hpp>
 #include "test_utils/cpu_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
 
-using namespace ov::test;
 using namespace CPUTestUtils;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
-using CustomOpZeroShapeCPUTestParams = std::tuple<ElementType, InputShape>;
 
-class CustomOpZeroShape : public ov::op::Op {
+using CustomOpScalarCPUTestParams = std::tuple<ElementType, InputShape>;
+
+class CustomOpScalar : public ov::op::Op {
 public:
-    OPENVINO_OP("CustomOpZeroShape");
+    OPENVINO_OP("CustomOpScalar");
 
-    CustomOpZeroShape() = default;
-    CustomOpZeroShape(const ov::OutputVector& args) : Op(args) {
+    CustomOpScalar() = default;
+    CustomOpScalar(const ov::OutputVector& args) : Op(args) {
         constructor_validate_and_infer_types();
     }
 
@@ -42,7 +40,7 @@ public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments: ", new_args.size(), ". 2 is expected.");
 
-        return std::make_shared<CustomOpZeroShape>(new_args);
+        return std::make_shared<CustomOpScalar>(new_args);
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -53,6 +51,10 @@ public:
         for (size_t i = 0llu; i < inputs.size(); i++) {
             OPENVINO_ASSERT(inputs[i].get_shape().size() == get_input_partial_shape(i).rank().get_length(),
                 "Invalid input shape rank: ", inputs[i].get_shape().size());
+        }
+        for (size_t i = 0llu; i < outputs.size(); i++) {
+            OPENVINO_ASSERT(outputs[i].get_shape().size() == get_output_partial_shape(i).rank().get_length(),
+                "Invalid outputs shape rank: ", outputs[i].get_shape().size());
         }
 
         const auto& in_0 = inputs[0];
@@ -74,11 +76,11 @@ public:
     }
 };
 
-class CustomOpZeroShapeCPUTest : public testing::WithParamInterface<CustomOpZeroShapeCPUTestParams>,
+class CustomOpScalarCPUTest : public testing::WithParamInterface<CustomOpScalarCPUTestParams>,
                                   virtual public SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CustomOpZeroShapeCPUTestParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CustomOpScalarCPUTestParams>& obj) {
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = obj.param;
@@ -91,24 +93,22 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = utils::DEVICE_CPU;
 
         ElementType inType;
         InputShape inputShape;
         std::tie(inType, inputShape) = this->GetParam();
 
         init_input_shapes({inputShape});
-        ov::ParameterVector inputParams;//{std::make_shared<ov::op::v0::Parameter>(inType, inputShape.second[0])};
-        for (auto&& shape : inputDynamicShapes) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
-        }
-        auto constIn = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({0}), std::vector<uint8_t>{});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(inputParams));
-        paramOuts.push_back(constIn);
-        auto customOp = std::make_shared<CustomOpZeroShape>(paramOuts);
 
-        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(customOp)};
-        function = std::make_shared<ov::Model>(results, inputParams, "customOpZeroShape");
+        auto in_0 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
+        auto in_1 = std::make_shared<ov::op::v0::Constant>(inType, ov::Shape({0}), std::vector<uint8_t>{});
+        ov::OutputVector param_outs({in_0, in_1});
+        auto custom_op = std::make_shared<CustomOpScalar>(param_outs);
+
+        ov::ParameterVector input_params{in_0};
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(custom_op)};
+        function = std::make_shared<ov::Model>(results, input_params, "CustomOpScalar");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -116,7 +116,7 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            auto tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -128,13 +128,13 @@ protected:
         for (size_t j = 0; j < results.size(); j++) {
             const auto result = results[j];
             for (size_t i = 0; i < result->get_input_size(); ++i) {
-                ov::test::utils::compare(expected[j], actual[j], abs_threshold, rel_threshold);
+                utils::compare(expected[j], actual[j], abs_threshold, rel_threshold);
             }
         }
     }
 };
 
-TEST_P(CustomOpZeroShapeCPUTest, CompareWithRefs) {
+TEST_P(CustomOpScalarCPUTest, CompareWithRefs) {
     run();
 }
 
@@ -144,8 +144,8 @@ const std::vector<InputShape> inputShapes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_CustomOp,
-                         CustomOpZeroShapeCPUTest,
+                         CustomOpScalarCPUTest,
                          ::testing::Combine(::testing::Values(ElementType::u8), ::testing::ValuesIn(inputShapes)),
-                         CustomOpZeroShapeCPUTest::getTestCaseName);
+                         CustomOpScalarCPUTest::getTestCaseName);
 
 } // namespace CPULayerTestsDefinitions
