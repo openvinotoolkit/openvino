@@ -24,11 +24,7 @@ KERNEL(roi_align_ref)(const __global INPUT0_TYPE* src_data,
     const __global INPUT1_TYPE* roi_ptr = &src_rois[INPUT1_GET_INDEX(r, 0, 0, 0)];
 
     // Get the batch index of feature map
-#if INPUT2_FEATURE_NUM == NUM_ROIS
-    const uint b = (uint)src_batches[INPUT2_GET_INDEX(0, r, 0, 0)];
-#else
     const uint b = (uint)src_batches[INPUT2_GET_INDEX(r, 0, 0, 0)];
-#endif
 
     // Get ROI`s corners
     const INPUT1_TYPE x1 =
