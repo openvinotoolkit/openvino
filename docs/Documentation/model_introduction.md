@@ -31,8 +31,7 @@ OpenVINO™ :doc:`supports several model representations <Supported_Model_Format
 Convert a model in Python: `convert_model`
 ##########################################
 
-Model conversion API is exposed in Python by means of ``openvino.convert_model`` function which converts a model from original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupiter Notebook) or saved into a file with `openvino.save_model` for later use. There are several examples of using ``openvino.convert_model`` below based on popular public model repositories.
-
+Model conversion API is exposed in Python by means of ``openvino.convert_model`` function which converts a model from original framework representation, for example Pytorch or TensorFlow, to the object of type ``openvino.Model``. The resulting ``openvino.Model`` can be inferred in the same application (Python script or Jupiter Notebook) or saved into a file with `openvino.save_model` for later use. There are several examples of using ``openvino.convert_model`` below based on popular public model repositories:
 
 .. tab-set::
 
@@ -48,12 +47,12 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
             model = resnet50(pretrained=True)
             ov_model = ov.convert_model(model, example_input=torch.rand(1, 3, 224, 224))
 
-            # Option 1:
+            ###### Option 1: Save to OpenVINO IR:
 
             # save model to OpenVINO IR for later use
             ov.save_model(ov_model, 'model.xml')
 
-            # Option 2:
+            ###### Option 2: Compile and infer with OpenVINO:
 
             # compile model
             compiled_model = ov.compile_model(ov_model)
@@ -79,12 +78,12 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
             import openvino as ov
             ov_model = ov.convert_model(model, example_input={**encoded_input})
 
-            # Option 1:
+            ###### Option 1: Save to OpenVINO IR:
 
             # save model to OpenVINO IR for later use
             ov.save_model(ov_model, 'model.xml')
 
-            # Option 2:
+            ###### Option 2: Compile and infer with OpenVINO:
 
             # compile model
             compiled_model = ov.compile_model(ov_model)
@@ -105,12 +104,12 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          tf_model = model = tf.keras.applications.ResNet50(weights="imagenet")
          ov_model = ov.convert_model(tf_model)
 
-         # Option 1:
+         ###### Option 1: Save to OpenVINO IR:
 
          # save model to OpenVINO IR for later use
          ov.save_model(ov_model, 'model.xml')
 
-         # Option 2:
+         ###### Option 2: Compile and infer with OpenVINO:
 
          # compile model
          compiled_model = ov.compile_model(ov_model)
@@ -121,6 +120,36 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
 
          # run the inference
          result = compiled_model(input_data)
+
+   .. tab-item:: TensorFlow Hub
+
+      .. code-block:: py
+
+            import tensorflow as tf
+            import tensorflow_hub as hub
+            import openvino as ov
+
+            model = tf.keras.Sequential([
+                hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
+            ])
+            model.build([None, 224, 224, 3])
+            model.save('mobilenet_v1_100_224')  # use temporary directory
+            ov_model = ov.convert_model('mobilenet_v1_100_224')
+
+            ###### Option 1: Save to OpenVINO IR:
+
+            ov.save_model(ov_model, 'model.xml')
+
+            ###### Option 2: Compile and infer with OpenVINO:
+
+            compiled_model = ov.compile_model(ov_model)
+
+            # prepare input_data your way
+            import numpy as np
+            input_data = np.random.rand(1, 224, 224, 3)
+
+            # run the inference
+            result = compiled_model(input_data)
 
    .. tab-item:: ONNX Model Hub
 
@@ -134,12 +163,12 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          import openvino as ov
          ov_model = ov.convert_model('resnet50.onnx')
 
-         # Option 1:
+         ###### Option 1: Save to OpenVINO IR:
 
          # save model to OpenVINO IR for later use
          ov.save_model(ov_model, 'model.xml')
 
-         # Option 2:
+         ###### Option 2: Compile and infer with OpenVINO:
 
          # compile model
          compiled_model = ov.compile_model(ov_model)
@@ -152,11 +181,11 @@ Model conversion API is exposed in Python by means of ``openvino.convert_model``
          result = compiled_model(input_data)
 
 
-In option 1, where `openvino.save_model` function is used, an OpenVINO model will be serialized in the file system as a pair of files with extensions `.xml` and `.bin`. This pair of files is called OpenVINO Intermediate Representation format (OpenVINO IR, or just IR) and useful for efficient model deployment. OpenVINO IR is intended to be loaded in another application with the `openvino.Core.read_model` for inference, please see details in :doc:`OpenVINO™ Runtime documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+In Option 1, where `openvino.save_model` function is used, an OpenVINO model will be serialized in the file system as a pair of files with extensions `.xml` and `.bin`. This pair of files is called OpenVINO Intermediate Representation format (OpenVINO IR, or just IR) and useful for efficient model deployment. OpenVINO IR is intended to be loaded in another application with the `openvino.Core.read_model` for inference, please see details in :doc:`OpenVINO™ Runtime documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
-Option 2, where ``openvino.compile_model`` is used, provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your already existing Python inference application.
+Option 2, where ``openvino.compile_model`` is used, provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your already existing Python inference application. In this case, the converted model isn't saved to the IR, instead the model is compiled and used for inference in the same application.
 
-Following the option 1 means separating the model conversion and the model inference into two different applications. This approach addresses deployment scenarious where it is required to minimize extra dependencies and speedup model loading when model is deplyed. For example, to convert a Pytorch model to OpenVINO, `torch` Python module is required as a dependency and the conversion must be performed in Python. It takes extra time and memory that wouldn't be required for just inference. But when the result of the conversion is saved into the IR files with `openvino.save_model` it can be loaded in an application without `torch` dependency and without need to spend time for model conversion. Also such an inference appication can be written in another language supported by OpenVINO, for example, in C++.
+Following the option 1 means separating the model conversion and the model inference into two different applications. This approach addresses deployment scenarious where it is required to minimize extra dependencies and speedup model loading in the end inference application. For example, to convert a PyTorch model to OpenVINO, `torch` Python module is required as a dependency and the conversion must be performed in Python. It takes extra time and memory that wouldn't be required for inference of the converted model. But when the converted model is saved into the IR files with `openvino.save_model`, it can be loaded in a separate application without `torch` dependency and without need to spend time for model conversion. Also the inference appication can be written in other programming languages supported by OpenVINO, for example, in C++, and Python is not required to be installed for the inference application in this case.
 
 .. image:: _static/images/model_conversion_diagram.svg
    :alt: model conversion diagram
@@ -164,10 +193,10 @@ Following the option 1 means separating the model conversion and the model infer
 Convert a model in CLI: ``ovc``
 ###############################
 
-Another option to convert a model is to use ``ovc`` command-line tool. `ovc` stands for OpenVINO Model Converter and combines both `openvino.convert_model` and `openvino.save_model` together. It is convenient if the original model is ready for inference and represeted in a file of one of the supported formats: TensorFlow, ONNX, TensorFlow Lite, or PaddlePaddle. As the result of the conversion, `ovc` produces OpenVINO IR as a pair of `.xml` and `.bin` files. Please note that Pytorch models cannot be converted with `ovc`, use `openvino.convert_model` instead.
+Another option to convert a model is to use ``ovc`` command-line tool. `ovc` stands for OpenVINO Model Converter and combines both `openvino.convert_model` and `openvino.save_model` together. It is convenient to use if the original model is ready for inference and represeted in a file of one of the supported formats: ONNX, TensorFlow, TensorFlow Lite, or PaddlePaddle. As the result of the conversion, `ovc` produces OpenVINO IR as a pair of `.xml` and `.bin` files, which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
 
-``ovc`` requires the use of a pre-trained deep learning model in one of the supported formats: TensorFlow, TensorFlow Lite, PaddlePaddle, or ONNX. ``ovc`` converts the model to the OpenVINO Intermediate Representation format (IR), which needs to be read with the ``ov.read_model()`` method. Then, you can compile and infer the ``ov.Model`` later with :doc:`OpenVINO™ Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
-
+.. note::
+   PyTorch models cannot be converted with `ovc`, use `openvino.convert_model` instead.
 
 The figure below illustrates the typical workflow for deploying a trained deep learning model:
 
@@ -181,8 +210,6 @@ Cases when Model Preparation is not Required
 ############################################
 
 If model is represented as a single file from ONNX, PaddlePaddle, TensorFlow and TensorFlow Lite (check :doc:`TensorFlow Frontend Capabilities and Limitations <openvino_docs_MO_DG_TensorFlow_Frontend>`), then it doesn't not require a separate step for model conversion and saving to IR, that is ``openvino.convert_model`` and ``openvino.save_model``, or `ovc`. OpenVINO provides C++ and Python APIs for reading such models by just calling the ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods. These methods perform conversion of the model from the original representation. Besides this conversion takes some extra time in comparison to reading the same model from prepared OpenVINO IR, it may be convenient in cases when it is required to read a model in the original format in C++ as `openvino.convert_model` is available in Python only. Preparing OpenVINO IR as a dedicated step and then using this IR in an application dedicated for inference is still recommend way for the efficient model deployment for OpenVINO runtime.
-
-**TODO: Reorginize the following links**
 
 This section describes how to obtain and prepare your model for work with OpenVINO to get the best inference results:
 
