@@ -21,7 +21,9 @@ many hints simultaneously, like more inference threads + shared memory.
 It should give even better performance, but we recommend testing it
 anyway.
 
-   **NOTE**: We especially recommend trying
+.. note::
+
+   We especially recommend trying
    ``OpenVINO IR model + CPU + shared memory in latency mode`` or
    ``OpenVINO IR model + CPU + shared memory + more inference threads``.
 
@@ -29,12 +31,14 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <../111-detection-quantization>`__ and
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__.
+`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__ and
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 |image0|
 
-   **NOTE**: Many of the steps presented below will give you better
+.. note::
+
+   Many of the steps presented below will give you better
    performance. However, some of them may not change anything if they
    are strongly dependent on either the hardware or the model. Please
    run this notebook on your computer with your model to learn which of
@@ -45,7 +49,7 @@ optimize performance on OpenVINO IR files in
    result in different performance.
 
 A similar notebook focused on the throughput mode is available
-`here <109-throughput-tricks.ipynb>`__.
+`here <109-throughput-tricks-with-output.html>`__.
 
 **Table of contents**:
 
@@ -193,12 +197,14 @@ Hardware `⇑ <#top>`__
 The code below lists the available hardware we will use in the
 benchmarking process.
 
-   **NOTE**: The hardware you have is probably completely different from
+.. note::
+
+   The hardware you have is probably completely different from
    ours. It means you can see completely different results.
 
 .. code:: ipython3
 
-    import openvino.runtime as ov
+    import openvino as ov
     
     # initialize OpenVINO
     core = ov.Core()
@@ -606,9 +612,9 @@ Other tricks `⇑ <#top>`__
 There are other tricks for performance improvement, such as quantization
 and pre-post-processing or dedicated to throughput mode. To get even
 more from your model, please visit
-`111-detection-quantization <../111-detection-quantization>`__,
-`118-optimize-preprocessing <../118-optimize-preprocessing>`__, and
-`109-throughput-tricks <109-throughput-tricks.ipynb>`__.
+`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__,
+`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__, and
+`109-throughput-tricks <109-latency-tricks-with-output.html>`__.
 
 Performance comparison `⇑ <#top>`__
 ###############################################################################################################################

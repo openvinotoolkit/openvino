@@ -16,13 +16,14 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # onnx.ModelProto object
+import onnx
+model = onnx.load("model_path")
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
+import openvino as ov
 from openvino.tools.mo import convert_model
 
 # convert ONNX model to OpenVINO model

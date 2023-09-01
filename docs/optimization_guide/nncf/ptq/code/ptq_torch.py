@@ -15,13 +15,14 @@ calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 #! [dataset]
 
 #! [quantization]
-model = ... # torch.nn.Module object
+import torchvision
+model = torchvision.models.resnet50(pretrained=True)
 
 quantized_model = nncf.quantize(model, calibration_dataset)
 #! [quantization]
 
 #! [inference]
-import openvino.runtime as ov
+import openvino as ov
 from openvino.tools.mo import convert_model
 
 input_fp32 = ... # FP32 model input

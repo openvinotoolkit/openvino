@@ -43,10 +43,11 @@ void validate() override {
     ASSERT_FALSE(actualOutputs.empty());
     auto& outTensor = actualOutputs.front();
     ASSERT_EQ(ov::element::f32, outTensor.get_element_type()) << "Unexpected element type";
-    const uint32_t* data = reinterpret_cast<const uint32_t*>(outTensor.data());
+    const float* data = reinterpret_cast<const float*>(outTensor.data());
     bool hasDenormals = false;
     for (size_t i = 0; i < outTensor.get_size(); ++i) {
-        if (data[i] && (data[i] & (0xff << 23)) == 0) {
+        if (std::abs(data[i]) >= std::numeric_limits<float>::denorm_min() &&
+            std::abs(data[i]) < std::numeric_limits<float>::min()) {
             hasDenormals = true;
         }
     }
@@ -108,4 +109,5 @@ TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
         run();
     }
 }
+
 }// namespace SubgraphTestsDefinitions

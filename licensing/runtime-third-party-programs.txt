@@ -1641,7 +1641,7 @@ SOFTWARE.
 
 -------------------------------------------------------------
 
-24. MLAS (https://github.com/microsoft/onnxruntime)
+24. Microsoft onnxruntime (https://github.com/microsoft/onnxruntime)
 
 MIT License
 

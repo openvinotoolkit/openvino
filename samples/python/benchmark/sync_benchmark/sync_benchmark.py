@@ -9,7 +9,8 @@ import sys
 from time import perf_counter
 
 import numpy as np
-from openvino.runtime import Core, get_version
+import openvino as ov
+from openvino.runtime import get_version
 from openvino.runtime.utils.types import get_dtype
 
 
@@ -40,7 +41,7 @@ def main():
     # Pick a device by replacing CPU, for example AUTO:GPU,CPU.
     # Using MULTI device is pointless in sync scenario
     # because only one instance of openvino.runtime.InferRequest is used
-    core = Core()
+    core = ov.Core()
     compiled_model = core.compile_model(sys.argv[1], 'CPU', latency)
     ireq = compiled_model.create_infer_request()
     # Fill input data for the ireq

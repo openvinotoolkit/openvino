@@ -2,18 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino as ov
 
-#! [auto_compilation]
-import openvino.runtime as ov
-
-compiled_model = ov.compile_model("model.xml")
-#! [auto_compilation]
+from utils import get_path_to_model, get_path_to_image, get_image
 
 #! [properties_example]
+import openvino.runtime.opset12 as ops
+
 core = ov.Core()
 
-input_a = ov.opset11.parameter([8], name="input_a")
-res = ov.opset11.absolute(input_a)
+input_a = ops.parameter([8], name="input_a")
+res = ops.absolute(input_a)
 model = ov.Model(res, [input_a])
 compiled = core.compile_model(model, "CPU")
 model.outputs[0].tensor.set_names({"result_0"})  # Add name for Output
@@ -24,6 +23,10 @@ print(model.outputs)
 print(compiled.inputs)
 print(compiled.outputs)
 #! [properties_example]
+
+#! [auto_compilation]
+compiled_model = ov.compile_model(model)
+#! [auto_compilation]
 
 #! [tensor_basics]
 data_float64 = np.ones(shape=(2,8))
@@ -98,9 +101,9 @@ _ = next(iter(results.values()))
 core = ov.Core()
 
 # Simple model that adds two inputs together
-input_a = ov.opset8.parameter([8])
-input_b = ov.opset8.parameter([8])
-res = ov.opset8.add(input_a, input_b)
+input_a = ops.parameter([8])
+input_b = ops.parameter([8])
+res = ops.add(input_a, input_b)
 model = ov.Model(res, [input_a, input_b])
 compiled = core.compile_model(model, "CPU")
 
@@ -137,14 +140,14 @@ infer_queue.wait_all()
 assert all(data_done)
 #! [asyncinferqueue_set_callback]
 
-unt8_data = np.ones([100])
+unt8_data = np.ones([100], dtype=np.uint8)
 
 #! [packing_data]
 from openvino.helpers import pack_data
 
 packed_buffer = pack_data(unt8_data, ov.Type.u4)
 # Create tensor with shape in element types
-t = ov.Tensor(packed_buffer, [1, 128], ov.Type.u4)
+t = ov.Tensor(packed_buffer, [100], ov.Type.u4)
 #! [packing_data]
 
 #! [unpacking]
@@ -154,8 +157,12 @@ unpacked_data = unpack_data(t.data, t.element_type, t.shape)
 assert np.array_equal(unpacked_data , unt8_data)
 #! [unpacking]
 
+model_path = get_path_to_model()
+path_to_image = get_path_to_image()
+
+
 #! [releasing_gil]
-import openvino.runtime as ov
+import openvino as ov
 import cv2 as cv
 from threading import Thread
 
@@ -173,9 +180,9 @@ def prepare_data(input, image_path):
     input_data.append(image)
 
 core = ov.Core()
-model = core.read_model("model.xml")
+model = core.read_model(model_path)
 # Create thread with prepare_data function as target and start it
-thread = Thread(target=prepare_data, args=[model.input(), "path/to/image"])
+thread = Thread(target=prepare_data, args=[model.input(), path_to_image])
 thread.start()
 # The GIL will be released in compile_model.
 # It allows a thread above to start the job,

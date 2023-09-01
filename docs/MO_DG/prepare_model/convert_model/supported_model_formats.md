@@ -17,14 +17,14 @@
    openvino_docs_MO_DG_prepare_model_convert_model_tutorials
 
 .. meta::
-   :description: Learn about supported model formats and the methods used to convert, read and compile them in OpenVINO™.
+   :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.
 
 
-**OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other model formats presented below will ultimately be converted to :doc:`OpenVINO IR <openvino_ir>`.
+**OpenVINO IR (Intermediate Representation)** - the proprietary and default format of OpenVINO, benefiting from the full extent of its features. All other supported model formats, as listed below, are converted to :doc:`OpenVINO IR <openvino_ir>` to enable inference. Consider storing your model in this format to minimize first-inference latency, perform model optimization, and, in some cases, save space on your drive. 
 
-**PyTorch, TensorFlow, ONNX, and PaddlePaddle** may be used without any prior conversion and can be read by OpenVINO Runtime API by the use of ``read_model()`` or ``compile_model()``. Additional adjustment for the model can be performed using the ``convert_model()`` method, which allows you to set shapes, types or the layout of model inputs, cut parts of the model, freeze inputs etc. The detailed information of capabilities of  ``convert_model()`` can be found in :doc:`this <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` article.
+**PyTorch, TensorFlow, ONNX, and PaddlePaddle** can be used by OpenVINO Runtime API, via the ``read_model()`` and ``compile_model()`` commands, resulting in under-the-hood conversion to OpenVINO IR. To perform additional adjustments to the model you can use the ``convert_model()`` method, which allows you to set shapes, change model input types or layouts, cut parts of the model, freeze inputs etc. A detailed description of ``convert_model()`` capabilities can be found in the :doc:`model conversion guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
 
-Below you will find code examples for each method, for all supported model formats.
+Here are code examples for each method, for all supported model formats.
 
 .. tab-set::
 
@@ -531,7 +531,7 @@ Below you will find code examples for each method, for all supported model forma
               :doc:`article <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Paddle>`.
 
 
-**MXNet, Caffe, and Kaldi** are legacy formats that need to be converted to OpenVINO IR before running inference. The model conversion in some cases may involve intermediate steps. For more details, refer to the :doc:`MXNet <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`, :doc:`Caffe <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`, :doc:`Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` conversion guides.
+**MXNet, Caffe, and Kaldi** are legacy formats that need to be converted explicitly to OpenVINO IR before running inference. The model conversion in some cases may involve intermediate steps. For more details, refer to the :doc:`MXNet <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet>`, :doc:`Caffe <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe>`, :doc:`Kaldi <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi>` conversion guides.
 
 OpenVINO is currently proceeding **to deprecate these formats** and **remove their support entirely in the future**. Converting these formats to ONNX or using an LTS version might be a viable solution for inference in OpenVINO Toolkit.
 

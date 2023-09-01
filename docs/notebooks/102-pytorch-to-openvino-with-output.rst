@@ -237,13 +237,16 @@ Optimizer Python API should be used for these purposes. More details
 regarding PyTorch model conversion can be found in OpenVINO
 `documentation <https://docs.openvino.ai/2023.1/openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
 
-   **Note**: Please, take into account that direct support PyTorch
+.. note::
+
+   Please, take into account that direct support PyTorch
    models conversion is an experimental feature. Model coverage will be
    increased in the next releases. For cases, when PyTorch model
    conversion failed, you still can try to export the model to ONNX
-   format. Please refer to this
+   format. Please, refer to this
    `tutorial <102-pytorch-to-openvino-with-output.html>`__
    which explains how to convert PyTorch model to ONNX, then to OpenVINO
+
 
 The ``convert_model`` function accepts the PyTorch model object and
 returns the ``openvino.runtime.Model`` instance ready to load on a
@@ -501,8 +504,8 @@ Run OpenVINO Model Inference with Static Input Shape `⇑ <#top>`__
     5: hamper - 2.35%
 
 
-Benchmark OpenVINO Model Inference with Static Input Shape
-`⇑ <#top>`__
+Benchmark OpenVINO Model Inference with Static Input Shape `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 
@@ -645,8 +648,9 @@ OpenVINO IR is similar to the original PyTorch model.
     5: hamper - 2.35%
 
 
-Benchmark OpenVINO Model Inference Converted From Scripted Model
-`⇑ <#top>`__
+Benchmark OpenVINO Model Inference Converted From Scripted Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. code:: ipython3
 
@@ -772,8 +776,8 @@ similar to the original PyTorch model.
     5: hamper - 2.35%
 
 
-Benchmark OpenVINO Model Inference Converted From Traced Model
-`⇑ <#top>`__
+Benchmark OpenVINO Model Inference Converted From Traced Model `⇑ <#top>`__
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code:: ipython3
 

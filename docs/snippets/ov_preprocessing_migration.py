@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from utils import get_model, get_ngraph_model
+
 #! [ov_imports]
-from openvino.runtime import Core, Layout, Type
+from openvino import Core, Layout, Type
 from openvino.preprocess import ColorFormat, PrePostProcessor, ResizeAlgorithm
 #! [ov_imports]
 
@@ -13,11 +15,9 @@ import openvino.inference_engine as ie
 
 #include "inference_engine.hpp"
 
-model_path = ''
-tensor_name = ''
-
+tensor_name="input"
 core = Core()
-model = core.read_model(model=model_path)
+model = get_model([1,32,32,3])
 
 #! [ov_mean_scale]
 ppp = PrePostProcessor(model)
@@ -29,6 +29,8 @@ input.preprocess().mean([116.78]).scale([57.21, 57.45, 57.73])
 # insert preprocessing operations to the 'model'
 model = ppp.build()
 #! [ov_mean_scale]
+
+model = get_model()
 
 #! [ov_conversions]
 ppp = PrePostProcessor(model)
@@ -50,9 +52,11 @@ input.preprocess().convert_color(ColorFormat.BGR)
 model = ppp.build()
 #! [ov_color_space]
 
+model = get_model([1, 3, 448, 448])
+
 #! [ov_image_scale]
 ppp = PrePostProcessor(model)
-input = ppp.input(tensor_name)
+input = ppp.input("input")
 # need to specify H and W dimensions in model, others are not important
 input.model().set_layout(Layout('??HW'))
 # scale to model shape
@@ -61,39 +65,38 @@ input.preprocess().resize(ResizeAlgorithm.RESIZE_LINEAR, 448, 448)
 model = ppp.build()
 #! [ov_image_scale]
 
+import openvino.inference_engine as ie
+import ngraph as ng
 
+operation_name = "data"
 
-model_path = ''
-operation_name = ''
-
-core = Core()
-network = core.ReadNetwork(model_path)
+core = ie.IECore()
+network = get_ngraph_model()
 
 
 #! [mean_scale]
-preProcess = network.getInputsInfo()[operation_name].getPreProcess()
-preProcess.init(3)
-preProcess[0].meanValue = 116.78
-preProcess[1].meanValue = 116.78
-preProcess[2].meanValue = 116.78
-preProcess[0].stdScale = 57.21
-preProcess[1].stdScale = 57.45
-preProcess[2].stdScale = 57.73
-preProcess.setVariant(ie.MEAN_VALUE)
+preprocess_info = network.input_info[operation_name].preprocess_info
+preprocess_info.init(3)
+preprocess_info[0].mean_value = 116.78
+preprocess_info[1].mean_value = 116.78
+preprocess_info[2].mean_value = 116.78
+preprocess_info[0].std_scale = 57.21
+preprocess_info[1].std_scale = 57.45
+preprocess_info[2].std_scale = 57.73
+preprocess_info.mean_variant = ie.MeanVariant.MEAN_VALUE
 #! [mean_scale]
 
 #! [conversions]
-inputInfo = network.getInputsInfo()[operation_name]
-inputInfo.setPrecision(ie.Precision.U8)
-inputInfo.setLayout(ie.Layout.NHWC)
+input_info = network.input_info[operation_name]
+input_info.precision = "U8"
+input_info.layout = "NHWC"
 # model input layout is always NCHW in Inference Engine
 # for shapes with 4 dimensions
 #! [conversions]
 
 #! [image_scale]
-preProcess = network.getInputsInfo()[operation_name].getPreProcess()
+preprocess_info = network.input_info[operation_name].preprocess_info
 # Inference Engine supposes input for resize is always in NCHW layout
 # while for OpenVINO Runtime API 2.0 `H` and `W` dimensions must be specified
 # Also, current code snippet supposed resize from dynamic shapes
-preProcess.setResizeAlgorithm(ie.ResizeAlgorithm.RESIZE_BILINEAR)
-#! [image_scale]
+preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
