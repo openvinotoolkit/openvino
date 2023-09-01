@@ -24,7 +24,7 @@ T acosh(const T in) {
 }  // namespace func
 
 /**
- * @brief Reference implementation of Acos operator.
+ * @brief Reference implementation of Acosh operator.
  *
  * @param arg    Input buffer pointer with input data.
  * @param out    Output buffer pointer with results.
