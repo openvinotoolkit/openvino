@@ -31,6 +31,16 @@ def get_model(input_shape = None, input_dtype=np.float32) -> ov.Model:
     return model
 
 
+def get_advanced_model():
+    data = ops.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32, name="input")
+    data1 = ops.parameter(ov.Shape([1, 3, 64, 64]), ov.Type.f32, name="input2")
+    axis_const = ops.constant(1, dtype=ov.Type.i64)
+    split = ops.split(data, axis_const, 3)
+    relu = ops.relu(split.output(1))
+    relu.output(0).get_tensor().set_names({"result"})
+    return ov.Model([split.output(0), relu.output(0), split.output(2)], [data, data1], "model")
+
+
 def get_ngraph_model(input_shape = None, input_dtype=np.float32):
     if input_shape is None:
         input_shape = [1, 3, 32, 32]

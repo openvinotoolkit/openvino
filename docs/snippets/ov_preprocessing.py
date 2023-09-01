@@ -5,11 +5,13 @@
 import openvino.runtime.properties as props
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
 from openvino import Layout, Type, serialize
-from utils import get_model, get_temp_dir, get_path_to_model
+import openvino as ov
+import openvino.runtime.opset12 as ops
+from utils import get_model, get_temp_dir, get_path_to_model, get_advanced_model
 
 
 input_name = "input"
-model = get_model()
+model = get_advanced_model()
 
 # ! [ov:preprocess:create]
 from openvino.preprocess import PrePostProcessor
@@ -55,6 +57,9 @@ ppp.output(2) # Gets output with index=2 (3rd one) in a model
 ppp.input(input_name)
 ppp.output('result')
 # ! [ov:preprocess:input_name]
+
+model = get_model()
+ppp = PrePostProcessor(model)
 
 # ! [ov:preprocess:input_1]
 # no index/name is needed if model has one input
@@ -177,11 +182,12 @@ from openvino import serialize
 # ! [ov:preprocess:save_headers]
 
 model_path = get_path_to_model()
+serialized_model_path = get_path_to_model()
 
 # ! [ov:preprocess:save]
 # ========  Step 0: read original model =========
 core = Core()
-model = core.read_model(model='/path/to/some_model.onnx')
+model = core.read_model(model=model_path)
 
 # ======== Step 1: Preprocessing ================
 ppp = PrePostProcessor(model)
@@ -212,7 +218,7 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
-serialize(model, model_path)
+serialize(model, serialized_model_path)
 # ! [ov:preprocess:save]
 
 path_to_cache_dir = get_temp_dir()
@@ -223,5 +229,5 @@ core.set_property({props.cache_dir(): path_to_cache_dir})
 
 # In case that no preprocessing is needed anymore, we can load model on target device directly
 # With cached model available, it will also save some time on reading original model
-compiled_model = core.compile_model('/path/to/some_model_saved.xml', 'CPU')
+compiled_model = core.compile_model(serialized_model_path, 'CPU')
 # ! [ov:preprocess:save_load]
