@@ -266,6 +266,11 @@ TEST_P(OVCompiledModelBaseTest, CanGetInputsInfo) {
     EXPECT_NO_THROW(auto inInfo = execNet.inputs());
 }
 
+TEST_P(OVCompiledModelBaseTest, CanGetProperty) {
+    auto execNet = core->compile_model(function, target_device, configuration);
+    EXPECT_NO_THROW(auto inInfo = execNet.get_property(ov::supported_properties));
+}
+
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
     auto execNet = core->compile_model(function, target_device, configuration);
     EXPECT_NO_THROW(auto outInfo = execNet.outputs());
