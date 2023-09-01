@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pruning.hpp"
+
 #include <gtest/gtest.h>
 
-#include <inference_engine.hpp>
-#include <mask_attribute.hpp>
 #include <memory>
-#include <ngraph/pass/serialize.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-#include <openvino/core/model.hpp>
-#include <openvino/op/util/attr_types.hpp>
-#include <openvino/op/util/pad_base.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/util/env_util.hpp>
-#include <pruning.hpp>
 #include <queue>
 #include <string>
-#include <transformations/init_node_info.hpp>
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "inference_engine.hpp"
+#include "mask_attribute.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/env_util.hpp"
+#include "transformations/init_node_info.hpp"
 
 #define VISUALIZE_TESTS_TREE false
 #define VISUALIZE_TREE_ROOT  "/tmp/"
@@ -55,7 +56,7 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
             for (const Coordinate& coord : iter) {
                 values[iter.index(coord)] = 0;
             }
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return std::make_shared<opset10::Constant>(element::f32, shape, values);
@@ -77,8 +78,8 @@ class TransformationTestsBoolParamF : public TransformationTestsF, public testin
 //
 //    {
 //        pass::Manager m;
-//        m.register_pass<ngraph::pass::InitMasks>();
-//        m.register_pass<ngraph::pass::PropagateMasks>();
+//        m.register_pass<ov::pass::InitMasks>();
+//        m.register_pass<ov::pass::PropagateMasks>();
 //    }
 //    // VisualizeTree modifier helps to print Masks and mark nodes with masks
 //    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
@@ -110,7 +111,7 @@ class TransformationTestsBoolParamF : public TransformationTestsF, public testin
 //    {
 //        pass::Manager m;
 //        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg",
-//        modifier); m.register_pass<ngraph::pass::ShrinkWeights>();
+//        modifier); m.register_pass<ov::pass::ShrinkWeights>();
 //        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) +
 //        "PruneIRTest_with_masks_after_shrink.svg", modifier);
 //    }
@@ -127,7 +128,7 @@ class TransformationTestsBoolParamF : public TransformationTestsF, public testin
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
     auto weights = opset10::Constant::create(element::f32, weights_shape, {0});
-    ngraph::pass::InitConstMask({0, 1}).apply(weights);
+    ov::pass::InitConstMask({0, 1}).apply(weights);
 
     compare_masks(*getMask(weights->output(0)), {{0, 1, 2, 3, 4, 5}, {0, 1, 2}, {}, {}});
 }
@@ -141,10 +142,10 @@ TEST(TransformationTests, InitMasksOutputChannel) {
     for (const Coordinate& coord : iter) {
         values[iter.index(coord)] = 0;
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto weights = std::make_shared<opset10::Constant>(element::f32, weights_shape, values);
-    ngraph::pass::InitConstMask({1}).apply(weights);
+    ov::pass::InitConstMask({1}).apply(weights);
 
     compare_masks(*getMask(weights->output(0)), {{}, {1}, {}, {}});
 }
@@ -164,7 +165,7 @@ TEST(TransformationTests, TestInitMasks) {
 
     auto f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
+    m.register_pass<ov::pass::InitMasks>();
     m.run_passes(f);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), {{1, 2, 3}, {}, {}, {}});
@@ -173,7 +174,7 @@ TEST(TransformationTests, TestInitMasks) {
 TEST(TransformationTests, InitMasksNegative) {
     Shape weights_shape{6, 3, 3, 3};
     auto weights = opset10::Constant::create(element::f32, weights_shape, {0.5});
-    ngraph::pass::InitConstMask({0, 1, 2, 3}).apply(weights);
+    ov::pass::InitConstMask({0, 1, 2, 3}).apply(weights);
 
     compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
 }
@@ -192,8 +193,8 @@ TEST(TransformationTests, PropagateMasksNegative) {
     auto f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
-    m.register_pass<ngraph::pass::PropagateMasks>();
+    m.register_pass<ov::pass::InitMasks>();
+    m.register_pass<ov::pass::PropagateMasks>();
     m.run_passes(f);
 
     compare_masks(*getMask(weights->output(0)), {{}, {}, {}, {}});
@@ -272,8 +273,8 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -288,7 +289,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     compare_masks(*getMask(weights2.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -358,8 +359,8 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -371,7 +372,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(weights2->output(0)), Mask({{}, {2}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -407,7 +408,7 @@ TEST(TransformationTests, PropagateMasksDynamicReshape) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicReshape.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights->output(0)), Mask({{}, {}, {}, {}}));
@@ -452,8 +453,8 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
             .run_on_model(f);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
-    m.register_pass<ngraph::pass::PropagateMasks>();
+    m.register_pass<ov::pass::InitMasks>();
+    m.register_pass<ov::pass::PropagateMasks>();
     m.run_passes(f);
 }
 
@@ -490,8 +491,8 @@ TEST(TransformationTests, PropagateMasksEmpty) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksEmpty.svg").run_on_model(f);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
-    m.register_pass<ngraph::pass::PropagateMasks>();
+    m.register_pass<ov::pass::InitMasks>();
+    m.register_pass<ov::pass::PropagateMasks>();
     m.run_passes(f);
 
     compare_masks(*getMask(weights->output(0)), Mask({{}, {}, {}, {}}));
@@ -586,8 +587,8 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -596,7 +597,7 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     compare_masks(*getMask(clamp->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(max_pool->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -677,8 +678,8 @@ TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights_const_1.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -687,7 +688,7 @@ TEST_F(TransformationTestsF, NegativePad12PropagateMaskPassThrough) {
     compare_masks(*getMask(clamp->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(max_pool->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -829,8 +830,8 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights1.get_node_shared_ptr()->output(0)), Mask({{2}, {}, {}, {}}));
@@ -855,7 +856,7 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     // compare_masks(*getMask(weights2), Mask({{}, {0, 1, 2, 3, 4, 5}, {}, {}}));
     // compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -980,8 +981,8 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -1001,7 +1002,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     compare_masks(*getMask(weights_2->output(0)), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1146,8 +1147,8 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -1168,7 +1169,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
 
     compare_masks(*getMask(weights_2->output(0)), Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1282,8 +1283,8 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
         // Masks for fq input parammeters didn't saved after
         // ShrinkWeights pass so pruning transformation is splitted
         // on propagation and shrinking passes
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     pass::Manager m;
@@ -1305,7 +1306,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     compare_masks(*getMask(weights_2->output(0)), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1363,7 +1364,7 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::Pruning>();
+        m.register_pass<ov::pass::Pruning>();
         m.run_passes(model);
     }
 
@@ -1483,8 +1484,8 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
         // Masks for fq input parammeters didn't saved after
         // ShrinkWeights pass so pruning transformation is splitted
         // on propagation and shrinking passes
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights_1->output(0)), Mask({{0, 1, 2, 3, 4}, {}, {}, {}}));
@@ -1509,7 +1510,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(3).get_source_output()), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
     compare_masks(*getMask(fq->input(4).get_source_output()), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1622,8 +1623,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
@@ -1639,7 +1640,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1764,8 +1765,8 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2, 3}, {}, {}, {}}));
@@ -1785,7 +1786,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
     compare_masks(*getMask(weights_out_conv.get_node_shared_ptr()->output(0)),
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1834,8 +1835,8 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUpEmpty.svg").run_on_model(f);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
-    m.register_pass<ngraph::pass::PropagateMasks>();
+    m.register_pass<ov::pass::InitMasks>();
+    m.register_pass<ov::pass::PropagateMasks>();
     m.run_passes(f);
 
     compare_masks(*getMask(weights_1.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -1936,8 +1937,8 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -1953,7 +1954,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2009,7 +2010,7 @@ TEST(TransformationTests, PruneBranchingStopOp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneBranchingStopOp.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -2064,7 +2065,7 @@ TEST(TransformationTests, PruneStopOpUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopOpUp.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -2131,8 +2132,8 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::InitMasks>();
-    m.register_pass<ngraph::pass::PropagateMasks>();
+    m.register_pass<ov::pass::InitMasks>();
+    m.register_pass<ov::pass::PropagateMasks>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2141,7 +2142,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2227,8 +2228,8 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReduceLayerDown.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2243,7 +2244,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2278,7 +2279,7 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReducelayerUp.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -2334,7 +2335,7 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReduceLayerDown.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -2408,8 +2409,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUp.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2418,7 +2419,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2519,8 +2520,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2529,7 +2530,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2630,8 +2631,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2640,7 +2641,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2721,8 +2722,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeExtend.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{2, 3}, {}, {}, {}}));
@@ -2737,7 +2738,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     compare_masks(*getMask(conv_1_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3}, {}, {}}));
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2827,8 +2828,8 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownMul.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2841,7 +2842,7 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     compare_masks(*getMask(last_conv_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2930,8 +2931,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownAdd.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -2944,7 +2945,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
     compare_masks(*getMask(last_conv_weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2978,8 +2979,8 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopReshapeUp.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -2989,7 +2990,7 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -3035,8 +3036,8 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -3049,7 +3050,7 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -3093,8 +3094,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3, 4, 5}}));
@@ -3107,7 +3108,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
     compare_masks(*getMask(mul_left_up->output(0)), Mask({{}, {1, 2}}));
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3155,8 +3156,8 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -3171,7 +3172,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
     compare_masks(*getMask(left_weights.get_node_shared_ptr()->output(0)), Mask({{1, 2}, {}}));
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3216,7 +3217,7 @@ TEST(TransformationTests, MaskPropagationWrongDimsElementwise) {
             .run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -3327,8 +3328,8 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneSEBlock.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(first_conv_weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}, {}, {}}));
@@ -3343,7 +3344,7 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
     compare_masks(*getMask(weights_end_conv.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3418,8 +3419,8 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksLinear.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2}, {}, {}, {}}));
@@ -3444,7 +3445,7 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{0, 1, 2}, {}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3470,8 +3471,8 @@ TEST(TransformationTests, MaskPropagationMatMulStopEmptyABranch) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {}}));
@@ -3484,7 +3485,7 @@ TEST(TransformationTests, MaskPropagationMatMulStopEmptyABranch) {
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -3537,7 +3538,7 @@ TEST(TransformationTests, PruneLinearUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -3594,7 +3595,7 @@ TEST(TransformationTests, PruneConvUpShort) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg").run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::Pruning>();
+    m.register_pass<ov::pass::Pruning>();
     m.run_passes(model);
 
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -3669,8 +3670,8 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3, 4, 5}}));
@@ -3705,7 +3706,7 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)), ref_last_mul_mask);
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3748,8 +3749,8 @@ TEST(TransformationTests, MaskPropagationStopLinearOuterDims) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {}}));
@@ -3770,7 +3771,7 @@ TEST(TransformationTests, MaskPropagationStopLinearOuterDims) {
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -3839,8 +3840,8 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {}, {}, {}}));
@@ -3854,7 +3855,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{0, 1, 2}, {}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3928,8 +3929,8 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{0, 1, 2}, {}, {}, {}}));
@@ -3943,7 +3944,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     compare_masks(*getMask(weights_last_linear.get_node_shared_ptr()->output(0)), Mask{{}, {0, 1, 2}});
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4023,8 +4024,8 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2}, {}, {}, {}}));
@@ -4046,7 +4047,7 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     compare_masks(*getMask(weights_linear.get_node_shared_ptr()->output(0)), Mask(linear_ref_mask));
     compare_masks(*getMask(linear->output(0)), Mask{{}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4097,8 +4098,8 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenDown.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     auto weights_mask = getMask(weights.get_node_shared_ptr()->output(0));
@@ -4117,7 +4118,7 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     compare_masks(*getMask(linear_const.get_node_shared_ptr()->output(0)), linear_mask);
     compare_masks(*getMask(linear->output(0)), {{}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4155,8 +4156,8 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTranspose.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{1, 2, 3}, {}}));
@@ -4165,7 +4166,7 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     compare_masks(*getMask(relu->output(0)), Mask({{}, {1, 2, 3}}));
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4228,8 +4229,8 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(weights.get_node_shared_ptr()->output(0)), Mask({{}, {1, 2, 3}, {}, {}, {}}));
@@ -4238,7 +4239,7 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
     compare_masks(*getMask(last_mul_weights), Mask{{1, 2, 3}, {}});
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4267,8 +4268,8 @@ TEST(TransformationTests, PropagateMasksTransposeStop) {
         pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeStop.svg").run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     check_mask_is_not_exist(getMask(weights.get_node_shared_ptr()->output(0)));
@@ -4278,7 +4279,7 @@ TEST(TransformationTests, PropagateMasksTransposeStop) {
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}});
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -4393,8 +4394,8 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3, 4, 5}}));
@@ -4437,7 +4438,7 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)), ref_last_mul_mask);
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4570,8 +4571,8 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
     compare_masks(*getMask(right_weights.get_node_shared_ptr()->output(0)), Mask({{}, {2, 3, 4, 5}}));
@@ -4617,7 +4618,7 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     compare_masks(*getMask(last_mul_const.get_node_shared_ptr()->output(0)), ref_last_mul_mask);
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4732,8 +4733,8 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -4801,7 +4802,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
             }
         };
 
-        manager.register_pass<ngraph::pass::ShrinkWeights>();
+        manager.register_pass<ov::pass::ShrinkWeights>();
         manager.register_pass<pass::VisualizeTree>(
             std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
             modifier);
@@ -4924,8 +4925,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -4992,7 +4993,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
         }
     };
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     auto postfix = (add_shape_of) ? "True" : "False";
     manager.register_pass<pass::VisualizeTree>(
         std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
@@ -5049,8 +5050,8 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5061,7 +5062,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     compare_masks(*getMask(mult->output(0)), Mask{{1, 2, 3}, {}});
     compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5096,8 +5097,8 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5114,7 +5115,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -5146,8 +5147,8 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
     }
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5161,7 +5162,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
     }
 }
@@ -5209,8 +5210,8 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
             .run_on_model(model);
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5221,7 +5222,7 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
     compare_masks(*getMask(right_matmul_weights), Mask{{1, 2}, {}});
     compare_masks(*getMask(right_matmul), Mask{{}, {}});
 
-    manager.register_pass<ngraph::pass::ShrinkWeights>();
+    manager.register_pass<ov::pass::ShrinkWeights>();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5240,7 +5241,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
             .run_on_model(model);
 
     pass::Manager m;
-    m.register_pass<ngraph::pass::ShrinkWeights>();
+    m.register_pass<ov::pass::ShrinkWeights>();
     m.run_passes(model);
 }
 
@@ -5324,7 +5325,7 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -5406,7 +5407,7 @@ TEST_F(TransformationTestsF, PruningWithVariadicSplitOnFirstAxis) {
         model_ref = std::make_shared<ov::Model>(OutputVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -5450,8 +5451,8 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnSecondAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5469,7 +5470,7 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnSecondAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         // create reference function
@@ -5553,8 +5554,8 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnFirstAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5572,7 +5573,7 @@ TEST(TransformationTests, VariadicSplitMaskPropagationSplitOnFirstAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         // create reference function
@@ -5640,8 +5641,8 @@ TEST(TransformationTests, VariadicSplitMaskPropagationInvalidateMaskOnFirstAndTh
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5655,7 +5656,7 @@ TEST(TransformationTests, VariadicSplitMaskPropagationInvalidateMaskOnFirstAndTh
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         // create reference function
@@ -5762,7 +5763,7 @@ TEST_F(TransformationTestsF, PruningWithSplitOnSecondAxis) {
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -5838,7 +5839,7 @@ TEST_F(TransformationTestsF, PruningWithSplitOnFirstAxis) {
         model_ref = std::make_shared<ov::Model>(NodeVector{conv2, conv3, conv4}, ParameterVector{input});
     }
 
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -5879,8 +5880,8 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnSecondAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5898,7 +5899,7 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnSecondAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         auto input = std::make_shared<opset10::Parameter>(element::f32, PartialShape{1, 3, 8, 8});
@@ -5977,8 +5978,8 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnFirstAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -5996,7 +5997,7 @@ TEST(TransformationTests, SplitMaskPropagationSplitOnFirstAxis) {
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         auto input = std::make_shared<opset10::Parameter>(element::f32, PartialShape{6, 3, 8, 8});
@@ -6059,8 +6060,8 @@ TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutpu
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::InitMasks>();
-        m.register_pass<ngraph::pass::PropagateMasks>();
+        m.register_pass<ov::pass::InitMasks>();
+        m.register_pass<ov::pass::PropagateMasks>();
         m.run_passes(model);
     }
 
@@ -6074,7 +6075,7 @@ TEST(TransformationTests, SplitMaskPropagationInvalidateMaskOnFirstAndThirdOutpu
 
     {
         pass::Manager m;
-        m.register_pass<ngraph::pass::ShrinkWeights>();
+        m.register_pass<ov::pass::ShrinkWeights>();
         m.run_passes(model);
 
         // create reference function
@@ -6139,7 +6140,7 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOne) {
 
         model_ref = std::make_shared<ov::Model>(OutputVector{matmul3}, ParameterVector{input});
     }
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -6196,7 +6197,7 @@ TEST_F(TransformationTestsF, PruningReshapeNegativeOneNonConstantShape) {
 
         model_ref = std::make_shared<ov::Model>(OutputVector{matmul3}, ParameterVector{input});
     }
-    manager.register_pass<ngraph::pass::Pruning>();
+    manager.register_pass<ov::pass::Pruning>();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

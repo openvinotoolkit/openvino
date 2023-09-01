@@ -18,7 +18,7 @@ class ConvertMulOrAddFinally;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMulOrAddFinally : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMulOrAddFinally : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertMulOrAddFinally", "0");
     ConvertMulOrAddFinally();
