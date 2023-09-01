@@ -53,6 +53,10 @@ void get_cur_stream_info(const int stream_id,
 
 #if defined(__APPLE__)
     cpu_reserve = false;
+#elif defined(_WIN32)
+    if (proc_type_table.size() > 1) {
+        cpu_reserve = false;
+    }
 #endif
     if (cpu_reserve) {
         stream_type = STREAM_WITH_OBSERVE;
