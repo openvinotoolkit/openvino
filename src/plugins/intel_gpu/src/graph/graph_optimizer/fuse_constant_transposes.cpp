@@ -56,7 +56,12 @@ void fuse_constant_transposes::run(program& p) {
         auto& prev_const = permute_node.get_dependency(0).as<data>();
         const auto& permute_order = permute_node.get_primitive()->permute_order;
 
-        format new_fmt = convert_weights_format_by_order(prev_const.get_output_layout().format, permute_order);
+        format new_fmt = format::any;
+        try {
+            new_fmt = convert_weights_format_by_order(prev_const.get_output_layout().format, permute_order);
+        } catch(ov::Exception&) {
+            continue;
+        }
 
         layout updated_const_layout = prev_const.get_output_layout();
         updated_const_layout.format = new_fmt;
