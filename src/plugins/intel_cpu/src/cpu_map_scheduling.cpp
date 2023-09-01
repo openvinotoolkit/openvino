@@ -81,6 +81,7 @@ bool get_cpu_pinning(bool& input_value,
     if (input_changed) {
         result_value = input_value;
     } else {
+        result_value = true;
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
             proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
             result_value = latency ? false : true;
