@@ -472,18 +472,18 @@ bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noex
 IShapeInferSnippets::Result Subgraph::shape_infer(const std::vector<VectorDimsRef>& input_shapes) {
     if (!m_shape_infer && !m_linear_ir) {
         OPENVINO_ASSERT(body_ptr(), "Can't create shape infer for Subgraph with an empty body");
-        m_shape_infer = std::make_shared<ngraphShapeInferSnippets>(body_ptr());
-    } else if (!std::dynamic_pointer_cast<LIRShapeInferSnippets>(m_shape_infer) && m_linear_ir) {
-        m_shape_infer = std::make_shared<LIRShapeInferSnippets>(m_linear_ir);
+        m_shape_infer = std::make_shared<NgraphShapeInfer>(body_ptr());
+    } else if (!std::dynamic_pointer_cast<LIRShapeInfer>(m_shape_infer) && m_linear_ir) {
+        m_shape_infer = std::make_shared<LIRShapeInfer>(m_linear_ir);
     }
     return m_shape_infer->infer(input_shapes);
 }
 
-Subgraph::ngraphShapeInferSnippets::ngraphShapeInferSnippets(const std::shared_ptr<ov::Model>& body) :
+Subgraph::NgraphShapeInfer::NgraphShapeInfer(const std::shared_ptr<ov::Model>& body) :
     m_ngraph_body(body), m_parameters(body->get_parameters()), m_results(body->get_results()) {
 }
 
-IShapeInferSnippets::Result Subgraph::ngraphShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
+IShapeInferSnippets::Result Subgraph::NgraphShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_parameters.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < m_parameters.size(); ++i)
         m_parameters[i]->set_partial_shape(utils::vector_dims_to_partial_shape(input_shapes[i].get()));
@@ -495,7 +495,7 @@ IShapeInferSnippets::Result Subgraph::ngraphShapeInferSnippets::infer(const std:
     return m_last_result;
 }
 
-Subgraph::LIRShapeInferSnippets::LIRShapeInferSnippets(const std::shared_ptr<lowered::LinearIR>& body) :
+Subgraph::LIRShapeInfer::LIRShapeInfer(const std::shared_ptr<lowered::LinearIR>& body) :
         m_lir_body(body) {
     for (const auto& io_expr : m_lir_body->get_IO_ops()) {
         switch (io_expr->get_type()) {
@@ -507,7 +507,7 @@ Subgraph::LIRShapeInferSnippets::LIRShapeInferSnippets(const std::shared_ptr<low
 }
 
 IShapeInferSnippets::Result
-Subgraph::LIRShapeInferSnippets::infer(const std::vector<VectorDimsRef>& input_shapes) {
+Subgraph::LIRShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(m_param_exprs.size() == input_shapes.size(), "Got invalid number of input shapes in LIR ShapeInfer");
     // todo: check that order of param_exprs is always the same as that of input_shapes
     //  if not use io_expr index to sort in constructor

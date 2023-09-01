@@ -42,6 +42,8 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::Buffer, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
+        // Note: We should remove Softmax shape infers after the decomposition activity,
+        //       since there won't be any Softmax ops on LIR. Ticket: 112847
         SHAPE_INFER_PREDEFINED(ov::op::v1::Softmax, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v8::Softmax, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),

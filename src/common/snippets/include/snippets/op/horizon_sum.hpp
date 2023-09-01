@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/op/op.hpp"
-#include "snippets/op/horizon_max.hpp"
 
 namespace ov {
 namespace snippets {

@@ -52,9 +52,9 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
 }
 
 namespace lowered {
-std::vector<size_t> get_planar_shape(const std::vector<size_t>& shape, const std::vector<size_t>& layout);
-std::vector<size_t> get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc);
-std::vector<size_t> get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port);
+VectorDims get_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout);
+VectorDims get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc);
+VectorDims get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port);
 
 } // namespace lowered
 } // namespace utils

@@ -117,16 +117,16 @@ ov::PartialShape get_port_planar_shape(const Output<Node>& out) {
 
 namespace lowered {
 
-std::vector<size_t> get_planar_shape(const std::vector<size_t>& shape, const std::vector<size_t>& layout) {
-    std::vector<size_t> reordered_shape(shape.size());
+VectorDims get_planar_shape(const VectorDims& shape, const std::vector<size_t>& layout) {
+    VectorDims reordered_shape(shape.size());
     for (size_t i = 0; i < layout.size(); i++)
         reordered_shape[i] = shape[layout[i]];
     return reordered_shape;
 }
-std::vector<size_t> get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc) {
+VectorDims get_port_planar_shape(const snippets::lowered::PortDescriptor& port_desc) {
     return get_planar_shape(port_desc.get_shape(), port_desc.get_layout());
 }
-std::vector<size_t> get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port) {
+VectorDims get_port_planar_shape(const snippets::lowered::ExpressionPort& expr_port) {
     return get_port_planar_shape(*expr_port.get_descriptor_ptr());
 }
 

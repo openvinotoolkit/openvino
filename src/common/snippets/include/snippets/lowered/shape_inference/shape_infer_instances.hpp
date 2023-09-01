@@ -25,7 +25,7 @@ public:
 class PassThroughShapeInfer : public IShapeInferSnippets {
 public:
     inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
-        OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for entryFirstPassthrough");
+        OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for PassThroughShapeInfer");
         return {{input_shapes[0].get()}, ShapeInferStatus::success};
     }
 };
